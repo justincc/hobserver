@@ -1,7 +1,13 @@
 {% extends "base.html" %}
 {% block title %}event {{ event['id'] }} — jmem0 log browser{% endblock %}
 {% block content %}
-<p><a href="{{ url_for('index') }}">&larr; all events</a></p>
+<nav class="event-nav">
+  <a href="{{ url_for('index') }}">&larr; all events</a>
+  <span>
+    {% if prev_id %}<a href="{{ url_for('event', event_id=prev_id) }}">&larr; previous</a>{% else %}<span class="disabled">&larr; previous</span>{% endif %}
+    {% if next_id %}<a href="{{ url_for('event', event_id=next_id) }}">next &rarr;</a>{% else %}<span class="disabled">next &rarr;</span>{% endif %}
+  </span>
+</nav>
 
 <dl class="metadata">
   {% for name, value in metadata %}

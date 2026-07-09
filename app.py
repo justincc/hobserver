@@ -59,7 +59,19 @@ def create_app(db_path):
         if row is None:
             abort(404)
         metadata = [(col, row[col]) for col in METADATA_COLUMNS if col in row.keys()]
-        return render_template("event.html", event=row, metadata=metadata)
+        prev_row = get_db().execute(
+            "SELECT id FROM events WHERE id < ? ORDER BY id DESC LIMIT 1", (event_id,)
+        ).fetchone()
+        next_row = get_db().execute(
+            "SELECT id FROM events WHERE id > ? ORDER BY id LIMIT 1", (event_id,)
+        ).fetchone()
+        return render_template(
+            "event.html",
+            event=row,
+            metadata=metadata,
+            prev_id=prev_row["id"] if prev_row else None,
+            next_id=next_row["id"] if next_row else None,
+        )
 
     return app
 

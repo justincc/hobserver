@@ -70,5 +70,16 @@ def test_event_detail_shows_query_result_and_metadata(client):
     assert "982.5" in page
 
 
+def test_event_detail_prev_next_links(client):
+    # id 1 is the oldest: next goes to 2, no previous
+    page = client.get("/event/1").get_data(as_text=True)
+    assert '/event/2' in page
+    assert 'class="disabled">&larr; previous' in page
+    # id 2 is the newest: previous goes to 1, no next
+    page = client.get("/event/2").get_data(as_text=True)
+    assert '/event/1' in page
+    assert 'class="disabled">next' in page
+
+
 def test_event_detail_missing_id_returns_404(client):
     assert client.get("/event/999").status_code == 404
