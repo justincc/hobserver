@@ -9,7 +9,9 @@ produced by the hermes-agent mem0 logging wrapper.
 uv run python app.py [path/to/jmem0_logged.db]
 ```
 
-Then open http://127.0.0.1:5090.
+Then open http://127.0.0.1:5090. The server binds to `0.0.0.0`, so it is
+also reachable from other machines on the local network at
+`http://<host-ip>:5090`.
 
 The database path is resolved in this order:
 

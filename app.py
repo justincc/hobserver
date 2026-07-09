@@ -104,7 +104,7 @@ def main():
     db_path = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("JMEM0_DB", DEFAULT_DB)
     if not os.path.exists(db_path):
         sys.exit(f"Database not found: {db_path}")
-    create_app(db_path).run(debug=True, port=5090)
+    create_app(db_path).run(debug=False, host="0.0.0.0", port=5090)
 
 
 if __name__ == "__main__":
