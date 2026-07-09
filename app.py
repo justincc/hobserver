@@ -59,6 +59,16 @@ def create_app(db_path):
         if row is None:
             abort(404)
         metadata = [(col, row[col]) for col in METADATA_COLUMNS if col in row.keys()]
+        # mem0 uses the previous 10 messages as extra context for retrieval;
+        # reconstruct them from the earlier logged queries in the same session.
+        context_rows = get_db().execute(
+            "SELECT id, query FROM events WHERE session_id = ? AND id < ?"
+            " ORDER BY id DESC LIMIT 10",
+            (row["session_id"], event_id),
+        ).fetchall()
+        context_text = "\n\n".join(
+            f"[#{r['id']}]\n{r['query']}" for r in reversed(context_rows)
+        )
         prev_row = get_db().execute(
             "SELECT id FROM events WHERE id < ? ORDER BY id DESC LIMIT 1", (event_id,)
         ).fetchone()
@@ -69,6 +79,7 @@ def create_app(db_path):
             "event.html",
             event=row,
             metadata=metadata,
+            context_text=context_text,
             prev_id=prev_row["id"] if prev_row else None,
             next_id=next_row["id"] if next_row else None,
         )

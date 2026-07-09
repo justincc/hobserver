@@ -39,6 +39,11 @@ def client(tmp_path):
         " VALUES (2, '2026-07-09T11:00:00+00:00', 1783681200.0, 'prefetch',"
         " 'second query', 'second result')"
     )
+    db.execute(
+        "INSERT INTO events (id, ts_utc, ts_epoch, event_type, session_id,"
+        " query, result) VALUES (3, '2026-07-09T12:00:00+00:00', 1783684800.0,"
+        " 'prefetch', 'sessionabc', 'third query', 'third result')"
+    )
     db.commit()
     db.close()
     app = create_app(str(db_path))
@@ -75,10 +80,31 @@ def test_event_detail_prev_next_links(client):
     page = client.get("/event/1").get_data(as_text=True)
     assert '/event/2' in page
     assert 'class="disabled">&larr; previous' in page
-    # id 2 is the newest: previous goes to 1, no next
+    # id 2 is in the middle: links to both neighbours
     page = client.get("/event/2").get_data(as_text=True)
     assert '/event/1' in page
+    assert '/event/3' in page
+    # id 3 is the newest: previous goes to 2, no next
+    page = client.get("/event/3").get_data(as_text=True)
+    assert '/event/2' in page
     assert 'class="disabled">next' in page
+
+
+def test_event_detail_context_messages_from_same_session(client):
+    # event 3 shares sessionabc with event 1; event 2 (no session) is excluded
+    page = client.get("/event/3").get_data(as_text=True)
+    assert "Context Messages" in page
+    assert "[#1]" in page
+    assert "please commit the changes" in page
+    assert "second query" not in page
+    # context messages sit below the result
+    assert page.index("<h2>Result</h2>") < page.index("<h2>Context Messages</h2>")
+
+
+def test_event_detail_context_messages_none_for_first_in_session(client):
+    page = client.get("/event/1").get_data(as_text=True)
+    assert "Context Messages" in page
+    assert "(none)" in page
 
 
 def test_event_detail_missing_id_returns_404(client):

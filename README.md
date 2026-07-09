@@ -25,8 +25,11 @@ while hermes is writing to it.
 - `/` — all events, newest first, with a truncated query; click an id or
   query to open the event.
 - `/event/<id>` — one event: all fields except query/result shown as a
-  metadata block at the top, then the full query and the result rendered
-  as plaintext.
+  metadata block at the top, then the full query, the result, and the
+  context messages rendered as plaintext. The context messages are the up
+  to 10 preceding queries logged for the same session — an approximation
+  of the extra conversational context mem0 uses during retrieval — each
+  prefixed with its event id, oldest first.
 
 ## Tests
 
