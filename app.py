@@ -4,7 +4,7 @@ import os
 import sqlite3
 import sys
 
-from flask import Flask, abort, g, render_template
+from flask import Flask, abort, g, render_template, request
 
 DEFAULT_DB = os.path.expanduser(
     "~/jc/knowledge/data/processing/analysis/reasoning/artificial/agents/"
@@ -50,6 +50,18 @@ def create_app(db_path):
             " memory_count, elapsed_ms FROM events ORDER BY id DESC"
         ).fetchall()
         return render_template("index.html", events=events)
+
+    @app.route("/fragment/events")
+    def event_rows_fragment():
+        """Table rows for events newer than ?since=<id> — polled by the index."""
+        since = request.args.get("since", 0, type=int)
+        events = get_db().execute(
+            "SELECT id, ts_utc, event_type, session_id, platform, query,"
+            " memory_count, elapsed_ms FROM events WHERE id > ?"
+            " ORDER BY id DESC",
+            (since,),
+        ).fetchall()
+        return render_template("_event_rows.html", events=events)
 
     @app.route("/event/<int:event_id>")
     def event(event_id):

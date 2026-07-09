@@ -85,6 +85,25 @@ def test_event_detail_shows_query_result_and_metadata(client):
     assert "982.5" in page
 
 
+def test_fragment_returns_only_newer_events(client):
+    page = client.get("/fragment/events?since=3").get_data(as_text=True)
+    assert 'data-event-id="5"' in page
+    assert 'data-event-id="4"' in page
+    assert 'data-event-id="3"' not in page
+    # newest first, ready to prepend
+    assert page.index('data-event-id="5"') < page.index('data-event-id="4"')
+
+
+def test_fragment_empty_when_no_new_events(client):
+    assert client.get("/fragment/events?since=5").get_data(as_text=True).strip() == ""
+
+
+def test_index_polls_fragment_endpoint(client):
+    page = client.get("/").get_data(as_text=True)
+    assert "/fragment/events?since=" in page
+    assert "let lastId = 5" in page
+
+
 def test_event_detail_prev_next_links(client):
     # id 1 is the oldest: next goes to 2, no previous
     page = client.get("/event/1").get_data(as_text=True)

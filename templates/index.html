@@ -7,20 +7,31 @@
       <th>query</th><th>memories</th><th>ms</th>
     </tr>
   </thead>
-  <tbody>
-    {% for e in events %}
-    <tr>
-      <td><a href="{{ url_for('event', event_id=e['id']) }}">{{ e['id'] }}</a></td>
-      <td>{{ e['ts_utc'] }}</td>
-      <td>{{ e['event_type'] }}</td>
-      <td>{{ e['session_id'] }}</td>
-      <td>{{ e['platform'] }}</td>
-      <td><a href="{{ url_for('event', event_id=e['id']) }}">{{ (e['query'] or '') | truncate(90) }}</a></td>
-      <td class="num">{{ e['memory_count'] }}</td>
-      <td class="num">{{ '%.0f' | format(e['elapsed_ms']) if e['elapsed_ms'] is not none }}</td>
-    </tr>
-    {% endfor %}
+  <tbody id="events">
+    {% include "_event_rows.html" %}
   </tbody>
 </table>
-{% if not events %}<p>No events logged yet.</p>{% endif %}
+<p id="no-events" {% if events %}hidden{% endif %}>No events logged yet.</p>
+
+<script>
+  let lastId = {{ events[0]['id'] if events else 0 }};
+
+  async function pollNewEvents() {
+    try {
+      const resp = await fetch(`/fragment/events?since=${lastId}`);
+      if (!resp.ok) return;
+      const html = (await resp.text()).trim();
+      if (!html) return;
+      const tbody = document.getElementById("events");
+      tbody.insertAdjacentHTML("afterbegin", html);
+      const rows = tbody.querySelectorAll("tr[data-event-id]");
+      lastId = Math.max(...[...rows].map(r => Number(r.dataset.eventId)));
+      document.getElementById("no-events").hidden = true;
+    } catch (e) {
+      // server briefly unreachable — retry on the next tick
+    }
+  }
+
+  setInterval(pollNewEvents, 3000);
+</script>
 {% endblock %}

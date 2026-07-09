@@ -23,7 +23,11 @@ while hermes is writing to it.
 ## Pages
 
 - `/` — all events, newest first, with a truncated query; click an id or
-  query to open the event.
+  query to open the event. The page tails the log: it polls
+  `/fragment/events?since=<last id>` every 3 seconds and prepends any new
+  rows to the top of the table.
+- `/fragment/events?since=<id>` — rendered table rows for events newer
+  than `<id>`, newest first (used by the index poll).
 - `/event/<id>` — one event: all fields except query/result shown as a
   metadata block at the top, then the full query, the result, and the
   context messages rendered as plaintext. The context messages are the up
