@@ -1,0 +1,9 @@
+[project]
+name = "jmem0-logged-browser"
+version = "0.1.0"
+description = "Browser webapp for inspecting jmem0_logged.db mem0 event logs"
+requires-python = ">=3.10"
+dependencies = ["flask>=3.0"]
+
+[dependency-groups]
+dev = ["pytest>=8"]

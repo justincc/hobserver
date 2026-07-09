@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}jmem0 log browser{% endblock %}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 70rem; padding: 0 1rem; color: #1a1a2e; }
+    a { color: #2456c4; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    h1 { font-size: 1.4rem; }
+    h1 a { color: inherit; }
+    h2 { font-size: 1.1rem; margin-top: 2rem; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #ddd; vertical-align: top; }
+    th { border-bottom: 2px solid #999; }
+    td.num { text-align: right; white-space: nowrap; }
+    dl.metadata { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; font-size: 0.9rem; background: #f4f5f8; padding: 1rem; border-radius: 6px; }
+    dl.metadata dt { font-weight: 600; color: #555; }
+    dl.metadata dd { margin: 0; font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
+    pre.blob { white-space: pre-wrap; overflow-wrap: anywhere; background: #f4f5f8; padding: 1rem; border-radius: 6px; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <h1><a href="{{ url_for('index') }}">jmem0 log browser</a></h1>
+  {% block content %}{% endblock %}
+</body>
+</html>

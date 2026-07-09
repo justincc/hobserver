@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}event {{ event['id'] }} — jmem0 log browser{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('index') }}">&larr; all events</a></p>
+
+<dl class="metadata">
+  {% for name, value in metadata %}
+  <dt>{{ name }}</dt>
+  <dd>{{ value if value is not none else '—' }}</dd>
+  {% endfor %}
+</dl>
+
+<h2>Query</h2>
+<pre class="blob">{{ event['query'] or '(empty)' }}</pre>
+
+<h2>Result</h2>
+<pre class="blob">{{ event['result'] or '(empty)' }}</pre>
+{% endblock %}

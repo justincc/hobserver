@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<table>
+  <thead>
+    <tr>
+      <th>id</th><th>time (UTC)</th><th>type</th><th>session</th><th>platform</th>
+      <th>query</th><th>memories</th><th>ms</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for e in events %}
+    <tr>
+      <td><a href="{{ url_for('event', event_id=e['id']) }}">{{ e['id'] }}</a></td>
+      <td>{{ e['ts_utc'] }}</td>
+      <td>{{ e['event_type'] }}</td>
+      <td>{{ e['session_id'] }}</td>
+      <td>{{ e['platform'] }}</td>
+      <td><a href="{{ url_for('event', event_id=e['id']) }}">{{ (e['query'] or '') | truncate(90) }}</a></td>
+      <td class="num">{{ e['memory_count'] }}</td>
+      <td class="num">{{ '%.0f' | format(e['elapsed_ms']) if e['elapsed_ms'] is not none }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if not events %}<p>No events logged yet.</p>{% endif %}
+{% endblock %}
