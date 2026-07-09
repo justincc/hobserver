@@ -61,9 +61,10 @@ def create_app(db_path):
         metadata = [(col, row[col]) for col in METADATA_COLUMNS if col in row.keys()]
         # mem0 uses the previous 10 messages as extra context for retrieval;
         # reconstruct them from the earlier logged queries in the same session.
+        # Only prefetch rows are user messages — tool-call events are not.
         context_rows = get_db().execute(
             "SELECT id, query FROM events WHERE session_id = ? AND id < ?"
-            " ORDER BY id DESC LIMIT 10",
+            " AND event_type = 'prefetch' ORDER BY id DESC LIMIT 10",
             (row["session_id"], event_id),
         ).fetchall()
         context_text = "\n\n".join(

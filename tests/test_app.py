@@ -44,6 +44,16 @@ def client(tmp_path):
         " query, result) VALUES (3, '2026-07-09T12:00:00+00:00', 1783684800.0,"
         " 'prefetch', 'sessionabc', 'third query', 'third result')"
     )
+    db.execute(
+        "INSERT INTO events (id, ts_utc, ts_epoch, event_type, session_id,"
+        " query, result) VALUES (4, '2026-07-09T12:30:00+00:00', 1783686600.0,"
+        " 'mem0_search', 'sessionabc', 'tool search terms', '{}')"
+    )
+    db.execute(
+        "INSERT INTO events (id, ts_utc, ts_epoch, event_type, session_id,"
+        " query, result) VALUES (5, '2026-07-09T13:00:00+00:00', 1783688400.0,"
+        " 'prefetch', 'sessionabc', 'fifth query', 'fifth result')"
+    )
     db.commit()
     db.close()
     app = create_app(str(db_path))
@@ -84,9 +94,9 @@ def test_event_detail_prev_next_links(client):
     page = client.get("/event/2").get_data(as_text=True)
     assert '/event/1' in page
     assert '/event/3' in page
-    # id 3 is the newest: previous goes to 2, no next
-    page = client.get("/event/3").get_data(as_text=True)
-    assert '/event/2' in page
+    # id 5 is the newest: previous goes to 4, no next
+    page = client.get("/event/5").get_data(as_text=True)
+    assert '/event/4' in page
     assert 'class="disabled">next' in page
 
 
@@ -99,6 +109,15 @@ def test_event_detail_context_messages_from_same_session(client):
     assert "second query" not in page
     # context messages sit below the result
     assert page.index("<h2>Result</h2>") < page.index("<h2>Context Messages</h2>")
+
+
+def test_context_messages_exclude_tool_call_events(client):
+    # event 5's session context: prefetch events 1 and 3, not tool event 4
+    page = client.get("/event/5").get_data(as_text=True)
+    assert "[#1]" in page
+    assert "[#3]" in page
+    assert "[#4]" not in page
+    assert "tool search terms" not in page
 
 
 def test_event_detail_context_messages_none_for_first_in_session(client):

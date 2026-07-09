@@ -27,7 +27,8 @@ while hermes is writing to it.
 - `/event/<id>` — one event: all fields except query/result shown as a
   metadata block at the top, then the full query, the result, and the
   context messages rendered as plaintext. The context messages are the up
-  to 10 preceding queries logged for the same session — an approximation
+  to 10 preceding prefetch queries logged for the same session (tool-call
+  events are excluded — they are not user messages) — an approximation
   of the extra conversational context mem0 uses during retrieval — each
   prefixed with its event id, oldest first.
 
