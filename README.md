@@ -32,7 +32,9 @@ while hermes is writing to it.
   than `<id>`, newest first (used by the index poll).
 - `/event/<id>` — one event: all fields except query/result shown as a
   metadata block at the top, then the full query, the result, and the
-  context messages rendered as plaintext. The context messages are the up
+  context messages rendered as plaintext. Results that are JSON (e.g.
+  `mem0_search` output) are pretty-printed; others (e.g. prefetch
+  markdown) are shown as-is. The context messages are the up
   to 10 preceding prefetch queries logged for the same session (tool-call
   events are excluded — they are not user messages) — an approximation
   of the extra conversational context mem0 uses during retrieval — each

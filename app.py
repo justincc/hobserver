@@ -1,5 +1,6 @@
 """Browser webapp for inspecting jmem0_logged.db mem0 event logs."""
 
+import json
 import os
 import sqlite3
 import sys
@@ -25,6 +26,22 @@ METADATA_COLUMNS = (
     "elapsed_ms",
     "extra",
 )
+
+
+def prettify_result(text):
+    """Pretty-print a result blob if it is JSON (e.g. mem0_search output).
+
+    Non-JSON results such as prefetch markdown are returned unchanged.
+    """
+    if not text:
+        return text
+    try:
+        parsed = json.loads(text)
+    except ValueError:
+        return text
+    if not isinstance(parsed, (dict, list)):
+        return text
+    return json.dumps(parsed, indent=2, ensure_ascii=False)
 
 
 def create_app(db_path):
@@ -91,6 +108,7 @@ def create_app(db_path):
         return render_template(
             "event.html",
             event=row,
+            result_text=prettify_result(row["result"]),
             metadata=metadata,
             context_text=context_text,
             prev_id=prev_row["id"] if prev_row else None,

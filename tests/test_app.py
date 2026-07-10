@@ -47,7 +47,8 @@ def client(tmp_path):
     db.execute(
         "INSERT INTO events (id, ts_utc, ts_epoch, event_type, session_id,"
         " query, result) VALUES (4, '2026-07-09T12:30:00+00:00', 1783686600.0,"
-        " 'mem0_search', 'sessionabc', 'tool search terms', '{}')"
+        " 'mem0_search', 'sessionabc', 'tool search terms',"
+        " '{\"results\": [{\"memory\": \"a remembered fact\", \"score\": 0.53}]}')"
     )
     db.execute(
         "INSERT INTO events (id, ts_utc, ts_epoch, event_type, session_id,"
@@ -143,6 +144,19 @@ def test_event_detail_context_messages_none_for_first_in_session(client):
     page = client.get("/event/1").get_data(as_text=True)
     assert "Context Messages" in page
     assert "(none)" in page
+
+
+def test_json_result_is_pretty_printed(client):
+    # event 4's mem0_search result is a one-line JSON blob; the detail page
+    # shows it indented, one key per line
+    page = client.get("/event/4").get_data(as_text=True)
+    assert '{\n  &#34;results&#34;: [\n    {\n      &#34;memory&#34;: &#34;a remembered fact&#34;' in page
+    assert '&#34;score&#34;: 0.53' in page
+
+
+def test_non_json_result_is_left_unchanged(client):
+    page = client.get("/event/1").get_data(as_text=True)
+    assert "## Mem0 Memory\n- remembered thing one" in page
 
 
 def test_event_detail_missing_id_returns_404(client):
