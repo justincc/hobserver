@@ -64,10 +64,12 @@ uv run pytest
 
 - `app.py` — app shell: app factory `create_app(db_path, atof_path=None)`,
   plugin registration, tab list, root/legacy redirects, CLI entry
-- `plugins/` — one module per view; each exposes a Flask blueprint `bp`
-  (registered under `/<bp.name>/`) and a `TAB_LABEL`
+- `plugins/` — one module or package per view; each exposes a Flask
+  blueprint `bp` (registered under `/<bp.name>/`) and a `TAB_LABEL`. The
+  timing plugin is a package holding its ATOF reader:
+  `plugins/timing/atof_reader.py` (JSONL line → typed event, fail-soft)
 - `templates/` — `base.html` (shared chrome + tab bar) plus one
   subdirectory per plugin (`memory/`, `timing/`)
 - `tests/` — `conftest.py` (shared fixtures), `test_app.py` (shell),
-  `test_memory.py`, `test_timing.py`
+  `test_memory.py`, `test_timing.py`, `test_atof_reader.py`
 - `docs/adr/` — architecture decision records

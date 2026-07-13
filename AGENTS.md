@@ -15,9 +15,11 @@ ETL, blueprints-as-plugins).
   browser never owns or mutates data.
 - `app.py` is the shell: app factory (`create_app(db_path, atof_path=None)`)
   so tests can point it at temporary sources, plugin registration, tab list,
-  and legacy-URL redirects. Plugins live in `plugins/<name>.py`, each
-  exposing a blueprint `bp` (registered under `/<bp.name>/`) and a
-  `TAB_LABEL`; their templates live in `templates/<name>/`.
+  and legacy-URL redirects. Plugins live in `plugins/<name>` (module or
+  package), each exposing a blueprint `bp` (registered under `/<bp.name>/`)
+  and a `TAB_LABEL`; their templates live in `templates/<name>/`. The ATOF
+  parser is `plugins/timing/atof_reader.py`; its test fixtures include the
+  verbatim example lines from the ATOF v0.1 spec.
 - Workflow preference: start simple and build functionality up as needed.
 - Architecture decisions are recorded as ADRs in docs/adr/ (sequentially
   numbered markdown files).
