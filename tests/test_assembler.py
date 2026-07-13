@@ -115,6 +115,27 @@ def test_span_details_survive_assembly():
     assert llm.duration_us == 2_000_000
     assert tool.tool_call_id == "call-1"
     assert tool.end_data["duration_ms"] == 500
+    assert llm.finish_reason == "tool_calls"
+
+
+def test_string_end_data_yields_no_usage_or_finish_reason():
+    # the real nemo_relay exporter emits hermes tool results as raw JSON
+    # strings in the end event's data field — payload accessors must
+    # type-guard, not assume dicts (regression: 500 on the turn page)
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("T1", "tool", 1_100_000, 1_600_000, name="mem0_search",
+                     session="s1", turn="t1",
+                     end_data='{"results": [{"memory": "a fact"}]}'),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    assembly = assemble_lines(lines)
+    (span,) = assembly.sessions[0].turns[0].spans
+    assert span.usage is None
+    assert span.finish_reason is None
+    assert span.duration_us == 500_000
+    assert assembly.sessions[0].turns[0].tool_us == 500_000
 
 
 def test_session_activity_window_spans_all_events():

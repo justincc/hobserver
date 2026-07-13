@@ -47,7 +47,7 @@
         <div class="bar-track">
           <div class="bar {{ cls }}{{ ' open' if s.is_open }}"
                style="left: {{ '%.2f' | format(left_pct) }}%; width: {{ '%.2f' | format(width_pct) }}%;"
-               title="{{ s.name }} · {{ s.duration_us | us_dur }}{% if s.usage %} · in {{ s.usage.get('input_tokens', '?') }} / out {{ s.usage.get('output_tokens', '?') }} tokens{% endif %}{% if s.end_data and s.end_data.get('finish_reason') %} · {{ s.end_data['finish_reason'] }}{% endif %}"></div>
+               title="{{ s.name }} · {{ s.duration_us | us_dur }}{% if s.usage %} · in {{ s.usage.get('input_tokens', '?') }} / out {{ s.usage.get('output_tokens', '?') }} tokens{% endif %}{% if s.finish_reason %} · {{ s.finish_reason }}{% endif %}"></div>
         </div>
       </td>
     </tr>

@@ -86,6 +86,24 @@ def test_in_flight_turn_detail_scales_to_last_span(tmp_path):
     assert "anthropic" in page
 
 
+def test_turn_detail_renders_with_string_tool_result_data(tmp_path):
+    # regression: real tool end events carry data as a raw JSON string,
+    # which 500ed the turn page when the template assumed a dict
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("T1", "tool", 1_100_000, 1_600_000, name="mem0_search",
+                     session="s1", turn="t1",
+                     end_data='{"results": [{"memory": "a fact"}]}'),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    resp = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000")
+    assert resp.status_code == 200
+    page = resp.get_data(as_text=True)
+    assert "mem0_search" in page
+    assert "500 ms" in page
+
+
 def test_turn_detail_unknown_turn_404s(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     assert make_client(tmp_path, str(atof)).get("/timing/turn/s1/999").status_code == 404

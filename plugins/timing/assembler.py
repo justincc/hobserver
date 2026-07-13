@@ -69,10 +69,21 @@ class Span:
     def is_open(self) -> bool:
         return self.end_us is None
 
+    # data payloads are opaque per the ATOF spec and vary in practice —
+    # e.g. the nemo_relay plugin emits hermes tool results as raw JSON
+    # strings — so every field access must type-guard, never assume dict.
     @property
     def usage(self) -> Optional[dict]:
         if isinstance(self.end_data, dict) and isinstance(self.end_data.get("usage"), dict):
             return self.end_data["usage"]
+        return None
+
+    @property
+    def finish_reason(self) -> Optional[str]:
+        if isinstance(self.end_data, dict):
+            value = self.end_data.get("finish_reason")
+            if isinstance(value, str):
+                return value
         return None
 
 
