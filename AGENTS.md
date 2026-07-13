@@ -9,7 +9,9 @@ architecture decisions (ATOF as timing source, direct JSONL reading with no
 ETL, blueprints-as-plugins).
 
 - Run: `uv run python app.py [db_path]` (serves on port 5090; timing source
-  via the `ATOF_LOG` env var)
+  via the `ATOF_LOG` env var). Producer-side setup (nemo-relay install,
+  plugin enable, `HERMES_NEMO_RELAY_*` in `~/.hermes/.env`) is documented
+  in docs/setup-prompt-timing.md.
 - Test: `uv run pytest`
 - Every view is read-only over a log produced by another process; the
   browser never owns or mutates data.

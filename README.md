@@ -32,6 +32,9 @@ The memory database path is resolved in this order:
 The prompt-timing source is the `ATOF_LOG` environment variable, pointing
 at the events JSONL file written by the nemo_relay plugin's ATOF exporter.
 If unset, the Prompt timing tab says so rather than showing an empty page.
+End-to-end setup — enabling the exporter in hermes-agent (producing) and
+pointing this tool at its output (consuming) — is in
+[docs/setup-prompt-timing.md](docs/setup-prompt-timing.md).
 
 ## Pages
 
