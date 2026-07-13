@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}hermes agent log browser{% endblock %}</title>
+  <title>{% block title %}hermes observer{% endblock %}</title>
   <style>
     body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 70rem; padding: 0 1rem; color: #1a1a2e; }
     a { color: #2456c4; text-decoration: none; }
@@ -31,7 +31,7 @@
   </style>
 </head>
 <body>
-  <h1><a href="{{ url_for('root') }}">hermes agent log browser</a></h1>
+  <h1><a href="{{ url_for('root') }}">hermes observer</a></h1>
   <nav class="tabs">
     {% for tab in tabs %}
     <a href="{{ url_for(tab.endpoint) }}"{% if request.blueprint == tab.name %} class="active"{% endif %}>{{ tab.label }}</a>

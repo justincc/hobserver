@@ -1,7 +1,7 @@
-# jmem0-logged-browser
+# hermes-observer
 
-A small Flask webapp for browsing hermes-agent logs. Views are plugins,
-shown as horizontal tabs:
+A small Flask webapp for observing hermes-agent activity (formerly
+jmem0-logged-browser). Views are plugins, shown as horizontal tabs:
 
 - **Memory** — browses `jmem0_logged.db`, the SQLite event log produced by
   the hermes-agent mem0 logging wrapper.

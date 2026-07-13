@@ -1,7 +1,7 @@
 [project]
-name = "jmem0-logged-browser"
+name = "hermes-observer"
 version = "0.1.0"
-description = "Browser webapp for inspecting jmem0_logged.db mem0 event logs"
+description = "Web UI for observing hermes-agent: mem0 event logs and prompt timing"
 requires-python = ">=3.10"
 dependencies = ["flask>=3.0"]
 

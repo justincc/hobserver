@@ -1,8 +1,8 @@
 # AGENTS.md
 
 ## Project
-Flask webapp for browsing hermes-agent logs. Views are plugins rendered as
-horizontal tabs: memory (`jmem0_logged.db`, the mem0 event log) and prompt
+hermes-observer (formerly jmem0-logged-browser): Flask webapp for observing
+hermes-agent activity. Views are plugins rendered as horizontal tabs: memory (`jmem0_logged.db`, the mem0 event log) and prompt
 timing (NeMo Relay ATOF JSONL — stub until the reader lands). See README.md
 for pages, layout, and data-source path resolution; see docs/adr/ for the
 architecture decisions (ATOF as timing source, direct JSONL reading with no

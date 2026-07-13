@@ -1,4 +1,4 @@
-"""App shell for the hermes agent log browser.
+"""App shell for the hermes observer.
 
 Views live in plugins/ (Flask blueprints): memory browses jmem0_logged.db,
 timing shows prompt-timing waterfalls from the NeMo Relay ATOF stream. The
