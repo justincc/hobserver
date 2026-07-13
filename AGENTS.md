@@ -1,15 +1,26 @@
 # AGENTS.md
 
 ## Project
-Flask webapp for browsing `jmem0_logged.db` (hermes-agent mem0 event log).
-See README.md for pages, layout, and database path resolution.
+Flask webapp for browsing hermes-agent logs. Views are plugins rendered as
+horizontal tabs: memory (`jmem0_logged.db`, the mem0 event log) and prompt
+timing (NeMo Relay ATOF JSONL — stub until the reader lands). See README.md
+for pages, layout, and data-source path resolution; see docs/adr/ for the
+architecture decisions (ATOF as timing source, direct JSONL reading with no
+ETL, blueprints-as-plugins).
 
-- Run: `uv run python app.py [db_path]` (serves on port 5090)
+- Run: `uv run python app.py [db_path]` (serves on port 5090; timing source
+  via the `ATOF_LOG` env var)
 - Test: `uv run pytest`
-- The database is always opened read-only.
-- `app.py` uses an app factory (`create_app(db_path)`) so tests can point it
-  at a temporary database.
+- Every view is read-only over a log produced by another process; the
+  browser never owns or mutates data.
+- `app.py` is the shell: app factory (`create_app(db_path, atof_path=None)`)
+  so tests can point it at temporary sources, plugin registration, tab list,
+  and legacy-URL redirects. Plugins live in `plugins/<name>.py`, each
+  exposing a blueprint `bp` (registered under `/<bp.name>/`) and a
+  `TAB_LABEL`; their templates live in `templates/<name>/`.
 - Workflow preference: start simple and build functionality up as needed.
+- Architecture decisions are recorded as ADRs in docs/adr/ (sequentially
+  numbered markdown files).
 
 ## General Instructions
 - Documentation must be kept up to date with any relevant changes to the project. 

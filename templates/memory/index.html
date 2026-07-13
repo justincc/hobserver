@@ -8,17 +8,18 @@
     </tr>
   </thead>
   <tbody id="events">
-    {% include "_event_rows.html" %}
+    {% include "memory/_event_rows.html" %}
   </tbody>
 </table>
 <p id="no-events" {% if events %}hidden{% endif %}>No events logged yet.</p>
 
 <script>
   let lastId = {{ events[0]['id'] if events else 0 }};
+  const fragmentUrl = "{{ url_for('memory.event_rows_fragment') }}";
 
   async function pollNewEvents() {
     try {
-      const resp = await fetch(`/fragment/events?since=${lastId}`);
+      const resp = await fetch(`${fragmentUrl}?since=${lastId}`);
       if (!resp.ok) return;
       const html = (await resp.text()).trim();
       if (!html) return;

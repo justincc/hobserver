@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}jmem0 log browser{% endblock %}</title>
+  <title>{% block title %}hermes agent log browser{% endblock %}</title>
   <style>
     body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 70rem; padding: 0 1rem; color: #1a1a2e; }
     a { color: #2456c4; text-decoration: none; }
@@ -11,6 +11,10 @@
     h1 { font-size: 1.4rem; }
     h1 a { color: inherit; }
     h2 { font-size: 1.1rem; margin-top: 2rem; }
+    nav.tabs { display: flex; gap: 1.5rem; border-bottom: 1px solid #ddd; margin-bottom: 1.5rem; }
+    nav.tabs a { padding: 0.4rem 0.2rem; color: #555; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    nav.tabs a:hover { text-decoration: none; border-bottom-color: #99b3e8; }
+    nav.tabs a.active { color: #1a1a2e; font-weight: 600; border-bottom-color: #2456c4; }
     table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
     th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #ddd; vertical-align: top; }
     th { border-bottom: 2px solid #999; }
@@ -22,10 +26,17 @@
     nav.event-nav { display: flex; justify-content: space-between; margin-bottom: 1rem; }
     nav.event-nav > span { display: flex; gap: 1rem; }
     nav.event-nav .disabled { color: #aaa; }
+    p.notice { background: #f4f5f8; padding: 1rem; border-radius: 6px; }
+    p.notice.warn { background: #fdf0ef; border: 1px solid #e0b4b4; }
   </style>
 </head>
 <body>
-  <h1><a href="{{ url_for('index') }}">jmem0 log browser</a></h1>
+  <h1><a href="{{ url_for('root') }}">hermes agent log browser</a></h1>
+  <nav class="tabs">
+    {% for tab in tabs %}
+    <a href="{{ url_for(tab.endpoint) }}"{% if request.blueprint == tab.name %} class="active"{% endif %}>{{ tab.label }}</a>
+    {% endfor %}
+  </nav>
   {% block content %}{% endblock %}
 </body>
 </html>
