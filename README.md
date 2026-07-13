@@ -7,7 +7,8 @@ jmem0-logged-browser). Views are plugins, shown as horizontal tabs:
   the hermes-agent mem0 logging wrapper.
 - **Prompt timing** — per-turn latency waterfalls from the NeMo Relay ATOF
   JSONL stream exported by the hermes-agent `observability/nemo_relay`
-  plugin. Currently a stub; see `docs/adr/` for the design.
+  plugin: where each turn's time went (llm vs tool vs overhead), with a
+  span timeline per turn. See `docs/adr/` for the design.
 
 Every view is read-only over a log another process produces, so it is safe
 to point at live files while hermes is writing to them.
@@ -50,7 +51,14 @@ If unset, the Prompt timing tab says so rather than showing an empty page.
   events are excluded — they are not user messages) — an approximation
   of the extra conversational context mem0 uses during retrieval — each
   prefixed with its event id, oldest first.
-- `/timing/` — the prompt-timing view (stub until the ATOF reader lands).
+- `/timing/` — all turns, newest first: start time, session, total / llm /
+  tool / overhead durations (overhead is the residual), api-call and span
+  counts. In-flight turns are marked. Parse errors and assembly anomalies
+  are shown above the table, never dropped. Reload to pick up new events —
+  the tailer reads only what the exporter appended since the last request.
+- `/timing/turn/<session>/<start_us>` — one turn: summary stats, then the
+  span waterfall (llm blue, tool orange, other violet; open spans faded)
+  with offsets and durations as text, plus the turn's marks.
 - `/event/<id>` and `/fragment/events` — pre-plugin URLs, redirect to their
   `/memory/` equivalents.
 
@@ -66,7 +74,8 @@ uv run pytest
   plugin registration, tab list, root/legacy redirects, CLI entry
 - `plugins/` — one module or package per view; each exposes a Flask
   blueprint `bp` (registered under `/<bp.name>/`) and a `TAB_LABEL`. The
-  timing plugin is a package holding its ATOF reader:
+  timing plugin is a package holding the full ATOF reader (ADR 2):
+  `plugins/timing/tailer.py` (byte-offset incremental file read),
   `plugins/timing/atof_reader.py` (JSONL line → typed event, fail-soft) and
   `plugins/timing/assembler.py` (events → sessions → turns → waterfall,
   with overhead as the residual of turn duration minus llm and tool time)
@@ -74,5 +83,5 @@ uv run pytest
   subdirectory per plugin (`memory/`, `timing/`)
 - `tests/` — `conftest.py` (shared fixtures), `test_app.py` (shell),
   `test_memory.py`, `test_timing.py`, `test_atof_reader.py`,
-  `test_assembler.py`
+  `test_assembler.py`, `test_tailer.py`
 - `docs/adr/` — architecture decision records

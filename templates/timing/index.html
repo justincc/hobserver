@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}prompt timing — hermes observer{% endblock %}
 {% block content %}
-{% if not atof_path %}
+{% if state == "unconfigured" %}
 <p class="notice warn">
   No ATOF source configured. Set the <code>ATOF_LOG</code> environment
   variable to the events JSONL file written by the hermes-agent
@@ -9,7 +9,7 @@
   (its <code>HERMES_NEMO_RELAY_ATOF_OUTPUT_DIRECTORY</code> /
   <code>HERMES_NEMO_RELAY_ATOF_FILENAME</code> settings).
 </p>
-{% elif not atof_exists %}
+{% elif state == "missing" %}
 <p class="notice warn">
   ATOF log not found: <code>{{ atof_path }}</code>.
   Note the nemo_relay plugin fails open — a missing file usually means the
@@ -18,10 +18,46 @@
   process running hermes-agent.
 </p>
 {% else %}
-<p class="notice">
-  ATOF source: <code>{{ atof_path }}</code>.
-  The prompt-timing reader is not implemented yet (see
-  <code>docs/adr/0002</code>); per-turn waterfalls will appear here.
+{% include "timing/_problems.html" %}
+{% if not turns %}
+<p class="notice warn">
+  Reading <code>{{ atof_path }}</code> — no turns yet.
+  {% if last_us %}
+  Last event: {{ last_us | us_time }} UTC.
+  {% else %}
+  The file has produced no events. The nemo_relay plugin fails open — if
+  hermes is running turns but nothing appears here, check that the plugin
+  is enabled and the exporter is configured.
+  {% endif %}
 </p>
+{% else %}
+<p class="meta">Source <code>{{ atof_path }}</code> · last event {{ last_us | us_time }} UTC · reload for updates</p>
+<table>
+  <thead>
+    <tr>
+      <th>start (UTC)</th><th>session</th><th>turn</th><th>total</th>
+      <th>llm</th><th>tool</th><th>overhead</th><th>api calls</th><th>spans</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in turns %}
+    <tr>
+      <td><a href="{{ url_for('timing.turn', session_id=t.session_id, start_us=t.start_us) }}">{{ t.start_us | us_time }}</a></td>
+      <td>{{ t.session_id | truncate(24) }}</td>
+      <td>{{ t.turn_id or '—' }}</td>
+      <td class="num">
+        {% if t.end_us is none %}<span class="badge-inflight">in flight</span>
+        {% else %}{{ t.duration_us | us_dur }}{% endif %}
+      </td>
+      <td class="num">{{ t.llm_us | us_dur }}</td>
+      <td class="num">{{ t.tool_us | us_dur }}</td>
+      <td class="num">{{ t.overhead_us | us_dur }}</td>
+      <td class="num">{{ t.api_call_count }}</td>
+      <td class="num">{{ t.spans | length }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
 {% endif %}
 {% endblock %}

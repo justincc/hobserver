@@ -1,0 +1,20 @@
+{% if parse_errors %}
+<details class="problems" open>
+  <summary>{{ parse_errors | length }} unparseable line{{ 's' if parse_errors | length != 1 }} in the ATOF log</summary>
+  <ul>
+    {% for e in parse_errors %}
+    <li>line {{ e.line_no }}: {{ e.message }} — <code>{{ e.line_preview }}</code></li>
+    {% endfor %}
+  </ul>
+</details>
+{% endif %}
+{% if anomalies %}
+<details class="problems">
+  <summary>{{ anomalies | length }} assembly anomal{{ 'y' if anomalies | length == 1 else 'ies' }}</summary>
+  <ul>
+    {% for a in anomalies %}
+    <li>{% if a.line_no %}line {{ a.line_no }}: {% endif %}{{ a.message }}</li>
+    {% endfor %}
+  </ul>
+</details>
+{% endif %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}turn {{ turn.turn_id or turn.start_us }} — hermes observer{% endblock %}
+{% block content %}
+<nav class="event-nav">
+  <a href="{{ url_for('timing.index') }}">&larr; all turns</a>
+</nav>
+
+<h2>Turn {{ turn.turn_id or '(no id)' }} · session {{ turn.session_id }}</h2>
+<p class="meta">started {{ turn.start_us | us_time }} UTC{% if turn.end_us is none %} · <span class="badge-inflight">in flight</span>{% endif %}</p>
+
+{% include "timing/_problems.html" %}
+
+<div class="stats">
+  <div><span class="v">{{ turn.duration_us | us_dur }}</span><span class="l">total</span></div>
+  <div><span class="v">{{ turn.llm_us | us_dur }}</span><span class="l">llm</span></div>
+  <div><span class="v">{{ turn.tool_us | us_dur }}</span><span class="l">tool</span></div>
+  <div><span class="v">{{ turn.overhead_us | us_dur }}</span><span class="l">overhead</span></div>
+  <div><span class="v">{{ turn.api_call_count }}</span><span class="l">api calls</span></div>
+</div>
+
+<div class="legend">
+  <span><span class="chip cat-llm"></span>llm</span>
+  <span><span class="chip cat-tool"></span>tool</span>
+  <span><span class="chip cat-other"></span>other</span>
+</div>
+
+<table class="waterfall">
+  <thead>
+    <tr><th>offset</th><th>span</th><th>duration</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for s in turn.spans %}
+    {% set cls = 'cat-llm' if s.category == 'llm' else 'cat-tool' if s.category == 'tool' else 'cat-other' %}
+    {% set span_end = s.end_us if s.end_us is not none else turn.start_us + scale_us %}
+    {% set left_pct = (s.start_us - turn.start_us) / scale_us * 100 %}
+    {% set width_pct = (span_end - s.start_us) / scale_us * 100 %}
+    <tr>
+      <td class="num">{{ (s.start_us - turn.start_us) | us_dur }}</td>
+      <td>
+        <span class="chip {{ cls }}"></span>{{ s.name }}
+        {%- if s.model_name %} · {{ s.model_name }}{% endif %}
+        {%- if s.tool_call_id %} · {{ s.tool_call_id }}{% endif %}
+        {%- if s.is_open %} · <span class="badge-inflight">open</span>{% endif %}
+      </td>
+      <td class="num">{{ s.duration_us | us_dur }}</td>
+      <td class="bar-cell">
+        <div class="bar-track">
+          <div class="bar {{ cls }}{{ ' open' if s.is_open }}"
+               style="left: {{ '%.2f' | format(left_pct) }}%; width: {{ '%.2f' | format(width_pct) }}%;"
+               title="{{ s.name }} · {{ s.duration_us | us_dur }}{% if s.usage %} · in {{ s.usage.get('input_tokens', '?') }} / out {{ s.usage.get('output_tokens', '?') }} tokens{% endif %}{% if s.end_data and s.end_data.get('finish_reason') %} · {{ s.end_data['finish_reason'] }}{% endif %}"></div>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if not turn.spans %}
+<p class="notice warn">No spans landed in this turn — the turn marks arrived
+but no llm/tool scopes were assigned to it.</p>
+{% endif %}
+
+{% if turn.marks %}
+<h2>Marks</h2>
+<table>
+  <thead><tr><th>offset</th><th>mark</th></tr></thead>
+  <tbody>
+    {% for m in turn.marks %}
+    <tr>
+      <td class="num">{{ (m.timestamp_us - turn.start_us) | us_dur }}</td>
+      <td>{{ m.name }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

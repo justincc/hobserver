@@ -28,6 +28,24 @@
     nav.event-nav .disabled { color: #aaa; }
     p.notice { background: #f4f5f8; padding: 1rem; border-radius: 6px; }
     p.notice.warn { background: #fdf0ef; border: 1px solid #e0b4b4; }
+    p.meta { color: #555; font-size: 0.85rem; }
+    details.problems { background: #fdf0ef; border: 1px solid #e0b4b4; border-radius: 6px; padding: 0.6rem 1rem; margin-bottom: 1rem; font-size: 0.9rem; }
+    details.problems summary { cursor: pointer; font-weight: 600; }
+    /* prompt-timing waterfall. Series colors validated (dataviz six checks,
+       light surface): llm #2a78d6, tool #eb6834, other #4a3aa7. */
+    .stats { display: flex; gap: 2.5rem; margin: 1rem 0; flex-wrap: wrap; }
+    .stats .v { font-size: 1.3rem; font-weight: 600; display: block; }
+    .stats .l { font-size: 0.8rem; color: #555; }
+    .legend { display: flex; gap: 1.25rem; align-items: center; font-size: 0.85rem; color: #555; margin: 0.75rem 0; }
+    .chip { display: inline-block; width: 0.8rem; height: 0.8rem; border-radius: 3px; vertical-align: -0.1rem; margin-right: 0.35rem; }
+    .cat-llm { background: #2a78d6; }
+    .cat-tool { background: #eb6834; }
+    .cat-other { background: #4a3aa7; }
+    table.waterfall td.bar-cell { width: 45%; min-width: 14rem; }
+    .bar-track { position: relative; height: 14px; background: #f4f5f8; border-radius: 4px; }
+    .bar { position: absolute; top: 0; height: 14px; border-radius: 4px; min-width: 2px; }
+    .bar.open { opacity: 0.55; }
+    .badge-inflight { color: #8a5a00; font-size: 0.8rem; white-space: nowrap; }
   </style>
 </head>
 <body>
