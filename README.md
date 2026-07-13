@@ -67,9 +67,12 @@ uv run pytest
 - `plugins/` — one module or package per view; each exposes a Flask
   blueprint `bp` (registered under `/<bp.name>/`) and a `TAB_LABEL`. The
   timing plugin is a package holding its ATOF reader:
-  `plugins/timing/atof_reader.py` (JSONL line → typed event, fail-soft)
+  `plugins/timing/atof_reader.py` (JSONL line → typed event, fail-soft) and
+  `plugins/timing/assembler.py` (events → sessions → turns → waterfall,
+  with overhead as the residual of turn duration minus llm and tool time)
 - `templates/` — `base.html` (shared chrome + tab bar) plus one
   subdirectory per plugin (`memory/`, `timing/`)
 - `tests/` — `conftest.py` (shared fixtures), `test_app.py` (shell),
-  `test_memory.py`, `test_timing.py`, `test_atof_reader.py`
+  `test_memory.py`, `test_timing.py`, `test_atof_reader.py`,
+  `test_assembler.py`
 - `docs/adr/` — architecture decision records

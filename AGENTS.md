@@ -18,8 +18,11 @@ ETL, blueprints-as-plugins).
   and legacy-URL redirects. Plugins live in `plugins/<name>` (module or
   package), each exposing a blueprint `bp` (registered under `/<bp.name>/`)
   and a `TAB_LABEL`; their templates live in `templates/<name>/`. The ATOF
-  parser is `plugins/timing/atof_reader.py`; its test fixtures include the
-  verbatim example lines from the ATOF v0.1 spec.
+  parser is `plugins/timing/atof_reader.py` (fixtures include the verbatim
+  example lines from the ATOF v0.1 spec); the assembler is
+  `plugins/timing/assembler.py` (span pairing by uuid, turns bounded by
+  hermes.turn.start/end marks, span→turn assignment by turn_id with a
+  timestamp-containment fallback, session via metadata or parent_uuid).
 - Workflow preference: start simple and build functionality up as needed.
 - Architecture decisions are recorded as ADRs in docs/adr/ (sequentially
   numbered markdown files).
