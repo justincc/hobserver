@@ -39,7 +39,7 @@
   <thead>
     <tr>
       <th>start (UTC)</th><th>session</th><th>turn</th><th>total</th>
-      <th>llm</th><th>tool</th><th>overhead</th><th>api calls</th><th>spans</th>
+      <th>llm</th><th>tool</th><th>overhead</th><th>model calls</th><th>spans</th>
     </tr>
   </thead>
   <tbody>
@@ -55,7 +55,7 @@
       <td class="num">{{ t.llm_us | us_dur }}</td>
       <td class="num">{{ t.tool_us | us_dur }}</td>
       <td class="num">{{ t.overhead_us | us_dur }}</td>
-      <td class="num">{{ t.api_call_count }}</td>
+      <td class="num">{{ t.model_call_count }}</td>
       <td class="num">{{ t.spans | length }}</td>
     </tr>
     {% endfor %}

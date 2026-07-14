@@ -123,7 +123,7 @@ class Turn:
         return self.duration_us - self.llm_us - self.tool_us
 
     @property
-    def api_call_count(self) -> int:
+    def model_call_count(self) -> int:
         return sum(1 for s in self.spans if s.category == LLM_CATEGORY)
 
     @property

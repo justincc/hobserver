@@ -92,7 +92,7 @@ def test_waterfall_numbers_for_a_complete_turn():
     assert turn.llm_us == 4_000_000
     assert turn.tool_us == 500_000
     assert turn.overhead_us == 1_000_000       # the residual we set out to find
-    assert turn.api_call_count == 2
+    assert turn.model_call_count == 2
     assert [s.uuid for s in turn.spans] == ["L1", "T1", "L2"]
 
 

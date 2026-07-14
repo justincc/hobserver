@@ -55,7 +55,7 @@ pointing this tool at its output (consuming) — is in
   of the extra conversational context mem0 uses during retrieval — each
   prefixed with its event id, oldest first.
 - `/timing/` — all turns, newest first: start time, session, total / llm /
-  tool / overhead durations (overhead is the residual), api-call and span
+  tool / overhead durations (overhead is the residual), model-call and span
   counts. In-flight turns are marked. Parse errors and assembly anomalies
   are shown above the table, never dropped. The page updates itself every
   3 s (the tailer reads only what the exporter appended since the last
