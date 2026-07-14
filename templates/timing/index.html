@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}prompt timing — hermes observer{% endblock %}
 {% block content %}
+<div data-live-poll="3000">
 {% if state == "unconfigured" %}
 <p class="notice warn">
   No ATOF source configured. Set the <code>ATOF_LOG</code> environment
@@ -31,7 +32,7 @@
   {% endif %}
 </p>
 {% else %}
-<p class="meta">Source <code>{{ atof_path }}</code> · last event {{ last_us | us_time }} UTC · reload for updates</p>
+<p class="meta">Source <code>{{ atof_path }}</code> · last event {{ last_us | us_time }} UTC · updates automatically</p>
 <table>
   <thead>
     <tr>
@@ -60,4 +61,5 @@
 </table>
 {% endif %}
 {% endif %}
+</div>
 {% endblock %}

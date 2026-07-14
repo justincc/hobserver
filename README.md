@@ -57,11 +57,19 @@ pointing this tool at its output (consuming) — is in
 - `/timing/` — all turns, newest first: start time, session, total / llm /
   tool / overhead durations (overhead is the residual), api-call and span
   counts. In-flight turns are marked. Parse errors and assembly anomalies
-  are shown above the table, never dropped. Reload to pick up new events —
-  the tailer reads only what the exporter appended since the last request.
+  are shown above the table, never dropped. The page updates itself every
+  3 s (the tailer reads only what the exporter appended since the last
+  request), so new turns appear without a manual reload.
 - `/timing/turn/<session>/<start_us>` — one turn: summary stats, then the
   span waterfall (llm blue, tool orange, other violet; open spans faded)
-  with offsets and durations as text, plus the turn's marks.
+  with offsets and durations as text, plus the turn's marks. While the
+  turn is in flight the page updates itself every 2 s; once it ends the
+  page is static.
+
+Timing pages self-update via a small poll-and-swap script in
+`templates/base.html`: any element with `data-live-poll="<ms>"` is
+refetched from the current URL on that interval and swapped in place
+(`"0"` means static). Polling pauses while the tab is hidden.
 - `/event/<id>` and `/fragment/events` — pre-plugin URLs, redirect to their
   `/memory/` equivalents.
 

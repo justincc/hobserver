@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}turn {{ turn.turn_id or turn.start_us }} — hermes observer{% endblock %}
 {% block content %}
+<div data-live-poll="{{ 2000 if turn.end_us is none else 0 }}">
 <nav class="event-nav">
   <a href="{{ url_for('timing.index') }}">&larr; all turns</a>
 </nav>
@@ -73,4 +74,5 @@ but no llm/tool scopes were assigned to it.</p>
   </tbody>
 </table>
 {% endif %}
+</div>
 {% endblock %}

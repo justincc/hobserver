@@ -127,6 +127,29 @@ def test_anomalies_are_shown(tmp_path):
     assert "turn end without turn start" in page
 
 
+def test_index_is_a_live_region(tmp_path):
+    # the index always polls, so new turns appear without a manual reload
+    atof = write_atof(tmp_path, two_turn_stream())
+    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    assert 'data-live-poll="3000"' in page
+
+
+def test_no_source_states_are_live_too(tmp_path):
+    # a missing file page must come alive once the exporter starts writing
+    missing = tmp_path / "missing.jsonl"
+    page = make_client(tmp_path, str(missing)).get("/timing/").get_data(as_text=True)
+    assert 'data-live-poll="3000"' in page
+
+
+def test_turn_detail_polls_only_while_in_flight(tmp_path):
+    atof = write_atof(tmp_path, two_turn_stream())
+    client = make_client(tmp_path, str(atof))
+    in_flight = client.get("/timing/turn/s1/10000000").get_data(as_text=True)
+    assert 'data-live-poll="2000"' in in_flight
+    finished = client.get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert 'data-live-poll="0"' in finished
+
+
 def test_index_picks_up_appended_turns_between_requests(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     client = make_client(tmp_path, str(atof))

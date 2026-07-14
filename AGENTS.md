@@ -26,7 +26,10 @@ ETL, blueprints-as-plugins).
   from the ATOF v0.1 spec) and `assembler.py` (span pairing by uuid, turns
   bounded by hermes.turn.start/end marks, span→turn assignment by turn_id
   with a timestamp-containment fallback, session via metadata or
-  parent_uuid). Waterfall series colors were validated with the dataviz
+  parent_uuid). Pages self-update via the poll-and-swap script in
+  `templates/base.html`: wrap content in `data-live-poll="<ms>"` ("0" =
+  static; timing index 3 s, in-flight turn 2 s) — no SSE/WebSockets,
+  reuses the per-request tailer. Waterfall series colors were validated with the dataviz
   six-checks palette validator against the light surface: llm `#2a78d6`,
   tool `#eb6834`, other `#4a3aa7`; span identity is always also in text,
   never color alone.

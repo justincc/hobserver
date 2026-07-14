@@ -56,5 +56,37 @@
     {% endfor %}
   </nav>
   {% block content %}{% endblock %}
+  <script>
+    // Live regions: an element with data-live-poll="<ms>" is refetched from
+    // the current URL on that interval and swapped in place; a value of "0"
+    // (e.g. a finished turn) means static — render but never poll. Polling
+    // pauses while the tab is hidden and stops once a swapped-in region
+    // says "0".
+    (function () {
+      let region = document.querySelector("[data-live-poll]");
+      if (!region) return;
+      const interval = parseInt(region.dataset.livePoll, 10);
+      if (!interval) return;
+      let busy = false;
+      const timer = setInterval(async () => {
+        if (busy || document.hidden) return;
+        busy = true;
+        try {
+          const resp = await fetch(window.location.href);
+          if (!resp.ok) return;
+          const doc = new DOMParser().parseFromString(await resp.text(), "text/html");
+          const fresh = doc.querySelector("[data-live-poll]");
+          if (!fresh) return;
+          region.replaceWith(fresh);
+          region = fresh;
+          if (!parseInt(fresh.dataset.livePoll, 10)) clearInterval(timer);
+        } catch (err) {
+          // transient fetch failure — try again next tick
+        } finally {
+          busy = false;
+        }
+      }, interval);
+    })();
+  </script>
 </body>
 </html>
