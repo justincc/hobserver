@@ -120,6 +120,15 @@
           const doc = new DOMParser().parseFromString(await resp.text(), "text/html");
           const fresh = doc.querySelector("[data-live-poll]");
           if (!fresh) return;
+          // A swapped-in <details> arrives closed; reopen the ones the user
+          // had open (matched by class — prompt, problems — else position).
+          const open = new Set();
+          region.querySelectorAll("details").forEach((d, i) => {
+            if (d.open) open.add(d.className || String(i));
+          });
+          fresh.querySelectorAll("details").forEach((d, i) => {
+            if (open.has(d.className || String(i))) d.open = true;
+          });
           region.replaceWith(fresh);
           region = fresh;
           followNewTurn();
