@@ -70,6 +70,17 @@ Timing pages self-update via a small poll-and-swap script in
 `templates/base.html`: any element with `data-live-poll="<ms>"` is
 refetched from the current URL on that interval and swapped in place
 (`"0"` means static). Polling pauses while the tab is hidden.
+
+Both timing pages show an in-flight strip listing every currently running
+turn (newest first, with elapsed time and span count) linking to its
+waterfall; the turn being viewed is marked. An in-flight turn silent for
+over 10 minutes is flagged stale — probably a lost end mark, not a running
+prompt. A "follow new turns" toggle (persisted in localStorage) auto-opens
+a turn's waterfall when a new turn starts, with two guards: it never
+navigates away while you are watching a turn that is still in flight
+(concurrent turns just appear in the strip for manual switching), and it
+never follows a stale entry. With follow on, a finished turn's page keeps
+polling slowly so the next turn start is noticed.
 - `/event/<id>` and `/fragment/events` — pre-plugin URLs, redirect to their
   `/memory/` equivalents.
 

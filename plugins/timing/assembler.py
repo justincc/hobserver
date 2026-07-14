@@ -126,6 +126,18 @@ class Turn:
     def api_call_count(self) -> int:
         return sum(1 for s in self.spans if s.category == LLM_CATEGORY)
 
+    @property
+    def last_activity_us(self) -> int:
+        """Timestamp of the last event seen in this turn — distinguishes a
+        genuinely running turn from one whose end mark never arrived."""
+        edges = [self.start_us]
+        if self.end_us is not None:
+            edges.append(self.end_us)
+        edges.extend(s.start_us for s in self.spans)
+        edges.extend(s.end_us for s in self.spans if s.end_us is not None)
+        edges.extend(m.timestamp_us for m in self.marks)
+        return max(edges)
+
 
 @dataclass
 class Session:

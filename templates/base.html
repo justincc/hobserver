@@ -46,6 +46,11 @@
     .bar { position: absolute; top: 0; height: 14px; border-radius: 4px; min-width: 2px; }
     .bar.open { opacity: 0.55; }
     .badge-inflight { color: #8a5a00; font-size: 0.8rem; white-space: nowrap; }
+    .inflight-strip { display: flex; gap: 1rem 1.5rem; flex-wrap: wrap; align-items: baseline; background: #fff8e6; border: 1px solid #e6d49a; border-radius: 6px; padding: 0.5rem 0.8rem; font-size: 0.85rem; margin-bottom: 1rem; }
+    .inflight-strip .strip-label { color: #8a5a00; font-weight: 600; }
+    .inflight-entry.current { font-weight: 600; }
+    .inflight-entry[data-stale] { color: #777; }
+    .follow-toggle { display: flex; justify-content: flex-end; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: #555; margin-bottom: 0.5rem; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -60,16 +65,50 @@
     // Live regions: an element with data-live-poll="<ms>" is refetched from
     // the current URL on that interval and swapped in place; a value of "0"
     // (e.g. a finished turn) means static — render but never poll. Polling
-    // pauses while the tab is hidden and stops once a swapped-in region
-    // says "0".
+    // pauses while the tab is hidden.
+    //
+    // Follow mode ([data-follow-toggle], persisted in localStorage) auto-opens
+    // a turn's page when an in-flight turn appears whose start_us is newer
+    // than anything this page-view has already seen — but never while this
+    // page is itself showing an in-flight turn ([data-inflight-current]
+    // present), and never to a stale entry ([data-stale]). Follow keeps an
+    // otherwise-static page polling slowly so the next turn start is noticed.
     (function () {
+      const FOLLOW_KEY = "hermes-observer.follow";
       let region = document.querySelector("[data-live-poll]");
+      const toggle = document.querySelector("[data-follow-toggle]");
+      const followOn = () => localStorage.getItem(FOLLOW_KEY) === "1";
+      if (toggle) {
+        toggle.checked = followOn();
+        toggle.addEventListener("change", () => {
+          localStorage.setItem(FOLLOW_KEY, toggle.checked ? "1" : "0");
+        });
+      }
       if (!region) return;
-      const interval = parseInt(region.dataset.livePoll, 10);
-      if (!interval) return;
+
+      const entries = () => Array.from(region.querySelectorAll("[data-inflight-start-us]"));
+      const startOf = (el) => parseInt(el.dataset.inflightStartUs, 10);
+      let seenStartMax = Math.max(
+        parseInt(region.dataset.turnStartUs || "0", 10), 0, ...entries().map(startOf));
+
+      function followNewTurn() {
+        const fresh = entries()
+          .filter((el) => startOf(el) > seenStartMax)
+          .sort((a, b) => startOf(b) - startOf(a));
+        // Turns first seen now count as seen even when no navigation happens
+        // (follow off, or mid-watch): only genuinely new starts pull forward.
+        seenStartMax = Math.max(seenStartMax, ...entries().map(startOf));
+        if (!toggle || !followOn()) return;
+        if (region.querySelector("[data-inflight-current]")) return;
+        const target = fresh.find((el) => !el.dataset.stale);
+        if (target) window.location.assign(target.getAttribute("href"));
+      }
+
+      const pollMs = () =>
+        parseInt(region.dataset.livePoll, 10) || (toggle && followOn() ? 3000 : 0);
+
       let busy = false;
-      const timer = setInterval(async () => {
-        if (busy || document.hidden) return;
+      async function poll() {
         busy = true;
         try {
           const resp = await fetch(window.location.href);
@@ -79,13 +118,19 @@
           if (!fresh) return;
           region.replaceWith(fresh);
           region = fresh;
-          if (!parseInt(fresh.dataset.livePoll, 10)) clearInterval(timer);
+          followNewTurn();
         } catch (err) {
           // transient fetch failure — try again next tick
         } finally {
           busy = false;
         }
-      }, interval);
+      }
+      (function loop() {
+        setTimeout(async () => {
+          if (pollMs() && !busy && !document.hidden) await poll();
+          loop();
+        }, pollMs() || 1000);
+      })();
     })();
   </script>
 </body>

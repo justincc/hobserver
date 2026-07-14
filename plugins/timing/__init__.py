@@ -10,6 +10,7 @@ and parse errors / assembly anomalies are always shown, never dropped.
 """
 
 import os
+import time
 from datetime import datetime, timezone
 
 from flask import Blueprint, abort, current_app, render_template
@@ -19,6 +20,10 @@ from plugins.timing.tailer import AtofTailer
 
 bp = Blueprint("timing", __name__)
 TAB_LABEL = "Prompt timing"
+
+# An in-flight turn silent this long is probably a lost end mark, not a
+# running prompt: still listed in the strip, but never auto-followed.
+STALE_AFTER_US = 10 * 60 * 1_000_000
 
 
 def get_tailer() -> AtofTailer:
@@ -69,6 +74,21 @@ def _assembly():
     return assemble(tailer.events), tailer.errors
 
 
+def _inflight_entries(assembly):
+    """All in-flight turns, newest first, dressed for the status strip."""
+    now_us = int(time.time() * 1_000_000)
+    turns = sorted(
+        (t for s in assembly.sessions for t in s.turns if t.end_us is None),
+        key=lambda t: t.start_us,
+        reverse=True,
+    )
+    return [{
+        "turn": t,
+        "elapsed_us": now_us - t.start_us,
+        "stale": now_us - t.last_activity_us > STALE_AFTER_US,
+    } for t in turns]
+
+
 @bp.route("/")
 def index():
     problem = _source_problem()
@@ -88,6 +108,7 @@ def index():
         atof_path=current_app.config["ATOF_PATH"],
         turns=turns,
         last_us=last_us,
+        inflight=_inflight_entries(assembly),
         anomalies=assembly.anomalies,
         parse_errors=parse_errors,
     )
@@ -114,7 +135,9 @@ def turn(session_id, start_us):
     return render_template(
         "timing/turn.html",
         turn=found,
+        current=found,
         scale_us=scale_us,
+        inflight=_inflight_entries(assembly),
         parse_errors=parse_errors,
         anomalies=assembly.anomalies,
     )

@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% block title %}turn {{ turn.turn_id or turn.start_us }} — hermes observer{% endblock %}
 {% block content %}
-<div data-live-poll="{{ 2000 if turn.end_us is none else 0 }}">
+{% include "timing/_follow.html" %}
+<div data-live-poll="{{ 2000 if turn.end_us is none else 0 }}"
+     data-turn-start-us="{{ turn.start_us }}">
 <nav class="event-nav">
   <a href="{{ url_for('timing.index') }}">&larr; all turns</a>
 </nav>
@@ -10,6 +12,7 @@
 <p class="meta">started {{ turn.start_us | us_time }} UTC{% if turn.end_us is none %} · <span class="badge-inflight">in flight</span>{% endif %}</p>
 
 {% include "timing/_problems.html" %}
+{% include "timing/_inflight.html" %}
 
 <div class="stats">
   <div><span class="v">{{ turn.duration_us | us_dur }}</span><span class="l">total</span></div>

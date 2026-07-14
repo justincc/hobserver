@@ -287,3 +287,10 @@ def test_out_of_order_lines_assemble_identically():
     assert turn.duration_us == 5_500_000
     assert turn.overhead_us == 1_000_000
     assert [s.uuid for s in turn.spans] == ["L1", "T1", "L2"]
+
+
+def test_turn_last_activity_us_tracks_latest_event():
+    assembly = assemble_lines(two_turn_stream())
+    t1, t2 = assembly.sessions[0].turns
+    assert t1.last_activity_us == 6_500_000     # its own end mark
+    assert t2.last_activity_us == 11_100_000    # in flight: last span edge

@@ -1,0 +1,6 @@
+{# Follow-mode toggle. Kept outside the live region so the poll swap never
+   resets it; state lives in localStorage, wired up in base.html. #}
+<label class="follow-toggle"
+       title="Automatically open a turn's waterfall when a new turn starts (never while already watching one in flight)">
+  <input type="checkbox" data-follow-toggle> follow new turns
+</label>

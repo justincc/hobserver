@@ -29,7 +29,13 @@ ETL, blueprints-as-plugins).
   parent_uuid). Pages self-update via the poll-and-swap script in
   `templates/base.html`: wrap content in `data-live-poll="<ms>"` ("0" =
   static; timing index 3 s, in-flight turn 2 s) — no SSE/WebSockets,
-  reuses the per-request tailer. Waterfall series colors were validated with the dataviz
+  reuses the per-request tailer. Timing pages add an in-flight strip
+  (`_inflight.html`, >10 min silent = stale) and a follow-mode toggle
+  (localStorage) that auto-opens newly started turns — never while
+  already watching an in-flight turn, never to stale entries; the strip
+  data-attributes (`data-inflight-start-us`, `data-stale`,
+  `data-inflight-current`, `data-turn-start-us`) drive that JS.
+  Waterfall series colors were validated with the dataviz
   six-checks palette validator against the light surface: llm `#2a78d6`,
   tool `#eb6834`, other `#4a3aa7`; span identity is always also in text,
   never color alone.

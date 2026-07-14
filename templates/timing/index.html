@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}prompt timing — hermes observer{% endblock %}
 {% block content %}
+{% include "timing/_follow.html" %}
 <div data-live-poll="3000">
 {% if state == "unconfigured" %}
 <p class="notice warn">
@@ -20,6 +21,7 @@
 </p>
 {% else %}
 {% include "timing/_problems.html" %}
+{% include "timing/_inflight.html" %}
 {% if not turns %}
 <p class="notice warn">
   Reading <code>{{ atof_path }}</code> — no turns yet.

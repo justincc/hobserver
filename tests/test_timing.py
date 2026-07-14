@@ -1,8 +1,11 @@
 """Timing plugin view tests — source states, turn index, waterfall detail."""
 
+import time
+
 from app import create_app
 from tests.conftest import make_memory_db
-from tests.test_assembler import mark_line, scope_lines, two_turn_stream
+from tests.test_assembler import (mark_line, scope_lines, session_scope_lines,
+                                  two_turn_stream)
 
 
 def make_client(tmp_path, atof_path):
@@ -17,6 +20,24 @@ def write_atof(tmp_path, lines, name="events.jsonl"):
     path = tmp_path / name
     path.write_text("".join(line + "\n" for line in lines), encoding="utf-8")
     return path
+
+
+def recent_stream():
+    """A finished turn and an in-flight turn with wall-clock-recent stamps,
+    so in-flight entries are genuinely fresh (the shared fixtures use
+    1970-era epochs, which read as stale against the staleness cutoff)."""
+    now = int(time.time() * 1_000_000)
+    finished_start, inflight_start = now - 60_000_000, now - 5_000_000
+    return finished_start, inflight_start, [
+        *session_scope_lines("s9", start_us=now - 120_000_000),
+        mark_line("hermes.turn.start", finished_start, session="s9", turn="t8"),
+        *scope_lines("L8", "llm", finished_start + 100_000, finished_start + 2_000_000,
+                     name="anthropic", session="s9", turn="t8"),
+        mark_line("hermes.turn.end", finished_start + 3_000_000, session="s9", turn="t8"),
+        mark_line("hermes.turn.start", inflight_start, session="s9", turn="t9"),
+        *scope_lines("L9", "llm", inflight_start + 100_000, None,
+                     name="anthropic", session="s9", turn="t9"),
+    ]
 
 
 def test_unconfigured_source_is_stated_loudly(tmp_path):
@@ -148,6 +169,54 @@ def test_turn_detail_polls_only_while_in_flight(tmp_path):
     assert 'data-live-poll="2000"' in in_flight
     finished = client.get("/timing/turn/s1/1000000").get_data(as_text=True)
     assert 'data-live-poll="0"' in finished
+
+
+def test_inflight_strip_lists_running_turns(tmp_path):
+    _, inflight_start, lines = recent_stream()
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    assert "in flight:" in page
+    assert f'data-inflight-start-us="{inflight_start}"' in page
+    assert f"/timing/turn/s9/{inflight_start}" in page
+    assert 'data-stale="1"' not in page  # a fresh turn is never marked stale
+
+
+def test_inflight_strip_marks_stale_turns(tmp_path):
+    # two_turn_stream's in-flight turn has 1970-era stamps: silent far past
+    # the cutoff, so it is listed but flagged and excluded from auto-follow
+    atof = write_atof(tmp_path, two_turn_stream())
+    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    assert "in flight:" in page
+    assert 'data-stale="1"' in page
+    assert "stale — last event" in page
+
+
+def test_turn_page_marks_its_own_inflight_entry(tmp_path):
+    _, inflight_start, lines = recent_stream()
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        f"/timing/turn/s9/{inflight_start}").get_data(as_text=True)
+    assert 'data-inflight-current="1"' in page
+    assert "(viewing)" in page
+    assert f'data-turn-start-us="{inflight_start}"' in page
+
+
+def test_finished_turn_page_lists_inflight_without_current(tmp_path):
+    finished_start, inflight_start, lines = recent_stream()
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        f"/timing/turn/s9/{finished_start}").get_data(as_text=True)
+    assert f'data-inflight-start-us="{inflight_start}"' in page
+    assert 'data-inflight-current="1"' not in page
+
+
+def test_follow_toggle_rendered_on_both_pages(tmp_path):
+    _, inflight_start, lines = recent_stream()
+    atof = write_atof(tmp_path, lines)
+    client = make_client(tmp_path, str(atof))
+    assert "data-follow-toggle" in client.get("/timing/").get_data(as_text=True)
+    assert "data-follow-toggle" in client.get(
+        f"/timing/turn/s9/{inflight_start}").get_data(as_text=True)
 
 
 def test_index_picks_up_appended_turns_between_requests(tmp_path):
