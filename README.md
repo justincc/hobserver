@@ -54,15 +54,19 @@ pointing this tool at its output (consuming) — is in
   events are excluded — they are not user messages) — an approximation
   of the extra conversational context mem0 uses during retrieval — each
   prefixed with its event id, oldest first.
-- `/timing/` — all turns, newest first: start time, session, total / llm /
+- `/timing/` — all turns, newest first: start time, session, a one-line
+  prompt snippet (from the turn-start mark's `user_message`; ellipsized so
+  long prompts never widen the table, em dash when absent), total / llm /
   tool / overhead durations (overhead is the residual), model-call and span
   counts. In-flight turns are marked. Parse errors and assembly anomalies
   are shown above the table, never dropped. The page updates itself every
   3 s (the tailer reads only what the exporter appended since the last
   request), so new turns appear without a manual reload.
-- `/timing/turn/<session>/<start_us>` — one turn: summary stats, then the
-  span waterfall (llm blue, tool orange, other violet; open spans faded)
-  with offsets and durations as text, plus the turn's marks. While the
+- `/timing/turn/<session>/<start_us>` — one turn: the prompt (shown whole
+  when short; collapsed to its first couple of lines with the full text a
+  click away when long), summary stats, then the span waterfall (llm blue,
+  tool orange, other violet; open spans faded) with offsets and durations
+  as text, plus the turn's marks. While the
   turn is in flight the page updates itself every 2 s; once it ends the
   page is static.
 
@@ -72,8 +76,8 @@ refetched from the current URL on that interval and swapped in place
 (`"0"` means static). Polling pauses while the tab is hidden.
 
 Both timing pages show an in-flight strip listing every currently running
-turn (newest first, with elapsed time and span count) linking to its
-waterfall; the turn being viewed is marked. An in-flight turn silent for
+turn (newest first, with a short prompt snippet, elapsed time and span
+count) linking to its waterfall; the turn being viewed is marked. An in-flight turn silent for
 over 10 minutes is flagged stale — probably a lost end mark, not a running
 prompt. A "follow new turns" toggle (persisted in localStorage) auto-opens
 a turn's waterfall when a new turn starts, with two guards: it never

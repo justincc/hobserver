@@ -11,6 +11,17 @@
 <h2>Turn {{ turn.turn_id or '(no id)' }} · session {{ turn.session_id }}</h2>
 <p class="meta">started {{ turn.start_us | us_time }} UTC{% if turn.end_us is none %} · <span class="badge-inflight">in flight</span>{% endif %}</p>
 
+{% if turn.user_message %}
+{% if turn.user_message | length > 200 %}
+<details class="prompt">
+  <summary>{{ turn.user_message | truncate(200) }}</summary>
+  <pre class="blob">{{ turn.user_message }}</pre>
+</details>
+{% else %}
+<p class="prompt">{{ turn.user_message }}</p>
+{% endif %}
+{% endif %}
+
 {% include "timing/_problems.html" %}
 {% include "timing/_inflight.html" %}
 

@@ -26,7 +26,11 @@ ETL, blueprints-as-plugins).
   from the ATOF v0.1 spec) and `assembler.py` (span pairing by uuid, turns
   bounded by hermes.turn.start/end marks, span→turn assignment by turn_id
   with a timestamp-containment fallback, session via metadata or
-  parent_uuid). Pages self-update via the poll-and-swap script in
+  parent_uuid; the turn-start mark's data carries the hermes hook kwargs —
+  user_message becomes Turn.user_message, shown as prompt snippets in the
+  turn list / in-flight strip and collapsible on the turn page. The
+  `platform` kwarg is `webui` today but hermes has other frontends, e.g.
+  a TUI — never assume webui). Pages self-update via the poll-and-swap script in
   `templates/base.html`: wrap content in `data-live-poll="<ms>"` ("0" =
   static; timing index 3 s, in-flight turn 2 s) — no SSE/WebSockets,
   reuses the per-request tailer. Timing pages add an in-flight strip

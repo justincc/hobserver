@@ -22,19 +22,27 @@ def write_atof(tmp_path, lines, name="events.jsonl"):
     return path
 
 
+SHORT_PROMPT = "what is the weather in cambridge?"
+LONG_PROMPT = ("investigate these logging traces: "
+               + "ERROR timeout in relay worker\n" * 40 + "ZZZ-END")
+
+
 def recent_stream():
     """A finished turn and an in-flight turn with wall-clock-recent stamps,
     so in-flight entries are genuinely fresh (the shared fixtures use
-    1970-era epochs, which read as stale against the staleness cutoff)."""
+    1970-era epochs, which read as stale against the staleness cutoff).
+    The finished turn has a short prompt, the in-flight one a long one."""
     now = int(time.time() * 1_000_000)
     finished_start, inflight_start = now - 60_000_000, now - 5_000_000
     return finished_start, inflight_start, [
         *session_scope_lines("s9", start_us=now - 120_000_000),
-        mark_line("hermes.turn.start", finished_start, session="s9", turn="t8"),
+        mark_line("hermes.turn.start", finished_start, session="s9", turn="t8",
+                  data={"user_message": SHORT_PROMPT, "platform": "webui"}),
         *scope_lines("L8", "llm", finished_start + 100_000, finished_start + 2_000_000,
                      name="anthropic", session="s9", turn="t8"),
         mark_line("hermes.turn.end", finished_start + 3_000_000, session="s9", turn="t8"),
-        mark_line("hermes.turn.start", inflight_start, session="s9", turn="t9"),
+        mark_line("hermes.turn.start", inflight_start, session="s9", turn="t9",
+                  data={"user_message": LONG_PROMPT, "platform": "webui"}),
         *scope_lines("L9", "llm", inflight_start + 100_000, None,
                      name="anthropic", session="s9", turn="t9"),
     ]
@@ -217,6 +225,47 @@ def test_follow_toggle_rendered_on_both_pages(tmp_path):
     assert "data-follow-toggle" in client.get("/timing/").get_data(as_text=True)
     assert "data-follow-toggle" in client.get(
         f"/timing/turn/s9/{inflight_start}").get_data(as_text=True)
+
+
+def test_index_shows_prompt_snippet_single_line(tmp_path):
+    _, _, lines = recent_stream()
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    assert SHORT_PROMPT in page                      # short prompts fit whole
+    assert "investigate these logging traces" in page
+    assert "ZZZ-END" not in page                     # long ones are truncated
+
+
+def test_index_shows_placeholder_when_start_mark_has_no_prompt(tmp_path):
+    atof = write_atof(tmp_path, two_turn_stream())
+    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    assert "prompt-cell" in page and "—" in page
+
+
+def test_turn_page_long_prompt_collapses_but_keeps_full_text(tmp_path):
+    _, inflight_start, lines = recent_stream()
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        f"/timing/turn/s9/{inflight_start}").get_data(as_text=True)
+    assert '<details class="prompt">' in page
+    assert "investigate these logging traces" in page   # summary snippet
+    assert "ZZZ-END" in page                             # full text expandable
+
+
+def test_turn_page_short_prompt_shown_plain(tmp_path):
+    finished_start, _, lines = recent_stream()
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        f"/timing/turn/s9/{finished_start}").get_data(as_text=True)
+    assert SHORT_PROMPT in page
+    assert '<details class="prompt">' not in page
+
+
+def test_inflight_strip_shows_prompt_snippet(tmp_path):
+    _, _, lines = recent_stream()
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    assert "“investigate these logging" in page
 
 
 def test_index_picks_up_appended_turns_between_requests(tmp_path):

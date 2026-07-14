@@ -22,6 +22,7 @@ dropped silently — the ADR 2 loud-failure rule.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Any, Iterable, List, Optional
 
@@ -87,12 +88,29 @@ class Span:
         return None
 
 
+def _user_message(data: Any) -> Optional[str]:
+    """The prompt from a turn-start mark's payload. Data is opaque per the
+    ATOF spec — a dict or a raw JSON string in practice — so type-guard
+    every step and return None rather than guess."""
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except ValueError:
+            return None
+    if isinstance(data, dict):
+        value = data.get("user_message")
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
 @dataclass
 class Turn:
     session_id: str
     turn_id: Optional[str]
     start_us: int
     end_us: Optional[int] = None    # None if the end mark never arrived
+    user_message: Optional[str] = None
     spans: List[Span] = field(default_factory=list)
     marks: List[AtofEvent] = field(default_factory=list)
 
@@ -229,6 +247,7 @@ def _build_turns(session: Session, boundary_marks, anomalies) -> None:
                 session_id=session.session_id,
                 turn_id=mark.turn_id,
                 start_us=mark.timestamp_us,
+                user_message=_user_message(mark.data),
             )
         else:  # TURN_END_MARK
             if current is None:

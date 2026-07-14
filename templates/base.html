@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}hermes observer{% endblock %}</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 70rem; padding: 0 1rem; color: #1a1a2e; }
+    body { font-family: system-ui, sans-serif; margin: 1.5rem 1cm; color: #1a1a2e; }
     a { color: #2456c4; text-decoration: none; }
     a:hover { text-decoration: underline; }
     h1 { font-size: 1.4rem; }
@@ -51,6 +51,10 @@
     .inflight-entry.current { font-weight: 600; }
     .inflight-entry[data-stale] { color: #777; }
     .follow-toggle { display: flex; justify-content: flex-end; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: #555; margin-bottom: 0.5rem; cursor: pointer; }
+    td.prompt-cell { max-width: 22rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    details.prompt, p.prompt { background: #f4f5f8; border-radius: 6px; padding: 0.6rem 1rem; margin: 0.75rem 0; font-size: 0.9rem; }
+    details.prompt summary { cursor: pointer; }
+    details.prompt pre.blob { margin: 0.6rem 0 0; padding: 0; background: none; }
   </style>
 </head>
 <body>

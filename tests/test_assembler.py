@@ -294,3 +294,20 @@ def test_turn_last_activity_us_tracks_latest_event():
     t1, t2 = assembly.sessions[0].turns
     assert t1.last_activity_us == 6_500_000     # its own end mark
     assert t2.last_activity_us == 11_100_000    # in flight: last span edge
+
+
+def test_turn_user_message_from_start_mark_data():
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1",
+                  data={"user_message": "fix the tests", "platform": "webui"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+        # real streams may also carry data as a raw JSON string
+        mark_line("hermes.turn.start", 3_000_000, session="s1", turn="t2",
+                  data=json.dumps({"user_message": "second prompt"})),
+    ]
+    t1, t2 = assemble_lines(lines).sessions[0].turns
+    assert t1.user_message == "fix the tests"
+    assert t2.user_message == "second prompt"
+    # marks with no payload (the shared fixture) yield None, never a crash
+    plain = assemble_lines(two_turn_stream()).sessions[0].turns[0]
+    assert plain.user_message is None
