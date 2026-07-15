@@ -59,7 +59,13 @@
         {% if s.command %}
         <div class="span-detail">
           <code title="{{ s.command }}">{{ s.command }}</code>
-          {%- if s.workdir %} <span class="workdir" title="{{ s.workdir }}">in {{ s.workdir | tilde }}</span>{% endif %}
+          {%- if s.workdir %} <span class="path" title="{{ s.workdir }}">in {{ s.workdir | tilde }}</span>{% endif %}
+        </div>
+        {% elif s.skill_name or s.skill_action %}
+        <div class="span-detail">
+          {%- if s.skill_action %}<span>{{ s.skill_action }}</span> {% endif -%}
+          {%- if s.skill_name %}<code title="{{ s.skill_name }}">{{ s.skill_name }}</code>{% endif %}
+          {%- if s.skill_file_path %} <span class="path" title="{{ s.skill_file_path }}">{{ s.skill_file_path }}</span>{% endif %}
         </div>
         {% endif %}
       </td>

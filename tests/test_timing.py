@@ -132,6 +132,25 @@ def test_workdir_under_home_collapses_to_tilde(tmp_path):
     assert f'title="{home_proj}"' in page
 
 
+def test_skill_scope_details_shown_inline(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("S1", "tool", 1_100_000, 1_300_000, name="skill_view",
+                     session="s1", turn="t1",
+                     start_data={"name": "github-pr-workflow",
+                                 "file_path": "references/hygiene.md"}),
+        *scope_lines("S2", "tool", 1_400_000, 1_600_000, name="skill_manage",
+                     session="s1", turn="t1",
+                     start_data={"action": "patch", "name": "job-seeker"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert "github-pr-workflow" in page
+    assert "references/hygiene.md" in page
+    assert "patch" in page and "job-seeker" in page
+
+
 def test_in_flight_turn_detail_scales_to_last_span(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/10000000").get_data(as_text=True)

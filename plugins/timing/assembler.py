@@ -115,6 +115,25 @@ class Span:
     def workdir(self) -> Optional[str]:
         return self._start_str("workdir")
 
+    # skill scopes (skill_view/skill_manage) describe the skill touched in
+    # their start payload — name, optional file within the skill, and for
+    # skill_manage the action; the keys are too generic to trust elsewhere
+    @property
+    def _is_skill_scope(self) -> bool:
+        return self.name in ("skill_view", "skill_manage")
+
+    @property
+    def skill_name(self) -> Optional[str]:
+        return self._start_str("name") if self._is_skill_scope else None
+
+    @property
+    def skill_file_path(self) -> Optional[str]:
+        return self._start_str("file_path") if self._is_skill_scope else None
+
+    @property
+    def skill_action(self) -> Optional[str]:
+        return self._start_str("action") if self.name == "skill_manage" else None
+
 
 def _user_message(data: Any) -> Optional[str]:
     """The prompt from a turn-start mark's payload."""

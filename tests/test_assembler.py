@@ -145,6 +145,37 @@ def test_command_and_workdir_type_guard_odd_start_data():
     assert t3.command is None and t3.workdir is None
 
 
+def test_skill_scope_details_from_start_payload():
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("S1", "tool", 1_100_000, 1_200_000, name="skill_view",
+                     session="s1", turn="t1",
+                     start_data={"name": "adaptive-information-gathering",
+                                 "file_path": "references/fallbacks.md"}),
+        *scope_lines("S2", "tool", 1_300_000, 1_400_000, name="skill_manage",
+                     session="s1", turn="t1",
+                     start_data={"action": "patch", "name": "job-seeker",
+                                 "old_string": "a", "new_string": "b"}),
+        *scope_lines("T1", "tool", 1_500_000, 1_600_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"name": "not-a-skill", "command": "ls",
+                                 "action": "not-a-skill-action"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    view, manage, other = assemble_lines(lines).sessions[0].turns[0].spans
+    assert view.skill_name == "adaptive-information-gathering"
+    assert view.skill_file_path == "references/fallbacks.md"
+    assert view.skill_action is None       # skill_view has no action
+    assert manage.skill_name == "job-seeker"
+    assert manage.skill_action == "patch"
+    assert manage.skill_file_path is None
+    # the generic name/action keys mean nothing outside a skill scope
+    assert other.skill_name is None
+    assert other.skill_action is None
+    assert other.skill_file_path is None
+
+
 def test_string_end_data_yields_no_usage_or_finish_reason():
     # the real nemo_relay exporter emits hermes tool results as raw JSON
     # strings in the end event's data field — payload accessors must

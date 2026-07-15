@@ -75,7 +75,10 @@ pointing this tool at its output (consuming) — is in
   as text, plus the turn's marks. Spans whose start payload carries a
   `command`/`workdir` (terminal tool scopes) show them inline under the
   span name — command in monospace, workdir with the home prefix collapsed
-  to `~`, both ellipsized with the full text in the title attribute. Each
+  to `~`, both ellipsized with the full text in the title attribute;
+  skill scopes (`skill_view`/`skill_manage`) likewise show the skill's
+  `name`, the `file_path` within the skill when one is targeted, and (for
+  skill_manage) the `action` inline. Each
   span line carries the span's ATOF uuid — the key for finding its
   start/end lines in the raw JSONL — in small muted monospace right after
   the name, so the span name stays prominent (other correlation ids like
