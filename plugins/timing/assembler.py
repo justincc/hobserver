@@ -126,6 +126,16 @@ class Span:
     def path(self) -> Optional[str]:
         return self._start_str("path")
 
+    # search_files scopes carry the query in their start payload; "pattern"
+    # is too generic a key to trust on other scopes
+    @property
+    def search_pattern(self) -> Optional[str]:
+        return self._start_str("pattern") if self.name == "search_files" else None
+
+    @property
+    def file_glob(self) -> Optional[str]:
+        return self._start_str("file_glob") if self.name == "search_files" else None
+
     # skill scopes (skill_view/skill_manage) describe the skill touched in
     # their start payload — name, optional file within the skill, and for
     # skill_manage the action; the keys are too generic to trust elsewhere

@@ -81,6 +81,12 @@
           {%- if s.skill_name %}<code title="{{ s.skill_name }}">{{ s.skill_name }}</code>{% endif %}
           {%- if s.skill_file_path %} <span class="path" title="{{ s.skill_file_path }}">{{ s.skill_file_path }}</span>{% endif %}
         </div>
+        {% elif s.search_pattern %}
+        <div class="span-detail">
+          <code title="{{ s.search_pattern }}">{{ s.search_pattern }}</code>
+          {%- if s.file_glob %} <span class="path" title="{{ s.file_glob }}">{{ s.file_glob }}</span>{% endif %}
+          {%- if s.path %} <span>in</span> <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>{% endif %}
+        </div>
         {% elif s.path %}
         <div class="span-detail">
           <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>

@@ -193,6 +193,27 @@ def test_file_tool_path_from_start_payload():
     assert llm.path is None
 
 
+def test_search_files_query_from_start_payload():
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("S1", "tool", 1_100_000, 1_200_000, name="search_files",
+                     session="s1", turn="t1",
+                     start_data={"pattern": "TODO", "target": "content",
+                                 "path": "/home/u/proj", "file_glob": "*.py"}),
+        *scope_lines("T1", "tool", 1_300_000, 1_400_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"pattern": "not-a-search", "command": "ls"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    search, other = assemble_lines(lines).sessions[0].turns[0].spans
+    assert search.search_pattern == "TODO"
+    assert search.file_glob == "*.py"
+    assert search.path == "/home/u/proj"
+    # the generic "pattern" key means nothing outside a search_files scope
+    assert other.search_pattern is None and other.file_glob is None
+
+
 def test_timeline_interleaves_marks_with_spans_in_time_order():
     lines = [
         *session_scope_lines("s1"),

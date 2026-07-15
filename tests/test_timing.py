@@ -169,6 +169,22 @@ def test_file_tool_path_shown_inline_tail_first(tmp_path):
     assert 'class="path tail"' in page
 
 
+def test_search_files_pattern_and_glob_shown_inline(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("S1", "tool", 1_100_000, 1_600_000, name="search_files",
+                     session="s1", turn="t1",
+                     start_data={"pattern": "turn_id", "target": "content",
+                                 "path": "/home/u/proj", "file_glob": "*.py"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert "turn_id" in page
+    assert "*.py" in page
+    assert "/home/u/proj" in page
+
+
 def test_turn_id_has_copy_button(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
