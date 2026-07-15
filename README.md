@@ -68,9 +68,10 @@ pointing this tool at its output (consuming) — is in
   are shown above the table, never dropped. The page updates itself every
   3 s (the tailer reads only what the exporter appended since the last
   request), so new turns appear without a manual reload.
-- `/timing/turn/<session>/<start_us>` — one turn: the prompt (shown whole
-  when short; collapsed to its first couple of lines with the full text a
-  click away when long), summary stats, then the span waterfall (llm blue,
+- `/timing/turn/<session>/<start_us>` — one turn: the in-flight strip,
+  then the prompt (shown whole when short; collapsed to its first couple
+  of lines with the full text a click away when long), summary stats,
+  then the span waterfall (llm blue,
   tool orange, other violet; open spans faded) with offsets and durations
   as text, plus the turn's marks. Spans whose start payload carries a
   `command`/`workdir` (terminal tool scopes) show them inline under the
