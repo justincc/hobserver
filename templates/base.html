@@ -45,6 +45,11 @@
     /* chipless mark rows: indent past the 0.8rem chip + 0.35rem gap so
        mark names align with span names */
     .mark-name { margin-left: 1.15rem; }
+    .copy-btn { background: none; border: 0; padding: 0; margin-left: 0.35rem; cursor: pointer; color: #bbb; vertical-align: -0.08em; }
+    .copy-btn:hover { color: #555; }
+    .copy-btn .ic-check { display: none; }
+    .copy-btn.copied .ic-copy { display: none; }
+    .copy-btn.copied .ic-check { display: inline; color: #2e9e44; }
     table.waterfall td.bar-cell { width: 45%; min-width: 14rem; }
     .bar-track { position: relative; height: 14px; background: #f4f5f8; border-radius: 4px; }
     .bar { position: absolute; top: 0; height: 14px; border-radius: 4px; min-width: 2px; }
@@ -153,6 +158,28 @@
         }, pollMs() || 1000);
       })();
     })();
+
+    // Copy buttons (delegated so they survive live-region swaps). The
+    // async clipboard API needs a secure context, which plain-http access
+    // from another host is not — fall back to execCommand there.
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest(".copy-btn");
+      if (!btn) return;
+      const text = btn.dataset.copy;
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); } finally { ta.remove(); }
+      }
+      btn.classList.add("copied");
+      setTimeout(() => btn.classList.remove("copied"), 1200);
+    });
   </script>
 </body>
 </html>

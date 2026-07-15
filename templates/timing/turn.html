@@ -11,7 +11,7 @@
 {% include "timing/_problems.html" %}
 {% include "timing/_inflight.html" %}
 
-<h2>Turn {{ turn.turn_id or '(no id)' }} · session {{ turn.session_id }}</h2>
+<h2>Turn {{ turn.turn_id or '(no id)' }}{% if turn.turn_id %}<button class="copy-btn" data-copy="{{ turn.turn_id }}" title="copy turn id" aria-label="copy turn id"><svg class="ic-copy" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="ic-check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>{% endif %} · session {{ turn.session_id }}</h2>
 <p class="meta">started {{ turn.start_us | us_time }} UTC{% if turn.end_us is none %} · <span class="badge-inflight">in flight</span>{% endif %}</p>
 
 {% if turn.user_message %}

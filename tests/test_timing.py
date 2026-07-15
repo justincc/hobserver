@@ -151,6 +151,12 @@ def test_skill_scope_details_shown_inline(tmp_path):
     assert "patch" in page and "job-seeker" in page
 
 
+def test_turn_id_has_copy_button(tmp_path):
+    atof = write_atof(tmp_path, two_turn_stream())
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert 'class="copy-btn" data-copy="t1"' in page
+
+
 def test_marks_render_as_ticks_in_the_waterfall(tmp_path):
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
