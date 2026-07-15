@@ -84,7 +84,9 @@ pointing this tool at its output (consuming) — is in
   to `~`, both ellipsized with the full text in the title attribute;
   skill scopes (`skill_view`/`skill_manage`) likewise show the skill's
   `name`, the `file_path` within the skill when one is targeted, and (for
-  skill_manage) the `action` inline. Each
+  skill_manage) the `action` inline; file tool scopes (patch, read_file,
+  write_file, search_files, …) show their `path`, ellipsized from the
+  left so the end of a long path stays visible. Each
   span line carries the span's ATOF uuid — the key for finding its
   start/end lines in the raw JSONL — in small muted monospace right after
   the name, so the span name stays prominent (other correlation ids like

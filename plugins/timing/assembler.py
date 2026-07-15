@@ -120,6 +120,12 @@ class Span:
     def workdir(self) -> Optional[str]:
         return self._start_str("workdir")
 
+    # file tool scopes (patch, read_file, write_file, search_files, …)
+    # carry the operated-on path in their start payload
+    @property
+    def path(self) -> Optional[str]:
+        return self._start_str("path")
+
     # skill scopes (skill_view/skill_manage) describe the skill touched in
     # their start payload — name, optional file within the skill, and for
     # skill_manage the action; the keys are too generic to trust elsewhere

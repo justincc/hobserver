@@ -176,6 +176,23 @@ def test_skill_scope_details_from_start_payload():
     assert other.skill_file_path is None
 
 
+def test_file_tool_path_from_start_payload():
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("P1", "tool", 1_100_000, 1_200_000, name="patch",
+                     session="s1", turn="t1",
+                     start_data={"mode": "replace", "path": "/home/u/notes.md",
+                                 "old_string": "a", "new_string": "b"}),
+        *scope_lines("L1", "llm", 1_300_000, 1_400_000, name="anthropic",
+                     session="s1", turn="t1"),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    patch, llm = assemble_lines(lines).sessions[0].turns[0].spans
+    assert patch.path == "/home/u/notes.md"
+    assert llm.path is None
+
+
 def test_timeline_interleaves_marks_with_spans_in_time_order():
     lines = [
         *session_scope_lines("s1"),

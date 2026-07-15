@@ -151,6 +151,24 @@ def test_skill_scope_details_shown_inline(tmp_path):
     assert "patch" in page and "job-seeker" in page
 
 
+def test_file_tool_path_shown_inline_tail_first(tmp_path):
+    home_notes = os.path.join(os.path.expanduser("~"), "docs", "notes.md")
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("P1", "tool", 1_100_000, 1_600_000, name="patch",
+                     session="s1", turn="t1",
+                     start_data={"mode": "replace", "path": home_notes,
+                                 "old_string": "a", "new_string": "b"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert "~/docs/notes.md" in page
+    assert f'title="{home_notes}"' in page
+    # left-ellipsized so the end of the path survives truncation
+    assert 'class="path tail"' in page
+
+
 def test_turn_id_has_copy_button(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
