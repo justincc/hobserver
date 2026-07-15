@@ -8,7 +8,10 @@ for pages, layout, and data-source path resolution; see docs/adr/ for the
 architecture decisions (ATOF as timing source, direct JSONL reading with no
 ETL, blueprints-as-plugins).
 
-- Run: `uv run python app.py [db_path]` (serves on port 5090; timing source
+- Run: `uv run python app.py [db_path]` (serves on port 5090; template and
+  .py edits are picked up without a restart — template auto-reload plus the
+  Werkzeug reloader; debug stays off so the interactive debugger is never
+  exposed on 0.0.0.0. Timing source
   via the `ATOF_LOG` env var). Producer-side setup (nemo-relay install,
   plugin enable, `HERMES_NEMO_RELAY_*` in `~/.hermes/.env`) is documented
   in docs/setup-prompt-timing.md.

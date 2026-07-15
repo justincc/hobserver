@@ -23,6 +23,9 @@ def create_app(db_path, atof_path=None):
     app = Flask(__name__)
     app.config["DB_PATH"] = db_path
     app.config["ATOF_PATH"] = atof_path
+    # Re-read templates from disk when they change, so edits show up on the
+    # next request (or next live-region poll) without a server restart.
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
 
     tabs = []
     for plugin in PLUGINS:
@@ -63,7 +66,11 @@ def main():
     if not os.path.exists(db_path):
         sys.exit(f"Database not found: {db_path}")
     atof_path = os.environ.get("ATOF_LOG")
-    create_app(db_path, atof_path=atof_path).run(debug=False, host="0.0.0.0", port=5090)
+    # use_reloader restarts the server when a .py file changes; debug stays
+    # False so the Werkzeug interactive debugger (arbitrary code execution)
+    # is never exposed on 0.0.0.0.
+    create_app(db_path, atof_path=atof_path).run(
+        debug=False, use_reloader=True, host="0.0.0.0", port=5090)
 
 
 if __name__ == "__main__":

@@ -23,6 +23,12 @@ Then open http://127.0.0.1:5090. The server binds to `0.0.0.0`, so it is
 also reachable from other machines on the local network at
 `http://<host-ip>:5090`.
 
+Edits are picked up without a manual restart: templates re-render from
+disk on the next request (`TEMPLATES_AUTO_RELOAD`), and the Werkzeug
+reloader restarts the server when a `.py` file changes. Debug mode stays
+off — the Werkzeug interactive debugger allows arbitrary code execution
+and must never be exposed on `0.0.0.0`.
+
 The memory database path is resolved in this order:
 
 1. First command-line argument

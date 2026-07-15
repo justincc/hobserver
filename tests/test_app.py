@@ -32,3 +32,10 @@ def test_legacy_fragment_url_redirects_with_query(client):
     assert resp.status_code == 302
     assert "/memory/fragment/events" in resp.headers["Location"]
     assert "since=3" in resp.headers["Location"]
+
+
+def test_templates_reload_without_restart(client):
+    # template edits must show up on the next request/poll, no restart
+    app = client.application
+    assert app.config["TEMPLATES_AUTO_RELOAD"] is True
+    assert app.jinja_env.auto_reload is True
