@@ -37,7 +37,6 @@
   <span><span class="chip cat-llm"></span>llm</span>
   <span><span class="chip cat-tool"></span>tool</span>
   <span><span class="chip cat-other"></span>other</span>
-  <span><span class="chip cat-mark"></span>mark</span>
 </div>
 
 <table class="waterfall">
@@ -50,7 +49,7 @@
     {% set tick_pct = [[(s.timestamp_us - turn.start_us) / scale_us * 100, 100.0] | min, 0.0] | max %}
     <tr>
       <td class="num">{{ (s.timestamp_us - turn.start_us) | us_dur }}</td>
-      <td><span class="chip cat-mark"></span>{{ s.name }}</td>
+      <td><span class="mark-name">{{ s.name }}</span></td>
       <td class="num"></td>
       <td class="bar-cell">
         <div class="bar-track">
