@@ -74,7 +74,10 @@ pointing this tool at its output (consuming) — is in
   click away when long), summary stats,
   then the span waterfall (llm blue,
   tool orange, other violet; open spans faded) with offsets and durations
-  as text, plus the turn's marks. Spans whose start payload carries a
+  as text. The turn's non-boundary marks (approvals, session end) are
+  instantaneous, so they interleave with the spans as rows whose bar is a
+  zero-width tick at their offset (clamped to the track — session end
+  fires just after the turn-end mark). Spans whose start payload carries a
   `command`/`workdir` (terminal tool scopes) show them inline under the
   span name — command in monospace, workdir with the home prefix collapsed
   to `~`, both ellipsized with the full text in the title attribute;

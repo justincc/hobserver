@@ -81,6 +81,11 @@ class Span:
     def is_open(self) -> bool:
         return self.end_us is None
 
+    # symmetry with AtofEvent.is_mark so templates branch on one flag
+    @property
+    def is_mark(self) -> bool:
+        return False
+
     # data payloads are opaque per the ATOF spec and vary in practice —
     # e.g. the nemo_relay plugin emits hermes tool results as raw JSON
     # strings — so every field access must type-guard, never assume dict.
@@ -184,6 +189,15 @@ class Turn:
     @property
     def model_call_count(self) -> int:
         return sum(1 for s in self.spans if s.category == LLM_CATEGORY)
+
+    @property
+    def timeline(self) -> List[Any]:
+        """Spans and non-boundary marks merged in time order — the turn
+        page's waterfall rows; marks render as zero-width ticks."""
+        return sorted(
+            [*self.spans, *self.marks],
+            key=lambda e: e.timestamp_us if e.is_mark else e.start_us,
+        )
 
     @property
     def last_activity_us(self) -> int:

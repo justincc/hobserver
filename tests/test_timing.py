@@ -151,6 +151,27 @@ def test_skill_scope_details_shown_inline(tmp_path):
     assert "patch" in page and "job-seeker" in page
 
 
+def test_marks_render_as_ticks_in_the_waterfall(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L1", "llm", 1_100_000, 2_000_000, name="anthropic",
+                     session="s1", turn="t1"),
+        mark_line("hermes.approval.request", 1_500_000, session="s1", turn="t1"),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+        # session.end fires just after the turn ends but carries its turn_id
+        mark_line("hermes.session.end", 2_100_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    # marks are waterfall rows with a tick, not a separate table
+    assert "<h2>Marks</h2>" not in page
+    assert "hermes.approval.request" in page
+    assert "hermes.session.end" in page
+    # approval at 500ms into a 1s turn; session.end clamps to the track end
+    assert 'class="tick" style="left: 50.00%;"' in page
+    assert 'class="tick" style="left: 100.00%;"' in page
+
+
 def test_in_flight_turn_detail_scales_to_last_span(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/10000000").get_data(as_text=True)

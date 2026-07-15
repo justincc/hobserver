@@ -37,6 +37,7 @@
   <span><span class="chip cat-llm"></span>llm</span>
   <span><span class="chip cat-tool"></span>tool</span>
   <span><span class="chip cat-other"></span>other</span>
+  <span><span class="chip cat-mark"></span>mark</span>
 </div>
 
 <table class="waterfall">
@@ -44,7 +45,21 @@
     <tr><th>offset</th><th>span</th><th>duration</th><th></th></tr>
   </thead>
   <tbody>
-    {% for s in turn.spans %}
+    {% for s in turn.timeline %}
+    {% if s.is_mark %}
+    {% set tick_pct = [[(s.timestamp_us - turn.start_us) / scale_us * 100, 100.0] | min, 0.0] | max %}
+    <tr>
+      <td class="num">{{ (s.timestamp_us - turn.start_us) | us_dur }}</td>
+      <td><span class="chip cat-mark"></span>{{ s.name }}</td>
+      <td class="num"></td>
+      <td class="bar-cell">
+        <div class="bar-track">
+          <div class="tick" style="left: {{ '%.2f' | format(tick_pct) }}%;"
+               title="{{ s.name }} · at {{ (s.timestamp_us - turn.start_us) | us_dur }}"></div>
+        </div>
+      </td>
+    </tr>
+    {% else %}
     {% set cls = 'cat-llm' if s.category == 'llm' else 'cat-tool' if s.category == 'tool' else 'cat-other' %}
     {% set span_end = s.end_us if s.end_us is not none else turn.start_us + scale_us %}
     {% set left_pct = (s.start_us - turn.start_us) / scale_us * 100 %}
@@ -78,27 +93,13 @@
         </div>
       </td>
     </tr>
+    {% endif %}
     {% endfor %}
   </tbody>
 </table>
 {% if not turn.spans %}
 <p class="notice warn">No spans landed in this turn — the turn marks arrived
 but no llm/tool scopes were assigned to it.</p>
-{% endif %}
-
-{% if turn.marks %}
-<h2>Marks</h2>
-<table>
-  <thead><tr><th>offset</th><th>mark</th></tr></thead>
-  <tbody>
-    {% for m in turn.marks %}
-    <tr>
-      <td class="num">{{ (m.timestamp_us - turn.start_us) | us_dur }}</td>
-      <td>{{ m.name }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
 {% endif %}
 </div>
 {% endblock %}

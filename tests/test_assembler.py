@@ -176,6 +176,25 @@ def test_skill_scope_details_from_start_payload():
     assert other.skill_file_path is None
 
 
+def test_timeline_interleaves_marks_with_spans_in_time_order():
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L1", "llm", 1_100_000, 2_000_000, name="anthropic",
+                     session="s1", turn="t1"),
+        mark_line("hermes.approval.request", 1_500_000, session="s1", turn="t1"),
+        *scope_lines("T1", "tool", 1_600_000, 1_900_000, name="terminal",
+                     session="s1", turn="t1"),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    turn = assemble_lines(lines).sessions[0].turns[0]
+    assert [(e.is_mark, e.name) for e in turn.timeline] == [
+        (False, "anthropic"),
+        (True, "hermes.approval.request"),
+        (False, "terminal"),
+    ]
+
+
 def test_string_end_data_yields_no_usage_or_finish_reason():
     # the real nemo_relay exporter emits hermes tool results as raw JSON
     # strings in the end event's data field — payload accessors must
