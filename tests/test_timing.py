@@ -1,5 +1,6 @@
 """Timing plugin view tests — source states, turn index, waterfall detail."""
 
+import os
 import time
 
 from app import create_app
@@ -106,6 +107,29 @@ def test_turn_detail_renders_waterfall_bars(tmp_path):
     assert "cat-llm" in page and "cat-tool" in page
     # usage surfaces in the bar tooltip
     assert "in 100 / out 50 tokens" in page
+    # terminal command and workdir shown inline, no disclosure needed
+    assert "git status --short" in page
+    assert "in /home/u/proj" in page
+    # the span uuid is the only id on the page — the raw-log lookup key,
+    # muted, right after the span name
+    assert '<span class="span-uuid">· T1</span>' in page
+    assert "call-1" not in page
+
+
+def test_workdir_under_home_collapses_to_tilde(tmp_path):
+    home_proj = os.path.join(os.path.expanduser("~"), "proj")
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("T1", "tool", 1_100_000, 1_600_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"command": "ls", "workdir": home_proj}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert "in ~/proj" in page
+    # the full path survives in the title attribute for copy/hover
+    assert f'title="{home_proj}"' in page
 
 
 def test_in_flight_turn_detail_scales_to_last_span(tmp_path):

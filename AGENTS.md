@@ -28,7 +28,11 @@ ETL, blueprints-as-plugins).
   with a timestamp-containment fallback, session via metadata or
   parent_uuid; the turn-start mark's data carries the hermes hook kwargs —
   user_message becomes Turn.user_message, shown as prompt snippets in the
-  turn list / in-flight strip and collapsible on the turn page. The
+  turn list / in-flight strip and collapsible on the turn page. Span start
+  payloads carrying `command`/`workdir` (terminal tool scopes) render
+  inline under the span name on the turn page; the span uuid, muted after
+  the span name, is the raw-JSONL lookup key
+  (tool_call_id/api_request_id not shown). The
   `platform` kwarg is `webui` today but hermes has other frontends, e.g.
   a TUI — never assume webui). Pages self-update via the poll-and-swap script in
   `templates/base.html`: wrap content in `data-live-poll="<ms>"` ("0" =

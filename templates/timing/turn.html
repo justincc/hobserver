@@ -54,8 +54,14 @@
       <td>
         <span class="chip {{ cls }}"></span>{{ s.name }}
         {%- if s.model_name %} · {{ s.model_name }}{% endif %}
-        {%- if s.tool_call_id %} · {{ s.tool_call_id }}{% endif %}
+        <span class="span-uuid">· {{ s.uuid }}</span>
         {%- if s.is_open %} · <span class="badge-inflight">open</span>{% endif %}
+        {% if s.command %}
+        <div class="span-detail">
+          <code title="{{ s.command }}">{{ s.command }}</code>
+          {%- if s.workdir %} <span class="workdir" title="{{ s.workdir }}">in {{ s.workdir | tilde }}</span>{% endif %}
+        </div>
+        {% endif %}
       </td>
       <td class="num">{{ s.duration_us | us_dur }}</td>
       <td class="bar-cell">

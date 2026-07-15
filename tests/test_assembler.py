@@ -70,6 +70,8 @@ def two_turn_stream():
         *scope_lines("T1", "tool", 3_200_000, 3_700_000, name="terminal",
                      session="s1", turn="t1",
                      profile={"tool_call_id": "call-1"},
+                     start_data={"command": "git status --short",
+                                 "workdir": "/home/u/proj", "timeout": 120},
                      end_data={"status": "ok", "duration_ms": 500}),
         *scope_lines("L2", "llm", 4_000_000, 6_000_000, name="anthropic",
                      session="s1", turn="t1"),
@@ -116,6 +118,31 @@ def test_span_details_survive_assembly():
     assert tool.tool_call_id == "call-1"
     assert tool.end_data["duration_ms"] == 500
     assert llm.finish_reason == "tool_calls"
+    assert tool.command == "git status --short"
+    assert tool.workdir == "/home/u/proj"
+    assert llm.command is None and llm.workdir is None
+
+
+def test_command_and_workdir_type_guard_odd_start_data():
+    # start payloads are opaque: a JSON string still yields the fields,
+    # anything non-dict yields None rather than an error
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("T1", "tool", 1_100_000, 1_200_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data='{"command": "ls", "workdir": "/tmp"}'),
+        *scope_lines("T2", "tool", 1_300_000, 1_400_000, name="terminal",
+                     session="s1", turn="t1", start_data="not json"),
+        *scope_lines("T3", "tool", 1_500_000, 1_600_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"command": 42, "workdir": ""}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    t1, t2, t3 = assemble_lines(lines).sessions[0].turns[0].spans
+    assert t1.command == "ls" and t1.workdir == "/tmp"
+    assert t2.command is None and t2.workdir is None
+    assert t3.command is None and t3.workdir is None
 
 
 def test_string_end_data_yields_no_usage_or_finish_reason():

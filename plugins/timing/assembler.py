@@ -42,6 +42,17 @@ class Anomaly:
     line_no: Optional[int] = None
 
 
+def _as_dict(data: Any) -> Optional[dict]:
+    """Payload as a dict when it is one — directly or as a JSON string.
+    Data is opaque per the ATOF spec, so never assume shape."""
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except ValueError:
+            return None
+    return data if isinstance(data, dict) else None
+
+
 @dataclass
 class Span:
     uuid: str
@@ -87,17 +98,28 @@ class Span:
                 return value
         return None
 
+    def _start_str(self, key: str) -> Optional[str]:
+        data = _as_dict(self.start_data)
+        if data is not None:
+            value = data.get(key)
+            if isinstance(value, str) and value:
+                return value
+        return None
+
+    # terminal tool scopes carry the invocation in their start payload
+    @property
+    def command(self) -> Optional[str]:
+        return self._start_str("command")
+
+    @property
+    def workdir(self) -> Optional[str]:
+        return self._start_str("workdir")
+
 
 def _user_message(data: Any) -> Optional[str]:
-    """The prompt from a turn-start mark's payload. Data is opaque per the
-    ATOF spec — a dict or a raw JSON string in practice — so type-guard
-    every step and return None rather than guess."""
-    if isinstance(data, str):
-        try:
-            data = json.loads(data)
-        except ValueError:
-            return None
-    if isinstance(data, dict):
+    """The prompt from a turn-start mark's payload."""
+    data = _as_dict(data)
+    if data is not None:
         value = data.get("user_message")
         if isinstance(value, str) and value:
             return value

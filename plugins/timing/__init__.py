@@ -49,6 +49,18 @@ def us_dur(us):
     return f"{sign}{us} µs"
 
 
+@bp.app_template_filter("tilde")
+def tilde(path):
+    """Collapse this host's home-dir prefix to ~ for display. Workdirs from
+    another host pass through untouched; the full path stays in the title
+    attribute either way."""
+    home = os.path.expanduser("~")
+    if path and home != "~":
+        if path == home or path.startswith(home + os.sep):
+            return "~" + path[len(home):]
+    return path
+
+
 @bp.app_template_filter("us_time")
 def us_time(us):
     if us is None:

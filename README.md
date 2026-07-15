@@ -66,7 +66,14 @@ pointing this tool at its output (consuming) — is in
   when short; collapsed to its first couple of lines with the full text a
   click away when long), summary stats, then the span waterfall (llm blue,
   tool orange, other violet; open spans faded) with offsets and durations
-  as text, plus the turn's marks. While the
+  as text, plus the turn's marks. Spans whose start payload carries a
+  `command`/`workdir` (terminal tool scopes) show them inline under the
+  span name — command in monospace, workdir with the home prefix collapsed
+  to `~`, both ellipsized with the full text in the title attribute. Each
+  span line carries the span's ATOF uuid — the key for finding its
+  start/end lines in the raw JSONL — in small muted monospace right after
+  the name, so the span name stays prominent (other correlation ids like
+  tool_call_id are not shown). While the
   turn is in flight the page updates itself every 2 s; once it ends the
   page is static.
 
