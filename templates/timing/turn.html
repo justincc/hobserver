@@ -84,9 +84,17 @@
         {% elif s.search_pattern %}
         <div class="span-detail">
           <code title="{{ s.search_pattern }}">{{ s.search_pattern }}</code>
-          {%- if s.file_glob %} <span class="path" title="{{ s.file_glob }}">{{ s.file_glob }}</span>{% endif %}
-          {%- if s.path %} <span>in</span> <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>{% endif %}
         </div>
+        {% if s.file_glob %}
+        <div class="span-detail">
+          <span class="path wide" title="{{ s.file_glob }}">{{ s.file_glob }}</span>
+        </div>
+        {% endif %}
+        {% if s.path %}
+        <div class="span-detail">
+          <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>
+        </div>
+        {% endif %}
         {% elif s.path %}
         <div class="span-detail">
           <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>
