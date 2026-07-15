@@ -8,11 +8,11 @@
   <a href="{{ url_for('timing.index') }}">&larr; all turns</a>
 </nav>
 
-<h2>Turn {{ turn.turn_id or '(no id)' }} · session {{ turn.session_id }}</h2>
-<p class="meta">started {{ turn.start_us | us_time }} UTC{% if turn.end_us is none %} · <span class="badge-inflight">in flight</span>{% endif %}</p>
-
 {% include "timing/_problems.html" %}
 {% include "timing/_inflight.html" %}
+
+<h2>Turn {{ turn.turn_id or '(no id)' }} · session {{ turn.session_id }}</h2>
+<p class="meta">started {{ turn.start_us | us_time }} UTC{% if turn.end_us is none %} · <span class="badge-inflight">in flight</span>{% endif %}</p>
 
 {% if turn.user_message %}
 {% if turn.user_message | length > 200 %}
