@@ -50,6 +50,17 @@
     .copy-btn .ic-check { display: none; }
     .copy-btn.copied .ic-copy { display: none; }
     .copy-btn.copied .ic-check { display: inline; color: #2e9e44; }
+    /* fixed layout so columns don't shift when the details switch hides
+       or reveals content — widths come from the header row */
+    table.waterfall { table-layout: fixed; }
+    table.waterfall th, table.waterfall td { padding-left: 0.35rem; padding-right: 0.35rem; }
+    /* keep the original breathing room at the offset|span boundary */
+    table.waterfall th:first-child, table.waterfall td:first-child { padding-right: 0.6rem; }
+    table.waterfall th:nth-child(2), table.waterfall td:nth-child(2) { padding-left: 0.6rem; }
+    table.waterfall th.col-num { width: 4.5rem; }
+    table.waterfall th.col-offset { width: 4rem; }
+    table.waterfall th.col-bar { width: 45%; }
+    table.waterfall td:nth-child(2) { overflow-wrap: break-word; }
     table.waterfall td.bar-cell { width: 45%; min-width: 14rem; }
     .bar-track { position: relative; height: 14px; background: #f4f5f8; border-radius: 4px; }
     .bar { position: absolute; top: 0; height: 14px; border-radius: 4px; min-width: 2px; }
@@ -72,6 +83,17 @@
        than the start; the template's &lrm; guards keep the bidi-neutral
        leading ~ or / from jumping across the rtl run */
     .span-detail .tail { direction: rtl; text-align: left; }
+    /* details switch: inline scope detail is hidden until it is on; the
+       state is a body class set per page load (never persisted) so the
+       live-region swap can't reset it */
+    body:not(.show-detail) .span-detail, body:not(.show-detail) .span-uuid { display: none; }
+    .legend .detail-toggle { margin-left: auto; }
+    .detail-toggle { display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; }
+    .detail-toggle input { position: absolute; opacity: 0; pointer-events: none; }
+    .detail-toggle .track { width: 30px; height: 16px; border-radius: 8px; background: #ccc; position: relative; transition: background 0.15s; }
+    .detail-toggle .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: left 0.15s; }
+    .detail-toggle input:checked + .track { background: #2a78d6; }
+    .detail-toggle input:checked + .track::after { left: 16px; }
     details.prompt, p.prompt { background: #f4f5f8; border-radius: 6px; padding: 0.6rem 1rem; margin: 0.75rem 0; font-size: 0.9rem; }
     details.prompt summary { cursor: pointer; }
     details.prompt pre.blob { margin: 0.6rem 0 0; padding: 0; background: none; }
@@ -151,6 +173,11 @@
           });
           region.replaceWith(fresh);
           region = fresh;
+          // the swapped-in details switch arrives unchecked — resync it
+          // to the state held on <body>
+          region.querySelectorAll("[data-detail-toggle]").forEach((el) => {
+            el.checked = document.body.classList.contains("show-detail");
+          });
           followNewTurn();
         } catch (err) {
           // transient fetch failure — try again next tick
@@ -165,6 +192,14 @@
         }, pollMs() || 1000);
       })();
     })();
+
+    // Details switch (delegated so it survives live-region swaps): shows
+    // the inline scope detail. Off on every initial load by design.
+    document.addEventListener("change", (e) => {
+      if (e.target.matches("[data-detail-toggle]")) {
+        document.body.classList.toggle("show-detail", e.target.checked);
+      }
+    });
 
     // Copy buttons (delegated so they survive live-region swaps). The
     // async clipboard API needs a secure context, which plain-http access

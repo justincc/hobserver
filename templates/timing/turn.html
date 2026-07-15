@@ -37,11 +37,17 @@
   <span><span class="chip cat-llm"></span>llm</span>
   <span><span class="chip cat-tool"></span>tool</span>
   <span><span class="chip cat-other"></span>other</span>
+  <label class="detail-toggle"
+         title="Show inline scope detail — commands, paths, skill names, span uuids">
+    <input type="checkbox" data-detail-toggle>
+    <span class="track"></span>
+    details
+  </label>
 </div>
 
 <table class="waterfall">
   <thead>
-    <tr><th>offset</th><th>span</th><th>duration</th><th></th></tr>
+    <tr><th class="col-offset">offset</th><th>span</th><th class="col-num">duration</th><th class="col-bar"></th></tr>
   </thead>
   <tbody>
     {% for s in turn.timeline %}

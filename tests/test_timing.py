@@ -185,6 +185,14 @@ def test_search_files_pattern_and_glob_shown_inline(tmp_path):
     assert "/home/u/proj" in page
 
 
+def test_turn_page_has_details_switch(tmp_path):
+    atof = write_atof(tmp_path, two_turn_stream())
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    # unchecked on every load — visibility state is per page load, not persisted
+    assert "data-detail-toggle" in page
+    assert "data-detail-toggle checked" not in page
+
+
 def test_turn_id_has_copy_button(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)

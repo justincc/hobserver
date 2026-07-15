@@ -87,7 +87,10 @@ pointing this tool at its output (consuming) — is in
   skill_manage) the `action` inline; file tool scopes (patch, read_file,
   write_file, …) show their `path`, ellipsized from the
   left so the end of a long path stays visible; search_files scopes show
-  the `pattern` (monospace), `file_glob` and search `path`. Each
+  the `pattern` (monospace), `file_glob` and search `path`. All of this
+  inline detail (plus the span uuids) is hidden behind a "details" slider
+  switch on the right of the legend row — off on every page load, never
+  persisted — so the waterfall stays readable by default. Each
   span line carries the span's ATOF uuid — the key for finding its
   start/end lines in the raw JSONL — in small muted monospace right after
   the name, so the span name stays prominent (other correlation ids like
