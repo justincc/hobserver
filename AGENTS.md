@@ -39,9 +39,9 @@ ETL, blueprints-as-plugins).
   `content` (mem0_add scopes) or, on
   skill_view/skill_manage scopes, `name`/`file_path`/`action`, render
   on the turn page — trailing the span name on one ellipsized line by
-  default, on their own line when the details switch is on; the span
-  uuid, muted after
-  the span name, is the raw-JSONL lookup key
+  default, on their own line when the details switch is on; the span or
+  mark uuid, muted after
+  the name with a copy icon, is the raw-JSONL lookup key
   (tool_call_id/api_request_id not shown). The
   `platform` kwarg is `webui` today but hermes has other frontends, e.g.
   a TUI — never assume webui). Pages self-update via the poll-and-swap script in

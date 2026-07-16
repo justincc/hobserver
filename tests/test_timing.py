@@ -111,8 +111,8 @@ def test_turn_detail_renders_waterfall_bars(tmp_path):
     assert "git status --short" in page
     assert "in /home/u/proj" in page
     # the span uuid is the only id on the page — the raw-log lookup key,
-    # muted, right after the span name
-    assert '<span class="span-uuid">· T1</span>' in page
+    # muted, right after the span name, with a copy button
+    assert '<span class="span-uuid">· T1<button class="copy-btn" data-copy="T1"' in page
     assert "call-1" not in page
 
 
@@ -271,6 +271,20 @@ def test_turn_id_has_copy_button(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
     assert 'class="copy-btn" data-copy="t1"' in page
+
+
+def test_span_and_mark_uuids_have_copy_buttons(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L1", "llm", 1_100_000, 1_600_000, name="anthropic",
+                     session="s1", turn="t1"),
+        mark_line("hermes.approval.request", 1_700_000, session="s1", turn="t1"),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert 'class="copy-btn" data-copy="L1"' in page
+    assert 'class="copy-btn" data-copy="mark-hermes.approval.request-1700000"' in page
 
 
 def test_marks_render_as_ticks_in_the_waterfall(tmp_path):

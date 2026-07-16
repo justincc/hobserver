@@ -97,9 +97,10 @@ pointing this tool at its output (consuming) — is in
   slider switch on the right of the legend row — off on every page load,
   never persisted — expands it onto its own line under the name and
   reveals the span uuids. Each
-  span line carries the span's ATOF uuid — the key for finding its
-  start/end lines in the raw JSONL — in small muted monospace right after
-  the name, so the span name stays prominent (other correlation ids like
+  span and mark line carries its ATOF uuid — the key for finding its
+  lines in the raw JSONL — in small muted monospace right after
+  the name with a copy-to-clipboard icon (like the turn id's), so the
+  name stays prominent (other correlation ids like
   tool_call_id are not shown). While the
   turn is in flight the page updates itself every 2 s; once it ends the
   page is static.

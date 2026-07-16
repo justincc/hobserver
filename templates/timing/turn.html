@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 {% block title %}turn {{ turn.turn_id or turn.start_us }} — hermes observer{% endblock %}
+{% macro copy_btn(text, label) -%}
+<button class="copy-btn" data-copy="{{ text }}" title="{{ label }}" aria-label="{{ label }}"><svg class="ic-copy" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="ic-check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+{%- endmacro %}
 {% block content %}
 {% include "timing/_follow.html" %}
 <div data-live-poll="{{ 2000 if turn.end_us is none else 0 }}"
@@ -11,7 +14,7 @@
 {% include "timing/_problems.html" %}
 {% include "timing/_inflight.html" %}
 
-<h2>Turn {{ turn.turn_id or '(no id)' }}{% if turn.turn_id %}<button class="copy-btn" data-copy="{{ turn.turn_id }}" title="copy turn id" aria-label="copy turn id"><svg class="ic-copy" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="ic-check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>{% endif %} · session {{ turn.session_id }}</h2>
+<h2>Turn {{ turn.turn_id or '(no id)' }}{% if turn.turn_id %}{{ copy_btn(turn.turn_id, "copy turn id") }}{% endif %} · session {{ turn.session_id }}</h2>
 <p class="meta">started {{ turn.start_us | us_time }} UTC{% if turn.end_us is none %} · <span class="badge-inflight">in flight</span>{% endif %}</p>
 
 {% if turn.user_message %}
@@ -55,7 +58,7 @@
     {% set tick_pct = [[(s.timestamp_us - turn.start_us) / scale_us * 100, 100.0] | min, 0.0] | max %}
     <tr>
       <td class="num">{{ (s.timestamp_us - turn.start_us) | us_dur }}</td>
-      <td><span class="mark-name">{{ s.name }}</span></td>
+      <td><span class="mark-name">{{ s.name }}</span> <span class="span-uuid">· {{ s.uuid }}{{ copy_btn(s.uuid, "copy mark uuid") }}</span></td>
       <td class="num"></td>
       <td class="bar-cell">
         <div class="bar-track">
@@ -74,7 +77,7 @@
       <td>
         <span class="chip {{ cls }}"></span>{{ s.name }}
         {%- if s.model_name %} · {{ s.model_name }}{% endif %}
-        <span class="span-uuid">· {{ s.uuid }}</span>
+        <span class="span-uuid">· {{ s.uuid }}{{ copy_btn(s.uuid, "copy span uuid") }}</span>
         {%- if s.is_open %} · <span class="badge-inflight">open</span>{% endif %}
         {% if s.command %}
         <div class="span-detail">
