@@ -90,10 +90,11 @@ pointing this tool at its output (consuming) — is in
   the `pattern` (monospace), `file_glob` and search `path`; web_search
   and mem0_search scopes show the `query` (monospace); web_extract scopes show the first
   of their `urls` plus a "+N more" count, with the full list in the
-  title attribute. All of this
-  inline detail (plus the span uuids) is hidden behind a "details" slider
-  switch on the right of the legend row — off on every page load, never
-  persisted — so the waterfall stays readable by default. Each
+  title attribute. By default this extra info trails the span name on a
+  single ellipsized line so every row stays one line tall; a "details"
+  slider switch on the right of the legend row — off on every page load,
+  never persisted — expands it onto its own line under the name and
+  reveals the span uuids. Each
   span line carries the span's ATOF uuid — the key for finding its
   start/end lines in the raw JSONL — in small muted monospace right after
   the name, so the span name stays prominent (other correlation ids like

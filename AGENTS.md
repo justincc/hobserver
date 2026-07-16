@@ -37,7 +37,9 @@ ETL, blueprints-as-plugins).
   (web_search/mem0_search scopes), `urls` (web_extract scopes; first url
   plus a "+N more" count) or, on
   skill_view/skill_manage scopes, `name`/`file_path`/`action`, render
-  inline under the span name on the turn page; the span uuid, muted after
+  on the turn page — trailing the span name on one ellipsized line by
+  default, on their own line when the details switch is on; the span
+  uuid, muted after
   the span name, is the raw-JSONL lookup key
   (tool_call_id/api_request_id not shown). The
   `platform` kwarg is `webui` today but hermes has other frontends, e.g.

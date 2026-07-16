@@ -230,6 +230,17 @@ def test_turn_page_has_details_switch(tmp_path):
     assert "data-detail-toggle checked" not in page
 
 
+def test_span_extra_info_stays_inline_when_details_off(tmp_path):
+    atof = write_atof(tmp_path, two_turn_stream())
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    # with the switch off, extra info joins the name line instead of hiding …
+    assert "body:not(.show-detail) .span-detail { display: inline;" in page
+    # … pinned to a single line by ellipsizing the name cell …
+    assert "body:not(.show-detail) table.waterfall td:nth-child(2) { white-space: nowrap;" in page
+    # … and only the span uuid is hidden
+    assert "body:not(.show-detail) .span-uuid { display: none; }" in page
+
+
 def test_turn_id_has_copy_button(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)

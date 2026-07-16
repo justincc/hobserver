@@ -83,10 +83,22 @@
        than the start; the template's &lrm; guards keep the bidi-neutral
        leading ~ or / from jumping across the rtl run */
     .span-detail .tail { direction: rtl; text-align: left; }
-    /* details switch: inline scope detail is hidden until it is on; the
-       state is a body class set per page load (never persisted) so the
-       live-region swap can't reset it */
-    body:not(.show-detail) .span-detail, body:not(.show-detail) .span-uuid { display: none; }
+    /* details switch: the state is a body class set per page load (never
+       persisted) so the live-region swap can't reset it. With details off
+       the uuid hides and each span's extra info collapses from its own
+       line into an inline continuation of the name line; the name cell is
+       forced to a single ellipsized line so a row can never grow taller */
+    body:not(.show-detail) .span-uuid { display: none; }
+    body:not(.show-detail) table.waterfall td:nth-child(2) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    body:not(.show-detail) .span-detail { display: inline; margin: 0 0 0 0.35rem; }
+    /* plain inline (not inline-block): an inline-block that no longer fits
+       the cell is dropped whole as an atomic inline, whereas inline text is
+       clipped mid-text by the cell-edge ellipsis — showing as many
+       characters as fit */
+    body:not(.show-detail) .span-detail code,
+    body:not(.show-detail) .span-detail .path { display: inline; max-width: none; }
+    /* inline text can't left-ellipsize; keep ltr so bidi can't shuffle paths */
+    body:not(.show-detail) .span-detail .tail { direction: ltr; }
     .legend .detail-toggle { margin-left: auto; }
     .detail-toggle { display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; }
     .detail-toggle input { position: absolute; opacity: 0; pointer-events: none; }
