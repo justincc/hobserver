@@ -214,6 +214,24 @@ def test_search_files_query_from_start_payload():
     assert other.search_pattern is None and other.file_glob is None
 
 
+def test_web_search_query_from_start_payload():
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("W1", "tool", 1_100_000, 1_200_000, name="web_search",
+                     session="s1", turn="t1",
+                     start_data={"query": "flask blueprint url_prefix", "limit": 5}),
+        *scope_lines("T1", "tool", 1_300_000, 1_400_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"query": "not-a-search", "command": "ls"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    web, other = assemble_lines(lines).sessions[0].turns[0].spans
+    assert web.web_search_query == "flask blueprint url_prefix"
+    # the generic "query" key means nothing outside a web_search scope
+    assert other.web_search_query is None
+
+
 def test_timeline_interleaves_marks_with_spans_in_time_order():
     lines = [
         *session_scope_lines("s1"),

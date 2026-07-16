@@ -101,6 +101,10 @@
           <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>
         </div>
         {% endif %}
+        {% elif s.web_search_query %}
+        <div class="span-detail">
+          <code title="{{ s.web_search_query }}">{{ s.web_search_query }}</code>
+        </div>
         {% elif s.path %}
         <div class="span-detail">
           <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>

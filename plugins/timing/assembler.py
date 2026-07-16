@@ -136,6 +136,12 @@ class Span:
     def file_glob(self) -> Optional[str]:
         return self._start_str("file_glob") if self.name == "search_files" else None
 
+    # web_search scopes carry the search query in their start payload;
+    # "query" is too generic a key to trust on other scopes
+    @property
+    def web_search_query(self) -> Optional[str]:
+        return self._start_str("query") if self.name == "web_search" else None
+
     # skill scopes (skill_view/skill_manage) describe the skill touched in
     # their start payload — name, optional file within the skill, and for
     # skill_manage the action; the keys are too generic to trust elsewhere
