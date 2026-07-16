@@ -237,6 +237,25 @@ def test_search_query_from_start_payload():
     assert other.search_query is None
 
 
+def test_execute_code_first_line_from_start_payload():
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("E1", "tool", 1_100_000, 1_200_000, name="execute_code",
+                     session="s1", turn="t1",
+                     start_data={"code": "import json\nprint(json.dumps({}))"}),
+        *scope_lines("T1", "tool", 1_300_000, 1_400_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"code": "not-code", "command": "ls"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    exe, other = assemble_lines(lines).sessions[0].turns[0].spans
+    assert exe.code == "import json\nprint(json.dumps({}))"
+    assert exe.code_first_line == "import json"
+    # the generic "code" key means nothing outside an execute_code scope
+    assert other.code is None and other.code_first_line is None
+
+
 def test_web_extract_urls_from_start_payload():
     lines = [
         *session_scope_lines("s1"),

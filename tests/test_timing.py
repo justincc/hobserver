@@ -203,6 +203,19 @@ def test_search_queries_shown_inline(tmp_path):
     assert "user timezone preference" in page
 
 
+def test_execute_code_first_line_shown_inline(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("E1", "tool", 1_100_000, 1_600_000, name="execute_code",
+                     session="s1", turn="t1",
+                     start_data={"code": "from pathlib import Path\np = Path('/tmp')"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert "from pathlib import Path" in page
+
+
 def test_web_extract_first_url_and_count_shown_inline(tmp_path):
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),

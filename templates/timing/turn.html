@@ -105,6 +105,10 @@
         <div class="span-detail">
           <code title="{{ s.search_query }}">{{ s.search_query }}</code>
         </div>
+        {% elif s.code_first_line %}
+        <div class="span-detail">
+          <code title="{{ s.code }}">{{ s.code_first_line }}</code>
+        </div>
         {% elif s.web_extract_urls %}
         <div class="span-detail">
           <span class="path wide" title="{{ s.web_extract_urls | join('\n') }}">{{ s.web_extract_urls[0] }}</span>

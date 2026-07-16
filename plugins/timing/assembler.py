@@ -144,6 +144,17 @@ class Span:
             return self._start_str("query")
         return None
 
+    # execute_code scopes carry the program in their start payload; the
+    # first line stands in for it inline, the full text goes in the title
+    @property
+    def code(self) -> Optional[str]:
+        return self._start_str("code") if self.name == "execute_code" else None
+
+    @property
+    def code_first_line(self) -> Optional[str]:
+        code = self.code
+        return code.split("\n", 1)[0] if code else None
+
     # web_extract scopes carry a list of target urls in their start payload
     @property
     def web_extract_urls(self) -> list:
