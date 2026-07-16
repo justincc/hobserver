@@ -237,6 +237,24 @@ def test_search_query_from_start_payload():
     assert other.search_query is None
 
 
+def test_mem0_add_content_from_start_payload():
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("M1", "tool", 1_100_000, 1_200_000, name="mem0_add",
+                     session="s1", turn="t1",
+                     start_data={"content": "User prefers tea over coffee."}),
+        *scope_lines("T1", "tool", 1_300_000, 1_400_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"content": "not-a-fact", "command": "ls"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    mem, other = assemble_lines(lines).sessions[0].turns[0].spans
+    assert mem.memory_content == "User prefers tea over coffee."
+    # the generic "content" key means nothing outside a mem0_add scope
+    assert other.memory_content is None
+
+
 def test_execute_code_first_line_from_start_payload():
     lines = [
         *session_scope_lines("s1"),

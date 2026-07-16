@@ -91,7 +91,8 @@ pointing this tool at its output (consuming) — is in
   and mem0_search scopes show the `query` (monospace); web_extract scopes show the first
   of their `urls` plus a "+N more" count, with the full list in the
   title attribute; execute_code scopes show the first line of their
-  `code`, with the full program in the title attribute. By default this extra info trails the span name on a
+  `code`, with the full program in the title attribute; mem0_add scopes
+  show the remembered `content` (plain text, not monospace). By default this extra info trails the span name on a
   single ellipsized line so every row stays one line tall; a "details"
   slider switch on the right of the legend row — off on every page load,
   never persisted — expands it onto its own line under the name and

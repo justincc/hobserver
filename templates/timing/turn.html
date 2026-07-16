@@ -109,6 +109,10 @@
         <div class="span-detail">
           <code title="{{ s.code }}">{{ s.code_first_line }}</code>
         </div>
+        {% elif s.memory_content %}
+        <div class="span-detail">
+          <span class="path wide" title="{{ s.memory_content }}">{{ s.memory_content }}</span>
+        </div>
         {% elif s.web_extract_urls %}
         <div class="span-detail">
           <span class="path wide" title="{{ s.web_extract_urls | join('\n') }}">{{ s.web_extract_urls[0] }}</span>

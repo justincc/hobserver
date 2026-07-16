@@ -144,6 +144,12 @@ class Span:
             return self._start_str("query")
         return None
 
+    # mem0_add scopes carry the remembered fact in their start payload;
+    # "content" is too generic a key to trust on other scopes
+    @property
+    def memory_content(self) -> Optional[str]:
+        return self._start_str("content") if self.name == "mem0_add" else None
+
     # execute_code scopes carry the program in their start payload; the
     # first line stands in for it inline, the full text goes in the title
     @property

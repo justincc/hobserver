@@ -203,6 +203,19 @@ def test_search_queries_shown_inline(tmp_path):
     assert "user timezone preference" in page
 
 
+def test_mem0_add_content_shown_inline(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("M1", "tool", 1_100_000, 1_600_000, name="mem0_add",
+                     session="s1", turn="t1",
+                     start_data={"content": "User prefers tea over coffee."}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert "User prefers tea over coffee." in page
+
+
 def test_execute_code_first_line_shown_inline(tmp_path):
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
