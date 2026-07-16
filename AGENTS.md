@@ -34,8 +34,8 @@ ETL, blueprints-as-plugins).
   turn list / in-flight strip and collapsible on the turn page. Span start
   payloads carrying `command`/`workdir` (terminal tool scopes), `path`
   (file tool scopes, left-ellipsized to keep the tail), `query`
-  (web_search scopes), `urls` (web_extract scopes; first url plus a
-  "+N more" count) or, on
+  (web_search/mem0_search scopes), `urls` (web_extract scopes; first url
+  plus a "+N more" count) or, on
   skill_view/skill_manage scopes, `name`/`file_path`/`action`, render
   inline under the span name on the turn page; the span uuid, muted after
   the span name, is the raw-JSONL lookup key

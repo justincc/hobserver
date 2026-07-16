@@ -88,7 +88,7 @@ pointing this tool at its output (consuming) — is in
   write_file, …) show their `path`, ellipsized from the
   left so the end of a long path stays visible; search_files scopes show
   the `pattern` (monospace), `file_glob` and search `path`; web_search
-  scopes show the `query` (monospace); web_extract scopes show the first
+  and mem0_search scopes show the `query` (monospace); web_extract scopes show the first
   of their `urls` plus a "+N more" count, with the full list in the
   title attribute. All of this
   inline detail (plus the span uuids) is hidden behind a "details" slider

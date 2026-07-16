@@ -185,17 +185,22 @@ def test_search_files_pattern_and_glob_shown_inline(tmp_path):
     assert "/home/u/proj" in page
 
 
-def test_web_search_query_shown_inline(tmp_path):
+def test_search_queries_shown_inline(tmp_path):
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
         *scope_lines("W1", "tool", 1_100_000, 1_600_000, name="web_search",
                      session="s1", turn="t1",
                      start_data={"query": "flask blueprint url_prefix", "limit": 5}),
+        *scope_lines("M1", "tool", 1_650_000, 1_700_000, name="mem0_search",
+                     session="s1", turn="t1",
+                     start_data={"query": "user timezone preference",
+                                 "rerank": True, "top_k": 10}),
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
     page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
     assert "flask blueprint url_prefix" in page
+    assert "user timezone preference" in page
 
 
 def test_web_extract_first_url_and_count_shown_inline(tmp_path):

@@ -136,11 +136,13 @@ class Span:
     def file_glob(self) -> Optional[str]:
         return self._start_str("file_glob") if self.name == "search_files" else None
 
-    # web_search scopes carry the search query in their start payload;
-    # "query" is too generic a key to trust on other scopes
+    # web_search and mem0_search scopes carry their search query in the
+    # start payload; "query" is too generic a key to trust on other scopes
     @property
-    def web_search_query(self) -> Optional[str]:
-        return self._start_str("query") if self.name == "web_search" else None
+    def search_query(self) -> Optional[str]:
+        if self.name in ("web_search", "mem0_search"):
+            return self._start_str("query")
+        return None
 
     # web_extract scopes carry a list of target urls in their start payload
     @property
