@@ -142,6 +142,19 @@ class Span:
     def web_search_query(self) -> Optional[str]:
         return self._start_str("query") if self.name == "web_search" else None
 
+    # web_extract scopes carry a list of target urls in their start payload
+    @property
+    def web_extract_urls(self) -> list:
+        if self.name != "web_extract":
+            return []
+        data = _as_dict(self.start_data)
+        if data is None:
+            return []
+        urls = data.get("urls")
+        if not isinstance(urls, list):
+            return []
+        return [u for u in urls if isinstance(u, str) and u]
+
     # skill scopes (skill_view/skill_manage) describe the skill touched in
     # their start payload — name, optional file within the skill, and for
     # skill_manage the action; the keys are too generic to trust elsewhere

@@ -232,6 +232,32 @@ def test_web_search_query_from_start_payload():
     assert other.web_search_query is None
 
 
+def test_web_extract_urls_from_start_payload():
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("W1", "tool", 1_100_000, 1_200_000, name="web_extract",
+                     session="s1", turn="t1",
+                     start_data={"char_limit": 30000,
+                                 "urls": ["https://a.example/one",
+                                          "https://b.example/two"]}),
+        *scope_lines("T1", "tool", 1_300_000, 1_400_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"urls": ["https://c.example"], "command": "ls"}),
+        *scope_lines("W2", "tool", 1_500_000, 1_600_000, name="web_extract",
+                     session="s1", turn="t1",
+                     start_data={"urls": "not-a-list"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    extract, other, odd = assemble_lines(lines).sessions[0].turns[0].spans
+    assert extract.web_extract_urls == ["https://a.example/one",
+                                        "https://b.example/two"]
+    # the "urls" key means nothing outside a web_extract scope, and a
+    # malformed payload yields an empty list rather than an error
+    assert other.web_extract_urls == []
+    assert odd.web_extract_urls == []
+
+
 def test_timeline_interleaves_marks_with_spans_in_time_order():
     lines = [
         *session_scope_lines("s1"),

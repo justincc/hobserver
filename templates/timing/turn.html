@@ -105,6 +105,11 @@
         <div class="span-detail">
           <code title="{{ s.web_search_query }}">{{ s.web_search_query }}</code>
         </div>
+        {% elif s.web_extract_urls %}
+        <div class="span-detail">
+          <span class="path wide" title="{{ s.web_extract_urls | join('\n') }}">{{ s.web_extract_urls[0] }}</span>
+          {%- if s.web_extract_urls | length > 1 %} <span>+{{ s.web_extract_urls | length - 1 }} more</span>{% endif %}
+        </div>
         {% elif s.path %}
         <div class="span-detail">
           <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>
