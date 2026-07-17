@@ -79,4 +79,5 @@ The Prompt timing tab lists turns as they land; reload to pick up new
 events (the tailer reads only what the exporter appended since the last
 request). The tab distinguishes three failure states loudly — `ATOF_LOG`
 unset, file missing, and file present but empty — and shows unparseable
-lines and assembly anomalies above the tables rather than dropping them.
+lines and assembly anomalies above the turn list (folded closed) rather
+than dropping them.

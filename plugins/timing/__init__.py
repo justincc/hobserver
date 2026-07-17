@@ -6,7 +6,9 @@ waterfall). Views run the tailer on each request and assemble in memory.
 
 Per ADR 2's fail-open caveat, the page states loudly when the source is
 unconfigured, missing, or silent instead of rendering an empty timeline,
-and parse errors / assembly anomalies are always shown, never dropped.
+and parse errors / assembly anomalies are always surfaced, never dropped —
+as collapsed problem sections on the turn-list page only, so turn pages
+stay uncluttered.
 """
 
 import os
@@ -131,7 +133,7 @@ def turn(session_id, start_us):
     problem = _source_problem()
     if problem is not None:
         return problem
-    assembly, parse_errors = _assembly()
+    assembly, _ = _assembly()
     found = next(
         (t for s in assembly.sessions if s.session_id == session_id
          for t in s.turns if t.start_us == start_us),
@@ -150,6 +152,4 @@ def turn(session_id, start_us):
         current=found,
         scale_us=scale_us,
         inflight=_inflight_entries(assembly),
-        parse_errors=parse_errors,
-        anomalies=assembly.anomalies,
     )

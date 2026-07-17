@@ -11,7 +11,6 @@
   <a href="{{ url_for('timing.index') }}">&larr; all turns</a>
 </nav>
 
-{% include "timing/_problems.html" %}
 {% include "timing/_inflight.html" %}
 
 <h2>Turn {{ turn.turn_id or '(no id)' }}{% if turn.turn_id %}{{ copy_btn(turn.turn_id, "copy turn id") }}{% endif %} · session {{ turn.session_id }}</h2>

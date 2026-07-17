@@ -344,6 +344,14 @@ def test_parse_errors_are_shown_not_dropped(tmp_path):
     assert "unparseable line" in page
     assert "this is not json" in page
     assert "5.50 s" in page             # good events still render
+    # folded closed by default — details opt-in via the summary click
+    assert 'class="problems" open' not in page
+
+
+def test_problems_only_on_turn_list_page(tmp_path):
+    atof = write_atof(tmp_path, two_turn_stream() + ["this is not json"])
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert "unparseable line" not in page
 
 
 def test_anomalies_are_shown(tmp_path):

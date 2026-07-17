@@ -1,5 +1,5 @@
 {% if parse_errors %}
-<details class="problems" open>
+<details class="problems">
   <summary>{{ parse_errors | length }} unparseable line{{ 's' if parse_errors | length != 1 }} in the ATOF log</summary>
   <ul>
     {% for e in parse_errors %}
