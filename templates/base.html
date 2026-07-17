@@ -97,8 +97,12 @@
        characters as fit */
     body:not(.show-detail) .span-detail code,
     body:not(.show-detail) .span-detail .path { display: inline; max-width: none; }
-    /* inline text can't left-ellipsize; keep ltr so bidi can't shuffle paths */
-    body:not(.show-detail) .span-detail .tail { direction: ltr; }
+    /* …except .tail, which stays an inline-block so the rtl left-ellipsis
+       still keeps the end of the path visible inline. Its max-width leaves
+       ~12rem for the short file-tool name ahead of it; if earlier inline
+       detail overruns that reserve the block is dropped whole at the cell
+       edge — acceptable, that case only loses an already-clipped path */
+    body:not(.show-detail) .span-detail .tail { display: inline-block; max-width: calc(100% - 12rem); overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
     .legend .detail-toggle { margin-left: auto; }
     .detail-toggle { display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; }
     .detail-toggle input { position: absolute; opacity: 0; pointer-events: none; }
