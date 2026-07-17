@@ -124,6 +124,11 @@
         <div class="span-detail">
           <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>
         </div>
+        {% elif s.patch_paths %}
+        <div class="span-detail">
+          <span class="path tail" title="{{ s.patch_paths | join('\n') }}">&lrm;{{ s.patch_paths[0] | tilde }}&lrm;</span>
+          {%- if s.patch_paths | length > 1 %} <span>+{{ s.patch_paths | length - 1 }} more</span>{% endif %}
+        </div>
         {% endif %}
       </td>
       <td class="num">{{ s.duration_us | us_dur }}</td>

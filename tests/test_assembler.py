@@ -193,6 +193,33 @@ def test_file_tool_path_from_start_payload():
     assert llm.path is None
 
 
+def test_patch_mode_paths_from_v4a_headers():
+    patch_text = ("*** Begin Patch\n"
+                  "*** Update File: /home/u/a.md\n@@\n-x\n+y\n"
+                  "*** Update File: /home/u/a.md\n@@\n-p\n+q\n"
+                  "*** Add File: /home/u/b.md\n+hello\n"
+                  "*** Move File: /home/u/c.md -> /home/u/d.md\n"
+                  "*** End Patch")
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("P1", "tool", 1_100_000, 1_200_000, name="patch",
+                     session="s1", turn="t1",
+                     start_data={"mode": "patch", "patch": patch_text}),
+        *scope_lines("T1", "tool", 1_300_000, 1_400_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"patch": "not-a-file-edit", "command": "ls"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    patch, other = assemble_lines(lines).sessions[0].turns[0].spans
+    # deduped, in patch order; a move keeps its "old -> new" whole
+    assert patch.patch_paths == ["/home/u/a.md", "/home/u/b.md",
+                                 "/home/u/c.md -> /home/u/d.md"]
+    assert patch.path is None
+    # the generic "patch" key means nothing outside a patch scope
+    assert other.patch_paths == []
+
+
 def test_search_files_query_from_start_payload():
     lines = [
         *session_scope_lines("s1"),

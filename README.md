@@ -87,7 +87,11 @@ pointing this tool at its output (consuming) — is in
   `name`, the `file_path` within the skill when one is targeted, and (for
   skill_manage) the `action` inline; file tool scopes (patch, read_file,
   write_file, …) show their `path`, ellipsized from the
-  left so the end of a long path stays visible; search_files scopes show
+  left so the end of a long path stays visible; patch scopes in patch
+  mode carry no top-level `path` — the touched files are extracted from
+  the V4A `patch` text's `*** <Op> File:` headers and shown as the first
+  path plus a "+N more" count, all paths in the title attribute;
+  search_files scopes show
   the `pattern` (monospace), `file_glob` and search `path`; web_search
   and mem0_search scopes show the `query` (monospace); web_extract scopes show the first
   of their `urls` plus a "+N more" count, with the full list in the

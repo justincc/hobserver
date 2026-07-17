@@ -169,6 +169,25 @@ def test_file_tool_path_shown_inline_tail_first(tmp_path):
     assert 'class="path tail"' in page
 
 
+def test_patch_mode_paths_shown_inline(tmp_path):
+    patch_text = ("*** Begin Patch\n"
+                  "*** Update File: /home/u/proj/a.md\n@@\n-old\n+new\n"
+                  "*** Update File: /home/u/proj/b.md\n@@\n-x\n+y\n"
+                  "*** End Patch")
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("P1", "tool", 1_100_000, 1_600_000, name="patch",
+                     session="s1", turn="t1",
+                     start_data={"mode": "patch", "patch": patch_text}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert "/home/u/proj/a.md" in page   # first path shown inline
+    assert "+1 more" in page             # remaining files as a count
+    assert "/home/u/proj/b.md" in page   # all paths in the hover title
+
+
 def test_search_files_pattern_and_glob_shown_inline(tmp_path):
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),

@@ -33,7 +33,9 @@ ETL, blueprints-as-plugins).
   user_message becomes Turn.user_message, shown as prompt snippets in the
   turn list / in-flight strip and collapsible on the turn page. Span start
   payloads carrying `command`/`workdir` (terminal tool scopes), `path`
-  (file tool scopes, left-ellipsized to keep the tail), `query`
+  (file tool scopes, left-ellipsized to keep the tail; patch-mode patch
+  scopes instead list the files from the V4A `patch` text's headers,
+  first path plus a "+N more" count), `query`
   (web_search/mem0_search scopes), `urls` (web_extract scopes; first url
   plus a "+N more" count), `code` (execute_code scopes; first line),
   `content` (mem0_add scopes) or, on

@@ -53,6 +53,11 @@ def _as_dict(data: Any) -> Optional[dict]:
     return data if isinstance(data, dict) else None
 
 
+# V4A patch operation headers, per hermes tools/patch_parser.py
+_PATCH_FILE_HEADERS = ("*** Update File:", "*** Add File:",
+                       "*** Delete File:", "*** Move File:")
+
+
 @dataclass
 class Span:
     uuid: str
@@ -125,6 +130,25 @@ class Span:
     @property
     def path(self) -> Optional[str]:
         return self._start_str("path")
+
+    # patch-mode patch scopes carry no top-level path: the touched files
+    # live in the V4A patch text's "*** <Op> File:" headers (see hermes
+    # tools/patch_parser.py); a move header keeps its "old -> new" whole
+    @property
+    def patch_paths(self) -> List[str]:
+        if self.name != "patch":
+            return []
+        text = self._start_str("patch")
+        if not text:
+            return []
+        paths = []
+        for line in text.splitlines():
+            for header in _PATCH_FILE_HEADERS:
+                if line.startswith(header):
+                    value = line[len(header):].strip()
+                    if value and value not in paths:
+                        paths.append(value)
+        return paths
 
     # search_files scopes carry the query in their start payload; "pattern"
     # is too generic a key to trust on other scopes
