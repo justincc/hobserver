@@ -93,9 +93,8 @@ pointing this tool at its output (consuming) — is in
   path plus a "+N more" count, all paths in the title attribute;
   search_files scopes show
   the `pattern` (monospace), `file_glob` and search `path`; web_search
-  and mem0_search scopes show the `query` (monospace; the often-long
-  mem0_search query wraps out in full in detail mode instead of
-  ellipsizing); web_extract scopes show the first
+  and mem0_search scopes show the `query` (monospace; wraps out in
+  full in detail mode instead of ellipsizing); web_extract scopes show the first
   of their `urls` plus a "+N more" count, with the full list in the
   title attribute and every url on its own line in detail mode;
   execute_code scopes show the first line of their
