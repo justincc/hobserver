@@ -121,10 +121,15 @@
           {%- if s.web_extract_urls | length > 1 %} <span>+{{ s.web_extract_urls | length - 1 }} more</span>{% endif %}
         </div>
         {% elif s.todo_contents %}
-        <div class="span-detail">
+        <div class="span-detail todo-compact">
           <span class="path wide" title="{{ s.todo_contents | join('\n') }}">{{ s.todo_contents[0] }}</span>
           {%- if s.todo_contents | length > 1 %} <span>+{{ s.todo_contents | length - 1 }} more</span>{% endif %}
         </div>
+        {% for item in s.todo_contents %}
+        <div class="span-detail todo-item">
+          <span class="path wide" title="{{ item }}">{{ item }}</span>
+        </div>
+        {% endfor %}
         {% elif s.path %}
         <div class="span-detail">
           <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>

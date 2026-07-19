@@ -267,6 +267,32 @@ def test_web_extract_first_url_and_count_shown_inline(tmp_path):
     assert "https://c.example/three" in page
 
 
+def test_todo_first_item_inline_and_full_list_for_detail_mode(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("D1", "tool", 1_100_000, 1_600_000, name="todo",
+                     session="s1", turn="t1",
+                     start_data={"todos": [
+                         {"id": "a", "content": "Inventory the report",
+                          "status": "in_progress"},
+                         {"id": "b", "content": "Run discovery",
+                          "status": "pending"},
+                         {"id": "c", "content": "Write it up",
+                          "status": "pending"},
+                     ]}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    # inline mode: first item plus a count of the rest
+    assert "Inventory the report" in page
+    assert "+2 more" in page
+    # detail mode: every item on its own todo-item line
+    assert page.count('class="span-detail todo-item"') == 3
+    assert "Run discovery" in page
+    assert "Write it up" in page
+
+
 def test_turn_page_has_details_switch(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
