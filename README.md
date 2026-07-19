@@ -95,7 +95,8 @@ pointing this tool at its output (consuming) — is in
   the `pattern` (monospace), `file_glob` and search `path`; web_search
   and mem0_search scopes show the `query` (monospace); web_extract scopes show the first
   of their `urls` plus a "+N more" count, with the full list in the
-  title attribute; execute_code scopes show the first line of their
+  title attribute and every url on its own line in detail mode;
+  execute_code scopes show the first line of their
   `code`, with the full program in the title attribute; mem0_add scopes
   show the remembered `content` (plain text, not monospace); todo scopes
   show the first of their `todos` items' `content` plus a "+N more"

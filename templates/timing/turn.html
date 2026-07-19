@@ -3,6 +3,17 @@
 {% macro copy_btn(text, label) -%}
 <button class="copy-btn" data-copy="{{ text }}" title="{{ label }}" aria-label="{{ label }}"><svg class="ic-copy" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="ic-check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
 {%- endmacro %}
+{% macro item_list(items) -%}
+<div class="span-detail list-compact">
+  <span class="path wide" title="{{ items | join('\n') }}">{{ items[0] }}</span>
+  {%- if items | length > 1 %} <span>+{{ items | length - 1 }} more</span>{% endif %}
+</div>
+{% for item in items %}
+<div class="span-detail list-item">
+  <span class="path wide" title="{{ item }}">{{ item }}</span>
+</div>
+{% endfor %}
+{%- endmacro %}
 {% block content %}
 {% include "timing/_follow.html" %}
 <div data-live-poll="{{ 2000 if turn.end_us is none else 0 }}"
@@ -116,20 +127,9 @@
           <span class="path wide" title="{{ s.memory_content }}">{{ s.memory_content }}</span>
         </div>
         {% elif s.web_extract_urls %}
-        <div class="span-detail">
-          <span class="path wide" title="{{ s.web_extract_urls | join('\n') }}">{{ s.web_extract_urls[0] }}</span>
-          {%- if s.web_extract_urls | length > 1 %} <span>+{{ s.web_extract_urls | length - 1 }} more</span>{% endif %}
-        </div>
+        {{ item_list(s.web_extract_urls) }}
         {% elif s.todo_contents %}
-        <div class="span-detail todo-compact">
-          <span class="path wide" title="{{ s.todo_contents | join('\n') }}">{{ s.todo_contents[0] }}</span>
-          {%- if s.todo_contents | length > 1 %} <span>+{{ s.todo_contents | length - 1 }} more</span>{% endif %}
-        </div>
-        {% for item in s.todo_contents %}
-        <div class="span-detail todo-item">
-          <span class="path wide" title="{{ item }}">{{ item }}</span>
-        </div>
-        {% endfor %}
+        {{ item_list(s.todo_contents) }}
         {% elif s.path %}
         <div class="span-detail">
           <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>

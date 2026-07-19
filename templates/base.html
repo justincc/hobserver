@@ -109,10 +109,11 @@
        detail overruns that reserve the block is dropped whole at the cell
        edge — acceptable, that case only loses an already-clipped path */
     body:not(.show-detail) tr:not(.detail-open) .span-detail .tail { display: inline-block; max-width: calc(100% - 12rem); overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
-    /* todo scopes render two variants: a first-item-plus-count line for
-       inline mode and the full item list for detail mode */
-    body.show-detail .todo-compact, tr.detail-open .todo-compact { display: none; }
-    body:not(.show-detail) tr:not(.detail-open) .todo-item { display: none; }
+    /* list-carrying scopes (todo, web_extract) render two variants: a
+       first-item-plus-count line for inline mode and the full item list
+       for detail mode */
+    body.show-detail .list-compact, tr.detail-open .list-compact { display: none; }
+    body:not(.show-detail) tr:not(.detail-open) .list-item { display: none; }
     .legend .detail-toggle { margin-left: auto; }
     .detail-toggle { display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; }
     .detail-toggle input { position: absolute; opacity: 0; pointer-events: none; }

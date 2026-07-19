@@ -265,6 +265,8 @@ def test_web_extract_first_url_and_count_shown_inline(tmp_path):
     assert "+2 more" in page
     # every url is available on hover via the title attribute
     assert "https://c.example/three" in page
+    # … and on its own list-item line for detail mode
+    assert page.count('class="span-detail list-item"') == 3
 
 
 def test_todo_first_item_inline_and_full_list_for_detail_mode(tmp_path):
@@ -287,8 +289,8 @@ def test_todo_first_item_inline_and_full_list_for_detail_mode(tmp_path):
     # inline mode: first item plus a count of the rest
     assert "Inventory the report" in page
     assert "+2 more" in page
-    # detail mode: every item on its own todo-item line
-    assert page.count('class="span-detail todo-item"') == 3
+    # detail mode: every item on its own list-item line
+    assert page.count('class="span-detail list-item"') == 3
     assert "Run discovery" in page
     assert "Write it up" in page
 
