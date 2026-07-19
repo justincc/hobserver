@@ -36,7 +36,8 @@ ETL, blueprints-as-plugins).
   (file tool scopes, left-ellipsized to keep the tail; patch-mode patch
   scopes instead list the files from the V4A `patch` text's headers,
   first path plus a "+N more" count), `query`
-  (web_search/mem0_search scopes), `urls` (web_extract scopes; first url
+  (web_search/mem0_search scopes; mem0_search wraps in full in detail
+  mode), `urls` (web_extract scopes; first url
   plus a "+N more" count inline, every url on its own line in detail
   mode), `code` (execute_code scopes; first line),
   `content` (mem0_add scopes), `todos` (todo scopes; first item's

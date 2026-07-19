@@ -109,6 +109,10 @@
        detail overruns that reserve the block is dropped whole at the cell
        edge — acceptable, that case only loses an already-clipped path */
     body:not(.show-detail) tr:not(.detail-open) .span-detail .tail { display: inline-block; max-width: calc(100% - 12rem); overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+    /* .wrap-detail text (mem0_search queries) drops the one-line ellipsis
+       in the detailed layout and wraps out in full */
+    body.show-detail .span-detail .wrap-detail,
+    tr.detail-open .span-detail .wrap-detail { white-space: normal; overflow-wrap: anywhere; }
     /* list-carrying scopes (todo, web_extract) render two variants: a
        first-item-plus-count line for inline mode and the full item list
        for detail mode */

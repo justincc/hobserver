@@ -220,6 +220,10 @@ def test_search_queries_shown_inline(tmp_path):
     page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
     assert "flask blueprint url_prefix" in page
     assert "user timezone preference" in page
+    # mem0_search queries wrap out in full in the detailed layout;
+    # web_search queries keep the one-line ellipsis
+    assert '<code class="wrap-detail" title="user timezone preference">' in page
+    assert '<code title="flask blueprint url_prefix">' in page
 
 
 def test_mem0_add_content_shown_inline(tmp_path):
