@@ -327,6 +327,36 @@ def test_web_extract_urls_from_start_payload():
     assert odd.web_extract_urls == []
 
 
+def test_todo_contents_from_start_payload():
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("D1", "tool", 1_100_000, 1_200_000, name="todo",
+                     session="s1", turn="t1",
+                     start_data={"todos": [
+                         {"id": "inventory", "status": "in_progress",
+                          "content": "Inventory the existing report"},
+                         {"id": "discover", "status": "pending",
+                          "content": "Run refreshed discovery"},
+                         {"id": "bare", "status": "pending"},
+                     ]}),
+        *scope_lines("T1", "tool", 1_300_000, 1_400_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"todos": [{"content": "x"}], "command": "ls"}),
+        *scope_lines("D2", "tool", 1_500_000, 1_600_000, name="todo",
+                     session="s1", turn="t1", start_data={}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    todo, other, read = assemble_lines(lines).sessions[0].turns[0].spans
+    # merge-mode items without content are skipped, not errors
+    assert todo.todo_contents == ["Inventory the existing report",
+                                  "Run refreshed discovery"]
+    # the "todos" key means nothing outside a todo scope, and a todo call
+    # with no todos is a read of the current list
+    assert other.todo_contents == []
+    assert read.todo_contents == []
+
+
 def test_timeline_interleaves_marks_with_spans_in_time_order():
     lines = [
         *session_scope_lines("s1"),

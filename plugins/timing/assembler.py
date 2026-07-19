@@ -198,6 +198,25 @@ class Span:
             return []
         return [u for u in urls if isinstance(u, str) and u]
 
+    # todo scopes carry the full task list in their start payload; a call
+    # without "todos" is a read, and merge-mode items may omit content —
+    # both render nothing rather than erroring
+    @property
+    def todo_contents(self) -> list:
+        if self.name != "todo":
+            return []
+        data = _as_dict(self.start_data)
+        if data is None:
+            return []
+        todos = data.get("todos")
+        if not isinstance(todos, list):
+            return []
+        return [
+            t["content"] for t in todos
+            if isinstance(t, dict)
+            and isinstance(t.get("content"), str) and t["content"]
+        ]
+
     # skill scopes (skill_view/skill_manage) describe the skill touched in
     # their start payload — name, optional file within the skill, and for
     # skill_manage the action; the keys are too generic to trust elsewhere

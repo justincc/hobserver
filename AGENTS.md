@@ -38,7 +38,8 @@ ETL, blueprints-as-plugins).
   first path plus a "+N more" count), `query`
   (web_search/mem0_search scopes), `urls` (web_extract scopes; first url
   plus a "+N more" count), `code` (execute_code scopes; first line),
-  `content` (mem0_add scopes) or, on
+  `content` (mem0_add scopes), `todos` (todo scopes; first item's
+  content plus a "+N more" count) or, on
   skill_view/skill_manage scopes, `name`/`file_path`/`action`, render
   on the turn page — trailing the span name on one ellipsized line by
   default, on their own line when the details switch is on; the span or

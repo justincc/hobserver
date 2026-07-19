@@ -97,7 +97,10 @@ pointing this tool at its output (consuming) — is in
   of their `urls` plus a "+N more" count, with the full list in the
   title attribute; execute_code scopes show the first line of their
   `code`, with the full program in the title attribute; mem0_add scopes
-  show the remembered `content` (plain text, not monospace). By default this extra info trails the span name on a
+  show the remembered `content` (plain text, not monospace); todo scopes
+  show the first of their `todos` items' `content` plus a "+N more"
+  count, all items in the title attribute (a todo call without `todos`
+  is a read of the current list and shows nothing). By default this extra info trails the span name on a
   single ellipsized line so every row stays one line tall; a "details"
   slider switch on the right of the legend row — off on every page load,
   never persisted — expands it onto its own line under the name and
