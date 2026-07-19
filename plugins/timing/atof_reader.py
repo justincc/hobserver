@@ -110,6 +110,35 @@ class AtofEvent:
         value = self.data.get("child_goal")
         return value if isinstance(value, str) and value else None
 
+    def _subagent_data(self, key):
+        if not self.name.startswith("hermes.subagent.") or not isinstance(self.data, dict):
+            return None
+        return self.data.get(key)
+
+    # both subagent marks name the child session — the only key correlating
+    # a stop back to its start (stops carry no child_subagent_id)
+    @property
+    def child_session_id(self) -> Optional[str]:
+        value = self._subagent_data("child_session_id")
+        return value if isinstance(value, str) and value else None
+
+    # hermes.subagent.stop marks report how the child ended
+    @property
+    def child_status(self) -> Optional[str]:
+        if self.name != "hermes.subagent.stop":
+            return None
+        value = self._subagent_data("child_status")
+        return value if isinstance(value, str) and value else None
+
+    @property
+    def child_duration_ms(self) -> Optional[float]:
+        if self.name != "hermes.subagent.stop":
+            return None
+        value = self._subagent_data("duration_ms")
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return value
+        return None
+
 
 def normalize_timestamp(value, line_no: int = 1) -> int:
     """Normalize either spec timestamp encoding to epoch microseconds UTC.

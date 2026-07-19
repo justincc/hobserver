@@ -45,6 +45,16 @@
     /* chipless mark rows: indent past the 0.8rem chip + 0.35rem gap so
        mark names align with span names */
     .mark-name { margin-left: 1.15rem; }
+    /* per-turn subagent tag (#1, #2, …) pairing a subagent.start with its
+       stop by eye — quiet but always visible, unlike the uuid; nudged
+       clear of the mark name, with a trailing middot before the inline
+       goal/status that detail mode drops (its line break separates) */
+    .subagent-ord { color: #555; font-size: 0.85rem; margin-left: 0.35rem; }
+    body.show-detail .inline-only, tr.detail-open .inline-only { display: none; }
+    /* after the tag's middot, a plain single space to the goal/status —
+       the same gap as between a stop's status and its goal — instead of
+       the usual inline span-detail indent */
+    body:not(.show-detail) tr:not(.detail-open) .subagent-ord ~ .span-detail { margin-left: 0; }
     .copy-btn { background: none; border: 0; padding: 0; margin-left: 0.35rem; cursor: pointer; color: #bbb; vertical-align: -0.08em; }
     .copy-btn:hover { color: #555; }
     .copy-btn .ic-check { display: none; }

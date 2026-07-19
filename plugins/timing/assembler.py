@@ -327,6 +327,27 @@ class Turn:
             key=lambda e: e.timestamp_us if e.is_mark else e.start_us,
         )
 
+    # Each subagent gets a small per-turn tag (#1, #2, … in start-mark
+    # order) shown on both its start and stop rows so the pair can be
+    # matched by eye; stops correlate back via child_session_id, the only
+    # key present on both marks.
+    @property
+    def subagents(self) -> dict:
+        out = {}
+        for m in sorted(self.marks, key=lambda m: m.timestamp_us):
+            sid = m.child_session_id
+            if m.name == "hermes.subagent.start" and sid and sid not in out:
+                out[sid] = {"ordinal": len(out) + 1, "goal": m.child_goal}
+        return out
+
+    def subagent_ordinal(self, mark) -> Optional[int]:
+        entry = self.subagents.get(mark.child_session_id)
+        return entry["ordinal"] if entry else None
+
+    def subagent_goal(self, mark) -> Optional[str]:
+        entry = self.subagents.get(mark.child_session_id)
+        return entry["goal"] if entry else None
+
     @property
     def last_activity_us(self) -> int:
         """Timestamp of the last event seen in this turn — distinguishes a

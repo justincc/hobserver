@@ -45,7 +45,9 @@ ETL, blueprints-as-plugins).
   detail mode), `tasks`/`goal`/`context` (delegate_task scopes; first
   goal plus count inline, full goals with contexts nested beneath in
   detail mode — hermes.subagent.start marks show their `child_goal`
-  the same way) or, on
+  the same way, subagent.stop marks show `child_status` plus the
+  echoed goal, and both carry a per-turn #N tag pairing start with
+  stop via `child_session_id`) or, on
   skill_view/skill_manage scopes, `name`/`file_path`/`action`, render
   on the turn page — trailing the span name on one ellipsized line by
   default, on their own line when the details switch is on; clicking a

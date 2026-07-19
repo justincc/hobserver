@@ -332,6 +332,33 @@ def test_delegate_task_and_subagent_goals_shown(tmp_path):
     assert "Sweep Luma listings" in row
 
 
+def test_subagent_stop_shows_ordinal_status_and_echoed_goal(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        mark_line("hermes.subagent.start", 1_100_000, session="s1", turn="t1",
+                  data={"child_goal": "Sweep Luma listings",
+                        "child_session_id": "c1"}),
+        mark_line("hermes.subagent.stop", 1_800_000, session="s1", turn="t1",
+                  data={"child_session_id": "c1", "child_status": "timeout",
+                        "duration_ms": 600050}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    # the pair tag rides both the start and the stop row, with an
+    # inline-only middot ahead of the goal/status
+    assert page.count('class="subagent-ord"') == 2
+    assert page.count('<span class="inline-only">·</span>') == 2
+    stop_row = re.search(
+        r'<tr data-span-uuid="mark-hermes\.subagent\.stop-1800000">.*?</tr>',
+        page, re.S).group(0)
+    # the stop row shows the status, echoes its start's goal, and keeps
+    # the child session id and duration on a detail-only line
+    assert "timeout" in stop_row
+    assert "Sweep Luma listings" in stop_row
+    assert "c1 · 600.05 s" in stop_row
+
+
 def test_turn_page_has_details_switch(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)

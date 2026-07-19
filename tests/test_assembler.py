@@ -392,6 +392,41 @@ def test_delegate_task_briefs_from_start_payload():
     assert other.delegate_tasks == []
 
 
+def test_subagent_stops_pair_with_starts_by_child_session_id():
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        mark_line("hermes.subagent.start", 1_100_000, session="s1", turn="t1",
+                  data={"child_goal": "Sweep Luma", "child_session_id": "c1"}),
+        mark_line("hermes.subagent.start", 1_200_000, session="s1", turn="t1",
+                  data={"child_goal": "Sweep Meetup", "child_session_id": "c2"}),
+        mark_line("hermes.approval.request", 1_500_000, session="s1", turn="t1"),
+        # stops arrive in the opposite order to the starts
+        mark_line("hermes.subagent.stop", 1_800_000, session="s1", turn="t1",
+                  data={"child_session_id": "c2", "child_status": "ok",
+                        "duration_ms": 600}),
+        mark_line("hermes.subagent.stop", 1_900_000, session="s1", turn="t1",
+                  data={"child_session_id": "c1", "child_status": "timeout",
+                        "duration_ms": 800}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    turn = assemble_lines(lines).sessions[0].turns[0]
+    marks = {(m.name, m.child_session_id): m for m in turn.marks}
+    stop1 = marks[("hermes.subagent.stop", "c1")]
+    stop2 = marks[("hermes.subagent.stop", "c2")]
+    # ordinals follow start order regardless of stop order, and a stop
+    # resolves its start's goal
+    assert turn.subagent_ordinal(stop1) == 1
+    assert turn.subagent_ordinal(stop2) == 2
+    assert turn.subagent_goal(stop1) == "Sweep Luma"
+    assert turn.subagent_goal(stop2) == "Sweep Meetup"
+    assert stop1.child_status == "timeout"
+    assert stop1.child_duration_ms == 800
+    # non-subagent marks carry no tag
+    approval = marks[("hermes.approval.request", None)]
+    assert turn.subagent_ordinal(approval) is None
+
+
 def test_timeline_interleaves_marks_with_spans_in_time_order():
     lines = [
         *session_scope_lines("s1"),

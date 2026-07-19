@@ -109,7 +109,13 @@ pointing this tool at its output (consuming) — is in
   `context` nested fainter and indented beneath it (both batch-mode
   `tasks` lists and single-mode top-level `goal`/`context` payloads);
   hermes.subagent.start marks likewise show their `child_goal` —
-  ellipsized inline, in full in detail mode. By default this extra info trails the span name on a
+  ellipsized inline, in full in detail mode. Each subagent also gets a
+  per-turn tag (#1, #2, … in start order) shown on both its start and
+  stop rows so the pair can be matched by eye in the one-line view;
+  the stop row shows the `child_status` (e.g. timeout) and echoes its
+  start's goal, pairing internally via `child_session_id` — the only
+  key both marks carry — with the session id and `duration_ms` on a
+  detail-only line. By default this extra info trails the span name on a
   single ellipsized line so every row stays one line tall; a "details"
   slider switch on the right of the legend row — off on every page load,
   never persisted — expands it onto its own line under the name and

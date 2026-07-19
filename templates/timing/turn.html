@@ -69,10 +69,24 @@
     <tr data-span-uuid="{{ s.uuid }}">
       <td class="num">{{ (s.timestamp_us - turn.start_us) | us_dur }}</td>
       <td>
-        <span class="mark-name">{{ s.name }}</span> <span class="span-uuid">· {{ s.uuid }}{{ copy_btn(s.uuid, "copy mark uuid") }}</span>
-        {% if s.child_goal %}
+        {%- set ordinal = turn.subagent_ordinal(s) %}
+        <span class="mark-name">{{ s.name }}</span>
+        {%- if ordinal %} <span class="subagent-ord">#{{ ordinal }}{% if s.child_status or s.child_goal %} <span class="inline-only">·</span>{% endif %}</span>{% endif %}
+        <span class="span-uuid">· {{ s.uuid }}{{ copy_btn(s.uuid, "copy mark uuid") }}</span>
+        {% if s.child_status %}
+        {% set goal = turn.subagent_goal(s) %}
+        <div class="span-detail">
+          <span>{{ s.child_status }}{% if goal %} ·{% endif %}</span>
+          {%- if goal %} <span class="path wide wrap-detail" title="{{ goal }}">{{ goal }}</span>{% endif %}
+        </div>
+        {% elif s.child_goal %}
         <div class="span-detail">
           <span class="path wide wrap-detail" title="{{ s.child_goal }}">{{ s.child_goal }}</span>
+        </div>
+        {% endif %}
+        {% if s.child_session_id %}
+        <div class="span-detail list-item">
+          <span class="path wide">{{ s.child_session_id }}{% if s.child_duration_ms is not none %} · {{ (s.child_duration_ms * 1000) | int | us_dur }}{% endif %}</span>
         </div>
         {% endif %}
       </td>
