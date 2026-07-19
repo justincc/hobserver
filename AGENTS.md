@@ -43,7 +43,9 @@ ETL, blueprints-as-plugins).
   detail mode) or, on
   skill_view/skill_manage scopes, `name`/`file_path`/`action`, render
   on the turn page — trailing the span name on one ellipsized line by
-  default, on their own line when the details switch is on; the span or
+  default, on their own line when the details switch is on; clicking a
+  row toggles just that row's detailed layout (tr.detail-open,
+  remembered by uuid across live-poll swaps); the span or
   mark uuid, muted after
   the name with a copy icon, is the raw-JSONL lookup key
   (tool_call_id/api_request_id not shown). The

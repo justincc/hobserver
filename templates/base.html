@@ -88,25 +88,31 @@
        the uuid hides and each span's extra info collapses from its own
        line into an inline continuation of the name line; the name cell is
        forced to a single ellipsized line so a row can never grow taller */
-    body:not(.show-detail) .span-uuid { display: none; }
-    body:not(.show-detail) table.waterfall td:nth-child(2) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    body:not(.show-detail) .span-detail { display: inline; margin: 0 0 0 0.35rem; }
+    /* Clicking a waterfall row toggles tr.detail-open (script below),
+       opting just that row into the detailed layout while the switch is
+       off — so every collapsed-mode rule exempts .detail-open rows; the
+       arrow cursor is forced (no pointer, no text I-beam) so rows don't
+       shout clickability — text selection still works */
+    table.waterfall tbody tr[data-span-uuid] { cursor: default; }
+    body:not(.show-detail) tr:not(.detail-open) .span-uuid { display: none; }
+    body:not(.show-detail) table.waterfall tr:not(.detail-open) td:nth-child(2) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    body:not(.show-detail) tr:not(.detail-open) .span-detail { display: inline; margin: 0 0 0 0.35rem; }
     /* plain inline (not inline-block): an inline-block that no longer fits
        the cell is dropped whole as an atomic inline, whereas inline text is
        clipped mid-text by the cell-edge ellipsis — showing as many
        characters as fit */
-    body:not(.show-detail) .span-detail code,
-    body:not(.show-detail) .span-detail .path { display: inline; max-width: none; }
+    body:not(.show-detail) tr:not(.detail-open) .span-detail code,
+    body:not(.show-detail) tr:not(.detail-open) .span-detail .path { display: inline; max-width: none; }
     /* …except .tail, which stays an inline-block so the rtl left-ellipsis
        still keeps the end of the path visible inline. Its max-width leaves
        ~12rem for the short file-tool name ahead of it; if earlier inline
        detail overruns that reserve the block is dropped whole at the cell
        edge — acceptable, that case only loses an already-clipped path */
-    body:not(.show-detail) .span-detail .tail { display: inline-block; max-width: calc(100% - 12rem); overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+    body:not(.show-detail) tr:not(.detail-open) .span-detail .tail { display: inline-block; max-width: calc(100% - 12rem); overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
     /* todo scopes render two variants: a first-item-plus-count line for
        inline mode and the full item list for detail mode */
-    body.show-detail .todo-compact { display: none; }
-    body:not(.show-detail) .todo-item { display: none; }
+    body.show-detail .todo-compact, tr.detail-open .todo-compact { display: none; }
+    body:not(.show-detail) tr:not(.detail-open) .todo-item { display: none; }
     .legend .detail-toggle { margin-left: auto; }
     .detail-toggle { display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; }
     .detail-toggle input { position: absolute; opacity: 0; pointer-events: none; }
@@ -139,6 +145,10 @@
     // page is itself showing an in-flight turn ([data-inflight-current]
     // present), and never to a stale entry ([data-stale]). Follow keeps an
     // otherwise-static page polling slowly so the next turn start is noticed.
+    // Waterfall rows the user clicked open (by span uuid), so their
+    // per-row detail survives live-region swaps
+    const openRows = new Set();
+
     (function () {
       const FOLLOW_KEY = "hermes-observer.follow";
       let region = document.querySelector("[data-live-poll]");
@@ -198,6 +208,9 @@
           region.querySelectorAll("[data-detail-toggle]").forEach((el) => {
             el.checked = document.body.classList.contains("show-detail");
           });
+          region.querySelectorAll("tr[data-span-uuid]").forEach((tr) => {
+            tr.classList.toggle("detail-open", openRows.has(tr.dataset.spanUuid));
+          });
           followNewTurn();
         } catch (err) {
           // transient fetch failure — try again next tick
@@ -219,6 +232,20 @@
       if (e.target.matches("[data-detail-toggle]")) {
         document.body.classList.toggle("show-detail", e.target.checked);
       }
+    });
+
+    // Clicking a waterfall row toggles that one row's detail, independent
+    // of the global switch (delegated so it survives live-region swaps).
+    // Links and buttons keep their own meaning, and a click that ends a
+    // text selection is a copy gesture, not a toggle.
+    document.addEventListener("click", (e) => {
+      if (e.target.closest("a, button, label")) return;
+      const row = e.target.closest("tr[data-span-uuid]");
+      if (!row) return;
+      if (String(window.getSelection())) return;
+      const open = row.classList.toggle("detail-open");
+      if (open) openRows.add(row.dataset.spanUuid);
+      else openRows.delete(row.dataset.spanUuid);
     });
 
     // Copy buttons (delegated so they survive live-region swaps). The

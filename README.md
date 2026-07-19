@@ -105,7 +105,11 @@ pointing this tool at its output (consuming) — is in
   single ellipsized line so every row stays one line tall; a "details"
   slider switch on the right of the legend row — off on every page load,
   never persisted — expands it onto its own line under the name and
-  reveals the span uuids. Each
+  reveals the span uuids. Clicking a span or mark row toggles that one
+  row between the collapsed and detailed layouts independently of the
+  switch (clicks on links, buttons, or a text selection don't toggle);
+  the open rows are remembered by uuid so they survive the in-flight
+  page's self-updates. Each
   span and mark line carries its ATOF uuid — the key for finding its
   lines in the raw JSONL — in small muted monospace right after
   the name with a copy-to-clipboard icon (like the turn id's), so the

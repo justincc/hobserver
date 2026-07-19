@@ -55,7 +55,7 @@
     {% for s in turn.timeline %}
     {% if s.is_mark %}
     {% set tick_pct = [[(s.timestamp_us - turn.start_us) / scale_us * 100, 100.0] | min, 0.0] | max %}
-    <tr>
+    <tr data-span-uuid="{{ s.uuid }}">
       <td class="num">{{ (s.timestamp_us - turn.start_us) | us_dur }}</td>
       <td><span class="mark-name">{{ s.name }}</span> <span class="span-uuid">· {{ s.uuid }}{{ copy_btn(s.uuid, "copy mark uuid") }}</span></td>
       <td class="num"></td>
@@ -71,7 +71,7 @@
     {% set span_end = s.end_us if s.end_us is not none else turn.start_us + scale_us %}
     {% set left_pct = (s.start_us - turn.start_us) / scale_us * 100 %}
     {% set width_pct = (span_end - s.start_us) / scale_us * 100 %}
-    <tr>
+    <tr data-span-uuid="{{ s.uuid }}">
       <td class="num">{{ (s.start_us - turn.start_us) | us_dur }}</td>
       <td>
         <span class="chip {{ cls }}"></span>{{ s.name }}

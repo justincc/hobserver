@@ -305,11 +305,28 @@ def test_span_extra_info_stays_inline_when_details_off(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
     # with the switch off, extra info joins the name line instead of hiding …
-    assert "body:not(.show-detail) .span-detail { display: inline;" in page
+    assert "body:not(.show-detail) tr:not(.detail-open) .span-detail { display: inline;" in page
     # … pinned to a single line by ellipsizing the name cell …
-    assert "body:not(.show-detail) table.waterfall td:nth-child(2) { white-space: nowrap;" in page
+    assert "body:not(.show-detail) table.waterfall tr:not(.detail-open) td:nth-child(2) { white-space: nowrap;" in page
     # … and only the span uuid is hidden
-    assert "body:not(.show-detail) .span-uuid { display: none; }" in page
+    assert "body:not(.show-detail) tr:not(.detail-open) .span-uuid { display: none; }" in page
+
+
+def test_rows_carry_uuids_for_click_to_expand(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L1", "llm", 1_100_000, 1_600_000, name="anthropic",
+                     session="s1", turn="t1"),
+        mark_line("hermes.approval.request", 1_700_000, session="s1", turn="t1"),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    # every span and mark row is click-to-expand, keyed by its uuid …
+    assert '<tr data-span-uuid="L1">' in page
+    assert '<tr data-span-uuid="mark-hermes.approval.request-1700000">' in page
+    # … via the per-row class the page script toggles on click
+    assert 'row.classList.toggle("detail-open")' in page
 
 
 def test_turn_id_has_copy_button(tmp_path):
