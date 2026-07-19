@@ -40,7 +40,8 @@ ETL, blueprints-as-plugins).
   mode), `urls` (web_extract scopes; first url
   plus a "+N more" count inline, every url on its own line in detail
   mode), `code` (execute_code scopes; first line),
-  `content` (mem0_add scopes), `todos` (todo scopes; first item's
+  `content` (mem0_add scopes; wraps in full in detail mode), `todos`
+  (todo scopes; first item's
   content plus a "+N more" count inline, every item on its own line in
   detail mode), `tasks`/`goal`/`context` (delegate_task scopes; first
   goal plus count inline, full goals with contexts nested beneath in

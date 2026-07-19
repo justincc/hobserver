@@ -145,7 +145,7 @@
         </div>
         {% elif s.memory_content %}
         <div class="span-detail">
-          <span class="path wide" title="{{ s.memory_content }}">{{ s.memory_content }}</span>
+          <span class="path wide wrap-detail" title="{{ s.memory_content }}">{{ s.memory_content }}</span>
         </div>
         {% elif s.web_extract_urls %}
         {{ item_list(s.web_extract_urls) }}

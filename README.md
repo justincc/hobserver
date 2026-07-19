@@ -99,7 +99,8 @@ pointing this tool at its output (consuming) — is in
   title attribute and every url on its own line in detail mode;
   execute_code scopes show the first line of their
   `code`, with the full program in the title attribute; mem0_add scopes
-  show the remembered `content` (plain text, not monospace); todo scopes
+  show the remembered `content` (plain text, not monospace; wraps out
+  in full in detail mode); todo scopes
   show the first of their `todos` items' `content` plus a "+N more"
   count, all items in the title attribute, and with the details switch
   on show every item on its own line instead (a todo call without

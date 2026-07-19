@@ -237,6 +237,8 @@ def test_mem0_add_content_shown_inline(tmp_path):
     atof = write_atof(tmp_path, lines)
     page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
     assert "User prefers tea over coffee." in page
+    # the full fact wraps out in the detailed layout
+    assert '<span class="path wide wrap-detail" title="User prefers tea over coffee.">' in page
 
 
 def test_execute_code_first_line_shown_inline(tmp_path):
