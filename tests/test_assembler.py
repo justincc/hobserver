@@ -357,6 +357,41 @@ def test_todo_contents_from_start_payload():
     assert read.todo_contents == []
 
 
+def test_delegate_task_briefs_from_start_payload():
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("D1", "tool", 1_100_000, 1_200_000, name="delegate_task",
+                     session="s1", turn="t1",
+                     start_data={"tasks": [
+                         {"goal": "Sweep Luma listings",
+                          "context": "Window is 20-26 Jul"},
+                         {"goal": "Sweep Meetup listings"},
+                         {"context": "no goal — dropped"},
+                     ]}),
+        *scope_lines("D2", "tool", 1_300_000, 1_400_000, name="delegate_task",
+                     session="s1", turn="t1",
+                     start_data={"goal": "Single-mode goal",
+                                 "context": "Single-mode context"}),
+        *scope_lines("T1", "tool", 1_500_000, 1_600_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"tasks": [{"goal": "x"}], "command": "ls"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    batch, single, other = assemble_lines(lines).sessions[0].turns[0].spans
+    assert batch.delegate_tasks == [
+        {"goal": "Sweep Luma listings", "context": "Window is 20-26 Jul"},
+        {"goal": "Sweep Meetup listings", "context": None},
+    ]
+    assert batch.delegate_goals == ["Sweep Luma listings",
+                                    "Sweep Meetup listings"]
+    # single-task calls carry goal/context at the payload top level
+    assert single.delegate_tasks == [
+        {"goal": "Single-mode goal", "context": "Single-mode context"}]
+    # the keys mean nothing outside a delegate_task scope
+    assert other.delegate_tasks == []
+
+
 def test_timeline_interleaves_marks_with_spans_in_time_order():
     lines = [
         *session_scope_lines("s1"),

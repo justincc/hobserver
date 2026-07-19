@@ -109,8 +109,14 @@
        detail overruns that reserve the block is dropped whole at the cell
        edge — acceptable, that case only loses an already-clipped path */
     body:not(.show-detail) tr:not(.detail-open) .span-detail .tail { display: inline-block; max-width: calc(100% - 12rem); overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
-    /* .wrap-detail text (mem0_search queries) drops the one-line ellipsis
-       in the detailed layout and wraps out in full */
+    /* a task's context nests fainter under its goal line (delegate_task
+       detail view); a gap above each goal after the first keeps the
+       task+context pairs visually separate */
+    .span-detail.ctx { margin-left: 2.3rem; color: #8a8a8a; }
+    .span-detail.list-item + .span-detail.task-goal { margin-top: 0.95rem; }
+    /* .wrap-detail text (mem0_search queries, subagent goals, delegate
+       briefs) drops the one-line ellipsis in the detailed layout and
+       wraps out in full */
     body.show-detail .span-detail .wrap-detail,
     tr.detail-open .span-detail .wrap-detail { white-space: normal; overflow-wrap: anywhere; }
     /* list-carrying scopes (todo, web_extract) render two variants: a

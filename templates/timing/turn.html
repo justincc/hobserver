@@ -68,7 +68,14 @@
     {% set tick_pct = [[(s.timestamp_us - turn.start_us) / scale_us * 100, 100.0] | min, 0.0] | max %}
     <tr data-span-uuid="{{ s.uuid }}">
       <td class="num">{{ (s.timestamp_us - turn.start_us) | us_dur }}</td>
-      <td><span class="mark-name">{{ s.name }}</span> <span class="span-uuid">· {{ s.uuid }}{{ copy_btn(s.uuid, "copy mark uuid") }}</span></td>
+      <td>
+        <span class="mark-name">{{ s.name }}</span> <span class="span-uuid">· {{ s.uuid }}{{ copy_btn(s.uuid, "copy mark uuid") }}</span>
+        {% if s.child_goal %}
+        <div class="span-detail">
+          <span class="path wide wrap-detail" title="{{ s.child_goal }}">{{ s.child_goal }}</span>
+        </div>
+        {% endif %}
+      </td>
       <td class="num"></td>
       <td class="bar-cell">
         <div class="bar-track">
@@ -130,6 +137,21 @@
         {{ item_list(s.web_extract_urls) }}
         {% elif s.todo_contents %}
         {{ item_list(s.todo_contents) }}
+        {% elif s.delegate_tasks %}
+        <div class="span-detail list-compact">
+          <span class="path wide" title="{{ s.delegate_goals | join('\n') }}">{{ s.delegate_goals[0] }}</span>
+          {%- if s.delegate_tasks | length > 1 %} <span>+{{ s.delegate_tasks | length - 1 }} more</span>{% endif %}
+        </div>
+        {% for t in s.delegate_tasks %}
+        <div class="span-detail list-item task-goal">
+          <span class="path wide wrap-detail" title="{{ t.goal }}">{{ t.goal }}</span>
+        </div>
+        {% if t.context %}
+        <div class="span-detail list-item ctx">
+          <span class="path wide wrap-detail" title="{{ t.context }}">{{ t.context }}</span>
+        </div>
+        {% endif %}
+        {% endfor %}
         {% elif s.path %}
         <div class="span-detail">
           <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>

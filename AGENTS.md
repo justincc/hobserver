@@ -42,7 +42,10 @@ ETL, blueprints-as-plugins).
   mode), `code` (execute_code scopes; first line),
   `content` (mem0_add scopes), `todos` (todo scopes; first item's
   content plus a "+N more" count inline, every item on its own line in
-  detail mode) or, on
+  detail mode), `tasks`/`goal`/`context` (delegate_task scopes; first
+  goal plus count inline, full goals with contexts nested beneath in
+  detail mode — hermes.subagent.start marks show their `child_goal`
+  the same way) or, on
   skill_view/skill_manage scopes, `name`/`file_path`/`action`, render
   on the turn page — trailing the span name on one ellipsized line by
   default, on their own line when the details switch is on; clicking a

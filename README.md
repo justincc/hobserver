@@ -104,7 +104,13 @@ pointing this tool at its output (consuming) — is in
   show the first of their `todos` items' `content` plus a "+N more"
   count, all items in the title attribute, and with the details switch
   on show every item on its own line instead (a todo call without
-  `todos` is a read of the current list and shows nothing). By default this extra info trails the span name on a
+  `todos` is a read of the current list and shows nothing);
+  delegate_task scopes show the first subagent brief's `goal` plus a
+  "+N more" count, and in detail mode every goal in full with its
+  `context` nested fainter and indented beneath it (both batch-mode
+  `tasks` lists and single-mode top-level `goal`/`context` payloads);
+  hermes.subagent.start marks likewise show their `child_goal` —
+  ellipsized inline, in full in detail mode. By default this extra info trails the span name on a
   single ellipsized line so every row stays one line tall; a "details"
   slider switch on the right of the legend row — off on every page load,
   never persisted — expands it onto its own line under the name and

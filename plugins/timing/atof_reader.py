@@ -101,6 +101,15 @@ class AtofEvent:
     def model_name(self) -> Optional[str]:
         return self.category_profile.get("model_name")
 
+    # hermes.subagent.start marks carry the delegated child's goal (the
+    # child session's opening prompt) in their data payload
+    @property
+    def child_goal(self) -> Optional[str]:
+        if self.name != "hermes.subagent.start" or not isinstance(self.data, dict):
+            return None
+        value = self.data.get("child_goal")
+        return value if isinstance(value, str) and value else None
+
 
 def normalize_timestamp(value, line_no: int = 1) -> int:
     """Normalize either spec timestamp encoding to epoch microseconds UTC.

@@ -217,6 +217,37 @@ class Span:
             and isinstance(t.get("content"), str) and t["content"]
         ]
 
+    # delegate_task scopes carry the subagent briefs in their start
+    # payload — batch mode as a "tasks" list of {goal, context} dicts,
+    # single mode as top-level goal/context keys
+    @property
+    def delegate_tasks(self) -> list:
+        if self.name != "delegate_task":
+            return []
+        data = _as_dict(self.start_data)
+        if data is None:
+            return []
+        tasks = data.get("tasks")
+        if not isinstance(tasks, list):
+            tasks = [data]
+        out = []
+        for t in tasks:
+            if not isinstance(t, dict):
+                continue
+            goal = t.get("goal")
+            if not (isinstance(goal, str) and goal):
+                continue
+            context = t.get("context")
+            out.append({
+                "goal": goal,
+                "context": context if isinstance(context, str) and context else None,
+            })
+        return out
+
+    @property
+    def delegate_goals(self) -> list:
+        return [t["goal"] for t in self.delegate_tasks]
+
     # skill scopes (skill_view/skill_manage) describe the skill touched in
     # their start payload — name, optional file within the skill, and for
     # skill_manage the action; the keys are too generic to trust elsewhere

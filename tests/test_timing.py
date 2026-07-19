@@ -1,6 +1,7 @@
 """Timing plugin view tests — source states, turn index, waterfall detail."""
 
 import os
+import re
 import time
 
 from app import create_app
@@ -297,6 +298,39 @@ def test_todo_first_item_inline_and_full_list_for_detail_mode(tmp_path):
     assert page.count('class="span-detail list-item"') == 3
     assert "Run discovery" in page
     assert "Write it up" in page
+
+
+def test_delegate_task_and_subagent_goals_shown(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("D1", "tool", 1_100_000, 1_200_000, name="delegate_task",
+                     session="s1", turn="t1",
+                     start_data={"tasks": [
+                         {"goal": "Sweep Luma listings",
+                          "context": "Window is 20-26 Jul"},
+                         {"goal": "Sweep Meetup listings",
+                          "context": "Prefers technical events"},
+                     ]}),
+        mark_line("hermes.subagent.start", 1_300_000, session="s1", turn="t1",
+                  data={"child_goal": "Sweep Luma listings",
+                        "child_session_id": "cs1"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    # delegate_task: first goal plus a count inline …
+    assert "+1 more" in page
+    # … and each task's goal with its context nested under it in detail,
+    # the pairs spaced apart via the task-goal class
+    assert page.count('class="span-detail list-item task-goal"') == 2
+    assert page.count('class="span-detail list-item ctx"') == 2
+    assert "Window is 20-26 Jul" in page
+    assert "Prefers technical events" in page
+    # the subagent start mark row shows its child goal
+    row = re.search(
+        r'<tr data-span-uuid="mark-hermes\.subagent\.start-1300000">.*?</tr>',
+        page, re.S).group(0)
+    assert "Sweep Luma listings" in row
 
 
 def test_turn_page_has_details_switch(tmp_path):
