@@ -13,8 +13,8 @@ import sys
 from flask import Flask, redirect, request, url_for
 
 from plugins import PLUGINS
-from request_log import (REFRESH_SECONDS, STATUS_PATH, PollLogFilter,
-                         RequestStats, format_status)
+from request_log import (REFRESH_SECONDS, STATUS_PATH, RequestStats,
+                         SuppressSuccessFilter, format_status)
 
 # Both data sources live under the hermes-agent config directory, which the
 # agent itself points at with HERMES_HOME — deriving them from it keeps this
@@ -70,8 +70,9 @@ def create_app(db_path, atof_path=None):
     def inject_tabs():
         return {"tabs": tabs}
 
-    # Request tally behind /_status: the console suppresses repeat polls, so
-    # this is what answers "is anything still reaching the server?".
+    # Request tally behind /_status: the console suppresses successful
+    # responses, so this is what answers "is anything still reaching the
+    # server?".
     stats = RequestStats()
     app.extensions["request_stats"] = stats
 
@@ -141,8 +142,9 @@ def startup_banner(db, atof, port):
         state = "ok" if os.path.exists(path) else "MISSING"
         lines.append(f"  {label:<12} {path}  [{state}] (from {source})")
     lines.append(f"  listening    http://0.0.0.0:{port}/")
-    lines.append(f"  status       http://localhost:{port}{STATUS_PATH}"
-                 "  (this app's own health; repeat polls are not logged)")
+    lines.append(f"  status       http://localhost:{port}{STATUS_PATH}")
+    lines.append("               successful requests are not logged below — only "
+                 "errors show;\n               that page tallies every request.")
     return "\n".join(lines)
 
 
@@ -159,8 +161,7 @@ def main():
         sys.exit(f"Database not found: {db_path}")
     # Installed on the werkzeug access logger, so it only affects the dev
     # server's own console output — the app logs nothing of its own.
-    logging.getLogger("werkzeug").addFilter(
-        PollLogFilter(f"http://localhost:{port}{STATUS_PATH}"))
+    logging.getLogger("werkzeug").addFilter(SuppressSuccessFilter())
     # use_reloader restarts the server when a .py file changes; debug stays
     # False so the Werkzeug interactive debugger (arbitrary code execution)
     # is never exposed on 0.0.0.0.

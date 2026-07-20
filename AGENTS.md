@@ -15,10 +15,13 @@ ETL, blueprints-as-plugins).
   respectively. Startup prints the resolved paths and whether each exists
   (once, in the reloader supervisor — the worker sets WERKZEUG_RUN_MAIN).
   `request_log.py` keeps the console usable despite the 2-3 s live polls:
-  a `logging.Filter` on the werkzeug access logger (dev server only) logs
-  each polled path's first success, then one pointer to `/_status`, then
-  drops them; non-2xx/3xx and unpolled paths always log, since a quiet
-  console must not hide errors. It parses werkzeug's
+  a `logging.Filter` (`SuppressSuccessFilter`) on the werkzeug access logger
+  (dev server only) drops every successful (2xx/3xx) response on every path,
+  so only errors are logged. This was deliberately simplified from an
+  earlier per-path first-success-plus-pointer scheme — if fine-grained
+  logging is ever wanted back, add a setting rather than reviving the
+  complexity. The startup banner's `status` line tells the user successes
+  are not logged and points to `/_status`. The filter parses werkzeug's
   `'"%s" %s %s' % (request_line, code, size)` record args — coupled to the
   dev server's log shape, so check it on a werkzeug major bump. The
   always-on tally behind `/_status` (an `after_request` hook into
@@ -27,7 +30,7 @@ ETL, blueprints-as-plugins).
   no response = server down, stale last-seen = browser stopped polling,
   non-200s = polls failing. `/_status` self-refreshes via a `Refresh`
   header (not the live-poll script — keeps the body plain text for curl,
-  no template) and so is a poll path itself; its header line carries a
+  no template); its header line carries a
   clock because counts look the same live or frozen.
   Serves on port 5090; template and
   .py edits are picked up without a restart — template auto-reload plus the

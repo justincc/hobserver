@@ -1,10 +1,10 @@
-"""Poll-log suppression and the /_status tally."""
+"""Successful-response suppression and the /_status tally."""
 
 import logging
 import re
 
-from request_log import (STATUS_PATH, PollLogFilter, RequestStats,
-                         format_status, is_poll_path)
+from request_log import (STATUS_PATH, RequestStats, SuppressSuccessFilter,
+                         format_status)
 
 
 def access_record(path, code=200, method="GET"):
@@ -16,57 +16,23 @@ def access_record(path, code=200, method="GET"):
         args=(f"{method} {path} HTTP/1.1", str(code), "-"), exc_info=None)
 
 
-def test_poll_paths_recognised():
-    assert is_poll_path("/timing/")
-    assert is_poll_path("/timing/turn/s7/1784554412841811")
-    assert is_poll_path("/memory/fragment/events?since=12")
-    # pages that are not polled keep logging every visit
-    assert not is_poll_path("/memory/")
-    assert not is_poll_path("/memory/event/3")
-    # /_status refreshes itself, so it is suppressed like the rest
-    assert is_poll_path(STATUS_PATH)
-
-
-def test_first_poll_logs_then_one_notice_then_silence():
-    f = PollLogFilter("http://localhost:5090/_status")
-    first = access_record("/timing/")
-    assert f.filter(first) is True
-    assert "GET /timing/" in first.getMessage()   # logged unchanged
-
-    notice = access_record("/timing/")
-    assert f.filter(notice) is True
-    assert "suppressed" in notice.getMessage()
-    assert "http://localhost:5090/_status" in notice.getMessage()
-
-    # everything after is silent, and the notice is not repeated
-    assert all(f.filter(access_record("/timing/")) is False for _ in range(5))
-
-
-def test_each_polled_path_announces_itself_once():
-    f = PollLogFilter("u")
-    assert f.filter(access_record("/timing/")) is True
-    f.filter(access_record("/timing/"))                    # notice
-    # a different turn page is a different path: its first hit still shows
-    assert f.filter(access_record("/timing/turn/s7/12")) is True
-    assert f.filter(access_record("/timing/turn/s7/12")) is False
+def test_successful_responses_are_dropped():
+    f = SuppressSuccessFilter()
+    # every 2xx/3xx is silent, on any path — polled or not, first hit or not
+    for path in ("/timing/", "/memory/", STATUS_PATH):
+        assert all(f.filter(access_record(path)) is False for _ in range(5))
+    assert f.filter(access_record("/timing/", code=302)) is False
 
 
 def test_errors_are_never_suppressed():
-    f = PollLogFilter("u")
-    for _ in range(3):
-        f.filter(access_record("/timing/"))
-    # the failure a silenced log must never hide
+    f = SuppressSuccessFilter()
+    # the failures a silenced log must never hide
     assert f.filter(access_record("/timing/", code=500)) is True
     assert f.filter(access_record("/timing/", code=404)) is True
 
 
-def test_unpolled_paths_always_log():
-    f = PollLogFilter("u")
-    assert all(f.filter(access_record("/memory/")) is True for _ in range(5))
-
-
 def test_non_access_records_pass_through():
-    f = PollLogFilter("u")
+    f = SuppressSuccessFilter()
     other = logging.LogRecord("werkzeug", logging.INFO, __file__, 1,
                               "Restarting with stat", None, None)
     assert f.filter(other) is True
@@ -100,15 +66,6 @@ def test_status_text_reports_counts_and_staleness():
 def test_status_text_when_nothing_has_arrived():
     stats = RequestStats(clock=lambda: 0.0)
     assert "no requests recorded yet" in format_status(stats.snapshot())
-
-
-def test_status_page_repeats_are_suppressed_too():
-    # left open it refreshes itself, so its own polls must not fill the
-    # console any more than the pages it reports on
-    f = PollLogFilter("u")
-    assert f.filter(access_record(STATUS_PATH)) is True
-    f.filter(access_record(STATUS_PATH))               # notice
-    assert all(f.filter(access_record(STATUS_PATH)) is False for _ in range(4))
 
 
 def test_status_text_carries_a_ticking_clock():

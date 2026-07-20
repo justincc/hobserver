@@ -1,9 +1,9 @@
 """Dev-server request visibility: quiet console, tally on demand.
 
 The live-poll pages refetch every 2-3 s (timing index 3 s, a live turn 2 s,
-the memory fragment 3 s), which buries the console in identical lines. So a
-successful poll of a path is logged once and then suppressed, and the
-running tally moves to /_status.
+the memory fragment 3 s), which buries the console in identical lines. So
+successful (2xx/3xx) responses are not logged at all, and the running tally
+of every request — successes included — moves to /_status.
 
 The point of keeping the tally at all: when a page stops updating, the first
 question is whether requests are still arriving, and a silenced log cannot
@@ -11,8 +11,8 @@ answer it. Fetching /_status answers it three ways at once — no response
 means the server is down, a stale "last" time means the browser stopped
 polling, and non-200 statuses mean the polls are arriving but failing.
 
-Only successful (2xx/3xx) polls are ever suppressed. Errors always reach the
-console, since those are what a quiet log must never hide.
+Only successful responses are suppressed. Errors always reach the console,
+since those are what a quiet log must never hide.
 """
 
 from __future__ import annotations
@@ -27,22 +27,7 @@ STATUS_PATH = "/_status"
 # frozen number. Same cadence as the timing index.
 REFRESH_SECONDS = 3
 
-# The polled routes. /timing/turn/<session>/<start_us> is per turn, so each
-# turn page announces itself once before going quiet. /_status is here for
-# the same reason as the rest: left open it polls, and its own refreshes
-# must not be what fills the console.
-_POLL_PATHS = (
-    re.compile(r"^/timing/$"),
-    re.compile(r"^/timing/turn/[^/]+/\d+$"),
-    re.compile(r"^/memory/fragment/events$"),
-    re.compile(rf"^{re.escape(STATUS_PATH)}$"),
-)
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
-
-
-def is_poll_path(path: str) -> bool:
-    path = path.split("?", 1)[0]
-    return any(p.match(path) for p in _POLL_PATHS)
 
 
 def _humanize(seconds: float) -> str:
@@ -131,35 +116,14 @@ def _parse(record: logging.LogRecord):
     return parts[1], int(code)
 
 
-class PollLogFilter(logging.Filter):
-    """Logs a path's first successful poll, then one pointer to /_status,
-    then nothing. Anything that is not a successful poll passes through."""
-
-    def __init__(self, status_url: str):
-        super().__init__()
-        self.status_url = status_url
-        self._lock = threading.Lock()
-        self._seen: dict = {}
-        self._announced = False
+class SuppressSuccessFilter(logging.Filter):
+    """Drops the access-log line for any successful (2xx/3xx) response, so the
+    console shows only failures. Non-access records and 4xx/5xx pass through;
+    the running tally of everything, successes included, lives at /_status."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         parsed = _parse(record)
         if parsed is None:
             return True
-        path, status = parsed
-        if not (200 <= status < 400) or not is_poll_path(path):
-            return True
-        with self._lock:
-            first = path not in self._seen
-            self._seen[path] = True
-            if first:
-                return True
-            if self._announced:
-                return False
-            self._announced = True
-        # Rewriting this record rather than emitting a second one keeps the
-        # notice inside the filter, with no re-entrant logging call.
-        record.msg = ("  ...further successful polls are suppressed. "
-                      f"Request counts: {self.status_url}")
-        record.args = ()
-        return True
+        _, status = parsed
+        return not (200 <= status < 400)
