@@ -149,6 +149,10 @@ def test_skill_scope_details_shown_inline(tmp_path):
                      session="s1", turn="t1",
                      start_data={"action": "create", "name": "doc-review",
                                  "category": "productivity"}),
+        *scope_lines("S4", "tool", 1_750_000, 1_800_000, name="skill_manage",
+                     session="s1", turn="t1",
+                     start_data={"action": "write_file", "name": "job-seeker",
+                                 "file_path": "references/vacancy-subtext.md"}),
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
@@ -159,6 +163,10 @@ def test_skill_scope_details_shown_inline(tmp_path):
     # a "create" carries a category, shown inline in the summary view
     assert "create" in page and "doc-review" in page
     assert "productivity" in page and "skill-cat" in page
+    # write_file's file path is separated from the skill name and left-
+    # ellipsized (.tail) so the filename end survives truncation
+    assert "write_file" in page and "references/vacancy-subtext.md" in page
+    assert 'class="path tail"' in page
 
 
 def test_file_tool_path_shown_inline_tail_first(tmp_path):

@@ -77,7 +77,11 @@ ETL, blueprints-as-plugins).
   stop via `child_session_id`) or, on
   skill_view/skill_manage scopes, `name`/`file_path`/`action` plus the
   `category` a skill_manage "create" carries (shown before the skill name,
-  middot-separated; absent on patch/write_file, which have no category),
+  middot-separated; absent on patch/write_file, which have no category).
+  The `file_path` (skill_view, and skill_manage write_file) is middot-
+  separated from the skill name and left-ellipsized (`.tail`, like the file
+  tools' path) so the filename end survives when the summary line is tight.
+  These
   render
   on the turn page — trailing the span name on one ellipsized line by
   default, on their own line when the details switch is on; clicking a
