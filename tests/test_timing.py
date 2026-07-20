@@ -734,3 +734,24 @@ def test_turn_page_links_to_neighbouring_turns(tmp_path):
     newer = client.get("/timing/turn/s1/10000000").get_data(as_text=True)
     assert '/timing/turn/s1/1000000"' in newer
     assert '<span class="disabled" title="no newer turn">next &raquo;</span>' in newer
+
+
+def test_follow_toggle_rides_the_turn_nav_row(tmp_path):
+    # same line as all/prev/next: it is navigation too, just automatic
+    atof = write_atof(tmp_path, two_turn_stream())
+    page = make_client(tmp_path, str(atof)).get(
+        "/timing/turn/s1/1000000").get_data(as_text=True)
+    start = page.index('<nav class="event-nav">')
+    nav = page[start:page.index("</nav>", start)]
+    assert "data-follow-toggle" in nav
+    assert "all turns" in nav and "prev" in nav and "next" in nav
+    # last in the row, so space-between puts it on the right
+    assert nav.index("data-follow-toggle") > nav.index("next &raquo;")
+
+
+def test_index_keeps_its_standalone_follow_toggle(tmp_path):
+    atof = write_atof(tmp_path, two_turn_stream())
+    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    assert "data-follow-toggle" in page
+    # the index has no turn nav to ride, so it stands alone above the region
+    assert page.index("data-follow-toggle") < page.index('data-live-poll="3000"')

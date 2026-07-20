@@ -214,7 +214,9 @@ a turn's waterfall when a new turn starts, with two guards: it never
 navigates away while you are watching a turn that is still in flight
 (concurrent turns just appear in the strip for manual switching), and it
 never follows a stale entry. With follow on, a finished turn's page keeps
-polling slowly so the next turn start is noticed.
+polling slowly so the next turn start is noticed. On a turn page the toggle
+sits at the right of the all/prev/next row — it is navigation too, just
+automatic; on the index it stands alone above the turn table.
 - `/event/<id>` and `/fragment/events` — pre-plugin URLs, redirect to their
   `/memory/` equivalents.
 

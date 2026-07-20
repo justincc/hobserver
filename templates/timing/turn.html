@@ -15,7 +15,6 @@
 {% endfor %}
 {%- endmacro %}
 {% block content %}
-{% include "timing/_follow.html" %}
 <div data-live-poll="{{ 2000 if turn.is_live else 0 }}"
      data-turn-start-us="{{ turn.start_us }}">
 <nav class="event-nav">
@@ -34,6 +33,9 @@
       {%- else %}<span class="disabled" title="no newer turn">next &raquo;</span>{% endif %}
     </span>
   </span>
+  {# Same row as the stepping links: it is navigation too, just automatic.
+     Inside the live region, so base.html re-resolves it after each swap. #}
+  {% include "timing/_follow.html" %}
 </nav>
 
 {% include "timing/_inflight.html" %}

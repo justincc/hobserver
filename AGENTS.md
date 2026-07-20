@@ -99,7 +99,13 @@ ETL, blueprints-as-plugins).
   (localStorage) that auto-opens newly started turns — never while
   already watching an in-flight turn, never to stale entries; the strip
   data-attributes (`data-inflight-start-us`, `data-stale`,
-  `data-inflight-current`, `data-turn-start-us`) drive that JS.
+  `data-inflight-current`, `data-turn-start-us`) drive that JS. The
+  toggle rides the turn page's event-nav row (all/prev/next), which is
+  *inside* the live region, so base.html must never hold a reference to
+  it across a swap: it re-resolves the element on each use, resyncs its
+  checked state after every swap, and uses a delegated change listener.
+  A captured reference detaches on the first poll and the switch dies
+  silently. On the index it stands alone above the region.
   Waterfall series colors were validated with the dataviz
   six-checks palette validator against the light surface: llm `#2a78d6`,
   tool `#eb6834`, other `#4a3aa7`; span identity is always also in text,
