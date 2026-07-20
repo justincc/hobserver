@@ -55,6 +55,37 @@ directory, both source paths with whether each exists and which rule
 supplied it, and the listening URL — because a missing source is the usual
 reason a tab looks empty. It prints once at launch, not on reloader
 restarts.
+
+### Console noise and observer status
+
+An **observer status** link sits at the right of the tab row on every page,
+opening `/_status` in a new tab — new rather than in place because the tally
+is for checking *while* a page sits there polling. It is deliberately not
+called "requests": every other view in this app shows the agent's LLM and
+tool requests, and this one shows none of that, only HTTP traffic to the web
+app itself. The page repeats the distinction in its own header.
+
+
+The live-poll pages refetch every 2-3 s, which would bury the console. So
+each polled path logs its **first** successful request, then one line
+pointing at `/_status`, then nothing. Ordinary page visits, and every
+non-2xx/3xx response, keep logging as usual — a quiet log must never hide
+an error.
+
+The running tally lives at `/_status` (plain text, so it reads the same
+curled or in a browser): per path, request count, how long since the last
+one, and a status-code breakdown. Fetch it when a page stops updating —
+it separates the three failure modes at a glance. No response means the
+server is down; a stale *last* time means the browser stopped polling;
+non-200 counts mean polls are arriving but failing.
+
+It can be left open: a `Refresh` header re-requests it every 3 s (curl
+ignores the header, so the body stays plain text and needs no template),
+and the header line carries a clock, since counts alone look identical
+whether the page is live or frozen. Its own requests are treated like any
+other poll — logged once, then silent — and are excluded from the tally,
+so watching the page never looks like traffic or refreshes its own
+last-seen time.
 End-to-end setup — enabling the exporter in hermes-agent (producing) and
 pointing this tool at its output (consuming) — is in
 [docs/setup-prompt-timing.md](docs/setup-prompt-timing.md).

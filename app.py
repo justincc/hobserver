@@ -6,12 +6,15 @@ shell registers each plugin under /<name>/, renders one tab per plugin, and
 keeps the pre-plugin URLs working via redirects.
 """
 
+import logging
 import os
 import sys
 
 from flask import Flask, redirect, request, url_for
 
 from plugins import PLUGINS
+from request_log import (REFRESH_SECONDS, STATUS_PATH, PollLogFilter,
+                         RequestStats, format_status)
 
 # Both data sources live under the hermes-agent config directory, which the
 # agent itself points at with HERMES_HOME — deriving them from it keeps this
@@ -67,6 +70,28 @@ def create_app(db_path, atof_path=None):
     def inject_tabs():
         return {"tabs": tabs}
 
+    # Request tally behind /_status: the console suppresses repeat polls, so
+    # this is what answers "is anything still reaching the server?".
+    stats = RequestStats()
+    app.extensions["request_stats"] = stats
+
+    @app.after_request
+    def _count_request(response):
+        # /_status itself is excluded: checking the tally must not look like
+        # traffic, or its own "last" time would always read as fresh.
+        if request.path != STATUS_PATH:
+            stats.record(request.path, response.status_code)
+        return response
+
+    @app.route(STATUS_PATH)
+    def request_status():
+        # Refresh header rather than the live-poll script: it keeps the body
+        # plain text, so the page reads the same curled or in a browser, and
+        # needs no template. curl ignores the header.
+        return format_status(stats.snapshot()), 200, {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Refresh": str(REFRESH_SECONDS)}
+
     @app.route("/")
     def root():
         return redirect(url_for(tabs[0]["endpoint"]))
@@ -116,6 +141,8 @@ def startup_banner(db, atof, port):
         state = "ok" if os.path.exists(path) else "MISSING"
         lines.append(f"  {label:<12} {path}  [{state}] (from {source})")
     lines.append(f"  listening    http://0.0.0.0:{port}/")
+    lines.append(f"  status       http://localhost:{port}{STATUS_PATH}"
+                 "  (this app's own health; repeat polls are not logged)")
     return "\n".join(lines)
 
 
@@ -130,6 +157,10 @@ def main():
     db_path, atof_path = db[0], atof[0]
     if not os.path.exists(db_path):
         sys.exit(f"Database not found: {db_path}")
+    # Installed on the werkzeug access logger, so it only affects the dev
+    # server's own console output — the app logs nothing of its own.
+    logging.getLogger("werkzeug").addFilter(
+        PollLogFilter(f"http://localhost:{port}{STATUS_PATH}"))
     # use_reloader restarts the server when a .py file changes; debug stays
     # False so the Werkzeug interactive debugger (arbitrary code execution)
     # is never exposed on 0.0.0.0.

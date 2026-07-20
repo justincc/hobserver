@@ -15,6 +15,10 @@
     nav.tabs a { padding: 0.4rem 0.2rem; color: #555; border-bottom: 2px solid transparent; margin-bottom: -1px; }
     nav.tabs a:hover { text-decoration: none; border-bottom-color: #99b3e8; }
     nav.tabs a.active { color: #1a1a2e; font-weight: 600; border-bottom-color: #2456c4; }
+    /* pushed to the far right of the tab row: a diagnostic, not a view, so
+       it never takes the active underline the tabs use */
+    nav.tabs a.status-link { margin-left: auto; color: #777; font-size: 0.85rem; }
+    nav.tabs a.status-link:hover { border-bottom-color: transparent; text-decoration: underline; }
     table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
     th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #ddd; vertical-align: top; }
     th { border-bottom: 2px solid #999; }
@@ -159,6 +163,11 @@
     {% for tab in tabs %}
     <a href="{{ url_for(tab.endpoint) }}"{% if request.blueprint == tab.name %} class="active"{% endif %}>{{ tab.label }}</a>
     {% endfor %}
+    {# Opens in its own tab: the tally is for checking while a page sits
+       there polling, so navigating away from that page would defeat it. #}
+    <a class="status-link" href="{{ url_for('request_status') }}"
+       target="_blank" rel="noopener"
+       title="Health of this web app itself — HTTP requests reaching the observer. Not agent activity.">observer status</a>
   </nav>
   {% block content %}{% endblock %}
   <script>

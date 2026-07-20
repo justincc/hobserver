@@ -14,6 +14,21 @@ ETL, blueprints-as-plugins).
   literal fallback), overridable by argv/`JMEM0_DB` and `ATOF_LOG`
   respectively. Startup prints the resolved paths and whether each exists
   (once, in the reloader supervisor — the worker sets WERKZEUG_RUN_MAIN).
+  `request_log.py` keeps the console usable despite the 2-3 s live polls:
+  a `logging.Filter` on the werkzeug access logger (dev server only) logs
+  each polled path's first success, then one pointer to `/_status`, then
+  drops them; non-2xx/3xx and unpolled paths always log, since a quiet
+  console must not hide errors. It parses werkzeug's
+  `'"%s" %s %s' % (request_line, code, size)` record args — coupled to the
+  dev server's log shape, so check it on a werkzeug major bump. The
+  always-on tally behind `/_status` (an `after_request` hook into
+  `app.extensions["request_stats"]`, excluding `/_status` itself) is what
+  answers "is anything still reaching the server?" once the log is quiet:
+  no response = server down, stale last-seen = browser stopped polling,
+  non-200s = polls failing. `/_status` self-refreshes via a `Refresh`
+  header (not the live-poll script — keeps the body plain text for curl,
+  no template) and so is a poll path itself; its header line carries a
+  clock because counts look the same live or frozen.
   Serves on port 5090; template and
   .py edits are picked up without a restart — template auto-reload plus the
   Werkzeug reloader; debug stays off so the interactive debugger is never

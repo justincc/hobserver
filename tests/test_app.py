@@ -98,3 +98,51 @@ def test_banner_flags_an_unset_hermes_home(monkeypatch):
     monkeypatch.delenv("HERMES_HOME", raising=False)
     banner = app_module.startup_banner(("/a.db", "default"), ("/b.jsonl", "default"), 5090)
     assert "unset" in banner and "fallback" in banner
+
+
+def test_status_endpoint_reports_traffic(client):
+    client.get("/memory/")
+    client.get("/timing/")
+    body = client.get("/_status").get_data(as_text=True)
+    assert "/memory/" in body and "/timing/" in body
+    assert "200x1" in body
+
+
+def test_status_endpoint_excludes_itself(client):
+    # checking the tally must not register as traffic, or its own last-seen
+    # time would always look fresh
+    client.get("/_status")
+    body = client.get("/_status").get_data(as_text=True)
+    assert "/_status" not in body
+
+
+def test_status_endpoint_is_plain_text(client):
+    resp = client.get("/_status")
+    assert resp.headers["Content-Type"].startswith("text/plain")
+
+
+def test_status_endpoint_refreshes_itself(client):
+    resp = client.get("/_status")
+    assert resp.headers["Refresh"] == "3"
+    # still plain text, so curl and a browser see the same thing
+    assert resp.headers["Content-Type"].startswith("text/plain")
+
+
+def test_status_link_in_the_tab_bar_opens_a_new_tab(client):
+    # the tally is for checking while a page sits polling, so following it
+    # in place would defeat the purpose
+    page = client.get("/memory/").get_data(as_text=True)
+    assert 'href="/_status"' in page
+    assert 'target="_blank"' in page
+    assert 'class="status-link"' in page
+    # named so it cannot be read as agent/LLM requests, which is what every
+    # other view on this app shows
+    assert ">observer status</a>" in page
+    assert ">requests</a>" not in page
+    # a diagnostic, not a view: it never takes the active-tab styling
+    assert '/_status" class="active"' not in page
+
+
+def test_status_link_is_on_every_page(client):
+    for url in ("/memory/", "/timing/"):
+        assert 'href="/_status"' in client.get(url).get_data(as_text=True)
