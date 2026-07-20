@@ -275,6 +275,13 @@ class Span:
         # patch/write_file, so this is None for those actions
         return self._start_str("category") if self.name == "skill_manage" else None
 
+    @property
+    def skill_absorbed_into(self) -> Optional[str]:
+        # only a skill_manage "delete" that merged the skill elsewhere names
+        # the skill it was folded into; absent otherwise
+        return (self._start_str("absorbed_into")
+                if self.name == "skill_manage" else None)
+
 
 def _user_message(data: Any) -> Optional[str]:
     """The prompt from a turn-start mark's payload."""

@@ -161,30 +161,40 @@ def test_skill_scope_details_from_start_payload():
                      session="s1", turn="t1",
                      start_data={"action": "create", "name": "doc-review",
                                  "category": "productivity", "content": "..."}),
+        *scope_lines("S4", "tool", 1_490_000, 1_495_000, name="skill_manage",
+                     session="s1", turn="t1",
+                     start_data={"action": "delete", "name": "old-skill",
+                                 "absorbed_into": "job-seeker"}),
         *scope_lines("T1", "tool", 1_500_000, 1_600_000, name="terminal",
                      session="s1", turn="t1",
                      start_data={"name": "not-a-skill", "command": "ls",
                                  "action": "not-a-skill-action",
-                                 "category": "not-a-skill-category"}),
+                                 "category": "not-a-skill-category",
+                                 "absorbed_into": "not-a-skill"}),
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
-    view, manage, create, other = \
+    view, manage, create, delete, other = \
         assemble_lines(lines).sessions[0].turns[0].spans
     assert view.skill_name == "adaptive-information-gathering"
     assert view.skill_file_path == "references/fallbacks.md"
     assert view.skill_action is None       # skill_view has no action
     assert view.skill_category is None
+    assert view.skill_absorbed_into is None
     assert manage.skill_name == "job-seeker"
     assert manage.skill_action == "patch"
     assert manage.skill_file_path is None
     assert manage.skill_category is None   # only "create" carries a category
+    assert manage.skill_absorbed_into is None
     assert create.skill_action == "create"
     assert create.skill_category == "productivity"
+    assert delete.skill_action == "delete"
+    assert delete.skill_absorbed_into == "job-seeker"  # only "delete" has it
     # the generic name/action/category keys mean nothing outside a skill scope
     assert other.skill_name is None
     assert other.skill_action is None
     assert other.skill_file_path is None
     assert other.skill_category is None
+    assert other.skill_absorbed_into is None
 
 
 def test_file_tool_path_from_start_payload():

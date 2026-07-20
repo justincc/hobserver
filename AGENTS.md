@@ -77,8 +77,14 @@ ETL, blueprints-as-plugins).
   stop via `child_session_id`) or, on
   skill_view/skill_manage scopes, `name`/`file_path`/`action` plus the
   `category` a skill_manage "create" carries (shown before the skill name,
-  middot-separated; absent on patch/write_file, which have no category).
-  The `file_path` (skill_view, and skill_manage write_file) is middot-
+  middot-separated; absent on patch/write_file, which have no category) and
+  the `absorbed_into` a "delete" that merged the skill elsewhere carries
+  (rendered "→ absorbed into <skill>"). skill_manage's six actions are
+  create/edit/patch/delete/write_file/remove_file (checked against
+  `$h/tools/skill_manager_tool.py`); the ATOF log to date only exercises
+  create/patch/write_file, so edit/delete/remove_file rendering is covered
+  by test alone. The `file_path` (skill_view, skill_manage write_file and
+  remove_file, and an optional patch target) is middot-
   separated from the skill name and left-ellipsized (`.tail`, like the file
   tools' path) so the filename end survives when the summary line is tight.
   These

@@ -153,6 +153,20 @@ def test_skill_scope_details_shown_inline(tmp_path):
                      session="s1", turn="t1",
                      start_data={"action": "write_file", "name": "job-seeker",
                                  "file_path": "references/vacancy-subtext.md"}),
+        # the three actions never yet seen in a real log — edit, delete,
+        # remove_file — must still render sensibly
+        *scope_lines("S5", "tool", 1_810_000, 1_820_000, name="skill_manage",
+                     session="s1", turn="t1",
+                     start_data={"action": "edit", "name": "editable-skill",
+                                 "content": "..."}),
+        *scope_lines("S6", "tool", 1_830_000, 1_840_000, name="skill_manage",
+                     session="s1", turn="t1",
+                     start_data={"action": "delete", "name": "retired-skill",
+                                 "absorbed_into": "job-seeker"}),
+        *scope_lines("S7", "tool", 1_850_000, 1_860_000, name="skill_manage",
+                     session="s1", turn="t1",
+                     start_data={"action": "remove_file", "name": "job-seeker",
+                                 "file_path": "references/stale.md"}),
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
@@ -167,6 +181,13 @@ def test_skill_scope_details_shown_inline(tmp_path):
     # ellipsized (.tail) so the filename end survives truncation
     assert "write_file" in page and "references/vacancy-subtext.md" in page
     assert 'class="path tail"' in page
+    # edit shows just the action and skill name
+    assert "edit" in page and "editable-skill" in page
+    # delete surfaces the skill it was absorbed into
+    assert "delete" in page and "retired-skill" in page
+    assert "absorbed into" in page
+    # remove_file reuses the file-path rendering
+    assert "remove_file" in page and "references/stale.md" in page
 
 
 def test_file_tool_path_shown_inline_tail_first(tmp_path):

@@ -140,6 +140,7 @@
           {%- if s.skill_category and s.skill_name %}<span class="skill-cat">·</span> {% endif -%}
           {%- if s.skill_name %}<code title="{{ s.skill_name }}">{{ s.skill_name }}</code>{% endif %}
           {%- if s.skill_file_path %}{% if s.skill_name %} <span class="skill-cat">·</span>{% endif %} <span class="path tail" title="{{ s.skill_file_path }}">&lrm;{{ s.skill_file_path }}&lrm;</span>{% endif %}
+          {%- if s.skill_absorbed_into %} <span>→ absorbed into</span> <code title="{{ s.skill_absorbed_into }}">{{ s.skill_absorbed_into }}</code>{% endif %}
         </div>
         {% elif s.search_pattern %}
         <div class="span-detail">
