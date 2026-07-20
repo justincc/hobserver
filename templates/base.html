@@ -26,6 +26,11 @@
     nav.event-nav { display: flex; justify-content: space-between; margin-bottom: 1rem; }
     nav.event-nav > span { display: flex; gap: 1rem; }
     nav.event-nav .disabled { color: #aaa; }
+    /* The stepping links are a wrapper only so they can be muted together —
+       display:contents drops them back onto the nav's own 1rem gap, so all
+       three items sit equidistant. */
+    nav.event-nav .nav-steps { display: contents; }
+    nav.event-nav .nav-steps a { color: #666; }
     p.notice { background: #f4f5f8; padding: 1rem; border-radius: 6px; }
     p.notice.warn { background: #fdf0ef; border: 1px solid #e0b4b4; }
     p.meta { color: #555; font-size: 0.85rem; }

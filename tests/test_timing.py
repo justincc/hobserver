@@ -729,8 +729,8 @@ def test_turn_page_links_to_neighbouring_turns(tmp_path):
     client = make_client(tmp_path, str(atof))
     older = client.get("/timing/turn/s1/1000000").get_data(as_text=True)
     # oldest turn: nothing before it, the later turn is "next"
-    assert '<span class="disabled">&larr; previous turn</span>' in older
+    assert '<span class="disabled" title="no older turn">&laquo; prev</span>' in older
     assert '/timing/turn/s1/10000000"' in older
     newer = client.get("/timing/turn/s1/10000000").get_data(as_text=True)
     assert '/timing/turn/s1/1000000"' in newer
-    assert '<span class="disabled">next turn &rarr;</span>' in newer
+    assert '<span class="disabled" title="no newer turn">next &raquo;</span>' in newer
