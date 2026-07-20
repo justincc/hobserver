@@ -4,6 +4,8 @@ import os
 import re
 import time
 
+from markupsafe import escape
+
 from app import create_app
 from tests.conftest import make_memory_db
 from tests.test_assembler import (mark_line, scope_lines, session_scope_lines,
@@ -755,3 +757,29 @@ def test_index_keeps_its_standalone_follow_toggle(tmp_path):
     assert "data-follow-toggle" in page
     # the index has no turn nav to ride, so it stands alone above the region
     assert page.index("data-follow-toggle") < page.index('data-live-poll="3000"')
+
+
+def test_detail_mode_carries_the_whole_command_and_code(tmp_path):
+    """Terminal commands and execute_code snippets are multi-line often
+    enough that the one-line inline form loses the point of the span; the
+    detail layout has to carry the whole thing, line breaks included."""
+    script = "git add -A\ngit commit -m 'wip'\ngit push"
+    code = "from pathlib import Path\np = Path('/tmp')\nprint(p.exists())"
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("T1", "tool", 1_100_000, 1_600_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"command": script, "workdir": "/home/u/proj"}),
+        *scope_lines("E1", "tool", 1_700_000, 1_900_000, name="execute_code",
+                     session="s1", turn="t1", start_data={"code": code}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    # the command wraps out in full, in one code element that keeps newlines
+    esc_script, esc_code = escape(script), escape(code)
+    assert f'<code class="wrap-detail" title="{esc_script}">{esc_script}</code>' in page
+    # execute_code keeps the first-line summary for the inline layout and
+    # adds a detail-only element holding every line
+    assert '<div class="span-detail list-compact">' in page
+    assert f'<code class="wrap-detail" title="{esc_code}">{esc_code}</code>' in page

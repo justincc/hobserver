@@ -52,14 +52,17 @@ ETL, blueprints-as-plugins).
   parent_uuid; the turn-start mark's data carries the hermes hook kwargs —
   user_message becomes Turn.user_message, shown as prompt snippets in the
   turn list / in-flight strip and collapsible on the turn page. Span start
-  payloads carrying `command`/`workdir` (terminal tool scopes), `path`
+  payloads carrying `command`/`workdir` (terminal tool scopes; the
+  command wraps in full in detail mode, line breaks kept — code takes
+  `pre-wrap`, unlike the `normal` prose details wrap with), `path`
   (file tool scopes, left-ellipsized to keep the tail; patch-mode patch
   scopes instead list the files from the V4A `patch` text's headers,
   first path plus a "+N more" count), `query`
   (web_search/mem0_search scopes; wraps in full in detail
   mode), `urls` (web_extract scopes; first url
   plus a "+N more" count inline, every url on its own line in detail
-  mode), `code` (execute_code scopes; first line),
+  mode), `code` (execute_code scopes; first line inline, the whole
+  program in detail mode),
   `content` (mem0_add scopes; wraps in full in detail mode), `todos`
   (todo scopes; first item's
   content plus a "+N more" count inline, every item on its own line in

@@ -143,6 +143,11 @@
        wraps out in full */
     body.show-detail .span-detail .wrap-detail,
     tr.detail-open .span-detail .wrap-detail { white-space: normal; overflow-wrap: anywhere; }
+    /* …but code keeps its line breaks: a shell heredoc or a python snippet
+       reflowed into a paragraph is unreadable. pre-wrap, and overflow
+       visible so the wrapped lines are not clipped by the one-line rule */
+    body.show-detail .span-detail code.wrap-detail,
+    tr.detail-open .span-detail code.wrap-detail { white-space: pre-wrap; overflow: visible; }
     /* list-carrying scopes (todo, web_extract) render two variants: a
        first-item-plus-count line for inline mode and the full item list
        for detail mode */
