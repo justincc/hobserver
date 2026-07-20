@@ -190,6 +190,15 @@
         </div>
         {% endif %}
         {% endfor %}
+        {% elif s.vision_image_url %}
+        <div class="span-detail">
+          <span class="path tail" title="{{ s.vision_image_url }}">&lrm;{{ s.vision_image_url | tilde }}&lrm;</span>
+        </div>
+        {% if s.vision_question %}
+        <div class="span-detail list-item">
+          <code class="wrap-detail" title="{{ s.vision_question }}">{{ s.vision_question }}</code>
+        </div>
+        {% endif %}
         {% elif s.path %}
         <div class="span-detail">
           <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>

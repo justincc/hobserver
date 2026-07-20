@@ -66,6 +66,9 @@ ETL, blueprints-as-plugins).
   plus a "+N more" count inline, every url on its own line in detail
   mode), `code` (execute_code scopes; first line inline, the whole
   program in detail mode),
+  `image_url`/`question` (vision_analyze scopes; the image path/URL
+  left-ellipsized inline in the summary, the question added on its own
+  line in detail mode only),
   `content` (mem0_add scopes; wraps in full in detail mode), `todos`
   (todo scopes; first item's
   content plus a "+N more" count inline, every item on its own line in

@@ -292,6 +292,25 @@ def test_execute_code_first_line_shown_inline(tmp_path):
     assert "from pathlib import Path" in page
 
 
+def test_vision_analyze_image_inline_question_detail_only(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("V1", "tool", 1_100_000, 1_600_000, name="vision_analyze",
+                     session="s1", turn="t1",
+                     start_data={"image_url": "/tmp/cv-page-1.png",
+                                 "question": "List spelling errors only."}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    # the image path shows in the summary line, left-ellipsized
+    assert "/tmp/cv-page-1.png" in page
+    assert 'class="path tail"' in page
+    # the question is present but only on its own detail-mode line
+    assert "List spelling errors only." in page
+    assert page.count('class="span-detail list-item"') == 1
+
+
 def test_web_extract_first_url_and_count_shown_inline(tmp_path):
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),

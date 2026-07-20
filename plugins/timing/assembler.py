@@ -282,6 +282,19 @@ class Span:
         return (self._start_str("absorbed_into")
                 if self.name == "skill_manage" else None)
 
+    # vision_analyze start payloads carry the image looked at (a URL or local
+    # path) and the question asked of it; keys are too generic to trust
+    # outside the scope, so gate on the span name
+    @property
+    def vision_image_url(self) -> Optional[str]:
+        return (self._start_str("image_url")
+                if self.name == "vision_analyze" else None)
+
+    @property
+    def vision_question(self) -> Optional[str]:
+        return (self._start_str("question")
+                if self.name == "vision_analyze" else None)
+
 
 def _user_message(data: Any) -> Optional[str]:
     """The prompt from a turn-start mark's payload."""
