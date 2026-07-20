@@ -30,6 +30,8 @@ from plugins.timing.atof_reader import AtofEvent
 
 TURN_START_MARK = "hermes.turn.start"
 TURN_END_MARK = "hermes.turn.end"
+SUBAGENT_START_MARK = "hermes.subagent.start"
+SUBAGENT_STOP_MARK = "hermes.subagent.stop"
 AGENT_CATEGORY = "agent"
 LLM_CATEGORY = "llm"
 TOOL_CATEGORY = "tool"
@@ -336,7 +338,7 @@ class Turn:
         out = {}
         for m in sorted(self.marks, key=lambda m: m.timestamp_us):
             sid = m.child_session_id
-            if m.name == "hermes.subagent.start" and sid and sid not in out:
+            if m.name == SUBAGENT_START_MARK and sid and sid not in out:
                 out[sid] = {"ordinal": len(out) + 1, "goal": m.child_goal}
         return out
 
@@ -381,6 +383,23 @@ class Session:
 class Assembly:
     sessions: List[Session]        # most recent activity first
     anomalies: List[Anomaly]
+
+    @property
+    def finished_subagent_sessions(self) -> set:
+        """Sessions a parent has reported as stopped, via subagent.stop.
+
+        A subagent's own session often never emits hermes.turn.end, leaving
+        its turn open forever; the parent's stop mark is the authoritative
+        "this agent is done" signal, and needs no staleness clock.
+        """
+        stopped = set()
+        for session in self.sessions:
+            marks = [m for turn in session.turns for m in turn.marks]
+            marks.extend(session.unassigned_marks)
+            for mark in marks:
+                if mark.name == SUBAGENT_STOP_MARK and mark.child_session_id:
+                    stopped.add(mark.child_session_id)
+        return stopped
 
 
 def _pair_spans(events, anomalies):

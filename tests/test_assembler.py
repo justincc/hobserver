@@ -427,6 +427,29 @@ def test_subagent_stops_pair_with_starts_by_child_session_id():
     assert turn.subagent_ordinal(approval) is None
 
 
+def test_finished_subagent_sessions_come_from_stop_marks():
+    # a subagent whose own session never emits turn.end: the parent's stop
+    # mark is what tells us it finished. c2 stopped, c1 is still running.
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        mark_line("hermes.subagent.start", 1_100_000, session="s1", turn="t1",
+                  data={"child_goal": "Sweep Luma", "child_session_id": "c1"}),
+        mark_line("hermes.subagent.start", 1_200_000, session="s1", turn="t1",
+                  data={"child_goal": "Sweep Meetup", "child_session_id": "c2"}),
+        mark_line("hermes.subagent.stop", 1_800_000, session="s1", turn="t1",
+                  data={"child_session_id": "c2", "child_status": "ok"}),
+        # both children ran turns that never closed
+        mark_line("hermes.turn.start", 1_150_000, session="c1", turn="ct1"),
+        mark_line("hermes.turn.start", 1_250_000, session="c2", turn="ct2"),
+    ]
+    assert assemble_lines(lines).finished_subagent_sessions == {"c2"}
+
+
+def test_finished_subagent_sessions_is_empty_without_stops():
+    assert assemble_lines(two_turn_stream()).finished_subagent_sessions == set()
+
+
 def test_timeline_interleaves_marks_with_spans_in_time_order():
     lines = [
         *session_scope_lines("s1"),

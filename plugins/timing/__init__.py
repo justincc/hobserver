@@ -89,10 +89,17 @@ def _assembly():
 
 
 def _inflight_entries(assembly):
-    """All in-flight turns, newest first, dressed for the status strip."""
+    """Still-running turns, newest first, dressed for the status strip.
+
+    A subagent the parent has already reported stopped is not running, even
+    though its own session never closed the turn — those are dropped rather
+    than left to linger in the strip.
+    """
     now_us = int(time.time() * 1_000_000)
+    stopped = assembly.finished_subagent_sessions
     turns = sorted(
-        (t for s in assembly.sessions for t in s.turns if t.end_us is None),
+        (t for s in assembly.sessions for t in s.turns
+         if t.end_us is None and t.session_id not in stopped),
         key=lambda t: t.start_us,
         reverse=True,
     )

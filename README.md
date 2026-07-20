@@ -142,7 +142,11 @@ Both timing pages show an in-flight strip listing every currently running
 turn (newest first, with a short prompt snippet, elapsed time and span
 count) linking to its waterfall; the turn being viewed is marked. An in-flight turn silent for
 over 10 minutes is flagged stale — probably a lost end mark, not a running
-prompt. A "follow new turns" toggle (persisted in localStorage) auto-opens
+prompt. A subagent session the parent has reported stopped
+(`hermes.subagent.stop`) is dropped from the strip entirely: subagents
+routinely never emit their own `hermes.turn.end`, so the parent's stop mark
+is the authoritative "finished" signal. Only the strip filters — those turns
+stay in the turn table and keep their waterfall page. A "follow new turns" toggle (persisted in localStorage) auto-opens
 a turn's waterfall when a new turn starts, with two guards: it never
 navigates away while you are watching a turn that is still in flight
 (concurrent turns just appear in the strip for manual switching), and it

@@ -527,6 +527,53 @@ def test_inflight_strip_lists_running_turns(tmp_path):
     assert 'data-stale="1"' not in page  # a fresh turn is never marked stale
 
 
+def subagent_stream():
+    """A parent turn that spawned two subagents and got a stop for one.
+    Both children left their own turn open, as hermes subagents do — only
+    the parent's stop mark distinguishes the finished one. All stamps are
+    wall-clock-recent so the staleness clock cannot be what excludes it."""
+    now = int(time.time() * 1_000_000)
+    parent_start = now - 30_000_000
+    running_start, stopped_start = now - 25_000_000, now - 20_000_000
+    return running_start, stopped_start, [
+        *session_scope_lines("p1", start_us=now - 60_000_000),
+        mark_line("hermes.turn.start", parent_start, session="p1", turn="pt1",
+                  data={"user_message": SHORT_PROMPT, "platform": "webui"}),
+        mark_line("hermes.subagent.start", parent_start + 1_000_000,
+                  session="p1", turn="pt1",
+                  data={"child_goal": "Sweep Luma", "child_session_id": "kid-running"}),
+        mark_line("hermes.subagent.start", parent_start + 2_000_000,
+                  session="p1", turn="pt1",
+                  data={"child_goal": "Sweep Meetup", "child_session_id": "kid-stopped"}),
+        mark_line("hermes.turn.start", running_start, session="kid-running", turn="ct1"),
+        mark_line("hermes.turn.start", stopped_start, session="kid-stopped", turn="ct2"),
+        mark_line("hermes.subagent.stop", now - 10_000_000, session="p1", turn="pt1",
+                  data={"child_session_id": "kid-stopped", "child_status": "ok"}),
+    ]
+
+
+def test_inflight_strip_drops_stopped_subagents(tmp_path):
+    running_start, stopped_start, lines = subagent_stream()
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    # the subagent the parent reported stopped is gone from the strip
+    assert f'data-inflight-start-us="{stopped_start}"' not in page
+    # its still-running sibling, and the parent, stay
+    assert f'data-inflight-start-us="{running_start}"' in page
+    assert "in flight:" in page
+
+
+def test_stopped_subagent_turn_still_listed_and_reachable(tmp_path):
+    # dropping it from the strip is a liveness call, not a retention one:
+    # the turn table and its waterfall page must still have it
+    _, stopped_start, lines = subagent_stream()
+    atof = write_atof(tmp_path, lines)
+    client = make_client(tmp_path, str(atof))
+    assert f"/timing/turn/kid-stopped/{stopped_start}" in \
+        client.get("/timing/").get_data(as_text=True)
+    assert client.get(f"/timing/turn/kid-stopped/{stopped_start}").status_code == 200
+
+
 def test_inflight_strip_marks_stale_turns(tmp_path):
     # two_turn_stream's in-flight turn has 1970-era stamps: silent far past
     # the cutoff, so it is listed but flagged and excluded from auto-follow

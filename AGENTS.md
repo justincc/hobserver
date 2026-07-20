@@ -62,7 +62,12 @@ ETL, blueprints-as-plugins).
   `templates/base.html`: wrap content in `data-live-poll="<ms>"` ("0" =
   static; timing index 3 s, in-flight turn 2 s) — no SSE/WebSockets,
   reuses the per-request tailer. Timing pages add an in-flight strip
-  (`_inflight.html`, >10 min silent = stale) and a follow-mode toggle
+  (`_inflight.html`, >10 min silent = stale; a session named by a
+  `hermes.subagent.stop` mark is dropped from the strip outright —
+  subagents rarely emit their own turn.end, so the parent's stop is the
+  authoritative finished signal, via `Assembly.finished_subagent_sessions`.
+  The strip is the only thing filtered; turn table and turn pages keep
+  everything) and a follow-mode toggle
   (localStorage) that auto-opens newly started turns — never while
   already watching an in-flight turn, never to stale entries; the strip
   data-attributes (`data-inflight-start-us`, `data-stale`,
