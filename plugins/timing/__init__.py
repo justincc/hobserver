@@ -110,6 +110,24 @@ def _inflight_entries(assembly):
     } for t in turns]
 
 
+def _neighbours(assembly, turn):
+    """The turns either side of this one in the turn list's own ordering.
+
+    The list is every session's turns interleaved by start time, so
+    neighbours cross session boundaries just as the list does. Returns
+    (older, newer); either may be None at the ends.
+    """
+    ordered = sorted(
+        (t for s in assembly.sessions for t in s.turns),
+        key=lambda t: t.start_us,
+    )
+    i = next((n for n, t in enumerate(ordered) if t is turn), None)
+    if i is None:
+        return None, None
+    return (ordered[i - 1] if i > 0 else None,
+            ordered[i + 1] if i + 1 < len(ordered) else None)
+
+
 @bp.route("/")
 def index():
     problem = _source_problem()
@@ -153,10 +171,13 @@ def turn(session_id, start_us):
     span_edges = [s.end_us or s.start_us for s in found.spans]
     scale_end = found.end_us or max(span_edges, default=found.start_us)
     scale_us = max(scale_end - found.start_us, 1)
+    older, newer = _neighbours(assembly, found)
     return render_template(
         "timing/turn.html",
         turn=found,
         current=found,
         scale_us=scale_us,
         inflight=_inflight_entries(assembly),
+        older=older,
+        newer=newer,
     )

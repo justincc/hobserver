@@ -20,6 +20,16 @@
      data-turn-start-us="{{ turn.start_us }}">
 <nav class="event-nav">
   <a href="{{ url_for('timing.index') }}">&larr; all turns</a>
+  <span>
+    {%- if older %}
+    <a href="{{ url_for('timing.turn', session_id=older.session_id, start_us=older.start_us) }}"
+       title="{{ older.user_message | default('', true) | truncate(120) }}">&larr; previous turn</a>
+    {%- else %}<span class="disabled">&larr; previous turn</span>{% endif %}
+    {%- if newer %}
+    <a href="{{ url_for('timing.turn', session_id=newer.session_id, start_us=newer.start_us) }}"
+       title="{{ newer.user_message | default('', true) | truncate(120) }}">next turn &rarr;</a>
+    {%- else %}<span class="disabled">next turn &rarr;</span>{% endif %}
+  </span>
 </nav>
 
 {% include "timing/_inflight.html" %}

@@ -86,7 +86,11 @@ pointing this tool at its output (consuming) — is in
   dropped. The page updates itself every
   3 s (the tailer reads only what the exporter appended since the last
   request), so new turns appear without a manual reload.
-- `/timing/turn/<session>/<start_us>` — one turn: the in-flight strip,
+- `/timing/turn/<session>/<start_us>` — one turn: the nav row (the "all
+  turns" link on the left; "previous turn" / "next turn" on the right, one
+  step older / newer through the same interleaved-by-start-time ordering
+  the turn list uses, so they cross session boundaries just as it does, and
+  greyed out at either end), the in-flight strip,
   then the turn id / session / started heading (a muted icon beside the
   turn id copies it to the clipboard), the prompt (shown whole
   when short; collapsed to its first couple of lines with the full text a
