@@ -145,6 +145,10 @@ def test_skill_scope_details_shown_inline(tmp_path):
         *scope_lines("S2", "tool", 1_400_000, 1_600_000, name="skill_manage",
                      session="s1", turn="t1",
                      start_data={"action": "patch", "name": "job-seeker"}),
+        *scope_lines("S3", "tool", 1_650_000, 1_700_000, name="skill_manage",
+                     session="s1", turn="t1",
+                     start_data={"action": "create", "name": "doc-review",
+                                 "category": "productivity"}),
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
@@ -152,6 +156,9 @@ def test_skill_scope_details_shown_inline(tmp_path):
     assert "github-pr-workflow" in page
     assert "references/hygiene.md" in page
     assert "patch" in page and "job-seeker" in page
+    # a "create" carries a category, shown inline in the summary view
+    assert "create" in page and "doc-review" in page
+    assert "productivity" in page and "skill-cat" in page
 
 
 def test_file_tool_path_shown_inline_tail_first(tmp_path):

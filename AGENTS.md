@@ -75,7 +75,10 @@ ETL, blueprints-as-plugins).
   the same way, subagent.stop marks show `child_status` plus the
   echoed goal, and both carry a per-turn #N tag pairing start with
   stop via `child_session_id`) or, on
-  skill_view/skill_manage scopes, `name`/`file_path`/`action`, render
+  skill_view/skill_manage scopes, `name`/`file_path`/`action` plus the
+  `category` a skill_manage "create" carries (shown before the skill name,
+  middot-separated; absent on patch/write_file, which have no category),
+  render
   on the turn page — trailing the span name on one ellipsized line by
   default, on their own line when the details switch is on; clicking a
   row toggles just that row's detailed layout (tr.detail-open,

@@ -269,6 +269,12 @@ class Span:
     def skill_action(self) -> Optional[str]:
         return self._start_str("action") if self.name == "skill_manage" else None
 
+    @property
+    def skill_category(self) -> Optional[str]:
+        # only skill_manage "create" payloads carry a category; absent on
+        # patch/write_file, so this is None for those actions
+        return self._start_str("category") if self.name == "skill_manage" else None
+
 
 def _user_message(data: Any) -> Optional[str]:
     """The prompt from a turn-start mark's payload."""

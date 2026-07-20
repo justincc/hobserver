@@ -157,23 +157,34 @@ def test_skill_scope_details_from_start_payload():
                      session="s1", turn="t1",
                      start_data={"action": "patch", "name": "job-seeker",
                                  "old_string": "a", "new_string": "b"}),
+        *scope_lines("S3", "tool", 1_450_000, 1_480_000, name="skill_manage",
+                     session="s1", turn="t1",
+                     start_data={"action": "create", "name": "doc-review",
+                                 "category": "productivity", "content": "..."}),
         *scope_lines("T1", "tool", 1_500_000, 1_600_000, name="terminal",
                      session="s1", turn="t1",
                      start_data={"name": "not-a-skill", "command": "ls",
-                                 "action": "not-a-skill-action"}),
+                                 "action": "not-a-skill-action",
+                                 "category": "not-a-skill-category"}),
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
-    view, manage, other = assemble_lines(lines).sessions[0].turns[0].spans
+    view, manage, create, other = \
+        assemble_lines(lines).sessions[0].turns[0].spans
     assert view.skill_name == "adaptive-information-gathering"
     assert view.skill_file_path == "references/fallbacks.md"
     assert view.skill_action is None       # skill_view has no action
+    assert view.skill_category is None
     assert manage.skill_name == "job-seeker"
     assert manage.skill_action == "patch"
     assert manage.skill_file_path is None
-    # the generic name/action keys mean nothing outside a skill scope
+    assert manage.skill_category is None   # only "create" carries a category
+    assert create.skill_action == "create"
+    assert create.skill_category == "productivity"
+    # the generic name/action/category keys mean nothing outside a skill scope
     assert other.skill_name is None
     assert other.skill_action is None
     assert other.skill_file_path is None
+    assert other.skill_category is None
 
 
 def test_file_tool_path_from_start_payload():
