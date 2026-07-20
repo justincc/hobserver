@@ -142,11 +142,21 @@ Both timing pages show an in-flight strip listing every currently running
 turn (newest first, with a short prompt snippet, elapsed time and span
 count) linking to its waterfall; the turn being viewed is marked. An in-flight turn silent for
 over 10 minutes is flagged stale — probably a lost end mark, not a running
-prompt. A subagent session the parent has reported stopped
-(`hermes.subagent.stop`) is dropped from the strip entirely: subagents
-routinely never emit their own `hermes.turn.end`, so the parent's stop mark
-is the authoritative "finished" signal. Only the strip filters — those turns
-stay in the turn table and keep their waterfall page. A "follow new turns" toggle (persisted in localStorage) auto-opens
+prompt.
+
+Hermes drops `hermes.turn.end` marks often enough that an open turn is poor
+evidence of work in progress, so "still running" (`Turn.is_live`) means open
+*and* not proven finished. Two proofs override an open turn: a later turn
+starting in the same session (`Turn.superseded` — a session runs one turn at
+a time), and, for a subagent, the parent's `hermes.subagent.stop` mark. Both
+beat any staleness clock, being exact and immediate. No `end_us` is invented
+for such a turn: its duration was never observed, so the turn table and its
+page show "no end mark" rather than a made-up figure. Only liveness is
+affected — the turns stay in the table and keep their waterfall pages.
+
+This matters for more than clutter: a turn that looks in flight forever also
+freezes follow mode, since follow refuses to navigate away from a live turn
+and such a turn never stops being live. A "follow new turns" toggle (persisted in localStorage) auto-opens
 a turn's waterfall when a new turn starts, with two guards: it never
 navigates away while you are watching a turn that is still in flight
 (concurrent turns just appear in the strip for manual switching), and it

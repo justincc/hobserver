@@ -450,6 +450,33 @@ def test_finished_subagent_sessions_is_empty_without_stops():
     assert assemble_lines(two_turn_stream()).finished_subagent_sessions == set()
 
 
+def test_a_later_turn_supersedes_an_unclosed_one():
+    # t1 never gets its end mark; t2 starting proves it is over, since a
+    # session runs one turn at a time
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L1", "llm", 1_100_000, 2_000_000, session="s1", turn="t1"),
+        mark_line("hermes.turn.start", 3_000_000, session="s1", turn="t2"),
+        *scope_lines("L2", "llm", 3_100_000, 4_000_000, session="s1", turn="t2"),
+    ]
+    t1, t2 = assemble_lines(lines).sessions[0].turns
+    assert t1.superseded and not t1.is_live
+    # no end time is invented for it: the duration was never observed
+    assert t1.end_us is None
+    assert t1.duration_us is None
+    # the newest turn is genuinely still running
+    assert t2.is_live and not t2.superseded
+
+
+def test_a_cleanly_ended_turn_is_never_superseded():
+    turns = assemble_lines(two_turn_stream()).sessions[0].turns
+    assert not any(t.superseded for t in turns)
+    # two_turn_stream's second turn is open and last, so it stays live
+    assert turns[0].end_us is not None and not turns[0].is_live
+    assert turns[1].is_live
+
+
 def test_timeline_interleaves_marks_with_spans_in_time_order():
     lines = [
         *session_scope_lines("s1"),

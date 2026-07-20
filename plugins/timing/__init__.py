@@ -91,15 +91,15 @@ def _assembly():
 def _inflight_entries(assembly):
     """Still-running turns, newest first, dressed for the status strip.
 
-    A subagent the parent has already reported stopped is not running, even
-    though its own session never closed the turn — those are dropped rather
-    than left to linger in the strip.
+    Two kinds of open turn are not running and are dropped: one superseded
+    by a later turn in its session (Turn.is_live), and a subagent the
+    parent has already reported stopped.
     """
     now_us = int(time.time() * 1_000_000)
     stopped = assembly.finished_subagent_sessions
     turns = sorted(
         (t for s in assembly.sessions for t in s.turns
-         if t.end_us is None and t.session_id not in stopped),
+         if t.is_live and t.session_id not in stopped),
         key=lambda t: t.start_us,
         reverse=True,
     )

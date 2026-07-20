@@ -50,7 +50,8 @@
       <td>{{ t.turn_id or '—' }}</td>
       <td class="prompt-cell">{{ (t.user_message | truncate(100)) if t.user_message else '—' }}</td>
       <td class="num">
-        {% if t.end_us is none %}<span class="badge-inflight">in flight</span>
+        {% if t.is_live %}<span class="badge-inflight">in flight</span>
+        {% elif t.superseded %}<span class="badge-noend" title="A later turn started in this session before this one closed, so it is over; its end mark never arrived and its duration was never observed.">no end mark</span>
         {% else %}{{ t.duration_us | us_dur }}{% endif %}
       </td>
       <td class="num">{{ t.llm_us | us_dur }}</td>

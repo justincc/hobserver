@@ -574,6 +574,62 @@ def test_stopped_subagent_turn_still_listed_and_reachable(tmp_path):
     assert client.get(f"/timing/turn/kid-stopped/{stopped_start}").status_code == 200
 
 
+def superseded_stream():
+    """Two turns in one session, the first never closed — the exact shape
+    that froze follow mode: the older turn looked in flight forever, so its
+    page kept claiming to be watching live work."""
+    now = int(time.time() * 1_000_000)
+    first_start, second_start = now - 120_000_000, now - 30_000_000
+    return first_start, second_start, [
+        *session_scope_lines("s7", start_us=now - 180_000_000),
+        mark_line("hermes.turn.start", first_start, session="s7", turn="t1",
+                  data={"user_message": SHORT_PROMPT, "platform": "webui"}),
+        *scope_lines("L1", "llm", first_start + 100_000, first_start + 2_000_000,
+                     name="anthropic", session="s7", turn="t1"),
+        # no hermes.turn.end for t1
+        mark_line("hermes.turn.start", second_start, session="s7", turn="t2",
+                  data={"user_message": LONG_PROMPT, "platform": "webui"}),
+        *scope_lines("L2", "llm", second_start + 100_000, None,
+                     name="anthropic", session="s7", turn="t2"),
+    ]
+
+
+def test_superseded_turn_leaves_the_inflight_strip(tmp_path):
+    first_start, second_start, lines = superseded_stream()
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    assert f'data-inflight-start-us="{first_start}"' not in page
+    assert f'data-inflight-start-us="{second_start}"' in page
+
+
+def test_superseded_turn_page_does_not_block_follow(tmp_path):
+    # the regression: viewing the older turn must not mark it as the current
+    # in-flight turn, or followNewTurn() returns early and never advances
+    first_start, second_start, lines = superseded_stream()
+    atof = write_atof(tmp_path, lines)
+    client = make_client(tmp_path, str(atof))
+    page = client.get(f"/timing/turn/s7/{first_start}").get_data(as_text=True)
+    assert 'data-inflight-current="1"' not in page
+    # and it stops polling as though it were live
+    assert 'data-live-poll="0"' in page
+    # the genuinely live turn still marks itself current and polls fast
+    live = client.get(f"/timing/turn/s7/{second_start}").get_data(as_text=True)
+    assert 'data-inflight-current="1"' in live
+    assert 'data-live-poll="2000"' in live
+
+
+def test_superseded_turn_is_listed_without_claiming_to_be_in_flight(tmp_path):
+    first_start, _, lines = superseded_stream()
+    atof = write_atof(tmp_path, lines)
+    client = make_client(tmp_path, str(atof))
+    index = client.get("/timing/").get_data(as_text=True)
+    # still in the table and reachable — this is a liveness call, not retention
+    assert f"/timing/turn/s7/{first_start}" in index
+    assert client.get(f"/timing/turn/s7/{first_start}").status_code == 200
+    # but shown as ended-without-an-end-mark, not as running
+    assert "no end mark" in index
+
+
 def test_inflight_strip_marks_stale_turns(tmp_path):
     # two_turn_stream's in-flight turn has 1970-era stamps: silent far past
     # the cutoff, so it is listed but flagged and excluded from auto-follow

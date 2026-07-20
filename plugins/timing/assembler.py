@@ -286,6 +286,11 @@ class Turn:
     turn_id: Optional[str]
     start_us: int
     end_us: Optional[int] = None    # None if the end mark never arrived
+    # A later turn started in this session while this one was still open: a
+    # session runs one turn at a time, so this turn is over even though its
+    # end mark never arrived. No end_us is invented for it — the duration
+    # was never observed and is not ours to guess (ADR 2).
+    superseded: bool = False
     user_message: Optional[str] = None
     spans: List[Span] = field(default_factory=list)
     marks: List[AtofEvent] = field(default_factory=list)
@@ -295,6 +300,15 @@ class Turn:
         if self.end_us is None:
             return None
         return self.end_us - self.start_us
+
+    @property
+    def is_live(self) -> bool:
+        """Still running: open, and not proven finished by a later turn.
+
+        An open turn is not evidence of work in progress — hermes drops
+        turn.end marks often enough that unclosed turns pile up.
+        """
+        return self.end_us is None and not self.superseded
 
     def _category_us(self, category: str) -> int:
         return sum(
@@ -465,6 +479,7 @@ def _build_turns(session: Session, boundary_marks, anomalies) -> None:
                 anomalies.append(Anomaly(
                     f"turn started before previous turn ended in session "
                     f"{session.session_id!r}", mark.line_no))
+                current.superseded = True
                 session.turns.append(current)
             current = Turn(
                 session_id=session.session_id,
