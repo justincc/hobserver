@@ -70,14 +70,27 @@ There are two halves: hermes-agent **produces** the log, hermes-observer
 
 ## Consuming: point hermes-observer at the log
 
+With `HERMES_HOME` exported, nothing needs passing — the log defaults to
+`$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl`, the same directory the
+exporter settings above write to:
+
+```bash
+uv run python app.py
+```
+
+Override either source when they live elsewhere:
+
 ```bash
 ATOF_LOG=/home/<you>/.hermes/nemo-relay/atof/hermes-atof.jsonl \
   uv run python app.py [path/to/jmem0_logged.db]
 ```
 
+Startup prints both resolved paths, whether each exists, and which rule
+supplied it — check that first when a tab looks empty.
+
 The Prompt timing tab lists turns as they land; reload to pick up new
 events (the tailer reads only what the exporter appended since the last
-request). The tab distinguishes three failure states loudly — `ATOF_LOG`
-unset, file missing, and file present but empty — and shows unparseable
-lines and assembly anomalies above the turn list (folded closed) rather
-than dropping them.
+request). The tab distinguishes three failure states loudly — no path
+configured, file missing (naming the path tried), and file present but
+empty — and shows unparseable lines and assembly anomalies above the turn
+list (folded closed) rather than dropping them.

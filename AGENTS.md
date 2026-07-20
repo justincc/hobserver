@@ -8,11 +8,16 @@ for pages, layout, and data-source path resolution; see docs/adr/ for the
 architecture decisions (ATOF as timing source, direct JSONL reading with no
 ETL, blueprints-as-plugins).
 
-- Run: `uv run python app.py [db_path]` (serves on port 5090; template and
+- Run: `uv run python app.py` — no arguments or env vars needed when
+  `HERMES_HOME` is exported: both the memory db and the ATOF log default to
+  paths under `hermes_config_dir()` (normalized `$HERMES_HOME`, else a
+  literal fallback), overridable by argv/`JMEM0_DB` and `ATOF_LOG`
+  respectively. Startup prints the resolved paths and whether each exists
+  (once, in the reloader supervisor — the worker sets WERKZEUG_RUN_MAIN).
+  Serves on port 5090; template and
   .py edits are picked up without a restart — template auto-reload plus the
   Werkzeug reloader; debug stays off so the interactive debugger is never
-  exposed on 0.0.0.0. Timing source
-  via the `ATOF_LOG` env var). Producer-side setup (nemo-relay install,
+  exposed on 0.0.0.0. Producer-side setup (nemo-relay install,
   plugin enable, `HERMES_NEMO_RELAY_*` in `~/.hermes/.env`) is documented
   in docs/setup-prompt-timing.md.
 - Test: `uv run pytest`

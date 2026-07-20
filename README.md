@@ -29,15 +29,32 @@ reloader restarts the server when a `.py` file changes. Debug mode stays
 off — the Werkzeug interactive debugger allows arbitrary code execution
 and must never be exposed on `0.0.0.0`.
 
+Both data sources default to files under the hermes-agent config directory,
+so with `HERMES_HOME` exported neither has to be passed: `uv run python
+app.py` is enough. `HERMES_HOME` is normalized, since the agent conventionally
+exports it as `<checkout>/hermes-agent/../config`; if it is unset, a built-in
+literal path stands in.
+
 The memory database path is resolved in this order:
 
 1. First command-line argument
 2. `JMEM0_DB` environment variable
-3. Built-in default: the hermes-agent `product/src/config/jmem0_logged.db`
+3. `$HERMES_HOME/jmem0_logged.db`
 
-The prompt-timing source is the `ATOF_LOG` environment variable, pointing
-at the events JSONL file written by the nemo_relay plugin's ATOF exporter.
-If unset, the Prompt timing tab says so rather than showing an empty page.
+The prompt-timing source is resolved as:
+
+1. `ATOF_LOG` environment variable
+2. `$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl`
+
+pointing at the events JSONL file written by the nemo_relay plugin's ATOF
+exporter. If that file does not exist, the Prompt timing tab says so and
+names the path it tried, rather than showing an empty page.
+
+On startup the app prints what it resolved — `HERMES_HOME`, the config
+directory, both source paths with whether each exists and which rule
+supplied it, and the listening URL — because a missing source is the usual
+reason a tab looks empty. It prints once at launch, not on reloader
+restarts.
 End-to-end setup — enabling the exporter in hermes-agent (producing) and
 pointing this tool at its output (consuming) — is in
 [docs/setup-prompt-timing.md](docs/setup-prompt-timing.md).
