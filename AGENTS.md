@@ -47,7 +47,12 @@ ETL, blueprints-as-plugins).
   package), each exposing a blueprint `bp` (registered under `/<bp.name>/`)
   and a `TAB_LABEL`; their templates live in `templates/<name>/`. The ATOF
   reader is three layers in `plugins/timing/`: `tailer.py` (byte-offset
-  incremental read; app-lifetime instance in `app.extensions`),
+  incremental read; app-lifetime instance in `app.extensions`; split the
+  chunk on `"\n"` only — `str.splitlines()` also breaks on U+0085/U+2028/
+  U+2029, which JSON does not require escaping and hermes' assistant text
+  contains verbatim, shredding whole records into unparseable fragments;
+  when the shredded record was a `hermes.turn.end` its turn stayed open
+  forever, so a long-finished turn kept polling at 2 s),
   `atof_reader.py` (parser; fixtures include the verbatim example lines
   from the ATOF v0.1 spec) and `assembler.py` (span pairing by uuid, turns
   bounded by hermes.turn.start/end marks, span→turn assignment by turn_id

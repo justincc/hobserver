@@ -68,3 +68,23 @@ def test_parse_errors_accumulate_with_line_numbers(tmp_path):
     tailer.refresh()
     assert [e.line_no for e in tailer.errors] == [2, 3]
     assert [e.uuid for e in tailer.events] == ["a"]
+
+
+def test_unicode_line_separators_inside_a_record_do_not_split_it(tmp_path):
+    """JSON leaves U+0085/U+2028/U+2029 unescaped and hermes' assistant text
+    contains them verbatim; str.splitlines() would break such a record into
+    fragments that then fail to parse, silently losing marks — a lost
+    hermes.turn.end leaves its turn open forever."""
+    path = tmp_path / "events.jsonl"
+    payload = json.dumps({
+        "kind": "mark", "uuid": "a", "name": "hermes.turn.end",
+        "timestamp": 1, "data": {"text": "one\u0085two\u2028three\u2029four"},
+    }, ensure_ascii=False)
+    assert len(payload.splitlines()) == 4        # the trap this guards
+    path.write_text(payload + "\n" + event_line("b", 2) + "\n",
+                    encoding="utf-8")
+    tailer = AtofTailer(str(path))
+    tailer.refresh()
+    assert tailer.errors == []
+    assert [e.uuid for e in tailer.events] == ["a", "b"]
+    assert [e.line_no for e in tailer.events] == [1, 2]

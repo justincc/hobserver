@@ -58,7 +58,13 @@ class AtofTailer:
                 return
             complete = chunk[: cut + 1]
             self._offset += len(complete)
-            lines = complete.decode("utf-8", errors="replace").splitlines()
+            # Split on "\n" only. str.splitlines() also breaks on U+0085,
+            # U+2028 and friends, which JSON does *not* require escaping —
+            # they occur verbatim inside assistant text, and splitting there
+            # shreds the record into fragments that then fail to parse
+            # (a lost hermes.turn.end leaves its turn open forever).
+            lines = complete.decode("utf-8", errors="replace").split("\n")
+            lines.pop()             # always empty: complete ends with "\n"
             events, errors = parse_lines(lines, first_line_no=self._next_line_no)
             self._next_line_no += len(lines)
             self.events.extend(events)
