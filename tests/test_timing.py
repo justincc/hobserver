@@ -793,6 +793,15 @@ def test_turn_page_links_to_neighbouring_turns(tmp_path):
     assert '<span class="disabled" title="no newer turn">next &raquo;</span>' in newer
 
 
+def test_neighbour_prompt_snippet_reaches_the_step_link_title(tmp_path):
+    # the prompt snippet is passed into the shared item_nav macro as a title
+    finished_start, inflight_start, lines = recent_stream()
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        f"/timing/turn/s9/{inflight_start}").get_data(as_text=True)
+    assert f'title="previous (older) turn — {SHORT_PROMPT}"' in page
+
+
 def test_follow_toggle_rides_the_turn_nav_row(tmp_path):
     # same line as all/prev/next: it is navigation too, just automatic
     atof = write_atof(tmp_path, two_turn_stream())

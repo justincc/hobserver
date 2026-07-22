@@ -132,7 +132,14 @@ ETL, blueprints-as-plugins).
   it across a swap: it re-resolves the element on each use, resyncs its
   checked state after every swap, and uses a delegated change listener.
   A captured reference detaches on the first poll and the switch dies
-  silently. On the index it stands alone above the region.
+  silently. On the index it stands alone above the region. That nav row
+  is the `item_nav` macro in `templates/_item_nav.html`, shared by every
+  plugin's detail page (timing turn, memory event) so item-by-item
+  navigation is identical everywhere: "← all X" first, then muted
+  « prev / next » steppers grouped beside it, prev always meaning older.
+  New plugins import it rather than rolling their own row; pages wanting
+  something else on the row (the follow toggle) pass it via `{% call %}`,
+  which space-between drops on the right.
   Waterfall series colors were validated with the dataviz
   six-checks palette validator against the light surface: llm `#2a78d6`,
   tool `#eb6834`, other `#4a3aa7`; span identity is always also in text,

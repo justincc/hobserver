@@ -1,0 +1,27 @@
+{# Item-by-item navigation, shared by every plugin's detail page: a link back
+   to the list plus muted prev/next steppers, all grouped left, with room at
+   the right for whatever else the page puts on the row (timing's follow
+   toggle, via {% call %}). Styling lives in base.html's nav.event-nav rules.
+   Plugins differ only in what "prev" points at, so the labels are fixed here
+   — that is the consistency this macro exists to enforce. #}
+{% macro item_nav(all_url, all_label, prev_url=None, next_url=None,
+                  prev_title=None, next_title=None) -%}
+<nav class="event-nav">
+  <span>
+    <a href="{{ all_url }}">&larr; {{ all_label }}</a>
+    {# Stepping links are muted a shade — going back to the list is the
+       primary action, these are incidental. #}
+    <span class="nav-steps">
+      {%- if prev_url %}
+      <a href="{{ prev_url }}"{% if prev_title %} title="{{ prev_title }}"{% endif %}>&laquo; prev</a>
+      {%- else %}<span class="disabled"{% if prev_title %} title="{{ prev_title }}"{% endif %}>&laquo; prev</span>{% endif %}
+      {%- if next_url %}
+      <a href="{{ next_url }}"{% if next_title %} title="{{ next_title }}"{% endif %}>next &raquo;</a>
+      {%- else %}<span class="disabled"{% if next_title %} title="{{ next_title }}"{% endif %}>next &raquo;</span>{% endif %}
+    </span>
+  </span>
+  {%- if caller %}
+  {{ caller() }}
+  {%- endif %}
+</nav>
+{%- endmacro %}

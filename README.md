@@ -244,8 +244,12 @@ uv run pytest
   `plugins/timing/atof_reader.py` (JSONL line → typed event, fail-soft) and
   `plugins/timing/assembler.py` (events → sessions → turns → waterfall,
   with overhead as the residual of turn duration minus llm and tool time)
-- `templates/` — `base.html` (shared chrome + tab bar) plus one
-  subdirectory per plugin (`memory/`, `timing/`)
+- `templates/` — `base.html` (shared chrome + tab bar), `_item_nav.html`
+  (the `item_nav` macro every detail page uses for its "← all X" link and
+  muted « prev / next » steppers, so item-by-item navigation looks and
+  reads the same in every plugin; a page needing more on that row — the
+  timing turn page's follow toggle — passes it through `{% call %}`), plus
+  one subdirectory per plugin (`memory/`, `timing/`)
 - `tests/` — `conftest.py` (shared fixtures), `test_app.py` (shell),
   `test_memory.py`, `test_timing.py`, `test_atof_reader.py`,
   `test_assembler.py`, `test_tailer.py`

@@ -1,13 +1,13 @@
 {% extends "base.html" %}
+{% from "_item_nav.html" import item_nav %}
 {% block title %}event {{ event['id'] }} — hermes observer{% endblock %}
 {% block content %}
-<nav class="event-nav">
-  <a href="{{ url_for('memory.index') }}">&larr; all events</a>
-  <span>
-    {% if prev_id %}<a href="{{ url_for('memory.event', event_id=prev_id) }}">&larr; previous</a>{% else %}<span class="disabled">&larr; previous</span>{% endif %}
-    {% if next_id %}<a href="{{ url_for('memory.event', event_id=next_id) }}">next &rarr;</a>{% else %}<span class="disabled">next &rarr;</span>{% endif %}
-  </span>
-</nav>
+{{ item_nav(
+     url_for('memory.index'), 'all events',
+     prev_url=url_for('memory.event', event_id=prev_id) if prev_id else None,
+     next_url=url_for('memory.event', event_id=next_id) if next_id else None,
+     prev_title='previous (older) event' if prev_id else 'no older event',
+     next_title='next (newer) event' if next_id else 'no newer event') }}
 
 <dl class="metadata">
   {% for name, value in metadata %}

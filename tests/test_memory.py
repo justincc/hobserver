@@ -48,7 +48,7 @@ def test_event_detail_prev_next_links(client):
     # id 1 is the oldest: next goes to 2, no previous
     page = client.get("/memory/event/1").get_data(as_text=True)
     assert '/memory/event/2' in page
-    assert 'class="disabled">&larr; previous' in page
+    assert '<span class="disabled" title="no older event">&laquo; prev</span>' in page
     # id 2 is in the middle: links to both neighbours
     page = client.get("/memory/event/2").get_data(as_text=True)
     assert '/memory/event/1' in page
@@ -56,7 +56,18 @@ def test_event_detail_prev_next_links(client):
     # id 5 is the newest: previous goes to 4, no next
     page = client.get("/memory/event/5").get_data(as_text=True)
     assert '/memory/event/4' in page
-    assert 'class="disabled">next' in page
+    assert '<span class="disabled" title="no newer event">next &raquo;</span>' in page
+
+
+def test_event_detail_nav_uses_shared_item_nav_layout(client):
+    # Same shape as the timing turn page: back-to-list and the muted steppers
+    # grouped together on one row (see templates/_item_nav.html).
+    page = client.get("/memory/event/2").get_data(as_text=True)
+    nav = page[page.index('<nav class="event-nav">'):]
+    nav = nav[: nav.index("</nav>")]
+    assert "all events" in nav
+    assert '<span class="nav-steps">' in nav
+    assert nav.index("all events") < nav.index("nav-steps")
 
 
 def test_event_detail_context_messages_from_same_session(client):

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_item_nav.html" import item_nav %}
 {% block title %}turn {{ turn.turn_id or turn.start_us }} — hermes observer{% endblock %}
 {% macro copy_btn(text, label) -%}
 <button class="copy-btn" data-copy="{{ text }}" title="{{ label }}" aria-label="{{ label }}"><svg class="ic-copy" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="ic-check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
@@ -17,26 +18,17 @@
 {% block content %}
 <div data-live-poll="{{ 2000 if turn.is_live else 0 }}"
      data-turn-start-us="{{ turn.start_us }}">
-<nav class="event-nav">
-  <span>
-    <a href="{{ url_for('timing.index') }}">&larr; all turns</a>
-    {# Stepping links are muted a shade — going back to the list is the
-       primary action, these are incidental. #}
-    <span class="nav-steps">
-      {%- if older %}
-      <a href="{{ url_for('timing.turn', session_id=older.session_id, start_us=older.start_us) }}"
-         title="previous (older) turn{% if older.user_message %} — {{ older.user_message | truncate(120) }}{% endif %}">&laquo; prev</a>
-      {%- else %}<span class="disabled" title="no older turn">&laquo; prev</span>{% endif %}
-      {%- if newer %}
-      <a href="{{ url_for('timing.turn', session_id=newer.session_id, start_us=newer.start_us) }}"
-         title="next (newer) turn{% if newer.user_message %} — {{ newer.user_message | truncate(120) }}{% endif %}">next &raquo;</a>
-      {%- else %}<span class="disabled" title="no newer turn">next &raquo;</span>{% endif %}
-    </span>
-  </span>
-  {# Same row as the stepping links: it is navigation too, just automatic.
-     Inside the live region, so base.html re-resolves it after each swap. #}
+{# Same row as the stepping links: the follow toggle is navigation too, just
+   automatic. Inside the live region, so base.html re-resolves it after each
+   swap. #}
+{% call item_nav(
+     url_for('timing.index'), 'all turns',
+     prev_url=url_for('timing.turn', session_id=older.session_id, start_us=older.start_us) if older else None,
+     next_url=url_for('timing.turn', session_id=newer.session_id, start_us=newer.start_us) if newer else None,
+     prev_title=("previous (older) turn" + (" — " + older.user_message | truncate(120) if older.user_message else "")) if older else "no older turn",
+     next_title=("next (newer) turn" + (" — " + newer.user_message | truncate(120) if newer.user_message else "")) if newer else "no newer turn") %}
   {% include "timing/_follow.html" %}
-</nav>
+{%- endcall %}
 
 {% include "timing/_inflight.html" %}
 
