@@ -190,6 +190,33 @@ def test_skill_scope_details_shown_inline(tmp_path):
     assert "remove_file" in page and "references/stale.md" in page
 
 
+def test_skill_patch_strings_are_detail_only(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("S1", "tool", 1_100_000, 1_300_000, name="skill_manage",
+                     session="s1", turn="t1",
+                     start_data={"action": "patch", "name": "job-search-ops",
+                                 "file_path": "workflows/report.md",
+                                 "old_string": "version: 1.3.1",
+                                 "new_string": "version: 1.4.0"}),
+        *scope_lines("S2", "tool", 1_350_000, 1_400_000, name="skill_manage",
+                     session="s1", turn="t1",
+                     start_data={"action": "patch", "name": "job-seeker",
+                                 "old_string": "stale para", "new_string": ""}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    # the file within the skill stays on the summary line, as for write_file
+    assert "workflows/report.md" in page
+    # both sides of the patch, each on a detail-only row (.list-item)
+    assert "version: 1.3.1" in page and "version: 1.4.0" in page
+    old_row = page[page.index("version: 1.3.1") - 300:page.index("version: 1.3.1")]
+    assert "list-item" in old_row and "diff-mark del" in old_row
+    # an empty new_string is a deletion, said in words rather than left blank
+    assert "deletes the matched text" in page
+
+
 def test_file_tool_path_shown_inline_tail_first(tmp_path):
     home_notes = os.path.join(os.path.expanduser("~"), "docs", "notes.md")
     lines = [

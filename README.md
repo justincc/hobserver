@@ -141,7 +141,11 @@ pointing this tool at its output (consuming) — is in
   heredoc or a multi-command script stays readable;
   skill scopes (`skill_view`/`skill_manage`) likewise show the skill's
   `name`, the `file_path` within the skill when one is targeted, and (for
-  skill_manage) the `action` inline; file tool scopes (patch, read_file,
+  skill_manage) the `action` inline, and — for a skill_manage `patch` —
+  the replaced text as two extra rows shown only in detail mode, the
+  `old_string` marked − and the `new_string` marked +, each wrapping out
+  in full (an empty `new_string` is a deletion and says so in words);
+  file tool scopes (patch, read_file,
   write_file, …) show their `path`, ellipsized from the
   left so the end of a long path stays visible; patch scopes in patch
   mode carry no top-level `path` — the touched files are extracted from

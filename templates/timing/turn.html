@@ -134,6 +134,23 @@
           {%- if s.skill_file_path %}{% if s.skill_name %} <span class="skill-cat">·</span>{% endif %} <span class="path tail" title="{{ s.skill_file_path }}">&lrm;{{ s.skill_file_path }}&lrm;</span>{% endif %}
           {%- if s.skill_absorbed_into %} <span>→ absorbed into</span> <code title="{{ s.skill_absorbed_into }}">{{ s.skill_absorbed_into }}</code>{% endif %}
         </div>
+        {# A patch's replaced text: detail mode only — new_string alone runs to
+           kilobytes of markdown, far past what the summary line can carry. The
+           −/+ marks name each side in text, so the tint is decoration. #}
+        {% if s.skill_old_string is not none %}
+        <div class="span-detail list-item">
+          <span class="diff-mark del">&minus;</span>
+          <code class="wrap-detail" title="{{ s.skill_old_string }}">{{ s.skill_old_string }}</code>
+        </div>
+        {% endif %}
+        {% if s.skill_new_string is not none %}
+        <div class="span-detail list-item">
+          <span class="diff-mark ins">+</span>
+          {%- if s.skill_new_string %}
+          <code class="wrap-detail" title="{{ s.skill_new_string }}">{{ s.skill_new_string }}</code>
+          {%- else %}<span class="empty-new">(empty — deletes the matched text)</span>{% endif %}
+        </div>
+        {% endif %}
         {% elif s.search_pattern %}
         <div class="span-detail">
           <code title="{{ s.search_pattern }}">{{ s.search_pattern }}</code>

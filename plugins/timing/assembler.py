@@ -275,6 +275,30 @@ class Span:
         # patch/write_file, so this is None for those actions
         return self._start_str("category") if self.name == "skill_manage" else None
 
+    # a skill_manage "patch" carries the replaced text as old_string /
+    # new_string (checked against skill_manage's signature in
+    # $h/tools/skill_manager_tool.py) — not a V4A patch text like the file
+    # tools' patch scope. old_string is required and non-empty there.
+    @property
+    def skill_old_string(self) -> Optional[str]:
+        return (self._start_str("old_string")
+                if self.name == "skill_manage" else None)
+
+    @property
+    def skill_new_string(self) -> Optional[str]:
+        """The patch's replacement text — possibly the empty string.
+
+        Read straight from the payload rather than through `_start_str`,
+        which folds "" into None: an empty new_string is a real patch that
+        deletes the matched text, and the turn page says so. None here
+        means the key was absent.
+        """
+        if self.name != "skill_manage":
+            return None
+        data = _as_dict(self.start_data)
+        value = data.get("new_string") if data is not None else None
+        return value if isinstance(value, str) else None
+
     @property
     def skill_absorbed_into(self) -> Optional[str]:
         # only a skill_manage "delete" that merged the skill elsewhere names

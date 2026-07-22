@@ -87,7 +87,16 @@ ETL, blueprints-as-plugins).
   `category` a skill_manage "create" carries (shown before the skill name,
   middot-separated; absent on patch/write_file, which have no category) and
   the `absorbed_into` a "delete" that merged the skill elsewhere carries
-  (rendered "→ absorbed into <skill>"). skill_manage's six actions are
+  (rendered "→ absorbed into <skill>") and the `old_string`/`new_string` a
+  "patch" carries — note skill_manage patches replace text, they do NOT
+  carry a V4A patch text like the file tools' patch scope. The two sides
+  render on their own detail-mode-only rows (`.list-item`), marked − and +
+  (glyph first, tint second — never color alone); `new_string` may be the
+  empty string, a patch that deletes the matched text, so `Span
+  .skill_new_string` reads the payload directly instead of `_start_str`,
+  which folds "" into None, and the empty side renders in words. They stay
+  out of the summary line because a real `new_string` runs to kilobytes of
+  markdown. skill_manage's six actions are
   create/edit/patch/delete/write_file/remove_file (checked against
   `$h/tools/skill_manager_tool.py`); the ATOF log to date only exercises
   create/patch/write_file, so edit/delete/remove_file rendering is covered
