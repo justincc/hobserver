@@ -303,6 +303,36 @@ def test_patch_mode_paths_shown_inline(tmp_path):
     assert "/home/u/proj/a.md" in page   # first path shown inline
     assert "+1 more" in page             # remaining files as a count
     assert "/home/u/proj/b.md" in page   # all paths in the hover title
+    assert "mode-tag" in page            # …under a tag naming the mode
+    # the V4A text itself, on a detail-only row
+    text_row = page[page.index("*** Begin Patch") - 300:page.index("*** Begin Patch")]
+    assert "list-item" in text_row
+
+
+def test_patch_replace_strings_are_detail_only(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("P1", "tool", 1_100_000, 1_300_000, name="patch",
+                     session="s1", turn="t1",
+                     start_data={"mode": "replace", "path": "/home/u/notes.md",
+                                 "old_string": "## Recommended action",
+                                 "new_string": "## Recorded decision"}),
+        *scope_lines("P2", "tool", 1_350_000, 1_400_000, name="patch",
+                     session="s1", turn="t1",
+                     start_data={"mode": "replace", "path": "/home/u/b.md",
+                                 "old_string": "stale para", "new_string": ""}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    # the path keeps the summary line; the mode names which shape follows
+    assert "/home/u/notes.md" in page and ">replace<" in page
+    # both sides of the edit, each on a detail-only row (.list-item)
+    assert "## Recommended action" in page and "## Recorded decision" in page
+    old_row = page[page.index("## Recommended action") - 300:page.index("## Recommended action")]
+    assert "list-item" in old_row and "diff-mark del" in old_row
+    # an empty new_string is a deletion, said in words rather than left blank
+    assert "deletes the matched text" in page
 
 
 def test_search_files_pattern_and_glob_shown_inline(tmp_path):

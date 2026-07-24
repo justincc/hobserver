@@ -63,9 +63,7 @@ ETL, blueprints-as-plugins).
   payloads carrying `command`/`workdir` (terminal tool scopes; the
   command wraps in full in detail mode, line breaks kept — code takes
   `pre-wrap`, unlike the `normal` prose details wrap with), `path`
-  (file tool scopes, left-ellipsized to keep the tail; patch-mode patch
-  scopes instead list the files from the V4A `patch` text's headers,
-  first path plus a "+N more" count), `query`
+  (file tool scopes, left-ellipsized to keep the tail), `query`
   (web_search/mem0_search scopes; wraps in full in detail
   mode). session_search is its own scope with four modes (checked against
   `$h/tools/session_search_tool.py`), rendered mode-aware in one branch:
@@ -85,7 +83,19 @@ ETL, blueprints-as-plugins).
   scanned, so count ≤ sessions_searched ≤ limit); scroll: `before`/`after`
   (messages outside the returned window); read: `messages` total plus a
   `truncated` flag; browse: `sessions` listed. The tooltip on each label
-  carries the same explanation. `urls` (web_extract scopes; first url
+  carries the same explanation. The `patch` scope is likewise one branch
+  over two modes (checked against patch_tool in `$h/tools/file_tools.py`),
+  named by a `.mode-tag`: "replace" (the default — `path` plus
+  `old_string`/`new_string`, so it must be matched *before* the plain-path
+  branch it would otherwise fall into) and "patch" (a V4A multi-file
+  `patch` text and no top-level path; `Span.patch_paths` lists the files
+  from its "*** <Op> File:" headers, first path plus a "+N more" count).
+  `Span.patch_mode` prefers the payload's explicit `mode`, falling back to
+  the keys present (a `patch` text ⇒ patch, else the tool's own default,
+  replace). Detail mode adds the payload the summary line can't carry:
+  the two replaced sides for replace, the whole V4A text for patch —
+  never the end payload's `diff`/`files_modified`/`lint`, which nothing
+  reads today. `urls` (web_extract scopes; first url
   plus a "+N more" count inline, every url on its own line in detail
   mode), `code` (execute_code scopes; first line inline, the whole
   program in detail mode),
@@ -106,12 +116,17 @@ ETL, blueprints-as-plugins).
   middot-separated; absent on patch/write_file, which have no category) and
   the `absorbed_into` a "delete" that merged the skill elsewhere carries
   (rendered "→ absorbed into <skill>") and the `old_string`/`new_string` a
-  "patch" carries — note skill_manage patches replace text, they do NOT
-  carry a V4A patch text like the file tools' patch scope. The two sides
+  "patch" carries — note skill_manage patches replace text, they never
+  carry a V4A patch text the way the file tools' patch scope does in patch
+  mode; the pair matches that scope's *replace* mode instead, and both
+  render through the one `diff_rows` macro in `templates/timing/turn.html`.
+  The two sides
   render on their own detail-mode-only rows (`.list-item`), marked − and +
   (glyph first, tint second — never color alone); `new_string` may be the
-  empty string, a patch that deletes the matched text, so `Span
-  .skill_new_string` reads the payload directly instead of `_start_str`,
+  empty string, a patch that deletes the matched text (both tools document
+  passing "" for that), so `Span._new_string` — shared by
+  `skill_new_string` and `patch_new_string` — reads the payload directly
+  instead of `_start_str`,
   which folds "" into None, and the empty side renders in words. They stay
   out of the summary line because a real `new_string` runs to kilobytes of
   markdown. skill_manage's six actions are

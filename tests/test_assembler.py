@@ -284,6 +284,44 @@ def test_patch_mode_paths_from_v4a_headers():
     assert patch.path is None
     # the generic "patch" key means nothing outside a patch scope
     assert other.patch_paths == []
+    assert other.patch_mode is None and other.patch_text is None
+
+
+def test_patch_mode_and_replaced_text():
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("P1", "tool", 1_100_000, 1_200_000, name="patch",
+                     session="s1", turn="t1",
+                     start_data={"mode": "replace", "path": "/home/u/a.md",
+                                 "old_string": "was", "new_string": "now"}),
+        # the tool defaults to replace, so a payload that names no mode and
+        # carries no V4A text is one (see $h/tools/file_tools.py patch_tool)
+        *scope_lines("P2", "tool", 1_250_000, 1_280_000, name="patch",
+                     session="s1", turn="t1",
+                     start_data={"path": "/home/u/b.md",
+                                 "old_string": "gone", "new_string": ""}),
+        # …and one carrying a V4A text is a patch even unnamed
+        *scope_lines("P3", "tool", 1_300_000, 1_400_000, name="patch",
+                     session="s1", turn="t1",
+                     start_data={"patch": "*** Begin Patch\n"
+                                          "*** Add File: /home/u/c.md\n+hi\n"
+                                          "*** End Patch"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    replace, defaulted, v4a = assemble_lines(lines).sessions[0].turns[0].spans
+    assert replace.patch_mode == "replace"
+    assert replace.patch_old_string == "was"
+    assert replace.patch_new_string == "now"
+    assert replace.patch_text is None
+    assert defaulted.patch_mode == "replace"
+    # "" is a real patch — it deletes the matched text — so it must not fold
+    # into None the way an absent key does
+    assert defaulted.patch_new_string == ""
+    assert v4a.patch_mode == "patch"
+    assert v4a.patch_paths == ["/home/u/c.md"]
+    # patch mode carries neither side; the patch text is the whole story
+    assert v4a.patch_old_string is None and v4a.patch_new_string is None
 
 
 def test_search_files_query_from_start_payload():

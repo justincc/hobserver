@@ -133,14 +133,30 @@ class Span:
     def path(self) -> Optional[str]:
         return self._start_str("path")
 
+    # the patch scope has two modes (checked against patch_tool's signature
+    # in $h/tools/file_tools.py): "replace" (the default — path plus
+    # old_string/new_string) and "patch" (a V4A multi-file patch text, no
+    # top-level path). The payload names the mode, but fall back to the
+    # keys present so a start-only span still resolves.
+    @property
+    def patch_mode(self) -> Optional[str]:
+        if self.name != "patch" or _as_dict(self.start_data) is None:
+            return None
+        mode = self._start_str("mode")
+        if mode:
+            return mode
+        return "patch" if self.patch_text else "replace"
+
+    @property
+    def patch_text(self) -> Optional[str]:
+        return self._start_str("patch") if self.name == "patch" else None
+
     # patch-mode patch scopes carry no top-level path: the touched files
     # live in the V4A patch text's "*** <Op> File:" headers (see hermes
     # tools/patch_parser.py); a move header keeps its "old -> new" whole
     @property
     def patch_paths(self) -> List[str]:
-        if self.name != "patch":
-            return []
-        text = self._start_str("patch")
+        text = self.patch_text
         if not text:
             return []
         paths = []
@@ -390,7 +406,8 @@ class Span:
     # a skill_manage "patch" carries the replaced text as old_string /
     # new_string (checked against skill_manage's signature in
     # $h/tools/skill_manager_tool.py) — not a V4A patch text like the file
-    # tools' patch scope. old_string is required and non-empty there.
+    # tools' patch scope, whose "replace" mode names the same two keys.
+    # old_string is required and non-empty in both.
     @property
     def skill_old_string(self) -> Optional[str]:
         return (self._start_str("old_string")
@@ -398,15 +415,26 @@ class Span:
 
     @property
     def skill_new_string(self) -> Optional[str]:
-        """The patch's replacement text — possibly the empty string.
+        return self._new_string() if self.name == "skill_manage" else None
+
+    # replace-mode patch scopes carry the same pair; patch mode carries
+    # neither, so these are None there and the patch text renders instead
+    @property
+    def patch_old_string(self) -> Optional[str]:
+        return self._start_str("old_string") if self.name == "patch" else None
+
+    @property
+    def patch_new_string(self) -> Optional[str]:
+        return self._new_string() if self.name == "patch" else None
+
+    def _new_string(self) -> Optional[str]:
+        """A patch's replacement text — possibly the empty string.
 
         Read straight from the payload rather than through `_start_str`,
         which folds "" into None: an empty new_string is a real patch that
-        deletes the matched text, and the turn page says so. None here
-        means the key was absent.
+        deletes the matched text (both tools document passing "" for that),
+        and the turn page says so. None here means the key was absent.
         """
-        if self.name != "skill_manage":
-            return None
         data = _as_dict(self.start_data)
         value = data.get("new_string") if data is not None else None
         return value if isinstance(value, str) else None
