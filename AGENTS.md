@@ -67,7 +67,25 @@ ETL, blueprints-as-plugins).
   scopes instead list the files from the V4A `patch` text's headers,
   first path plus a "+N more" count), `query`
   (web_search/mem0_search scopes; wraps in full in detail
-  mode), `urls` (web_extract scopes; first url
+  mode). session_search is its own scope with four modes (checked against
+  `$h/tools/session_search_tool.py`), rendered mode-aware in one branch:
+  `Span.session_search_mode` prefers the end payload's explicit `mode`,
+  falling back to inferring it from the start-payload keys with the tool's own
+  dispatch precedence (an `around_message_id` anchor ⇒ scroll, else a
+  `session_id` ⇒ read, else a `query` ⇒ discover, else browse) so a still-open
+  span resolves too. A muted `.mode-tag` names the mode; `session_search
+  _summary` is the inline one-liner from the start payload (discover: the
+  query; scroll: `session <id> · around msg <n> · window <w>`; read: `session
+  <id>`; browse: `recent sessions`); `session_search_stats` is a list of
+  {label,value,tooltip} rows drawn from the end payload, shown on detail-only
+  `.list-item` rows, one per count the mode reports — discover: `count`
+  (sessions actually returned, lower than searched when a match is title-only
+  or its anchored view can't be built) + `sessions searched` (distinct
+  matching sessions deduped by lineage and capped at the limit, NOT the corpus
+  scanned, so count ≤ sessions_searched ≤ limit); scroll: `before`/`after`
+  (messages outside the returned window); read: `messages` total plus a
+  `truncated` flag; browse: `sessions` listed. The tooltip on each label
+  carries the same explanation. `urls` (web_extract scopes; first url
   plus a "+N more" count inline, every url on its own line in detail
   mode), `code` (execute_code scopes; first line inline, the whole
   program in detail mode),

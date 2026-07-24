@@ -169,6 +169,19 @@
         <div class="span-detail">
           <code class="wrap-detail" title="{{ s.search_query }}">{{ s.search_query }}</code>
         </div>
+        {% elif s.session_search_mode %}
+        {# session_search has four modes; the mode tag names it, the summary
+           says what it targets, and per-mode result counts sit on detail-only
+           rows. See hermes tools/session_search_tool.py. #}
+        <div class="span-detail">
+          <span class="mode-tag">{{ s.session_search_mode }}</span>
+          {%- if s.session_search_summary %} <code class="wrap-detail" title="{{ s.session_search_summary }}">{{ s.session_search_summary }}</code>{% endif %}
+        </div>
+        {% for stat in s.session_search_stats %}
+        <div class="span-detail list-item">
+          <span title="{{ stat.tooltip }}">{{ stat.label }}{% if stat.value != "" %} {{ stat.value }}{% endif %}</span>
+        </div>
+        {% endfor %}
         {% elif s.code_first_line %}
         <div class="span-detail list-compact">
           <code title="{{ s.code }}">{{ s.code_first_line }}</code>

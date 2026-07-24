@@ -326,8 +326,97 @@ def test_search_query_from_start_payload():
     web, mem, other = assemble_lines(lines).sessions[0].turns[0].spans
     assert web.search_query == "flask blueprint url_prefix"
     assert mem.search_query == "What is the user's name?"
-    # the generic "query" key means nothing outside the search scopes
+    # the generic "query" key means nothing outside the search scopes;
+    # session_search's query is handled by the mode-aware properties, not here
     assert other.search_query is None
+
+
+def _one_span(name, start_data, end_data=None):
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("SS1", "tool", 1_100_000, 1_200_000, name=name,
+                     session="s1", turn="t1",
+                     start_data=start_data, end_data=end_data),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    return assemble_lines(lines).sessions[0].turns[0].spans[0]
+
+
+def test_session_search_discover_mode():
+    # the ATOF log carries the tool result as a JSON *string*; _as_dict decodes
+    span = _one_span(
+        "session_search",
+        {"query": "jobs report", "limit": 5, "sort": "newest"},
+        '{"success": true, "mode": "discover", "results": [],'
+        ' "count": 2, "sessions_searched": 3}')
+    assert span.session_search_mode == "discover"
+    assert span.session_search_summary == "jobs report"
+    labels = [(s["label"], s["value"]) for s in span.session_search_stats]
+    assert labels == [("count", 2), ("sessions searched", 3)]
+    assert all(s["tooltip"] for s in span.session_search_stats)
+
+
+def test_session_search_scroll_mode():
+    span = _one_span(
+        "session_search",
+        {"session_id": "1941bdb78476", "around_message_id": 14571, "window": 20},
+        '{"success": true, "mode": "scroll", "session_id": "1941bdb78476",'
+        ' "around_message_id": 14571, "window": 20, "messages": [],'
+        ' "messages_before": 7, "messages_after": 4}')
+    assert span.session_search_mode == "scroll"
+    assert span.session_search_summary == \
+        "session 1941bdb78476 · around msg 14571 · window 20"
+    assert [(s["label"], s["value"]) for s in span.session_search_stats] == \
+        [("before", 7), ("after", 4)]
+
+
+def test_session_search_read_mode():
+    span = _one_span(
+        "session_search",
+        {"session_id": "1941bdb78476"},
+        '{"success": true, "mode": "read", "session_id": "1941bdb78476",'
+        ' "message_count": 812, "truncated": true, "messages": []}')
+    assert span.session_search_mode == "read"
+    assert span.session_search_summary == "session 1941bdb78476"
+    labels = [(s["label"], s["value"]) for s in span.session_search_stats]
+    assert labels == [("messages", 812), ("truncated", "")]
+
+
+def test_session_search_browse_mode():
+    span = _one_span(
+        "session_search",
+        {},
+        '{"success": true, "mode": "browse", "results": [], "count": 4}')
+    assert span.session_search_mode == "browse"
+    assert span.session_search_summary == "recent sessions"
+    assert [(s["label"], s["value"]) for s in span.session_search_stats] == \
+        [("sessions", 4)]
+
+
+def test_session_search_mode_inferred_from_start_while_open():
+    # no end payload yet (span in flight) — mode comes from start-payload keys,
+    # matching the tool's own dispatch precedence
+    scroll = _one_span("session_search",
+                       {"session_id": "s9", "around_message_id": 3, "window": 5})
+    assert scroll.session_search_mode == "scroll"
+    read = _one_span("session_search", {"session_id": "s9"})
+    assert read.session_search_mode == "read"
+    discover = _one_span("session_search", {"query": "hi"})
+    assert discover.session_search_mode == "discover"
+    browse = _one_span("session_search", {})
+    assert browse.session_search_mode == "browse"
+    # open spans have no end payload, so no result stats yet
+    assert scroll.session_search_stats == []
+
+
+def test_session_search_properties_inert_on_other_scopes():
+    # another scope's end payload carrying a "count" key must not be mistaken
+    # for a session_search result
+    web = _one_span("web_search", {"query": "flask"}, '{"count": 9}')
+    assert web.session_search_mode is None
+    assert web.session_search_summary is None
+    assert web.session_search_stats == []
 
 
 def test_mem0_add_content_from_start_payload():

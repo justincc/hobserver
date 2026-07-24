@@ -162,13 +162,125 @@ class Span:
     def file_glob(self) -> Optional[str]:
         return self._start_str("file_glob") if self.name == "search_files" else None
 
-    # web_search and mem0_search scopes carry their search query in the
-    # start payload; "query" is too generic a key to trust on other scopes
+    # web_search and mem0_search scopes carry their search query in the start
+    # payload; "query" is too generic a key to trust on other scopes.
+    # session_search also has a query but only in one of its four modes, so it
+    # is handled by the mode-aware properties below rather than here.
     @property
     def search_query(self) -> Optional[str]:
         if self.name in ("web_search", "mem0_search"):
             return self._start_str("query")
         return None
+
+    # session_search is a single scope with four modes (see hermes
+    # tools/session_search_tool.py): discover (search by query), scroll (a
+    # window around an anchor message), read (a whole session), browse (recent
+    # sessions). The end payload names the mode outright, but that is absent
+    # while the span is open or if its end mark is lost, so fall back to
+    # inferring it from the start-payload keys using the tool's own dispatch
+    # precedence: an anchor means scroll, else a session_id means read, else a
+    # query means discover, else browse.
+    @property
+    def session_search_mode(self) -> Optional[str]:
+        if self.name != "session_search":
+            return None
+        end = _as_dict(self.end_data)
+        if end is not None:
+            mode = end.get("mode")
+            if isinstance(mode, str) and mode:
+                return mode
+        start = _as_dict(self.start_data)
+        if start is None:
+            return None
+        if start.get("session_id") and start.get("around_message_id") is not None:
+            return "scroll"
+        if start.get("session_id"):
+            return "read"
+        if start.get("query"):
+            return "discover"
+        return "browse"
+
+    # One-line summary of what a session_search span targets, from the start
+    # payload (available while the span is still open). None leaves just the
+    # mode tag showing.
+    @property
+    def session_search_summary(self) -> Optional[str]:
+        mode = self.session_search_mode
+        if mode is None:
+            return None
+        start = _as_dict(self.start_data) or {}
+        if mode == "discover":
+            query = start.get("query")
+            return query if isinstance(query, str) and query else None
+        if mode == "scroll":
+            parts = []
+            sid = start.get("session_id")
+            if isinstance(sid, str) and sid:
+                parts.append(f"session {sid}")
+            anchor = start.get("around_message_id")
+            if anchor is not None:
+                parts.append(f"around msg {anchor}")
+            window = start.get("window")
+            if isinstance(window, int) and not isinstance(window, bool):
+                parts.append(f"window {window}")
+            return " · ".join(parts) or None
+        if mode == "read":
+            sid = start.get("session_id")
+            return f"session {sid}" if isinstance(sid, str) and sid else "whole session"
+        if mode == "browse":
+            return "recent sessions"
+        return None
+
+    # Detail-mode result stats for a session_search span, drawn from the end
+    # payload — a list of {label, value, tooltip} rows, one per meaningful
+    # count the mode reports. Empty while the span is open (no end payload).
+    @property
+    def session_search_stats(self) -> list:
+        if self.name != "session_search":
+            return []
+        end = _as_dict(self.end_data)
+        if end is None:
+            return []
+        mode = end.get("mode")
+        stats: List[dict] = []
+
+        def add_int(key: str, label: str, tooltip: str) -> None:
+            value = end.get(key)
+            # bool is an int subclass; the payload also carries booleans
+            if isinstance(value, bool) or not isinstance(value, int):
+                return
+            stats.append({"label": label, "value": value, "tooltip": tooltip})
+
+        if mode == "discover":
+            add_int("count", "count",
+                    "Session entries actually returned — a matched session is "
+                    "dropped when it is title-only or its anchored view can't be "
+                    "built, so this can be lower than sessions searched.")
+            add_int("sessions_searched", "sessions searched",
+                    "Distinct matching sessions collected before building result "
+                    "views: deduped by session lineage and capped at the requested "
+                    "limit — not the size of the corpus scanned. count ≤ sessions "
+                    "searched ≤ limit.")
+        elif mode == "scroll":
+            add_int("messages_before", "before",
+                    "Messages in the session before the returned window around the "
+                    "anchor message.")
+            add_int("messages_after", "after",
+                    "Messages in the session after the returned window around the "
+                    "anchor message.")
+        elif mode == "read":
+            add_int("message_count", "messages",
+                    "Total messages in the session. When truncated, only the first "
+                    "+ last slice is returned; scroll with around_message_id to read "
+                    "the middle.")
+            if end.get("truncated") is True:
+                stats.append({"label": "truncated", "value": "",
+                              "tooltip": "The session was longer than the read "
+                              "window, so only the first + last slice is shown."})
+        elif mode == "browse":
+            add_int("count", "sessions",
+                    "Number of recent sessions listed.")
+        return stats
 
     # mem0_add scopes carry the remembered fact in their start payload;
     # "content" is too generic a key to trust on other scopes

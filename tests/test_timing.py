@@ -190,6 +190,57 @@ def test_skill_scope_details_shown_inline(tmp_path):
     assert "remove_file" in page and "references/stale.md" in page
 
 
+def test_session_search_discover_query_inline_and_stats_detail_only(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("SS1", "tool", 1_100_000, 1_300_000, name="session_search",
+                     session="s1", turn="t1",
+                     start_data={"query": "jobs report workflow", "limit": 5},
+                     end_data='{"success": true, "mode": "discover",'
+                              ' "results": [], "count": 2,'
+                              ' "sessions_searched": 3}'),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    # the mode is named and the query renders inline in the summary
+    assert "mode-tag" in page and ">discover<" in page
+    assert "jobs report workflow" in page
+    # count and sessions_searched sit on detail-only rows (.list-item)
+    assert "count 2" in page and "sessions searched 3" in page
+    stats_row = page[page.index("count 2") - 400:page.index("count 2")]
+    assert "list-item" in stats_row
+    # each label carries a tooltip describing what the number means
+    assert "title=\"Session entries actually returned" in page
+    assert "not the size of the corpus scanned" in page
+
+
+def test_session_search_scroll_mode_renders(tmp_path):
+    # the mode that was previously invisible: no query, no count
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("SS1", "tool", 1_100_000, 1_300_000, name="session_search",
+                     session="s1", turn="t1",
+                     start_data={"session_id": "1941bdb78476",
+                                 "around_message_id": 14571, "window": 20},
+                     end_data='{"success": true, "mode": "scroll",'
+                              ' "session_id": "1941bdb78476",'
+                              ' "around_message_id": 14571, "window": 20,'
+                              ' "messages": [], "messages_before": 7,'
+                              ' "messages_after": 4}'),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert ">scroll<" in page
+    assert "session 1941bdb78476 · around msg 14571 · window 20" in page
+    # message counts on detail-only rows with explanatory tooltips
+    assert "before 7" in page and "after 4" in page
+    before_row = page[page.index("before 7") - 300:page.index("before 7")]
+    assert "list-item" in before_row
+    assert "title=\"Messages in the session before" in page
+
+
 def test_skill_patch_strings_are_detail_only(tmp_path):
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
