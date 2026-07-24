@@ -387,6 +387,35 @@ def test_mem0_add_content_shown_inline(tmp_path):
     assert '<span class="path wide wrap-detail" title="User prefers tea over coffee.">' in page
 
 
+def test_mem0_update_and_delete_show_the_memory_id(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("M1", "tool", 1_100_000, 1_300_000, name="mem0_update",
+                     session="s1", turn="t1",
+                     start_data={"memory_id": "fdd806c1-0789-4522-aaf3",
+                                 "text": "User prefers coffee after all."}),
+        *scope_lines("M2", "tool", 1_350_000, 1_400_000, name="mem0_delete",
+                     session="s1", turn="t1",
+                     start_data={"memory_id": "b3e3ade6-d852-44b2-98f4"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    # the replacement text leads the summary line, wrapping out in detail
+    text = '<span class="path wide wrap-detail" title="User prefers coffee after all.">'
+    assert text in page
+    assert "list-item" not in page[page.index(text) - 200:page.index(text)]
+    # the id is faint and copyable, and detail-only (.list-item) so it never
+    # shares the summary line with the span's own uuid
+    mem_id = '<span class="mem-id">fdd806c1-0789-4522-aaf3'
+    assert mem_id in page and 'data-copy="fdd806c1-0789-4522-aaf3"' in page
+    assert "list-item" in page[page.index(mem_id) - 200:page.index(mem_id)]
+    # a delete has nothing but the id
+    delete_id = '<span class="mem-id">b3e3ade6-d852-44b2-98f4'
+    assert delete_id in page
+    assert "list-item" in page[page.index(delete_id) - 200:page.index(delete_id)]
+
+
 def test_execute_code_first_line_shown_inline(tmp_path):
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),

@@ -102,6 +102,10 @@
     .span-detail .path { flex: none; max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .span-detail .skill-action { flex: none; margin-right: 0.4rem; }
     .span-detail .skill-cat { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; }
+    /* mem0 memory id — a lookup key back to a mem0_search result, so faint
+       and mono like the span uuid it sits under; detail-only, so the two ids
+       never share the summary line, which carries the fact instead */
+    .span-detail .mem-id { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; font-size: 0.75rem; color: #bbb; }
     /* mode label on a scope with modes: session_search
        (discover/scroll/read/browse), patch (replace/patch) */
     .span-detail .mode-tag { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; color: #8a8a8a; }

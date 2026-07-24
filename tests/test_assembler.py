@@ -471,8 +471,37 @@ def test_mem0_add_content_from_start_payload():
     ]
     mem, other = assemble_lines(lines).sessions[0].turns[0].spans
     assert mem.memory_content == "User prefers tea over coffee."
+    assert mem.memory_id is None            # an add names no existing memory
     # the generic "content" key means nothing outside a mem0_add scope
     assert other.memory_content is None
+
+
+def test_mem0_update_and_delete_name_the_memory():
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        # an update replaces the text of one memory: "text", not "content"
+        *scope_lines("M1", "tool", 1_100_000, 1_200_000, name="mem0_update",
+                     session="s1", turn="t1",
+                     start_data={"memory_id": "fdd806c1-0789-4522-aaf3",
+                                 "text": "User prefers coffee after all."}),
+        *scope_lines("M2", "tool", 1_250_000, 1_280_000, name="mem0_delete",
+                     session="s1", turn="t1",
+                     start_data={"memory_id": "b3e3ade6-d852-44b2-98f4"}),
+        *scope_lines("T1", "tool", 1_300_000, 1_400_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"memory_id": "not-a-memory", "text": "nope",
+                                 "command": "ls"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    update, delete, other = assemble_lines(lines).sessions[0].turns[0].spans
+    assert update.memory_id == "fdd806c1-0789-4522-aaf3"
+    assert update.memory_content == "User prefers coffee after all."
+    # a delete carries the id alone — that is its whole payload
+    assert delete.memory_id == "b3e3ade6-d852-44b2-98f4"
+    assert delete.memory_content is None
+    # the generic "memory_id"/"text" keys mean nothing outside a mem0 scope
+    assert other.memory_id is None and other.memory_content is None
 
 
 def test_execute_code_first_line_from_start_payload():

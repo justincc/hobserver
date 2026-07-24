@@ -193,10 +193,22 @@
         <div class="span-detail list-item">
           <code class="wrap-detail" title="{{ s.code }}">{{ s.code }}</code>
         </div>
-        {% elif s.memory_content %}
+        {% elif s.memory_content or s.memory_id %}
+        {# The fact leads, ellipsized on the summary line and wrapping out in
+           detail — an add stores it, an update replaces one with it. The id
+           an update or delete names stays on a detail-only row: it is a
+           lookup key, and on the summary line it would read as a second uuid
+           beside the span's own, which lands there once the row is opened. #}
+        {% if s.memory_content %}
         <div class="span-detail">
           <span class="path wide wrap-detail" title="{{ s.memory_content }}">{{ s.memory_content }}</span>
         </div>
+        {% endif %}
+        {% if s.memory_id %}
+        <div class="span-detail list-item">
+          <span class="mem-id">{{ s.memory_id }}{{ copy_btn(s.memory_id, "copy memory id") }}</span>
+        </div>
+        {% endif %}
         {% elif s.web_extract_urls %}
         {{ item_list(s.web_extract_urls) }}
         {% elif s.todo_contents %}

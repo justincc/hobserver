@@ -298,11 +298,25 @@ class Span:
                     "Number of recent sessions listed.")
         return stats
 
-    # mem0_add scopes carry the remembered fact in their start payload;
-    # "content" is too generic a key to trust on other scopes
+    # mem0 scopes carry the remembered fact under different keys —
+    # mem0_add "content", mem0_update "text" (checked against the tool
+    # schemas in $h/plugins/memory/mem0/__init__.py: these four tools live
+    # in the memory plugin, not $h/tools/). Both keys are far too generic
+    # to trust on other scopes.
     @property
     def memory_content(self) -> Optional[str]:
-        return self._start_str("content") if self.name == "mem0_add" else None
+        if self.name == "mem0_add":
+            return self._start_str("content")
+        if self.name == "mem0_update":
+            return self._start_str("text")
+        return None
+
+    # mem0_update and mem0_delete name the memory they act on; on a delete
+    # it is the whole payload
+    @property
+    def memory_id(self) -> Optional[str]:
+        return (self._start_str("memory_id")
+                if self.name in ("mem0_update", "mem0_delete") else None)
 
     # execute_code scopes carry the program in their start payload; the
     # first line stands in for it inline, the full text goes in the title

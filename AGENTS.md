@@ -102,7 +102,17 @@ ETL, blueprints-as-plugins).
   `image_url`/`question` (vision_analyze scopes; the image path/URL
   left-ellipsized inline in the summary, the question added on its own
   line in detail mode only),
-  `content` (mem0_add scopes; wraps in full in detail mode), `todos`
+  `content` (mem0_add scopes; wraps in full in detail mode — mem0_update
+  carries the same fact under `text` instead, so `Span.memory_content`
+  reads whichever key the scope uses and the fact leads the summary line
+  either way. mem0_update and mem0_delete also carry a `memory_id`, kept
+  to a detail-only row (faint mono, copy button — the lookup key back to a
+  mem0_search result): on the summary line it reads as a second uuid
+  beside the span's own, which lands there as soon as the row is expanded.
+  A mem0_delete therefore shows nothing until opened — the id is its
+  entire payload. The four mem0 tools are defined in
+  `$h/plugins/memory/mem0/__init__.py`, i.e. in the memory plugin, NOT in
+  `$h/tools/` where the rest live), `todos`
   (todo scopes; first item's
   content plus a "+N more" count inline, every item on its own line in
   detail mode), `tasks`/`goal`/`context` (delegate_task scopes; first
