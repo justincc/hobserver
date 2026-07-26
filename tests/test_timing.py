@@ -984,3 +984,68 @@ def test_detail_mode_carries_the_whole_command_and_code(tmp_path):
     # adds a detail-only element holding every line
     assert '<div class="span-detail list-compact">' in page
     assert f'<code class="wrap-detail" title="{esc_code}">{esc_code}</code>' in page
+
+
+def test_memory_scope_shows_action_store_and_entry(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("W1", "tool", 1_100_000, 1_600_000, name="memory",
+                     session="s1", turn="t1",
+                     start_data={"action": "replace", "target": "user",
+                                 "old_text": "User does not want auto-commits",
+                                 "content": "User requires a staged diff "
+                                            "before commits."}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert '<span class="mode-tag">replace</span>' in page
+    assert "· user" in page                      # which of the two stores
+    assert "User requires a staged diff before commits." in page
+    # one op needs no per-op label: the mode tag above already names it and
+    # stays visible in detail mode
+    assert '<span class="skill-action">replace</span>' not in page
+    # both sides of the replaced entry, detail-only, through the shared macro
+    assert '<span class="diff-mark del">&minus;</span>' in page
+    assert 'title="User does not want auto-commits"' in page
+
+
+def test_memory_add_shows_only_the_added_side(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("W1", "tool", 1_100_000, 1_600_000, name="memory",
+                     session="s1", turn="t1",
+                     start_data={"action": "add", "target": "memory",
+                                 "content": "Port 5090 is the observer."}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert '<span class="mode-tag">add</span>' in page
+    assert '<span class="diff-mark ins">+</span>' in page
+    # an add replaces nothing, so there is no − row to show
+    assert '<span class="diff-mark del">&minus;</span>' not in page
+
+
+def test_memory_batch_lists_every_operation(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("W1", "tool", 1_100_000, 1_600_000, name="memory",
+                     session="s1", turn="t1",
+                     start_data={"target": "user", "operations": [
+                         {"action": "replace", "old_text": "Former HCA",
+                          "content": "Former HCA Ingest architect at EBI."},
+                         {"action": "remove", "old_text": "Atlas weekly"},
+                     ]}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert '<span class="mode-tag">batch</span>' in page
+    # first entry stands in for the batch inline, the rest counted
+    assert '<div class="span-detail list-compact">' in page
+    assert "+1 more" in page
+    # every op gets its own detail row, named
+    assert '<span class="skill-action">replace</span>' in page
+    assert '<span class="skill-action">remove</span>' in page
+    assert 'title="Atlas weekly"' in page

@@ -911,3 +911,88 @@ def test_turn_user_message_from_start_mark_data():
     # marks with no payload (the shared fixture) yield None, never a crash
     plain = assemble_lines(two_turn_stream()).sessions[0].turns[0]
     assert plain.user_message is None
+
+
+def test_memory_scope_single_op_shape():
+    """The `memory` tool's single-op shape — action plus the entry text.
+    A different tool from the mem0 scopes above ($h/tools/memory_tool.py)."""
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("W1", "tool", 1_100_000, 1_200_000, name="memory",
+                     session="s1", turn="t1",
+                     start_data={"action": "replace", "target": "user",
+                                 "old_text": "User does not want auto-commits",
+                                 "content": "User requires a staged diff "
+                                            "before commits."}),
+        *scope_lines("W2", "tool", 1_250_000, 1_260_000, name="memory",
+                     session="s1", turn="t1",
+                     start_data={"action": "add", "target": "memory",
+                                 "content": "Port 5090 is the observer."}),
+        # a remove names only the entry it drops
+        *scope_lines("W3", "tool", 1_300_000, 1_310_000, name="memory",
+                     session="s1", turn="t1",
+                     start_data={"action": "remove", "target": "user",
+                                 "old_text": "Stale preference"}),
+        *scope_lines("T1", "tool", 1_400_000, 1_450_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"action": "add", "target": "user",
+                                 "command": "ls"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    replace, add, remove, other = assemble_lines(lines).sessions[0].turns[0].spans
+    assert replace.memory_action == "replace"
+    assert replace.memory_target == "user"
+    assert replace.memory_ops == [{
+        "action": "replace",
+        "old_text": "User does not want auto-commits",
+        "content": "User requires a staged diff before commits.",
+        "text": "User requires a staged diff before commits.",
+    }]
+    assert add.memory_action == "add"
+    assert add.memory_target == "memory"
+    assert add.memory_ops[0]["old_text"] is None
+    assert add.memory_ops[0]["text"] == "Port 5090 is the observer."
+    # the entry a remove drops is all it has, so that is its summary text
+    assert remove.memory_ops[0]["content"] is None
+    assert remove.memory_ops[0]["text"] == "Stale preference"
+    # the generic "action"/"target" keys mean nothing outside a memory scope
+    assert other.memory_action is None and other.memory_target is None
+    assert other.memory_ops == []
+
+
+def test_memory_scope_batch_shape():
+    """An operations list is applied atomically and reads as one span; the
+    tool dispatches on it before `action`, so it names the mode."""
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("W1", "tool", 1_100_000, 1_200_000, name="memory",
+                     session="s1", turn="t1",
+                     start_data={"target": "user", "operations": [
+                         {"action": "replace", "old_text": "Former HCA",
+                          "content": "Former HCA Ingest architect at EBI."},
+                         {"action": "remove", "old_text": "Atlas weekly"},
+                         {"action": "add", "content": "Prefers short notes."},
+                         "not-an-op",
+                         {"content": "no action, skipped"},
+                     ]}),
+        # a staged batch replayed from the approval queue carries both keys;
+        # the list still wins, matching the tool's dispatch order
+        *scope_lines("W2", "tool", 1_250_000, 1_260_000, name="memory",
+                     session="s1", turn="t1",
+                     start_data={"action": "batch", "target": "memory",
+                                 "operations": [{"action": "add",
+                                                 "content": "One entry."}]}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    batch, staged = assemble_lines(lines).sessions[0].turns[0].spans
+    assert batch.memory_action == "batch"
+    assert batch.memory_target == "user"
+    # the two malformed entries are dropped, not raised on
+    assert [op["action"] for op in batch.memory_ops] == ["replace", "remove", "add"]
+    assert batch.memory_ops[0]["text"] == "Former HCA Ingest architect at EBI."
+    assert batch.memory_ops[1]["text"] == "Atlas weekly"
+    assert staged.memory_action == "batch"
+    assert staged.memory_ops == [{"action": "add", "old_text": None,
+                                  "content": "One entry.", "text": "One entry."}]

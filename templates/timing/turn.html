@@ -209,6 +209,35 @@
           <span class="mem-id">{{ s.memory_id }}{{ copy_btn(s.memory_id, "copy memory id") }}</span>
         </div>
         {% endif %}
+        {% elif s.memory_action %}
+        {# The `memory` tool, not mem0: curated §-delimited entries in the
+           MEMORY.md / USER.md stores that go into the system prompt. The
+           action and store name it; the entry text stands in for the write
+           inline; every op gets its own −/+ rows in detail, so a batch —
+           usually entries being shortened to fit the char budget — reads
+           as the list of edits it is. See $h/tools/memory_tool.py. #}
+        <div class="span-detail">
+          <span class="mode-tag">{{ s.memory_action }}</span>
+          {%- if s.memory_target %} <span class="skill-cat">· {{ s.memory_target }}</span>{% endif %}
+        </div>
+        {% if s.memory_ops %}
+        <div class="span-detail list-compact">
+          <span class="path wide" title="{{ s.memory_ops | map(attribute='text') | join('\n') }}">{{ s.memory_ops[0].text }}</span>
+          {%- if s.memory_ops | length > 1 %} <span>+{{ s.memory_ops | length - 1 }} more</span>{% endif %}
+        </div>
+        {% endif %}
+        {% for op in s.memory_ops %}
+        {# A batch names each op; a single one is already named by the mode
+           tag above, which stays visible in detail mode. #}
+        {% if s.memory_ops | length > 1 %}
+        <div class="span-detail list-item">
+          <span class="skill-action">{{ op.action }}</span>
+        </div>
+        {% endif %}
+        {# One row per side, so an add shows only +, a remove only −, and a
+           replace both — the same macro the patch scopes use. #}
+        {{ diff_rows(op.old_text, op.content) }}
+        {% endfor %}
         {% elif s.web_extract_urls %}
         {{ item_list(s.web_extract_urls) }}
         {% elif s.todo_contents %}

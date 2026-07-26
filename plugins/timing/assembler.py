@@ -318,6 +318,75 @@ class Span:
         return (self._start_str("memory_id")
                 if self.name in ("mem0_update", "mem0_delete") else None)
 
+    # The `memory` scope is a different tool from the mem0 ones above
+    # (checked against $h/tools/memory_tool.py): bounded, file-backed,
+    # §-delimited entries in two char-limited stores under
+    # $HERMES_HOME/memories/ — MEMORY.md (the agent's own notes, `target`
+    # "memory") and USER.md (who the user is, `target` "user") — injected
+    # into the system prompt as a snapshot at session start. mem0 is the
+    # searched-on-demand store; this one is always in the prompt, which is
+    # why its writes are mostly entries being shortened to fit the budget.
+    #
+    # Two shapes, dispatched by the tool in this order: an `operations` list
+    # of {action, content?, old_text?} applied atomically, else a single
+    # top-level {action, content?, old_text?}. Both are normalized to one
+    # list here so the turn page renders them the same way.
+    @property
+    def memory_action(self) -> Optional[str]:
+        """The mode tag: add/replace/remove, or batch for the list shape.
+
+        `operations` wins over an explicit `action` because the tool
+        dispatches on it first — and a staged batch replayed from the
+        approval queue carries both (action "batch" plus the list).
+        """
+        if self.name != "memory":
+            return None
+        data = _as_dict(self.start_data)
+        if data is None:
+            return None
+        if isinstance(data.get("operations"), list):
+            return "batch"
+        action = data.get("action")
+        return action if isinstance(action, str) and action else None
+
+    @property
+    def memory_target(self) -> Optional[str]:
+        # which of the two stores was written: "memory" or "user"
+        return self._start_str("target") if self.name == "memory" else None
+
+    @property
+    def memory_ops(self) -> list:
+        """Every write in the span, batch or single, as {action, old_text,
+        content}. old_text is the entry matched (a short unique substring,
+        not an id — the tool matches by containment); content is what
+        replaces it, so an add has only content and a remove only old_text.
+        `text` is whichever of the two the summary line should carry."""
+        if self.name != "memory":
+            return []
+        data = _as_dict(self.start_data)
+        if data is None:
+            return []
+        ops = data.get("operations")
+        if not isinstance(ops, list):
+            ops = [data]
+        out = []
+        for op in ops:
+            if not isinstance(op, dict):
+                continue
+            action = op.get("action")
+            if not (isinstance(action, str) and action):
+                continue
+            content = op.get("content")
+            old_text = op.get("old_text")
+            content = content if isinstance(content, str) and content else None
+            old_text = old_text if isinstance(old_text, str) and old_text else None
+            out.append({"action": action, "content": content,
+                        "old_text": old_text,
+                        # a remove names only the entry it drops, so that is
+                        # the one line worth showing for it
+                        "text": content or old_text})
+        return out
+
     # execute_code scopes carry the program in their start payload; the
     # first line stands in for it inline, the full text goes in the title
     @property

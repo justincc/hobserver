@@ -121,7 +121,28 @@ ETL, blueprints-as-plugins).
   A mem0_delete therefore shows nothing until opened — the id is its
   entire payload. The four mem0 tools are defined in
   `$h/plugins/memory/mem0/__init__.py`, i.e. in the memory plugin, NOT in
-  `$h/tools/` where the rest live), `todos`
+  `$h/tools/` where the rest live. Do not confuse them with the separate
+  `memory` scope below). The `memory` scope is that other tool
+  (`$h/tools/memory_tool.py`): bounded §-delimited entries in two
+  char-limited files under `$HERMES_HOME/memories/` — MEMORY.md (the
+  agent's own notes, `target` "memory") and USER.md (who the user is,
+  `target` "user") — injected into the system prompt as a snapshot at
+  session start, where mem0 is searched on demand. Because the stores are
+  small (1375 chars for user by default) most writes are entries being
+  shortened to fit, and roughly half the calls in the log error on the
+  budget and get retried within the turn. Two payload shapes, dispatched in
+  this order: an `operations` list of {action, content?, old_text?} applied
+  atomically, else a single top-level {action, content?, old_text?};
+  `Span.memory_ops` normalizes both to one list, and `Span.memory_action`
+  is the mode tag — "batch" whenever `operations` is present (it wins over
+  an explicit `action`, matching dispatch, and a staged batch replayed from
+  the approval queue carries both). `old_text` is a short unique substring
+  the tool matches by containment, NOT an id. Rendering: a `.mode-tag` and
+  the store name always visible, the first op's text (content, or old_text
+  for a remove) plus "+N more" inline, then per op the same `diff_rows`
+  macro the patch scopes use — an add shows only +, a remove only −, a
+  replace both — with a per-op action label only when there is more than
+  one, since the mode tag already names a lone op), `todos`
   (todo scopes; first item's
   content plus a "+N more" count inline, every item on its own line in
   detail mode), `tasks`/`goal`/`context` (delegate_task scopes; first
