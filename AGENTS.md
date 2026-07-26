@@ -13,7 +13,16 @@ ETL, blueprints-as-plugins).
   paths under `hermes_config_dir()` (normalized `$HERMES_HOME`, else a
   literal fallback), overridable by argv/`JMEM0_DB` and `ATOF_LOG`
   respectively. Startup prints the resolved paths and whether each exists
-  (once, in the reloader supervisor — the worker sets WERKZEUG_RUN_MAIN).
+  (once, in the reloader supervisor — the worker sets WERKZEUG_RUN_MAIN),
+  and `plugins.memory.check_db` gates the memory db before serving: exists,
+  is a regular file, and a row reads from `events` over a read-only
+  connection, else the banner marks it UNUSABLE (dropping the "listening"
+  lines, since it will not) and main exits naming the problem. An existence
+  check alone was not enough — `app.py .` made DB_PATH the *directory*,
+  which exists, and sqlite reads the file header at connect, so every
+  request died with a bare `disk I/O error` (EISDIR) that reads like failing
+  hardware rather than a wrong path. The ATOF log stays exists-only: it is
+  allowed to be missing and the timing tab says so itself.
   `request_log.py` keeps the console usable despite the 2-3 s live polls:
   a `logging.Filter` (`SuppressSuccessFilter`) on the werkzeug access logger
   (dev server only) drops every successful (2xx/3xx) response on every path,

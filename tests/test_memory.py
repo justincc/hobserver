@@ -1,5 +1,9 @@
 """Memory plugin tests — the pre-plugin app.py behaviour under /memory/."""
 
+import sqlite3
+
+from plugins import memory
+
 
 def test_index_lists_all_events(client):
     page = client.get("/memory/").get_data(as_text=True)
@@ -111,3 +115,32 @@ def test_non_json_result_is_left_unchanged(client):
 
 def test_event_detail_missing_id_returns_404(client):
     assert client.get("/memory/event/999").status_code == 404
+
+
+def test_check_db_accepts_a_real_event_log(memory_db):
+    assert memory.check_db(memory_db) is None
+
+
+def test_check_db_rejects_a_missing_path(tmp_path):
+    assert memory.check_db(str(tmp_path / "nope.db")) == "no such file"
+
+
+def test_check_db_rejects_a_directory(tmp_path):
+    # `app.py .` — the path exists, so an existence check passed it through
+    # and sqlite only failed later, per-request, with "disk I/O error".
+    assert memory.check_db(str(tmp_path)) == "not a regular file"
+
+
+def test_check_db_rejects_a_file_that_is_not_sqlite(tmp_path):
+    plain = tmp_path / "notes.txt"
+    plain.write_text("this is not a database")
+    assert "not a mem0 event log" in memory.check_db(str(plain))
+
+
+def test_check_db_rejects_a_database_without_the_events_table(tmp_path):
+    other = tmp_path / "other.db"
+    conn = sqlite3.connect(other)
+    conn.execute("CREATE TABLE something_else (id INTEGER)")
+    conn.close()
+    problem = memory.check_db(str(other))
+    assert "not a mem0 event log" in problem and "events" in problem

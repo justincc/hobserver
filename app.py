@@ -13,6 +13,7 @@ import sys
 from flask import Flask, redirect, request, url_for
 
 from plugins import PLUGINS
+from plugins.memory import check_db
 from request_log import (REFRESH_SECONDS, STATUS_PATH, RequestStats,
                          SuppressSuccessFilter, format_status)
 
@@ -129,36 +130,46 @@ def resolve_sources():
     return (db_path, db_from), (atof_path, atof_from)
 
 
-def startup_banner(db, atof, port):
-    """What the app resolved, and whether it is there — a missing source is
-    the usual reason a tab looks empty, so say it at startup too."""
+def startup_banner(db, atof, port, db_problem=None):
+    """What the app resolved, and whether it is usable — a missing source is
+    the usual reason a tab looks empty, so say it at startup too. The memory
+    db's state comes from check_db (passed in, already computed by main)
+    rather than mere existence, so a path that exists but cannot be read as
+    an event log says so here instead of reading [ok] and then 500ing."""
     home = os.environ.get("HERMES_HOME")
     lines = [
         "hermes-observer",
         f"  HERMES_HOME  {home or '(unset — using built-in fallback path)'}",
         f"  config dir   {hermes_config_dir()}",
     ]
-    for label, (path, source) in (("memory db", db), ("ATOF log", atof)):
-        state = "ok" if os.path.exists(path) else "MISSING"
+    db_state = "ok" if db_problem is None else f"UNUSABLE ({db_problem})"
+    atof_state = "ok" if os.path.exists(atof[0]) else "MISSING"
+    for label, (path, source), state in (("memory db", db, db_state),
+                                         ("ATOF log", atof, atof_state)):
         lines.append(f"  {label:<12} {path}  [{state}] (from {source})")
-    lines.append(f"  listening    http://0.0.0.0:{port}/")
-    lines.append(f"  status       http://localhost:{port}{STATUS_PATH}")
-    lines.append("               successful requests are not logged below — only "
-                 "errors show;\n               that page tallies every request.")
+    # Nothing is served when the db is unusable — main exits right after this
+    # — so the banner must not claim to be listening; the resolved paths above
+    # are the whole point of still printing it.
+    if db_problem is None:
+        lines.append(f"  listening    http://0.0.0.0:{port}/")
+        lines.append(f"  status       http://localhost:{port}{STATUS_PATH}")
+        lines.append("               successful requests are not logged below — only "
+                     "errors show;\n               that page tallies every request.")
     return "\n".join(lines)
 
 
 def main():
     port = 5090
     db, atof = resolve_sources()
+    db_path, atof_path = db[0], atof[0]
+    db_problem = check_db(db_path)
     # The reloader runs main() in both the supervisor and the worker; only
     # the worker sets WERKZEUG_RUN_MAIN, so printing in the supervisor shows
     # the banner once at launch rather than again on every .py edit.
     if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
-        print(startup_banner(db, atof, port), flush=True)
-    db_path, atof_path = db[0], atof[0]
-    if not os.path.exists(db_path):
-        sys.exit(f"Database not found: {db_path}")
+        print(startup_banner(db, atof, port, db_problem=db_problem), flush=True)
+    if db_problem is not None:
+        sys.exit(f"Memory database unusable: {db_path} — {db_problem}")
     # Installed on the werkzeug access logger, so it only affects the dev
     # server's own console output — the app logs nothing of its own.
     logging.getLogger("werkzeug").addFilter(SuppressSuccessFilter())

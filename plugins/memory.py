@@ -5,6 +5,7 @@ read-only so it is safe to point at the live log while hermes is writing.
 """
 
 import json
+import os
 import sqlite3
 
 from flask import Blueprint, abort, current_app, g, render_template, request
@@ -44,12 +45,44 @@ def prettify_result(text):
     return json.dumps(parsed, indent=2, ensure_ascii=False)
 
 
+def connect_ro(path):
+    """Read-only connection, so pointing at the live log is safe."""
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def check_db(path):
+    """Why `path` is unusable as the mem0 event log, or None if it is fine.
+
+    Called once at startup so a bad path fails at launch, naming itself,
+    rather than as a 500 on the tab. Existence alone was not enough: a stray
+    `app.py .` made DB_PATH a directory, which exists, and sqlite then failed
+    per-request with a bare "disk I/O error" from inside the view (sqlite
+    reads the file header at connect, and the read returns EISDIR). Actually
+    reading a row also catches a file that is not an sqlite database, or is
+    some other database without the events table this plugin queries.
+    """
+    if not os.path.exists(path):
+        return "no such file"
+    if not os.path.isfile(path):
+        return "not a regular file"
+    try:
+        conn = connect_ro(path)
+    except sqlite3.Error as exc:
+        return f"cannot be opened by sqlite ({exc})"
+    try:
+        conn.execute("SELECT 1 FROM events LIMIT 1").fetchone()
+    except sqlite3.Error as exc:
+        return f"not a mem0 event log ({exc})"
+    finally:
+        conn.close()
+    return None
+
+
 def get_db():
     if "memory_db" not in g:
-        g.memory_db = sqlite3.connect(
-            f"file:{current_app.config['DB_PATH']}?mode=ro", uri=True
-        )
-        g.memory_db.row_factory = sqlite3.Row
+        g.memory_db = connect_ro(current_app.config["DB_PATH"])
     return g.memory_db
 
 

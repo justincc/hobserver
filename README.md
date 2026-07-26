@@ -51,10 +51,19 @@ exporter. If that file does not exist, the Prompt timing tab says so and
 names the path it tried, rather than showing an empty page.
 
 On startup the app prints what it resolved — `HERMES_HOME`, the config
-directory, both source paths with whether each exists and which rule
+directory, both source paths with whether each is usable and which rule
 supplied it, and the listening URL — because a missing source is the usual
 reason a tab looks empty. It prints once at launch, not on reloader
 restarts.
+
+The memory database is checked before serving, and the app exits naming the
+problem if it fails: the path must exist, be a regular file, and yield a row
+from an `events` table when opened read-only. Existence alone was not
+enough — a stray argument (`app.py .`, the current directory) passed an
+exists check and then failed per request with a bare sqlite `disk I/O
+error`, which reads like a failing disk rather than a wrong path. The ATOF
+log is not checked this way: it is allowed to be absent, and the timing tab
+reports that itself.
 
 ### Console noise and observer status
 

@@ -82,16 +82,25 @@ def test_first_argument_wins_for_the_database(monkeypatch):
     assert (db_path, db_from) == ("/tmp/argv.db", "command line")
 
 
-def test_banner_reports_paths_and_whether_they_exist(tmp_path, monkeypatch):
+def test_banner_reports_paths_and_whether_they_exist(memory_db, monkeypatch):
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
-    present = tmp_path / "there.db"
-    present.write_text("")
     banner = app_module.startup_banner(
-        (str(present), "default"), ("/nope/absent.jsonl", "ATOF_LOG"), 5090)
-    assert f"{present}  [ok] (from default)" in banner
+        (memory_db, "default"), ("/nope/absent.jsonl", "ATOF_LOG"), 5090)
+    assert f"{memory_db}  [ok] (from default)" in banner
     assert "/nope/absent.jsonl  [MISSING] (from ATOF_LOG)" in banner
     assert "/srv/hermes/config" in banner
     assert "http://0.0.0.0:5090/" in banner
+
+
+def test_banner_reports_an_unusable_database(monkeypatch):
+    """A path that exists but is not an event log must not read [ok] — that
+    was the stray `app.py .` failure, which only showed up as a 500."""
+    monkeypatch.delenv("HERMES_HOME", raising=False)
+    banner = app_module.startup_banner(
+        (".", "command line"), ("/b.jsonl", "default"), 5090,
+        db_problem="not a regular file")
+    assert ".  [UNUSABLE (not a regular file)] (from command line)" in banner
+    assert "listening" not in banner  # it exits instead of serving
 
 
 def test_banner_flags_an_unset_hermes_home(monkeypatch):

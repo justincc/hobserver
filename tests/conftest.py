@@ -58,9 +58,16 @@ def make_memory_db(path):
 
 
 @pytest.fixture
-def client(tmp_path):
+def memory_db(tmp_path):
+    """Path to a populated event log — the real thing for anything that
+    validates or reads a database rather than just being handed one."""
     db_path = tmp_path / "test.db"
     make_memory_db(db_path)
-    app = create_app(str(db_path))
+    return str(db_path)
+
+
+@pytest.fixture
+def client(memory_db):
+    app = create_app(memory_db)
     app.config["TESTING"] = True
     return app.test_client()
