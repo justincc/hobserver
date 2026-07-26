@@ -1049,3 +1049,72 @@ def test_memory_batch_lists_every_operation(tmp_path):
     assert '<span class="skill-action">replace</span>' in page
     assert '<span class="skill-action">remove</span>' in page
     assert 'title="Atlas weekly"' in page
+
+
+def test_failed_span_is_badged_and_shows_the_tools_error(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("F1", "tool", 1_100_000, 1_600_000, name="skill_view",
+                     session="s1", turn="t1", end_status="error",
+                     start_data={"name": "events-hunter"},
+                     end_data={"success": False,
+                               "error": "[Errno 24] Too many open files"}),
+        *scope_lines("OK", "tool", 1_700_000, 1_800_000, name="read_file",
+                     session="s1", turn="t1", end_status="ok",
+                     start_data={"path": "/home/u/a.md"},
+                     end_data={"content": "hi"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert '<span class="badge-error"' in page
+    # the message is visible without expanding the row — a failure should
+    # never need a click to notice
+    assert '<div class="span-detail err">' in page
+    assert "[Errno 24] Too many open files" in page
+    assert page.count('<span class="badge-error"') == 1     # not the ok span
+
+
+def test_memory_rejection_shows_the_budget_and_the_store(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("W1", "tool", 1_100_000, 1_600_000, name="memory",
+                     session="s1", turn="t1", end_status="error",
+                     start_data={"action": "add", "target": "user",
+                                 "content": "One more thing."},
+                     end_data={"success": False, "usage": "1,338/1,375",
+                               "error": "Memory at 1,338/1,375 chars. Adding "
+                                        "this entry would exceed the limit.",
+                               "current_entries": ["Entry one.", "Entry two."]}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert '<span class="badge-error"' in page
+    assert "Adding this entry would exceed the limit." in page
+    # budget and the store it has to fit in — detail-only, like the
+    # session_search counts
+    assert re.search(r'class="span-detail list-item">\s*<span class="mode-tag"'
+                     r'[^>]*>usage 1,338/1,375<', page)
+    assert "store now holds 2" in page
+    assert "Entry one." in page and "Entry two." in page
+
+
+def test_memory_success_reports_usage_without_the_store(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("W1", "tool", 1_100_000, 1_600_000, name="memory",
+                     session="s1", turn="t1", end_status="ok",
+                     start_data={"action": "add", "target": "memory",
+                                 "content": "Port 5090 is the observer."},
+                     end_data={"success": True, "entry_count": 10,
+                               "usage": "99% — 2,198/2,200 chars",
+                               "message": "Entry added."}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    assert '<span class="badge-error"' not in page
+    assert "usage 99% — 2,198/2,200 chars" in page   # the tool's own wording
+    assert "entries 10" in page
+    assert "store now holds" not in page

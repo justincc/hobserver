@@ -142,7 +142,15 @@ ETL, blueprints-as-plugins).
   for a remove) plus "+N more" inline, then per op the same `diff_rows`
   macro the patch scopes use — an add shows only +, a remove only −, a
   replace both — with a per-op action label only when there is more than
-  one, since the mode tag already names a lone op), `todos`
+  one, since the mode tag already names a lone op. This is the one scope
+  whose *end* payload is rendered too, because the char budget is the whole
+  story of the tool: `Span.memory_stats` carries `usage` and `entry_count`
+  on detail-only rows (shown verbatim — the tool writes "97% — 1,335/1,375
+  chars" on success and a bare "1,338/1,375" on a rejection), and
+  `Span.memory_current_entries` is the whole store, which a rejection hands
+  back for the model to consolidate before its own entry will fit — its
+  error says "see current_entries below". Detail-only: it is the store's
+  state, not this write), `todos`
   (todo scopes; first item's
   content plus a "+N more" count inline, every item on its own line in
   detail mode), `tasks`/`goal`/`context` (delegate_task scopes; first
@@ -185,7 +193,19 @@ ETL, blueprints-as-plugins).
   remembered by uuid across live-poll swaps); the span or
   mark uuid, muted after
   the name with a copy icon, is the raw-JSONL lookup key
-  (tool_call_id/api_request_id not shown). The
+  (tool_call_id/api_request_id not shown). All of the above is a span's
+  *input*; the one piece of output rendered for every scope is a failure.
+  Every hermes tool reports one the same two ways — `metadata.status` is
+  "error" on the end event, and the end payload carries an `error` string —
+  verified across every non-ok tool end in the log (terminal, patch,
+  read_file, search_files, write_file, execute_code, web_search, skill_view,
+  skill_manage, memory), so `Span.failed` and `Span.error` are one generic
+  pair rather than a reader per scope, rendered after the scope's own branch
+  as a `badge-error` beside the name plus an `.err` row. Both stay out of
+  detail mode: a failed call must not need a click to notice, and ~7% of
+  tool calls fail (skill_manage more than half). Success payloads are still
+  not rendered anywhere except memory's char budget — nothing else in them
+  is read today. The
   `platform` kwarg is `webui` today but hermes has other frontends, e.g.
   a TUI — never assume webui). Pages self-update via the poll-and-swap script in
   `templates/base.html`: wrap content in `data-live-poll="<ms>"` ("0" =

@@ -140,6 +140,7 @@
         {%- if s.model_name %} · {{ s.model_name }}{% endif %}
         <span class="span-uuid">· {{ s.uuid }}{{ copy_btn(s.uuid, "copy span uuid") }}</span>
         {%- if s.is_open %} · <span class="badge-inflight">open</span>{% endif %}
+        {%- if s.failed %} · <span class="badge-error" title="The tool reported an error; its message is below.">failed</span>{% endif %}
         {% if s.command %}
         <div class="span-detail">
           <code class="wrap-detail" title="{{ s.command }}">{{ s.command }}</code>
@@ -287,6 +288,34 @@
         <div class="span-detail">
           <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>
         </div>
+        {% endif %}
+        {# Outcome, after whatever the scope showed of its input. Every tool
+           reports a failure the same way, so this is one row for all of
+           them rather than a branch per scope. #}
+        {% if s.error %}
+        <div class="span-detail err">
+          <span class="err-mark">!</span>
+          <span class="path wide wrap-detail" title="{{ s.error }}">{{ s.error }}</span>
+        </div>
+        {% endif %}
+        {# Detail-only, like session_search's counts: the collapsed line
+           belongs to the entry written and, when it failed, to why. #}
+        {% for stat in s.memory_stats %}
+        <div class="span-detail list-item">
+          <span class="mode-tag" title="{{ stat.tooltip }}">{{ stat.label }} {{ stat.value }}</span>
+        </div>
+        {% endfor %}
+        {% if s.memory_current_entries %}
+        {# What the rejected write has to be squeezed into: the store as it
+           stands, which is what the error tells the model to consolidate. #}
+        <div class="span-detail list-item">
+          <span class="mode-tag">store now holds {{ s.memory_current_entries | length }}</span>
+        </div>
+        {% for entry in s.memory_current_entries %}
+        <div class="span-detail list-item">
+          <span class="path wide wrap-detail" title="{{ entry }}">{{ entry }}</span>
+        </div>
+        {% endfor %}
         {% endif %}
       </td>
       <td class="num">{{ s.duration_us | us_dur }}</td>

@@ -24,7 +24,9 @@ def _metadata(session=None, turn=None):
 
 def scope_lines(uuid, category, start_us, end_us=None, *, name="span", session=None,
                 turn=None, parent=SESSION_SCOPE_UUID, profile=None,
-                start_data=None, end_data=None):
+                start_data=None, end_data=None, end_status=None):
+    """A scope's start (and end) lines. end_status stamps metadata.status,
+    which hermes sets to "ok" or "error" on the end event only."""
     common = {
         "kind": "scope", "atof_version": "0.1", "uuid": uuid, "parent_uuid": parent,
         "name": name, "category": category, "category_profile": profile,
@@ -33,8 +35,12 @@ def scope_lines(uuid, category, start_us, end_us=None, *, name="span", session=N
     lines = [json.dumps({**common, "scope_category": "start",
                          "timestamp": start_us, "data": start_data})]
     if end_us is not None:
+        end_metadata = {**(common["metadata"] or {})}
+        if end_status:
+            end_metadata["status"] = end_status
         lines.append(json.dumps({**common, "scope_category": "end",
-                                 "timestamp": end_us, "data": end_data}))
+                                 "timestamp": end_us, "data": end_data,
+                                 "metadata": end_metadata or None}))
     return lines
 
 
@@ -996,3 +1002,81 @@ def test_memory_scope_batch_shape():
     assert staged.memory_action == "batch"
     assert staged.memory_ops == [{"action": "add", "old_text": None,
                                   "content": "One entry.", "text": "One entry."}]
+
+
+def test_failed_spans_carry_the_tools_own_error():
+    """Every hermes tool reports a failure the same two ways — an "error"
+    status on the end event and an "error" string in its payload — so one
+    pair of properties serves every scope."""
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("F1", "tool", 1_100_000, 1_200_000, name="skill_view",
+                     session="s1", turn="t1", end_status="error",
+                     start_data={"name": "events-hunter"},
+                     end_data={"success": False,
+                               "error": "[Errno 24] Too many open files"}),
+        # payloads reach the reader as raw JSON strings too
+        *scope_lines("F2", "tool", 1_250_000, 1_300_000, name="terminal",
+                     session="s1", turn="t1", end_status="error",
+                     start_data={"command": "rm -rf /"},
+                     end_data='{"output": "", "exit_code": -1,'
+                              ' "error": "BLOCKED: no consent"}'),
+        *scope_lines("OK", "tool", 1_350_000, 1_400_000, name="read_file",
+                     session="s1", turn="t1", end_status="ok",
+                     start_data={"path": "/home/u/a.md"},
+                     end_data={"content": "hi"}),
+        # still open: no end event, so no status either
+        *scope_lines("OPEN", "tool", 1_450_000, name="web_search",
+                     session="s1", turn="t1", start_data={"query": "q"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    skill, terminal, ok, open_ = assemble_lines(lines).sessions[0].turns[0].spans
+    assert skill.failed and skill.error == "[Errno 24] Too many open files"
+    assert terminal.failed and terminal.error == "BLOCKED: no consent"
+    assert not ok.failed and ok.error is None
+    assert not open_.failed and open_.error is None
+
+
+def test_memory_results_report_the_char_budget():
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        # rejected: the store is full, so the whole store comes back for the
+        # model to consolidate before its entry will fit
+        *scope_lines("W1", "tool", 1_100_000, 1_200_000, name="memory",
+                     session="s1", turn="t1", end_status="error",
+                     start_data={"action": "add", "target": "user",
+                                 "content": "One more thing."},
+                     end_data={"success": False, "usage": "1,338/1,375",
+                               "error": "Memory at 1,338/1,375 chars. Adding "
+                                        "this entry (233 chars) would exceed "
+                                        "the limit.",
+                               "current_entries": ["Entry one.", "Entry two."]}),
+        # the retry that fits — usage is reported on success too, in the
+        # tool's other format, so it is shown verbatim
+        *scope_lines("W2", "tool", 1_250_000, 1_300_000, name="memory",
+                     session="s1", turn="t1", end_status="ok",
+                     start_data={"action": "add", "target": "user",
+                                 "content": "Short."},
+                     end_data={"success": True, "entry_count": 10,
+                               "usage": "97% — 1,335/1,375 chars",
+                               "message": "Entry added."}),
+        *scope_lines("T1", "tool", 1_350_000, 1_400_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"command": "ls"},
+                     end_data={"usage": "not a memory store",
+                               "current_entries": ["nope"]}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    rejected, stored, other = assemble_lines(lines).sessions[0].turns[0].spans
+    assert rejected.failed
+    assert rejected.memory_stats == [{
+        "label": "usage", "value": "1,338/1,375",
+        "tooltip": rejected.memory_stats[0]["tooltip"]}]
+    assert rejected.memory_current_entries == ["Entry one.", "Entry two."]
+    assert [s["value"] for s in stored.memory_stats] == ["97% — 1,335/1,375 chars", "10"]
+    # a successful write is not handed the store back
+    assert stored.memory_current_entries == []
+    # both keys are far too generic to read outside a memory scope
+    assert other.memory_stats == [] and other.memory_current_entries == []

@@ -110,6 +110,27 @@ class Span:
                 return value
         return None
 
+    # Every tool that fails says so the same two ways, whatever the scope:
+    # metadata.status is "error" on the end event, and the end payload
+    # carries an "error" string. Verified across every non-ok tool end in
+    # the log to date — terminal, patch, read_file, search_files,
+    # write_file, execute_code, web_search, skill_view, skill_manage,
+    # memory — so this is one generic pair rather than per-scope readers.
+    # A failed call used to look exactly like a successful one here.
+    @property
+    def failed(self) -> bool:
+        return self.metadata.get("status") == "error"
+
+    @property
+    def error(self) -> Optional[str]:
+        """The tool's own failure message. Shown whenever it is present,
+        even if the status did not say error — ADR 2's loud-failure rule."""
+        end = _as_dict(self.end_data)
+        if end is None:
+            return None
+        value = end.get("error")
+        return value if isinstance(value, str) and value else None
+
     def _start_str(self, key: str) -> Optional[str]:
         data = _as_dict(self.start_data)
         if data is not None:
@@ -386,6 +407,46 @@ class Span:
                         # the one line worth showing for it
                         "text": content or old_text})
         return out
+
+    # The char budget is the whole story of this tool — a memory span
+    # succeeds or fails on it, and the end payload reports it either way
+    # (as "97% — 1,335/1,375 chars" on success, a bare "1,338/1,375" on
+    # the rejection, so it is shown verbatim rather than reformatted).
+    @property
+    def memory_stats(self) -> list:
+        if self.name != "memory":
+            return []
+        end = _as_dict(self.end_data)
+        if end is None:
+            return []
+        stats = []
+        usage = end.get("usage")
+        if isinstance(usage, str) and usage:
+            stats.append({"label": "usage", "value": usage,
+                          "tooltip": "Characters used of this store's limit "
+                          "after the write. Entries must be shortened or "
+                          "removed to make room once it is full."})
+        count = end.get("entry_count")
+        if isinstance(count, int):
+            stats.append({"label": "entries", "value": str(count),
+                          "tooltip": "Entries in the store after the write."})
+        return stats
+
+    # A rejected write comes back with the whole store attached — the error
+    # text points at it ("see current_entries below") because the model has
+    # to consolidate the existing entries before its own will fit. Detail
+    # mode only: it is the store's state, not this write.
+    @property
+    def memory_current_entries(self) -> list:
+        if self.name != "memory":
+            return []
+        end = _as_dict(self.end_data)
+        if end is None:
+            return []
+        entries = end.get("current_entries")
+        if not isinstance(entries, list):
+            return []
+        return [e for e in entries if isinstance(e, str) and e]
 
     # execute_code scopes carry the program in their start payload; the
     # first line stands in for it inline, the full text goes in the title

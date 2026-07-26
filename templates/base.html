@@ -90,6 +90,9 @@
     .badge-inflight { color: #8a5a00; font-size: 0.8rem; white-space: nowrap; }
     /* a turn a later one superseded: over, but its duration was never seen */
     .badge-noend { color: #999; font-size: 0.8rem; white-space: nowrap; }
+    /* a tool call the tool itself reported as failed. The word says it; the
+       tint and the ! on the message row only reinforce it. */
+    .badge-error { color: #b04a3f; font-size: 0.8rem; white-space: nowrap; }
     .inflight-strip { display: flex; gap: 1rem 1.5rem; flex-wrap: wrap; align-items: baseline; background: #fff8e6; border: 1px solid #e6d49a; border-radius: 6px; padding: 0.5rem 0.8rem; font-size: 0.85rem; margin-bottom: 1rem; }
     .inflight-strip .strip-label { color: #8a5a00; font-weight: 600; }
     .inflight-entry.current { font-weight: 600; }
@@ -112,6 +115,9 @@
     /* skill_manage patch sides. The −/+ glyph carries the meaning; the tint
        only reinforces it, so a reader who cannot separate the two hues loses
        nothing. Kept desaturated — these sit next to prose, not in a diff view. */
+    /* the tool's own failure message; same desaturated red as the − side */
+    .span-detail.err { color: #b04a3f; }
+    .span-detail .err-mark { flex: none; font-family: ui-monospace, monospace; font-weight: 700; }
     .span-detail .diff-mark { flex: none; font-family: ui-monospace, monospace; }
     .span-detail .diff-mark.del { color: #b04a3f; }
     .span-detail .diff-mark.ins { color: #2f7d55; }
