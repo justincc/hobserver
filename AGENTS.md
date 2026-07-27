@@ -121,8 +121,7 @@ in `app.extensions`, but never opens another's data source).
   to a detail-only row (faint mono, copy button — the lookup key back to a
   mem0_search result): on the summary line it reads as a second uuid
   beside the span's own, which lands there as soon as the row is expanded.
-  A mem0_delete therefore shows nothing until opened — the id is its
-  entire payload. Both also show what the memory said *before* the change,
+  Both also show what the memory said *before* the change,
   recovered from the local event log by `memory.prior_memory_text` (see ADR
   4 for why it is an `app.extensions` accessor rather than a link, and
   `prior_memory` in the timing turn view for the per-span map): rendered
@@ -138,7 +137,16 @@ in `app.extensions`, but never opens another's data source).
   a guaranteed pre-change snapshot, so the row and its tooltip say the text
   is from the local log, name the search event and the gap, and state that a
   change made outside hermes in between would not show. Never present it as
-  something mem0 vouched for. The four mem0 tools are defined in
+  something mem0 vouched for. A mem0_delete additionally *leads* with that
+  recovered text on the summary line, the way an add leads with its
+  `content`: the id is its whole payload, so the row would otherwise say
+  nothing about what was destroyed even before being opened. That line is
+  `.list-compact`, so detail mode drops it in favour of the − row carrying
+  the same text in full — unlike an update, whose summary line is its own
+  new `text` and stays put (the old text is the − row's job, and displacing
+  the new one would hide what the span actually wrote). Deletes whose text
+  was never recovered fall back to showing only the id, as before. The four
+  mem0 tools are defined in
   `$h/plugins/memory/mem0/__init__.py`, i.e. in the memory plugin, NOT in
   `$h/tools/` where the rest live. Do not confuse them with the separate
   `memory` scope below). The `memory` scope is that other tool

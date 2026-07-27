@@ -222,6 +222,7 @@
           <code class="wrap-detail" title="{{ s.code }}">{{ s.code }}</code>
         </div>
         {% elif s.memory_content or s.memory_id %}
+        {% set was = (prior_memory or {}).get(s.uuid) %}
         {# The fact leads, ellipsized on the summary line and wrapping out in
            detail — an add stores it, an update replaces one with it. The id
            an update or delete names stays on a detail-only row: it is a
@@ -230,6 +231,16 @@
         {% if s.memory_content %}
         <div class="span-detail">
           <span class="path wide wrap-detail" title="{{ s.memory_content }}">{{ s.memory_content }}</span>
+        </div>
+        {% elif was %}
+        {# A delete carries no fact of its own — only the id of the one it
+           destroyed — so the summary line would otherwise say nothing about
+           what was lost. Lead with the recovered text instead, reading like
+           an add's, but as .list-compact: in detail mode the − row below
+           carries the same text in full, so this one gives way rather than
+           printing it twice. #}
+        <div class="span-detail list-compact">
+          <span class="path wide" title="{{ was.text }}">{{ was.text }}</span>
         </div>
         {% endif %}
         {% if s.memory_id %}
@@ -244,8 +255,8 @@
            (which cannot answer it — see plugins.memory.prior_memory_text),
            so the provenance row names its source and the tooltip spells it
            out. The − / + pair is the same diff macro the patch scopes use;
-           on a delete there is no + side. #}
-        {% set was = (prior_memory or {}).get(s.uuid) %}
+           on a delete there is no + side. `was` is bound above, where the
+           summary line already needs it. #}
         {% if was %}
         {{ diff_rows(was.text, s.memory_content) }}
         <div class="span-detail list-item prov">

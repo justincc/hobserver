@@ -198,7 +198,12 @@ pointing this tool at its output (consuming) — is in
   `memory_id` they name and, in detail mode, what that memory said before
   the change — an update as a − old / + new pair, a delete as the − side
   alone, since its payload is only an id and this is the sole record of
-  what was lost. That previous text is recovered from this app's own event
+  what was lost. A delete also leads its summary line with the start of
+  that recovered memory, just as a mem0_add leads with its `content`, so
+  the row says what was destroyed without being opened (with details on
+  the line gives way to the − row, which has the same text in full); an
+  update keeps its own new text there instead. That previous text is
+  recovered from this app's own event
   log, never fetched from mem0 (which cannot supply it: hermes' mem0
   backend has no get or history call, and a deleted memory is gone), so
   the row says "previous text from the local log", links to the

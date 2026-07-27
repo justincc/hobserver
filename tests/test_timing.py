@@ -787,6 +787,43 @@ def test_turn_detail_recovers_a_deleted_memory_with_no_new_side(tmp_path):
     assert '<span class="diff-mark ins">' not in page
 
 
+def test_delete_summary_line_leads_with_the_deleted_memory(tmp_path):
+    # a delete's payload is only an id, so with details off the row would say
+    # nothing about what was lost; the recovered text leads instead, the way
+    # a mem0_add's own content does
+    atof = write_atof(tmp_path, _change_stream(
+        "mem0_delete", "bbb22222", {"memory_id": "bbb22222"}))
+    page = _change_client(tmp_path, str(atof)).get(
+        "/timing/turn/s9/2020000000").get_data(as_text=True)
+    summary = page[page.index("mem0_delete"):page.index('class="mem-id"')]
+    assert "the doomed fact" in summary
+    # .list-compact, so detail mode drops it rather than repeating the text
+    # the − row below already carries in full
+    assert 'class="span-detail list-compact"' in summary
+
+
+def test_delete_summary_line_absent_when_nothing_was_recovered(tmp_path):
+    atof = write_atof(tmp_path, _change_stream(
+        "mem0_delete", "unknown-id", {"memory_id": "unknown-id"}))
+    page = _change_client(tmp_path, str(atof)).get(
+        "/timing/turn/s9/2020000000").get_data(as_text=True)
+    summary = page[page.index("mem0_delete"):page.index('class="mem-id"')]
+    assert "list-compact" not in summary
+
+
+def test_update_summary_line_still_leads_with_its_own_new_text(tmp_path):
+    # an update carries a fact of its own, so the recovered text must not
+    # displace it — the old text belongs on the detail-only − row
+    atof = write_atof(tmp_path, _change_stream(
+        "mem0_update", "aaa11111",
+        {"memory_id": "aaa11111", "text": "the new fact"}))
+    page = _change_client(tmp_path, str(atof)).get(
+        "/timing/turn/s9/2020000000").get_data(as_text=True)
+    summary = page[page.index("mem0_update"):page.index('class="mem-id"')]
+    assert "the new fact" in summary
+    assert "the old fact" not in summary
+
+
 def test_turn_detail_previous_text_names_the_local_log_not_mem0(tmp_path):
     atof = write_atof(tmp_path, _change_stream(
         "mem0_delete", "bbb22222", {"memory_id": "bbb22222"}))
