@@ -153,6 +153,29 @@ def index():
     )
 
 
+def _prior_memory_texts(turn):
+    """{span uuid: prior-text record} for the turn's mem0_update/mem0_delete
+    spans — what each memory said before the span changed it.
+
+    The lookup belongs to the memory plugin, which owns the event log; this
+    tab reaches it through `app.extensions` and simply does without when that
+    plugin is not registered (ADR 4 — link and call, never open another
+    plugin's source). One indexed row per such span, and most turns have
+    none, so this costs nothing on the 2 s poll.
+    """
+    lookup = current_app.extensions.get("memory_prior_text")
+    if lookup is None:
+        return {}
+    prior = {}
+    for span in turn.spans:
+        if span.memory_id is None:
+            continue
+        record = lookup(span.memory_id, span.start_us / 1_000_000)
+        if record is not None:
+            prior[span.uuid] = record
+    return prior
+
+
 @bp.route("/turn/<session_id>/<int:start_us>")
 def turn(session_id, start_us):
     problem = _source_problem()
@@ -180,4 +203,5 @@ def turn(session_id, start_us):
         inflight=_inflight_entries(assembly),
         older=older,
         newer=newer,
+        prior_memory=_prior_memory_texts(found),
     )

@@ -57,6 +57,55 @@ def make_memory_db(path):
     db.close()
 
 
+def make_memory_change_db(path):
+    """An event log built around the search → change pattern.
+
+    A mem0_search surfaces two memories; an update rewrites one and a delete
+    removes the other, each naming only the id. A later search re-reports the
+    updated memory with its new text, so a lookup that ignored the change
+    time would pick the wrong side. Timestamps are round epoch seconds, 30 s
+    and 45 s after the first search, mirroring the real gaps.
+    """
+    db = sqlite3.connect(path)
+    db.executescript(SCHEMA)
+    rows = [
+        (1, 2000.0, "mem0_search", "what does the user prefer",
+         '{"count": 2, "results":'
+         ' [{"id": "aaa11111", "memory": "the old fact", "score": 0.81},'
+         '  {"id": "bbb22222", "memory": "the doomed fact", "score": 0.44}]}',
+         None),
+        (2, 2030.0, "mem0_update", "the new fact",
+         '{"result": "Memory updated.", "memory_id": "aaa11111"}',
+         '{"args": {"memory_id": "aaa11111", "text": "the new fact"}}'),
+        (3, 2045.0, "mem0_delete", "bbb22222",
+         '{"result": "Memory deleted.", "memory_id": "bbb22222"}',
+         '{"args": {"memory_id": "bbb22222"}}'),
+        (4, 2100.0, "mem0_add", "a brand new fact",
+         '{"result": "Fact queued for storage.", "event_id": "queue-1"}',
+         '{"args": {"content": "a brand new fact"}}'),
+        (5, 2200.0, "mem0_search", "what does the user prefer now",
+         '{"count": 1, "results":'
+         ' [{"id": "aaa11111", "memory": "the new fact", "score": 0.9}]}',
+         None),
+    ]
+    for row_id, ts, kind, query, result, extra in rows:
+        db.execute(
+            "INSERT INTO events (id, ts_utc, ts_epoch, event_type, session_id,"
+            " platform, query, result, extra) VALUES (?, ?, ?, ?, 's9',"
+            " 'webui', ?, ?, ?)",
+            (row_id, f"epoch-{ts}", ts, kind, query, result, extra),
+        )
+    db.commit()
+    db.close()
+
+
+@pytest.fixture
+def memory_change_db(tmp_path):
+    path = tmp_path / "changes.db"
+    make_memory_change_db(path)
+    return str(path)
+
+
 @pytest.fixture
 def memory_db(tmp_path):
     """Path to a populated event log — the real thing for anything that

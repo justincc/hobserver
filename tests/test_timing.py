@@ -7,7 +7,7 @@ import time
 from markupsafe import escape
 
 from app import create_app
-from tests.conftest import make_memory_db
+from tests.conftest import make_memory_change_db, make_memory_db
 from tests.test_assembler import (mark_line, scope_lines, session_scope_lines,
                                   two_turn_stream)
 
@@ -714,6 +714,91 @@ def test_turn_detail_web_search_gets_no_mem0_result_rows(tmp_path):
     assert "flask blueprints" in page
     assert "not a memory" not in page
     assert "/memory/search-event" not in page
+
+
+def _change_client(tmp_path, atof_path):
+    """A client whose event log carries the search → change pattern, so the
+    turn page can recover what a mem0 memory said before a span changed it."""
+    db_path = tmp_path / "changes.db"
+    make_memory_change_db(db_path)
+    app = create_app(str(db_path), atof_path=atof_path)
+    app.config["TESTING"] = True
+    return app.test_client()
+
+
+def _change_stream(name, memory_id, start_data):
+    # the fixture log's first search is at epoch 2000 s; the span sits 30 s
+    # later, so the search precedes the change exactly as in the real log
+    return [
+        mark_line("hermes.turn.start", 2_020_000_000, session="s9", turn="t1"),
+        *scope_lines("M1", "tool", 2_030_000_000, 2_031_000_000, name=name,
+                     session="s9", turn="t1", start_data=start_data),
+        mark_line("hermes.turn.end", 2_050_000_000, session="s9", turn="t1"),
+    ]
+
+
+def test_turn_detail_shows_what_an_update_replaced(tmp_path):
+    atof = write_atof(tmp_path, _change_stream(
+        "mem0_update", "aaa11111",
+        {"memory_id": "aaa11111", "text": "the new fact"}))
+    page = _change_client(tmp_path, str(atof)).get(
+        "/timing/turn/s9/2020000000").get_data(as_text=True)
+    assert "the old fact" in page             # recovered from the event log
+    assert "the new fact" in page             # the span's own payload
+    assert '<span class="diff-mark del">' in page      # both diff sides
+    assert '<span class="diff-mark ins">' in page
+    assert "previous text from the local log" in page
+    assert "/memory/event/1" in page          # the search it came from
+    assert "30 s earlier" in page
+
+
+def test_turn_detail_recovers_a_deleted_memory_with_no_new_side(tmp_path):
+    # a delete's payload is only an id, so without the recovered text the row
+    # says nothing about what was lost — and there is no "+" side to show
+    atof = write_atof(tmp_path, _change_stream(
+        "mem0_delete", "bbb22222", {"memory_id": "bbb22222"}))
+    page = _change_client(tmp_path, str(atof)).get(
+        "/timing/turn/s9/2020000000").get_data(as_text=True)
+    assert "the doomed fact" in page
+    assert "previous text from the local log" in page
+    assert '<span class="diff-mark ins">' not in page
+
+
+def test_turn_detail_previous_text_names_the_local_log_not_mem0(tmp_path):
+    atof = write_atof(tmp_path, _change_stream(
+        "mem0_delete", "bbb22222", {"memory_id": "bbb22222"}))
+    page = _change_client(tmp_path, str(atof)).get(
+        "/timing/turn/s9/2020000000").get_data(as_text=True)
+    assert "Not retrieved from mem0" in page
+    assert "mem0 is never queried" in page
+
+
+def test_turn_detail_without_a_matching_memory_shows_no_previous_text(tmp_path):
+    atof = write_atof(tmp_path, _change_stream(
+        "mem0_delete", "unknown-id", {"memory_id": "unknown-id"}))
+    page = _change_client(tmp_path, str(atof)).get(
+        "/timing/turn/s9/2020000000").get_data(as_text=True)
+    assert "previous text from the local log" not in page
+    assert "unknown-id" in page               # the id itself still shows
+
+
+def test_turn_detail_renders_without_the_memory_plugin_lookup(tmp_path):
+    # ADR 4: the timing tab does without when the lookup is not published,
+    # rather than reaching into the event log itself
+    db_path = tmp_path / "changes.db"
+    make_memory_change_db(db_path)
+    atof = write_atof(tmp_path, _change_stream(
+        "mem0_update", "aaa11111",
+        {"memory_id": "aaa11111", "text": "the new fact"}))
+    app = create_app(str(db_path), atof_path=str(atof))
+    app.config["TESTING"] = True
+    app.extensions.pop("memory_prior_text")
+    page = app.test_client().get(
+        "/timing/turn/s9/2020000000").get_data(as_text=True)
+    assert page.count("mem0_update") >= 1     # the span still renders
+    assert "the new fact" in page
+    assert "the old fact" not in page
+    assert "previous text from the local log" not in page
 
 
 def test_turn_detail_unknown_turn_404s(tmp_path):

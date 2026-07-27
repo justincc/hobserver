@@ -29,6 +29,17 @@ METADATA_COLUMNS = (
     "extra",
 )
 
+# The `query` column holds whatever the call's subject was, which is only
+# literally a query for the two retrieval events. Labelling it "Query"
+# everywhere made a mem0_add's stored fact and a mem0_delete's bare memory
+# id both read as something the user had searched for.
+QUERY_LABELS = {
+    "mem0_add": "Added text",
+    "mem0_update": "New text",
+    "mem0_delete": "Deleted memory id",
+}
+DEFAULT_QUERY_LABEL = "Query"
+
 
 def prettify_result(text):
     """Pretty-print a result blob if it is JSON (e.g. mem0_search output).
@@ -85,6 +96,94 @@ def get_db():
     if "memory_db" not in g:
         g.memory_db = connect_ro(current_app.config["DB_PATH"])
     return g.memory_db
+
+
+def _gap_text(seconds):
+    """A gap in words. Formatted here rather than as a template filter: both
+    tabs render it, and a filter one plugin registers for another to use is
+    the coupling ADR 4 rules out."""
+    seconds = max(seconds, 0)
+    if seconds < 90:
+        return f"{seconds:.0f} s"
+    if seconds < 5400:
+        return f"{seconds / 60:.0f} min"
+    return f"{seconds / 3600:.1f} h"
+
+
+def _memory_id_arg(extra):
+    """The memory_id a mem0_update/mem0_delete row names, from its `extra`
+    JSON ({"args": {"memory_id": …}}), or None if it is not there."""
+    try:
+        parsed = json.loads(extra or "")
+    except ValueError:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    args = parsed.get("args")
+    if not isinstance(args, dict):
+        return None
+    memory_id = args.get("memory_id")
+    return memory_id if isinstance(memory_id, str) and memory_id else None
+
+
+def prior_memory_text(memory_id, before_epoch):
+    """The last text logged for `memory_id` before `before_epoch`, or None.
+
+    mem0 is never asked. Once a memory is deleted the platform cannot return
+    it at all, and hermes' Mem0Backend exposes only search/add/update/delete
+    — no get, no history — so the pre-change text is not retrievable from
+    mem0 for either case. The local event log has it anyway: a mem0_search
+    result carries each hit's full text beside its id, and the agent can only
+    learn a memory id *from* a search, so every update and delete is preceded
+    by the search that surfaced it. Across the log to date that holds for all
+    19 of them, always in the same session, a median of 30 s earlier (13 s to
+    2.9 min).
+
+    This is therefore the memory as of that search, not a guaranteed
+    pre-change snapshot: a change made outside hermes in between would not
+    show. Callers must say where the text came from — the returned event id
+    and gap are for exactly that.
+    """
+    row = get_db().execute(
+        "SELECT id, ts_utc, ts_epoch, result FROM events"
+        " WHERE event_type = 'mem0_search' AND ts_epoch < ?"
+        " AND result LIKE ? ORDER BY ts_epoch DESC LIMIT 1",
+        (before_epoch, f"%{memory_id}%"),
+    ).fetchone()
+    if row is None:
+        return None
+    try:
+        parsed = json.loads(row["result"] or "")
+    except ValueError:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    for item in parsed.get("results") or []:
+        if isinstance(item, dict) and item.get("id") == memory_id:
+            text = item.get("memory")
+            if not isinstance(text, str) or not text:
+                return None
+            gap_s = before_epoch - row["ts_epoch"]
+            return {
+                "text": text,
+                "event_id": row["id"],
+                "ts_utc": row["ts_utc"],
+                "gap_s": gap_s,
+                "gap_text": _gap_text(gap_s),
+            }
+    return None
+
+
+@bp.record_once
+def _register_lookup(state):
+    """Publish the prior-text lookup on the app, per ADR 4.
+
+    The timing tab needs a memory's previous text but must not open the
+    event log itself; it calls this through `app.extensions` and does
+    without when the memory plugin is not registered. The db stays behind
+    the plugin that owns it.
+    """
+    state.app.extensions["memory_prior_text"] = prior_memory_text
 
 
 @bp.teardown_app_request
@@ -182,12 +281,22 @@ def event(event_id):
     next_row = get_db().execute(
         "SELECT id FROM events WHERE id > ? ORDER BY id LIMIT 1", (event_id,)
     ).fetchone()
+    # An update or delete names a memory by id and says nothing about what
+    # that memory said — the one thing a reader wants. Reconstruct it from
+    # the search that surfaced the id; the template states the provenance.
+    prior = None
+    if row["event_type"] in ("mem0_update", "mem0_delete"):
+        memory_id = _memory_id_arg(row["extra"])
+        if memory_id:
+            prior = prior_memory_text(memory_id, row["ts_epoch"])
     return render_template(
         "memory/event.html",
         event=row,
         result_text=prettify_result(row["result"]),
         metadata=metadata,
         context_text=context_text,
+        query_label=QUERY_LABELS.get(row["event_type"], DEFAULT_QUERY_LABEL),
+        prior=prior,
         prev_id=prev_row["id"] if prev_row else None,
         next_id=next_row["id"] if next_row else None,
     )

@@ -118,6 +118,90 @@ def test_event_detail_missing_id_returns_404(client):
     assert client.get("/memory/event/999").status_code == 404
 
 
+def _change_client(memory_change_db):
+    app = create_app(memory_change_db)
+    app.config["TESTING"] = True
+    return app.test_client()
+
+
+def test_query_heading_names_what_the_column_holds(memory_change_db):
+    # the column is only literally a query on the retrieval events; calling
+    # it "Query" made a stored fact and a bare memory id read as searches
+    c = _change_client(memory_change_db)
+    assert "<h2>Query</h2>" in c.get("/memory/event/1").get_data(as_text=True)
+    assert "<h2>New text</h2>" in c.get("/memory/event/2").get_data(as_text=True)
+    assert "<h2>Deleted memory id</h2>" in c.get(
+        "/memory/event/3").get_data(as_text=True)
+    assert "<h2>Added text</h2>" in c.get("/memory/event/4").get_data(as_text=True)
+
+
+def test_deleted_memory_text_recovered_from_the_log(memory_change_db):
+    # a delete's whole payload is an id — mem0 cannot return the memory once
+    # it is gone, but the search that surfaced the id still has its text
+    page = _change_client(memory_change_db).get(
+        "/memory/event/3").get_data(as_text=True)
+    assert "the doomed fact" in page
+    assert "Previous text" in page
+    assert "/memory/event/1" in page          # links to the search it came from
+    assert "45 s earlier" in page
+
+
+def test_updated_memory_shows_the_text_it_replaced(memory_change_db):
+    page = _change_client(memory_change_db).get(
+        "/memory/event/2").get_data(as_text=True)
+    assert "the old fact" in page             # recovered
+    assert "the new fact" in page             # the update's own payload
+    assert "30 s earlier" in page
+
+
+def test_previous_text_says_it_is_local_not_mem0(memory_change_db):
+    # the reader must never take this for something mem0 returned
+    page = _change_client(memory_change_db).get(
+        "/memory/event/2").get_data(as_text=True)
+    assert "the local log" in page            # visible, not only in the tooltip
+    assert "Not retrieved from mem0" in page  # the tooltip spells it out
+    assert "mem0 is never queried" in page
+
+
+def test_previous_text_ignores_searches_after_the_change(memory_change_db):
+    # event 5 re-reports aaa11111 with its *new* text; the update at event 2
+    # must still show what it replaced, not what it produced
+    app = create_app(memory_change_db)
+    with app.test_request_context():
+        prior = memory.prior_memory_text("aaa11111", 2030.0)
+    assert prior["text"] == "the old fact"
+    assert prior["event_id"] == 1
+
+
+def test_previous_text_absent_when_no_search_surfaced_the_memory(memory_change_db):
+    app = create_app(memory_change_db)
+    with app.test_request_context():
+        assert memory.prior_memory_text("never-seen", 2030.0) is None
+        # the only search naming it is later than the change
+        assert memory.prior_memory_text("aaa11111", 1999.0) is None
+
+
+def test_events_without_a_change_get_no_previous_text(memory_change_db):
+    # a search or an add replaces nothing, so the section must not appear
+    c = _change_client(memory_change_db)
+    assert "Previous text" not in c.get("/memory/event/1").get_data(as_text=True)
+    assert "Previous text" not in c.get("/memory/event/4").get_data(as_text=True)
+
+
+def test_gap_text_reads_in_the_right_unit():
+    assert memory._gap_text(29.8) == "30 s"
+    assert memory._gap_text(174.1) == "3 min"
+    assert memory._gap_text(9000) == "2.5 h"
+    # a clock skew between the two logs must not print a negative gap
+    assert memory._gap_text(-5) == "0 s"
+
+
+def test_prior_text_lookup_is_published_for_other_plugins(memory_change_db):
+    # ADR 4: the timing tab calls this rather than opening the event log
+    app = create_app(memory_change_db)
+    assert app.extensions["memory_prior_text"] is memory.prior_memory_text
+
+
 def test_search_event_redirects_to_the_matching_event(client):
     # the timing tab's mem0_search spans carry no event id, so they are
     # matched back to the log on (session_id, query) — event 4 in the fixture

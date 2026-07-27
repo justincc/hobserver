@@ -234,6 +234,22 @@
           <span class="mem-id">{{ s.memory_id }}{{ copy_btn(s.memory_id, "copy memory id") }}</span>
         </div>
         {% endif %}
+        {# What the memory said before this span changed it. A delete's
+           payload is only an id, so without this the row says nothing about
+           what was lost; an update shows the replacement but not what it
+           replaced. Reconstructed from the local event log, never from mem0
+           (which cannot answer it — see plugins.memory.prior_memory_text),
+           so the provenance row names its source and the tooltip spells it
+           out. The − / + pair is the same diff macro the patch scopes use;
+           on a delete there is no + side. #}
+        {% set was = (prior_memory or {}).get(s.uuid) %}
+        {% if was %}
+        {{ diff_rows(was.text, s.memory_content) }}
+        <div class="span-detail list-item prov">
+          <span title="Not retrieved from mem0: this is the memory as it appeared in mem0_search event #{{ was.event_id }}, {{ was.gap_text }} before this change, which is the most recent copy in the local event log. mem0 is never queried — once a memory is deleted it cannot return it at all, and the pre-update text is not exposed either. A change made outside hermes in between would therefore not be reflected here.">previous text from the local log ·
+            <a href="{{ url_for('memory.event', event_id=was.event_id) }}">search #{{ was.event_id }}</a>, {{ was.gap_text }} earlier</span>
+        </div>
+        {% endif %}
         {% elif s.memory_action %}
         {# The `memory` tool, not mem0: curated §-delimited entries in the
            MEMORY.md / USER.md stores that go into the system prompt. The

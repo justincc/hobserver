@@ -112,6 +112,12 @@
     /* a mem0 search hit's relevance score: data, not a lookup key, so it
        reads darker than the id above and leads its row like a diff mark */
     .span-detail .mem-score { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; color: #8a8a8a; }
+    /* where reconstructed content came from. Muted and italic: it is about
+       the data above, not part of it, and the reader must be able to tell
+       the local log's copy from something mem0 returned. */
+    .span-detail.prov { color: #8a8a8a; font-style: italic; }
+    /* the same note as a subheading on the memory event page */
+    h2 .provenance { font-size: 0.8rem; font-weight: normal; font-style: italic; color: #8a8a8a; margin-left: 0.4rem; }
     /* mode label on a scope with modes: session_search
        (discover/scroll/read/browse), patch (replace/patch) */
     .span-detail .mode-tag { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; color: #8a8a8a; }

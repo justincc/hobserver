@@ -110,7 +110,14 @@ pointing this tool at its output (consuming) — is in
   newer than `<id>`, newest first (used by the index poll).
 - `/memory/event/<id>` — one event: all fields except query/result shown as
   a metadata block at the top, then the full query, the result, and the
-  context messages rendered as plaintext. Results that are JSON (e.g.
+  context messages rendered as plaintext. The `query` heading is named for
+  what the column actually holds on that event type — "Query" on a
+  `prefetch` or `mem0_search`, but "Added text" on a `mem0_add`, "New text"
+  on a `mem0_update` and "Deleted memory id" on a `mem0_delete`, which store
+  the written fact or the bare id there. An update or delete also gets a
+  "Previous text" section: what the memory said before the change,
+  recovered from the local event log (see below), with the search event it
+  came from and how long before. Results that are JSON (e.g.
   `mem0_search` output) are pretty-printed; others (e.g. prefetch
   markdown) are shown as-is. The context messages are the up
   to 10 preceding prefetch queries logged for the same session (tool-call
@@ -187,7 +194,17 @@ pointing this tool at its output (consuming) — is in
   `code`, with the full program in the title attribute and, in detail
   mode, laid out in full the same way the command is; mem0_add scopes
   show the remembered `content` (plain text, not monospace; wraps out
-  in full in detail mode); todo scopes
+  in full in detail mode); mem0_update and mem0_delete scopes show the
+  `memory_id` they name and, in detail mode, what that memory said before
+  the change — an update as a − old / + new pair, a delete as the − side
+  alone, since its payload is only an id and this is the sole record of
+  what was lost. That previous text is recovered from this app's own event
+  log, never fetched from mem0 (which cannot supply it: hermes' mem0
+  backend has no get or history call, and a deleted memory is gone), so
+  the row says "previous text from the local log", links to the
+  `mem0_search` event it came from and how long before, and its tooltip
+  spells out that mem0 is never queried and that a change made outside
+  hermes in between would not be reflected; todo scopes
   show the first of their `todos` items' `content` plus a "+N more"
   count, all items in the title attribute, and with the details switch
   on show every item on its own line instead (a todo call without
@@ -265,7 +282,12 @@ uv run pytest
 - `app.py` — app shell: app factory `create_app(db_path, atof_path=None)`,
   plugin registration, tab list, root/legacy redirects, CLI entry
 - `plugins/` — one module or package per view; each exposes a Flask
-  blueprint `bp` (registered under `/<bp.name>/`) and a `TAB_LABEL`. The
+  blueprint `bp` (registered under `/<bp.name>/`) and a `TAB_LABEL`.
+  Plugins reach each other only by link or by an accessor the owner
+  publishes on `app.extensions` — never by opening another's data source
+  (ADR 4): the memory plugin publishes `memory_prior_text` and serves the
+  `/memory/search-event` redirect, and the timing tab uses both while
+  holding no database handle of its own. The
   timing plugin is a package holding the full ATOF reader (ADR 2):
   `plugins/timing/tailer.py` (byte-offset incremental file read; records
   are split on `"\n"` alone — never `str.splitlines()`, which also breaks

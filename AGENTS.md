@@ -6,8 +6,9 @@ hermes-agent activity. Views are plugins rendered as horizontal tabs: memory (`j
 timing (per-turn waterfalls from the NeMo Relay ATOF JSONL). See README.md
 for pages, layout, and data-source path resolution; see docs/adr/ for the
 architecture decisions (ATOF as timing source, direct JSONL reading with no
-ETL, blueprints-as-plugins, cross-plugin links by URL only — a plugin may
-link to another's page but never read its data source).
+ETL, blueprints-as-plugins, cross-plugin access by link or published
+accessor — a plugin may link to another's page or call an accessor it puts
+in `app.extensions`, but never opens another's data source).
 
 - Run: `uv run python app.py` — no arguments or env vars needed when
   `HERMES_HOME` is exported: both the memory db and the ATOF log default to
@@ -121,7 +122,23 @@ link to another's page but never read its data source).
   mem0_search result): on the summary line it reads as a second uuid
   beside the span's own, which lands there as soon as the row is expanded.
   A mem0_delete therefore shows nothing until opened — the id is its
-  entire payload. The four mem0 tools are defined in
+  entire payload. Both also show what the memory said *before* the change,
+  recovered from the local event log by `memory.prior_memory_text` (see ADR
+  4 for why it is an `app.extensions` accessor rather than a link, and
+  `prior_memory` in the timing turn view for the per-span map): rendered
+  through the same `diff_rows` macro — an update gets − old / + new, a
+  delete only the − side — under a muted `.prov` row naming the source.
+  mem0 itself is never queried and cannot answer this: hermes'
+  `Mem0Backend` exposes only search/add/update/delete (no get, no history),
+  and the platform cannot return a deleted memory at all. The log can
+  because a mem0_search result carries each hit's text beside its id and the
+  agent can only learn an id *from* a search, so every change is preceded by
+  the search that surfaced it — all 19 in the log, same session, median 30 s
+  earlier (13 s–2.9 min). It is therefore the memory as of that search, not
+  a guaranteed pre-change snapshot, so the row and its tooltip say the text
+  is from the local log, name the search event and the gap, and state that a
+  change made outside hermes in between would not show. Never present it as
+  something mem0 vouched for. The four mem0 tools are defined in
   `$h/plugins/memory/mem0/__init__.py`, i.e. in the memory plugin, NOT in
   `$h/tools/` where the rest live. Do not confuse them with the separate
   `memory` scope below). The `memory` scope is that other tool
