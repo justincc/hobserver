@@ -657,31 +657,54 @@ def test_turn_detail_renders_with_string_tool_result_data(tmp_path):
     assert "500 ms" in page
 
 
-def test_turn_detail_shows_top_two_mem0_results_and_links_to_memory(tmp_path):
+def test_turn_detail_shows_top_mem0_results_and_links_to_memory(tmp_path):
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
         *scope_lines("T1", "tool", 1_100_000, 1_600_000, name="mem0_search",
                      session="s1", turn="t1",
                      start_data={"query": "job preferences", "top_k": 10},
-                     end_data='{"count": 3, "results":'
+                     end_data='{"count": 4, "results":'
                      ' [{"id": "b760576d", "memory": "top fact", "score": 0.8042},'
                      '  {"id": "f9c1f7ee", "memory": "next fact", "score": 0.5339},'
-                     '  {"id": "fb54073a", "memory": "third fact", "score": 0.4229}]}'),
+                     '  {"id": "fb54073a", "memory": "third fact", "score": 0.4229},'
+                     '  {"id": "c78490d3", "memory": "fourth fact", "score": 0.3115}]}'),
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
     page = make_client(tmp_path, str(atof)).get(
         "/timing/turn/s1/1000000").get_data(as_text=True)
-    assert "top fact" in page and "next fact" in page
-    assert "third fact" not in page          # only the top two are shown
-    assert "0.80" in page and "0.53" in page
+    assert "top fact" in page and "next fact" in page and "third fact" in page
+    assert "fourth fact" not in page         # the preview stops at three
+    assert "0.80" in page and "0.53" in page and "0.42" in page
     assert "b760576d" in page                # each hit's id, for the lookup
     # the handoff to the memory tab carries what identifies the logged call
     assert "/memory/search-event?" in page
     assert "session=s1" in page
     assert "query=job+preferences" in page
     assert "ts=1100000" in page
-    assert "all 3 results" in page
+    assert "all 4 results" in page
+
+
+def test_turn_detail_mem0_link_reads_full_result_when_nothing_is_hidden(tmp_path):
+    # with three or fewer hits the preview is the whole list, so promising
+    # "all 3 results" behind the link would be promising nothing new
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("T1", "tool", 1_100_000, 1_600_000, name="mem0_search",
+                     session="s1", turn="t1", start_data={"query": "q"},
+                     end_data='{"count": 2, "results":'
+                     ' [{"id": "a", "memory": "one", "score": 0.9},'
+                     '  {"id": "b", "memory": "two", "score": 0.8}]}'),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        "/timing/turn/s1/1000000").get_data(as_text=True)
+    # the link's own text, not its tooltip — the tooltip still describes the
+    # target page as carrying all the results, which it does
+    link_text = page[page.index("search-event"):]
+    link_text = link_text[link_text.index('">') + 2:link_text.index("</a>")]
+    assert link_text.strip() == "full result in Memory &rarr;"
 
 
 def test_turn_detail_mem0_link_absent_while_the_search_is_open(tmp_path):

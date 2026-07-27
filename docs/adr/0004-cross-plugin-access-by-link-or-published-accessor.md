@@ -10,7 +10,7 @@ Amends [ADR 3](0003-plugin-views-as-flask-blueprints-with-tabs.md).
 
 ## Context
 
-The timing tab renders a `mem0_search` span's top two hits from the span's
+The timing tab renders a `mem0_search` span's top hits from the span's
 end payload. The full ranked list, the context messages mem0 retrieved
 against, and the raw payload are all already on the memory tab's event page,
 so the span should link there rather than reproduce any of it.

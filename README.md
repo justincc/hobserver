@@ -182,7 +182,7 @@ pointing this tool at its output (consuming) — is in
   the `pattern` (monospace), `file_glob` and search `path`; web_search
   and mem0_search scopes show the `query` (monospace; wraps out in
   full in detail mode instead of ellipsizing), and a mem0_search adds
-  what it retrieved: with the details switch on, the top two of its
+  what it retrieved: with the details switch on, the top three of its
   ranked `results` — relevance score, then the remembered fact, with the
   memory id on a faint row beneath (the same id a mem0_update or
   mem0_delete names, so the two can be matched by eye), followed by a

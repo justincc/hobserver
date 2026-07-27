@@ -228,9 +228,12 @@ in `app.extensions`, but never opens another's data source).
   latter — `{"count": n, "results": [{id, memory, score}, …]}`, arriving as a
   JSON string and ranked by score descending (uniform across all 102
   mem0_search ends in the log, 1080 results, no key ever missing, but still
-  read defensively per the opaque-payload rule). Only the top two render, on
-  detail-only rows: the query says what was asked and never whether the
-  answer was any good, but two whole facts would swamp the summary line.
+  read defensively per the opaque-payload rule). Only the top three render,
+  on detail-only rows: the query says what was asked and never whether the
+  answer was any good, but whole facts would swamp the summary line. How
+  many is bound once, as `shown` in the template — the same slice decides
+  whether the link below reads "all N results" or "full result", so a
+  preview that already covers everything never promises more behind it.
   Each hit's score leads its row, then the fact; the memory id sits on its
   own faint `.mem-id` row, the same treatment mem0_update/mem0_delete give
   theirs — those spans' ids are a lookup key *for* these, so the pair now
