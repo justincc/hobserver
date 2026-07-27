@@ -6,7 +6,8 @@ hermes-agent activity. Views are plugins rendered as horizontal tabs: memory (`j
 timing (per-turn waterfalls from the NeMo Relay ATOF JSONL). See README.md
 for pages, layout, and data-source path resolution; see docs/adr/ for the
 architecture decisions (ATOF as timing source, direct JSONL reading with no
-ETL, blueprints-as-plugins).
+ETL, blueprints-as-plugins, cross-plugin links by URL only — a plugin may
+link to another's page but never read its data source).
 
 - Run: `uv run python app.py` — no arguments or env vars needed when
   `HERMES_HOME` is exported: both the memory db and the ATOF log default to
@@ -73,8 +74,9 @@ ETL, blueprints-as-plugins).
   command wraps in full in detail mode, line breaks kept — code takes
   `pre-wrap`, unlike the `normal` prose details wrap with), `path`
   (file tool scopes, left-ellipsized to keep the tail), `query`
-  (web_search/mem0_search scopes; wraps in full in detail
-  mode). session_search is its own scope with four modes (checked against
+  (web_search/mem0_search scopes; wraps in full in detail mode — mem0_search
+  also renders what came *back*, see `Span.mem0_results` below).
+  session_search is its own scope with four modes (checked against
   `$h/tools/session_search_tool.py`), rendered mode-aware in one branch:
   `Span.session_search_mode` prefers the end payload's explicit `mode`,
   falling back to inferring it from the start-payload keys with the tool's own
@@ -203,9 +205,29 @@ ETL, blueprints-as-plugins).
   pair rather than a reader per scope, rendered after the scope's own branch
   as a `badge-error` beside the name plus an `.err` row. Both stay out of
   detail mode: a failed call must not need a click to notice, and ~7% of
-  tool calls fail (skill_manage more than half). Success payloads are still
-  not rendered anywhere except memory's char budget — nothing else in them
-  is read today. The
+  tool calls fail (skill_manage more than half). Success payloads are read
+  for exactly two scopes, each because the call is unreadable without them:
+  memory's char budget, and mem0_search's hits. `Span.mem0_results` is the
+  latter — `{"count": n, "results": [{id, memory, score}, …]}`, arriving as a
+  JSON string and ranked by score descending (uniform across all 102
+  mem0_search ends in the log, 1080 results, no key ever missing, but still
+  read defensively per the opaque-payload rule). Only the top two render, on
+  detail-only rows: the query says what was asked and never whether the
+  answer was any good, but two whole facts would swamp the summary line.
+  Each hit's score leads its row, then the fact; the memory id sits on its
+  own faint `.mem-id` row, the same treatment mem0_update/mem0_delete give
+  theirs — those spans' ids are a lookup key *for* these, so the pair now
+  resolves without leaving the UI. A last row links to the whole ranked list
+  in the memory tab (`Span.mem0_result_count` names it: "all 10 results").
+  That link is the one place two plugins meet, and they share no key — ATOF
+  carries no event id, the db carries no span uuid — so `memory.search_event`
+  matches on (session_id, query), which resolved to exactly one event for all
+  104 mem0_search spans in the log, with an optional `ts` (the span start, in
+  epoch µs) breaking the only tie possible, the same query twice in a
+  session. It is a redirect owned by the memory plugin, not a lookup at
+  render time: the timing tab never opens the event log, and a turn page
+  polling every 2 s costs no queries. Unmatched 404s saying so — the two logs
+  are written independently, so either can cover a call the other misses. The
   `platform` kwarg is `webui` today but hermes has other frontends, e.g.
   a TUI — never assume webui). Pages self-update via the poll-and-swap script in
   `templates/base.html`: wrap content in `data-live-poll="<ms>"` ("0" =

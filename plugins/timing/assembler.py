@@ -209,6 +209,54 @@ class Span:
             return self._start_str("query")
         return None
 
+    # What a mem0_search actually retrieved, from its end payload —
+    # {"count": n, "results": [{"id", "memory", "score"}, …]}, ranked by
+    # score descending, so the first entries are the top hits. Uniform
+    # across every mem0_search end in the log to date (102 ends, 1080
+    # results, none missing a key), but still read defensively: payloads
+    # are opaque per the ATOF spec. Rendering output at all is the
+    # exception here — see Span.memory_stats for the other one — and it
+    # earns it because the query alone never says whether the search was
+    # any good.
+    @property
+    def mem0_results(self) -> List[dict]:
+        if self.name != "mem0_search":
+            return []
+        end = _as_dict(self.end_data)
+        if end is None:
+            return []
+        raw = end.get("results")
+        if not isinstance(raw, list):
+            return []
+        results = []
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            memory = item.get("memory")
+            score = item.get("score")
+            results.append({
+                "id": item.get("id") if isinstance(item.get("id"), str) else None,
+                "memory": memory if isinstance(memory, str) else None,
+                # ints are valid JSON numbers; bool is an int subclass
+                "score": score if isinstance(score, (int, float))
+                         and not isinstance(score, bool) else None,
+            })
+        return results
+
+    # How many memories came back. The payload's own count is authoritative
+    # (it is what mem0 reported); fall back to the list length when absent.
+    @property
+    def mem0_result_count(self) -> Optional[int]:
+        if self.name != "mem0_search":
+            return None
+        end = _as_dict(self.end_data)
+        if end is not None:
+            count = end.get("count")
+            if isinstance(count, int) and not isinstance(count, bool):
+                return count
+        results = self.mem0_results
+        return len(results) if results else None
+
     # session_search is a single scope with four modes (see hermes
     # tools/session_search_tool.py): discover (search by query), scroll (a
     # window around an anchor message), read (a whole session), browse (recent

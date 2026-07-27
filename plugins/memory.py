@@ -8,7 +8,8 @@ import json
 import os
 import sqlite3
 
-from flask import Blueprint, abort, current_app, g, render_template, request
+from flask import (Blueprint, abort, current_app, g, redirect, render_template,
+                   request, url_for)
 
 bp = Blueprint("memory", __name__)
 TAB_LABEL = "Memory"
@@ -113,6 +114,47 @@ def event_rows_fragment():
         (since,),
     ).fetchall()
     return render_template("memory/_event_rows.html", events=events)
+
+
+@bp.route("/search-event")
+def search_event():
+    """Redirect to the logged event for one mem0_search call.
+
+    The timing tab's mem0_search spans and this tab's events are two
+    independent records of the same call, with no shared key: ATOF carries
+    no event id and the db carries no span uuid. They are matched instead on
+    (session_id, query), which resolved to exactly one event for all 104
+    mem0_search spans in the log to date — no ambiguity, no misses. The one
+    ambiguity the pair admits is the same query repeated in one session, so
+    an optional ?ts= (the span's start, epoch microseconds) breaks the tie by
+    nearest logged time; the db timestamps the call's completion, about a
+    second after the span starts, well inside any plausible gap between two
+    such searches.
+
+    Owned by this plugin because it owns the db — the timing tab links here
+    by URL and never opens the event log itself, and this stays a redirect
+    rather than a lookup at turn-render time so a page full of spans polling
+    every 2 s costs no queries.
+    """
+    session_id = request.args.get("session")
+    query = request.args.get("query")
+    if not session_id or query is None:
+        abort(400, "session and query are required")
+    rows = get_db().execute(
+        "SELECT id, ts_epoch FROM events WHERE event_type = 'mem0_search'"
+        " AND session_id = ? AND query = ? ORDER BY id",
+        (session_id, query),
+    ).fetchall()
+    if not rows:
+        abort(404, "No mem0_search event is logged for this session and query."
+                   " The event log and the ATOF timing log are written"
+                   " independently, so one can cover a span the other does not.")
+    ts = request.args.get("ts", type=float)
+    if ts is not None and len(rows) > 1:
+        row = min(rows, key=lambda r: abs(r["ts_epoch"] - ts / 1_000_000))
+    else:
+        row = rows[0]
+    return redirect(url_for("memory.event", event_id=row["id"]))
 
 
 @bp.route("/event/<int:event_id>")

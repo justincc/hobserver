@@ -117,6 +117,17 @@ pointing this tool at its output (consuming) — is in
   events are excluded — they are not user messages) — an approximation
   of the extra conversational context mem0 uses during retrieval — each
   prefixed with its event id, oldest first.
+- `/memory/search-event?session=<id>&query=<q>[&ts=<µs>]` — redirects to the
+  `/memory/event/<id>` page for one `mem0_search` call. This is how a
+  mem0_search span in the timing tab hands off to the memory tab: the two
+  logs record the same call but share no key (ATOF has no event id, the
+  event log has no span uuid), so the pair is matched on session and query,
+  with the optional `ts` (the span's start, epoch microseconds) breaking the
+  only tie that can arise — the same query run twice in one session. A
+  redirect rather than a lookup while rendering the turn page, so a page of
+  spans polling every 2 s costs no database queries. 404s when the event log
+  has no matching call: the two logs are written independently, so either
+  can cover a call the other does not.
 - `/timing/` — all turns, newest first: start time, session, a one-line
   prompt snippet (from the turn-start mark's `user_message`; ellipsized so
   long prompts never widen the table, em dash when absent), total / llm /
@@ -163,7 +174,13 @@ pointing this tool at its output (consuming) — is in
   search_files scopes show
   the `pattern` (monospace), `file_glob` and search `path`; web_search
   and mem0_search scopes show the `query` (monospace; wraps out in
-  full in detail mode instead of ellipsizing); web_extract scopes show the first
+  full in detail mode instead of ellipsizing), and a mem0_search adds
+  what it retrieved: with the details switch on, the top two of its
+  ranked `results` — relevance score, then the remembered fact, with the
+  memory id on a faint row beneath (the same id a mem0_update or
+  mem0_delete names, so the two can be matched by eye), followed by a
+  link into the Memory tab for the whole ranked list ("all 10 results
+  in Memory →"); web_extract scopes show the first
   of their `urls` plus a "+N more" count, with the full list in the
   title attribute and every url on its own line in detail mode;
   execute_code scopes show the first line of their

@@ -657,6 +657,65 @@ def test_turn_detail_renders_with_string_tool_result_data(tmp_path):
     assert "500 ms" in page
 
 
+def test_turn_detail_shows_top_two_mem0_results_and_links_to_memory(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("T1", "tool", 1_100_000, 1_600_000, name="mem0_search",
+                     session="s1", turn="t1",
+                     start_data={"query": "job preferences", "top_k": 10},
+                     end_data='{"count": 3, "results":'
+                     ' [{"id": "b760576d", "memory": "top fact", "score": 0.8042},'
+                     '  {"id": "f9c1f7ee", "memory": "next fact", "score": 0.5339},'
+                     '  {"id": "fb54073a", "memory": "third fact", "score": 0.4229}]}'),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        "/timing/turn/s1/1000000").get_data(as_text=True)
+    assert "top fact" in page and "next fact" in page
+    assert "third fact" not in page          # only the top two are shown
+    assert "0.80" in page and "0.53" in page
+    assert "b760576d" in page                # each hit's id, for the lookup
+    # the handoff to the memory tab carries what identifies the logged call
+    assert "/memory/search-event?" in page
+    assert "session=s1" in page
+    assert "query=job+preferences" in page
+    assert "ts=1100000" in page
+    assert "all 3 results" in page
+
+
+def test_turn_detail_mem0_link_absent_while_the_search_is_open(tmp_path):
+    # nothing came back yet, so there is nothing to link to
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("T1", "tool", 1_100_000, name="mem0_search",
+                     session="s1", turn="t1", start_data={"query": "q"}),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        "/timing/turn/s1/1000000").get_data(as_text=True)
+    assert "/memory/search-event" not in page
+
+
+def test_turn_detail_web_search_gets_no_mem0_result_rows(tmp_path):
+    # web_search shares the query branch but has no mem0 results behind it
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("W1", "tool", 1_100_000, 1_600_000, name="web_search",
+                     session="s1", turn="t1",
+                     start_data={"query": "flask blueprints"},
+                     end_data='{"count": 1, "results":'
+                     ' [{"id": "x", "memory": "not a memory", "score": 0.9}]}'),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        "/timing/turn/s1/1000000").get_data(as_text=True)
+    assert "flask blueprints" in page
+    assert "not a memory" not in page
+    assert "/memory/search-event" not in page
+
+
 def test_turn_detail_unknown_turn_404s(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     assert make_client(tmp_path, str(atof)).get("/timing/turn/s1/999").status_code == 404

@@ -2,6 +2,7 @@
 
 import sqlite3
 
+from app import create_app
 from plugins import memory
 
 
@@ -115,6 +116,68 @@ def test_non_json_result_is_left_unchanged(client):
 
 def test_event_detail_missing_id_returns_404(client):
     assert client.get("/memory/event/999").status_code == 404
+
+
+def test_search_event_redirects_to_the_matching_event(client):
+    # the timing tab's mem0_search spans carry no event id, so they are
+    # matched back to the log on (session_id, query) — event 4 in the fixture
+    resp = client.get("/memory/search-event?session=sessionabc"
+                      "&query=tool+search+terms")
+    assert resp.status_code == 302
+    assert resp.headers["Location"].endswith("/memory/event/4")
+
+
+def test_search_event_ignores_non_search_events(client):
+    # event 3 is a prefetch with its own query in the same session; only
+    # mem0_search calls are what a mem0_search span can mean
+    assert client.get("/memory/search-event?session=sessionabc"
+                      "&query=third+query").status_code == 404
+
+
+def test_search_event_unmatched_query_404s(client):
+    # the two logs are written independently, so one can cover a call the
+    # other does not — that must say so rather than land somewhere wrong
+    resp = client.get("/memory/search-event?session=sessionabc&query=nope")
+    assert resp.status_code == 404
+    assert "written" in resp.get_data(as_text=True)
+
+
+def test_search_event_requires_session_and_query(client):
+    assert client.get("/memory/search-event").status_code == 400
+    assert client.get("/memory/search-event?session=s").status_code == 400
+
+
+def test_search_event_breaks_a_repeated_query_tie_by_time(tmp_path):
+    # the one ambiguity (session_id, query) admits: the same search run twice
+    # in a session. The span's start, passed as epoch microseconds, picks the
+    # nearer of the two logged calls.
+    from conftest import make_memory_db
+
+    db_path = tmp_path / "dupes.db"
+    make_memory_db(db_path)
+    db = sqlite3.connect(db_path)
+    db.execute(
+        "INSERT INTO events (id, ts_utc, ts_epoch, event_type, session_id,"
+        " query, result) VALUES (6, '2026-07-09T14:00:00+00:00', 1783692000.0,"
+        " 'mem0_search', 'sessionabc', 'tool search terms', '{}')"
+    )
+    db.commit()
+    db.close()
+    app = create_app(str(db_path))
+    app.config["TESTING"] = True
+    dupe_client = app.test_client()
+
+    # event 4 is logged at 1783686600, event 6 at 1783692000
+    near_first = dupe_client.get("/memory/search-event?session=sessionabc"
+                                "&query=tool+search+terms&ts=1783686599000000")
+    assert near_first.headers["Location"].endswith("/memory/event/4")
+    near_second = dupe_client.get("/memory/search-event?session=sessionabc"
+                                 "&query=tool+search+terms&ts=1783691999000000")
+    assert near_second.headers["Location"].endswith("/memory/event/6")
+    # without a ts there is nothing to choose on, so it takes the earlier
+    no_ts = dupe_client.get("/memory/search-event?session=sessionabc"
+                            "&query=tool+search+terms")
+    assert no_ts.headers["Location"].endswith("/memory/event/4")
 
 
 def test_check_db_accepts_a_real_event_log(memory_db):

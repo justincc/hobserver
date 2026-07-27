@@ -174,6 +174,30 @@
         <div class="span-detail">
           <code class="wrap-detail" title="{{ s.search_query }}">{{ s.search_query }}</code>
         </div>
+        {# What a mem0_search got back — the top two hits, ranked by score,
+           on detail-only rows: the query alone never says whether the search
+           worked, but two whole facts are far too much for the summary line.
+           Each hit's memory id rides its own faint row, the same treatment
+           mem0_update/mem0_delete give theirs — that is the id those spans
+           are a lookup key *for*, so the pair now resolves inside the UI.
+           The link hands off to the memory tab for the full ranked list. #}
+        {% for r in s.mem0_results[:2] %}
+        <div class="span-detail list-item">
+          {%- if r.score is not none %}<span class="mem-score" title="mem0 relevance score">{{ '%.2f' | format(r.score) }}</span>{% endif %}
+          {%- if r.memory %} <span class="path wide wrap-detail" title="{{ r.memory }}">{{ r.memory }}</span>{% endif %}
+        </div>
+        {% if r.id %}
+        <div class="span-detail list-item">
+          <span class="mem-id">{{ r.id }}{{ copy_btn(r.id, "copy memory id") }}</span>
+        </div>
+        {% endif %}
+        {% endfor %}
+        {% if s.mem0_results %}
+        <div class="span-detail list-item">
+          <a href="{{ url_for('memory.search_event', session=s.session_id, query=s.search_query, ts=s.start_us) }}"
+             title="Open this search in the Memory tab: all {{ s.mem0_result_count }} results, the context messages mem0 retrieved against, and the raw payload.">{% if s.mem0_result_count and s.mem0_result_count > s.mem0_results[:2] | length %}all {{ s.mem0_result_count }} results{% else %}full result{% endif %} in Memory &rarr;</a>
+        </div>
+        {% endif %}
         {% elif s.session_search_mode %}
         {# session_search has four modes; the mode tag names it, the summary
            says what it targets, and per-mode result counts sit on detail-only

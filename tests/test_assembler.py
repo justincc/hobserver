@@ -375,6 +375,55 @@ def test_search_query_from_start_payload():
     assert other.search_query is None
 
 
+def test_mem0_search_results_from_end_payload():
+    # the log carries the tool result as a JSON *string*, ranked by score
+    span = _one_span(
+        "mem0_search", {"query": "job preferences", "top_k": 10},
+        '{"count": 3, "results":'
+        ' [{"id": "b760576d", "memory": "top fact", "score": 0.8042},'
+        '  {"id": "f9c1f7ee", "memory": "next fact", "score": 0.5339},'
+        '  {"id": "fb54073a", "memory": "third fact", "score": 0.4229}]}')
+    assert [r["id"] for r in span.mem0_results] == ["b760576d", "f9c1f7ee",
+                                                   "fb54073a"]
+    assert span.mem0_results[0]["memory"] == "top fact"
+    assert span.mem0_results[0]["score"] == 0.8042
+    assert span.mem0_result_count == 3
+
+
+def test_mem0_search_results_only_on_mem0_search_scopes():
+    # "results" is far too generic a key to trust on another scope
+    span = _one_span("session_search", {"query": "q"},
+                     '{"count": 1, "results": [{"memory": "not mem0"}]}')
+    assert span.mem0_results == []
+    assert span.mem0_result_count is None
+
+
+def test_mem0_search_results_read_defensively():
+    # payloads are opaque per the ATOF spec: a missing key drops to None and
+    # a non-dict entry is skipped, rather than 500ing the turn page
+    span = _one_span("mem0_search", {"query": "q"},
+                     '{"results": [{"memory": "no id, no score"},'
+                     ' "not a dict", {"id": "abc"}]}')
+    assert span.mem0_results == [
+        {"id": None, "memory": "no id, no score", "score": None},
+        {"id": "abc", "memory": None, "score": None},
+    ]
+    # no count in the payload, so it falls back to the list length
+    assert span.mem0_result_count == 2
+
+
+def test_mem0_search_still_open_has_no_results():
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("M1", "tool", 1_100_000, name="mem0_search",
+                     session="s1", turn="t1", start_data={"query": "q"}),
+    ]
+    span = assemble_lines(lines).sessions[0].turns[0].spans[0]
+    assert span.is_open and span.mem0_results == []
+    assert span.mem0_result_count is None
+
+
 def _one_span(name, start_data, end_data=None):
     lines = [
         *session_scope_lines("s1"),
