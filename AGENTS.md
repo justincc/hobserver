@@ -2,8 +2,10 @@
 
 ## General Instructions
 - Keep this generation instructions section and subsections at the top of the file, except of a short description of the project if applicable.
-- All new functionality must have an accompanying passing unit test.
 - Document and code should follow the DRY (Don't Repeat Yourself) principle when reasonable.
+
+## Testing
+- All new functionality must have an accompanying passing unit test.
 - Tests should always be run after making any changes and any fails fixed.
 
 ### Documentation
