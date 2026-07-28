@@ -33,6 +33,103 @@ _EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 _MICROSECOND = timedelta(microseconds=1)
 _ERROR_LINE_PREVIEW_CHARS = 200
 
+# --- generic payload rendering ------------------------------------------
+# What to show for a scope or mark nothing renders specially. hermes' tool
+# set is not this app's to know: with tools these readers have never heard
+# of, the fallback is all a reader gets, so it errs towards showing a key
+# and withholding only the value.
+
+# Correlation plumbing, shown elsewhere on the row or of no interest at all.
+GENERIC_SKIP_KEYS = frozenset({
+    "session_id", "turn_id", "task_id", "tool_call_id", "api_request_id",
+    "parent_session_id", "parent_turn_id", "parent_subagent_id",
+    "child_subagent_id", "telemetry_schema_version", "sender_id",
+    "middleware_trace",
+})
+
+# Substrings of key names whose values must never be rendered. The log has
+# none today — hermes' llm spans carry an empty `headers` dict — but a
+# generic renderer must not be the thing that prints a bearer token onto a
+# page, so the guard does not wait for the exporter to start filling it in.
+GENERIC_SECRET_HINTS = ("token", "secret", "password", "api_key", "apikey",
+                        "authorization", "auth", "credential", "cookie",
+                        "headers")
+
+# Above this, a value is described rather than printed. The log holds a 7 MB
+# conversation_history and a 153 KB tool result, and a live turn page
+# refetches itself every 2 s.
+GENERIC_MAX_VALUE_CHARS = 2000
+
+# All a single summary line can hold; everything else is detail-only.
+GENERIC_INLINE_FIELDS = 3
+
+
+def _human_size(chars: int) -> str:
+    if chars < 1024:
+        return f"{chars} chars"
+    if chars < 1024 * 1024:
+        return f"{chars / 1024:.0f} KB"
+    return f"{chars / (1024 * 1024):.1f} MB"
+
+
+def _skip_generic_key(key: str) -> bool:
+    lowered = key.lower()
+    return (key in GENERIC_SKIP_KEYS
+            or any(hint in lowered for hint in GENERIC_SECRET_HINTS))
+
+
+def _generic_value(value: Any) -> tuple[Optional[str], bool]:
+    """(text, oversize) for one payload value, or (None, _) to skip it.
+
+    Oversize values are named and measured rather than printed — the reader
+    still learns the key exists and how big it is, which is what decides
+    whether to go looking in the raw JSONL.
+    """
+    if value is None or value == "" or value == [] or value == {}:
+        return None, False
+    if isinstance(value, bool) or isinstance(value, (int, float)):
+        return str(value), False
+    if isinstance(value, str):
+        if len(value) > GENERIC_MAX_VALUE_CHARS:
+            return f"text, {_human_size(len(value))}", True
+        return value, False
+    # lists and dicts: compact JSON while small enough to be readable
+    try:
+        text = json.dumps(value, ensure_ascii=False, default=str)
+    except (TypeError, ValueError):
+        return f"{type(value).__name__}", True
+    if len(text) > GENERIC_MAX_VALUE_CHARS:
+        kind = "list" if isinstance(value, list) else "dict"
+        count = (f"{len(value)} items" if isinstance(value, list)
+                 else f"{len(value)} keys")
+        return f"{kind}, {count} ({_human_size(len(text))})", True
+    return text, False
+
+
+def generic_payload_fields(data: Any) -> list:
+    """A payload as [{key, text, inline, oversize}], in the payload's own
+    order — which is the tool's argument order, so the useful keys lead.
+
+    Shared by scopes and marks: both carry the same opaque `data`, and a
+    fallback that differed between them would be the surprising thing.
+    """
+    if not isinstance(data, dict) or not data:
+        return []
+    fields, inlined = [], 0
+    for key, value in data.items():
+        if _skip_generic_key(key):
+            continue
+        text, oversize = _generic_value(value)
+        if text is None:
+            continue
+        scalar = isinstance(value, (str, int, float, bool))
+        inline = scalar and not oversize and inlined < GENERIC_INLINE_FIELDS
+        if inline:
+            inlined += 1
+        fields.append({"key": key, "text": text, "inline": inline,
+                       "oversize": oversize})
+    return fields
+
 
 class AtofParseError(ValueError):
     """A single line that cannot be parsed into an ATOF event."""
@@ -100,6 +197,13 @@ class AtofEvent:
     @property
     def model_name(self) -> Optional[str]:
         return self.category_profile.get("model_name")
+
+    @property
+    def generic_fields(self) -> list:
+        """This mark's payload, for marks nothing renders specially — the
+        approval and session-end marks today, and whatever hermes adds next.
+        See `generic_payload_fields`."""
+        return generic_payload_fields(self.data)
 
     # hermes.subagent.start marks carry the delegated child's goal (the
     # child session's opening prompt) in their data payload

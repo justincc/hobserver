@@ -35,6 +35,29 @@
 </div>
 {% endif %}
 {%- endmacro %}
+{# The fallback for a scope or mark with no branch of its own: its payload,
+   key by key. hermes' tool set is not ours to know, so anyone running it
+   with other tools sees this rather than a bare row. The first few scalars
+   ride the summary line (which stays one line, ellipsized like any other);
+   everything else, including values too big to print, is detail-only. #}
+{% macro payload_rows(fields) -%}
+{% set inline = fields | selectattr("inline") | list %}
+{% if inline %}
+<div class="span-detail list-compact">
+  {%- for f in inline %}
+  <span class="gen-key">{{ f.key }}</span> <span class="path wide">{{ f.text }}</span>
+  {%- if not loop.last %} <span class="gen-key">·</span>{% endif %}
+  {%- endfor %}
+</div>
+{% endif %}
+{% for f in fields %}
+<div class="span-detail list-item">
+  <span class="gen-key">{{ f.key }}</span>
+  {%- if f.oversize %} <span class="gen-omitted" title="Too large to show here — find this event by uuid in the ATOF log.">{{ f.text }}</span>
+  {%- else %} <span class="path wide wrap-detail" title="{{ f.text }}">{{ f.text }}</span>{% endif %}
+</div>
+{% endfor %}
+{%- endmacro %}
 {% block content %}
 <div data-live-poll="{{ 2000 if turn.is_live else 0 }}"
      data-turn-start-us="{{ turn.start_us }}">
@@ -118,6 +141,9 @@
         <div class="span-detail list-item">
           <span class="path wide">{{ s.child_session_id }}{% if s.child_duration_ms is not none %} · {{ (s.child_duration_ms * 1000) | int | us_dur }}{% endif %}</span>
         </div>
+        {% elif not s.child_status and not s.child_goal %}
+        {# A mark with no branch above — approvals and session end today. #}
+        {{ payload_rows(s.generic_fields) }}
         {% endif %}
       </td>
       <td class="num"></td>
@@ -342,6 +368,10 @@
         <div class="span-detail">
           <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>
         </div>
+        {% else %}
+        {# No branch matched: a tool this app has never heard of, or one
+           whose payload is empty. Falls back to the payload itself. #}
+        {{ payload_rows(s.generic_fields) }}
         {% endif %}
         {# Outcome, after whatever the scope showed of its input. Every tool
            reports a failure the same way, so this is one row for all of

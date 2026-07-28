@@ -26,7 +26,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Iterable, List, Optional
 
-from plugins.prompts.atof_reader import AtofEvent
+from plugins.prompts.atof_reader import AtofEvent, generic_payload_fields
 
 TURN_START_MARK = "hermes.turn.start"
 TURN_END_MARK = "hermes.turn.end"
@@ -138,6 +138,17 @@ class Span:
             if isinstance(value, str) and value:
                 return value
         return None
+
+    @property
+    def generic_fields(self) -> List[dict]:
+        """The start payload of a scope nothing here renders specially.
+
+        hermes' tool set is not this app's to know: with tools these branches
+        have never heard of, a reader would otherwise get a name, a duration
+        and nothing about the call. The template falls back to this when no
+        scope branch matched — see `generic_payload_fields`.
+        """
+        return generic_payload_fields(self.start_data)
 
     # terminal tool scopes carry the invocation in their start payload
     @property

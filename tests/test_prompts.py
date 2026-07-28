@@ -1316,3 +1316,98 @@ def test_memory_success_reports_usage_without_the_store(tmp_path):
     assert "usage 99% — 2,198/2,200 chars" in page   # the tool's own wording
     assert "entries 10" in page
     assert "store now holds" not in page
+
+
+# --- unrecognised scopes ------------------------------------------------
+# hermes' tool set is not this app's to know. A scope with no branch of its
+# own used to render a name and a duration and nothing else, which is what
+# anyone running hermes with other tools would see for most of their spans.
+
+
+def _unknown_scope(tmp_path, start_data, name="widget_tool"):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("U1", "tool", 1_100_000, 1_600_000, name=name,
+                     session="s1", turn="t1", start_data=start_data),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    return make_client(tmp_path, str(atof)).get(
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
+
+
+def test_unknown_scope_shows_its_payload(tmp_path):
+    page = _unknown_scope(tmp_path, {"action": "wait", "timeout": 300,
+                                     "note": "third key"})
+    for key in ("action", "timeout", "note"):
+        assert f'<span class="gen-key">{key}</span>' in page
+    assert "wait" in page and "300" in page and "third key" in page
+
+
+def test_unknown_scope_summary_line_holds_the_first_three_scalars(tmp_path):
+    # the summary line is one line: everything else waits for detail mode
+    page = _unknown_scope(tmp_path, {"a": "1", "b": "2", "c": "3", "d": "4"})
+    compact = page[page.index('class="span-detail list-compact"'):]
+    compact = compact[:compact.index("</div>")]
+    assert compact.count('class="gen-key"') == 5      # 3 keys + 2 separators
+    assert ">d<" not in compact
+    # but d is there in a detail-only row
+    assert re.search(r'class="span-detail list-item">\s*<span class="gen-key">d<', page)
+
+
+def test_unknown_scope_hides_routing_and_secret_keys(tmp_path):
+    page = _unknown_scope(tmp_path, {
+        "action": "go", "session_id": "s1", "telemetry_schema_version": "1",
+        "tool_call_id": "call-9", "headers": {"authorization": "Bearer hunter2"},
+        "api_token": "hunter2"})
+    assert "go" in page
+    for hidden in ("Bearer hunter2", "hunter2", "call-9",
+                   "telemetry_schema_version"):
+        assert hidden not in page
+
+
+def test_unknown_scope_names_oversize_values_instead_of_printing_them(tmp_path):
+    # the log holds a 7 MB conversation_history, and a live turn page
+    # refetches itself every 2 s
+    page = _unknown_scope(tmp_path, {"blob": "x" * 5000,
+                                     "rows": [{"n": i} for i in range(400)]})
+    assert "x" * 200 not in page
+    assert "text, 5 KB" in page
+    assert re.search(r"list, 400 items \([\d.]+ KB\)", page)
+
+
+def test_unknown_scope_renders_small_collections(tmp_path):
+    page = _unknown_scope(tmp_path, {"tags": ["alpha", "beta"]})
+    assert "alpha" in page and "beta" in page
+
+
+def test_known_scopes_keep_their_own_rendering(tmp_path):
+    # the fallback is the else of the branch chain: a scope with a branch
+    # must not also collect generic rows
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("T1", "tool", 1_100_000, 1_600_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"command": "ls -la", "workdir": "/tmp"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
+    assert "ls -la" in page
+    assert 'class="gen-key"' not in page
+
+
+def test_unknown_mark_shows_its_payload(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        mark_line("hermes.session.end", 1_500_000, session="s1", turn="t1",
+                  data={"completed": True, "interrupted": False,
+                        "platform": "webui"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
+    assert '<span class="gen-key">completed</span>' in page
+    assert "True" in page

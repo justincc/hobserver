@@ -39,6 +39,30 @@ unreadable without it:
 
 Payloads are opaque and read defensively even where the log has been uniform.
 
+## Unrecognised scopes
+
+Everything below is a branch written against a hermes tool this app knows. A
+scope with no branch — another hermes user's tools, or one added since —
+falls back to rendering its start payload directly, so it shows what the call
+was for rather than a bare name and duration. Marks with no branch do the same.
+
+The rules (`generic_payload_fields` in `plugins/prompts/atof_reader.py`):
+
+- Keys come in payload order, which is the tool's own argument order.
+- The first three scalars ride the summary line; every key gets a detail row.
+- A value over 2 KB is named and measured — `conversation_history: list, 412
+  items (7.3 MB)` — never printed. The log holds a 7 MB conversation history
+  and a 153 KB tool result, and a live turn page refetches itself every 2 s.
+- Correlation plumbing is skipped (`session_id`, `turn_id`, `tool_call_id`,
+  `telemetry_schema_version`, …): it is already on the row or of no interest.
+- So is anything whose key looks like a credential (`headers`,
+  `authorization`, `token`, `api_key`, …). No such value appears in the log
+  today — hermes' llm spans carry an empty `headers` dict — but a generic
+  renderer must never be what puts a bearer token on a screen.
+
+A scope with its own branch never collects these rows: the fallback is the
+`else` of the branch chain, so curated rendering always wins.
+
 ## Scopes
 
 ### terminal — `command` / `workdir`
