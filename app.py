@@ -42,7 +42,7 @@ def default_db_path():
 
 def default_atof_path():
     """Where the nemo_relay ATOF exporter writes by default. A path is always
-    returned: if it does not exist the timing tab says so loudly, naming the
+    returned: if it does not exist the Prompts tab says so loudly, naming the
     path it looked at, which beats the vaguer unconfigured state."""
     return os.path.join(hermes_config_dir(), "nemo-relay", "atof",
                         "hermes-atof.jsonl")

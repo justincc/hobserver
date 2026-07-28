@@ -178,7 +178,7 @@ def prior_memory_text(memory_id, before_epoch):
 def _register_lookup(state):
     """Publish the prior-text lookup on the app, per ADR 4.
 
-    The timing tab needs a memory's previous text but must not open the
+    The Prompts tab needs a memory's previous text but must not open the
     event log itself; it calls this through `app.extensions` and does
     without when the memory plugin is not registered. The db stays behind
     the plugin that owns it.
@@ -219,7 +219,7 @@ def event_rows_fragment():
 def search_event():
     """Redirect to the logged event for one mem0_search call.
 
-    The timing tab's mem0_search spans and this tab's events are two
+    The Prompts tab's mem0_search spans and this tab's events are two
     independent records of the same call, with no shared key: ATOF carries
     no event id and the db carries no span uuid. They are matched instead on
     (session_id, query), which resolved to exactly one event for all 104
@@ -230,7 +230,7 @@ def search_event():
     second after the span starts, well inside any plausible gap between two
     such searches.
 
-    Owned by this plugin because it owns the db — the timing tab links here
+    Owned by this plugin because it owns the db — the Prompts tab links here
     by URL and never opens the event log itself, and this stays a redirect
     rather than a lookup at turn-render time so a page full of spans polling
     every 2 s costs no queries.

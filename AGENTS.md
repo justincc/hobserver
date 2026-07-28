@@ -24,7 +24,7 @@ in `app.extensions`, but never opens another's data source).
   which exists, and sqlite reads the file header at connect, so every
   request died with a bare `disk I/O error` (EISDIR) that reads like failing
   hardware rather than a wrong path. The ATOF log stays exists-only: it is
-  allowed to be missing and the timing tab says so itself.
+  allowed to be missing and the Prompts tab says so itself.
   `request_log.py` keeps the console usable despite the 2-3 s live polls:
   a `logging.Filter` (`SuppressSuccessFilter`) on the werkzeug access logger
   (dev server only) drops every successful (2xx/3xx) response on every path,
@@ -253,7 +253,7 @@ in `app.extensions`, but never opens another's data source).
   104 mem0_search spans in the log, with an optional `ts` (the span start, in
   epoch µs) breaking the only tie possible, the same query twice in a
   session. It is a redirect owned by the memory plugin, not a lookup at
-  render time: the timing tab never opens the event log, and a turn page
+  render time: the Prompts tab never opens the event log, and a turn page
   polling every 2 s costs no queries. Unmatched 404s saying so — the two logs
   are written independently, so either can cover a call the other misses. The
   `platform` kwarg is `webui` today but hermes has other frontends, e.g.

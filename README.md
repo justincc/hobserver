@@ -5,7 +5,7 @@ jmem0-logged-browser). Views are plugins, shown as horizontal tabs:
 
 - **Memory** — browses `jmem0_logged.db`, the SQLite event log produced by
   the hermes-agent mem0 logging wrapper.
-- **Prompt timing** — per-turn latency waterfalls from the NeMo Relay ATOF
+- **Prompts** — per-turn latency waterfalls from the NeMo Relay ATOF
   JSONL stream exported by the hermes-agent `observability/nemo_relay`
   plugin: where each turn's time went (llm vs tool vs overhead), with a
   span timeline per turn. See `docs/adr/` for the design.
@@ -47,7 +47,7 @@ The prompt-timing source is resolved as:
 2. `$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl`
 
 pointing at the events JSONL file written by the nemo_relay plugin's ATOF
-exporter. If that file does not exist, the Prompt timing tab says so and
+exporter. If that file does not exist, the Prompts tab says so and
 names the path it tried, rather than showing an empty page.
 
 On startup the app prints what it resolved — `HERMES_HOME`, the config
@@ -62,7 +62,7 @@ from an `events` table when opened read-only. Existence alone was not
 enough — a stray argument (`app.py .`, the current directory) passed an
 exists check and then failed per request with a bare sqlite `disk I/O
 error`, which reads like a failing disk rather than a wrong path. The ATOF
-log is not checked this way: it is allowed to be absent, and the timing tab
+log is not checked this way: it is allowed to be absent, and the Prompts tab
 reports that itself.
 
 ### Console noise and observer status
@@ -126,7 +126,7 @@ pointing this tool at its output (consuming) — is in
   prefixed with its event id, oldest first.
 - `/memory/search-event?session=<id>&query=<q>[&ts=<µs>]` — redirects to the
   `/memory/event/<id>` page for one `mem0_search` call. This is how a
-  mem0_search span in the timing tab hands off to the memory tab: the two
+  mem0_search span in the Prompts tab hands off to the memory tab: the two
   logs record the same call but share no key (ATOF has no event id, the
   event log has no span uuid), so the pair is matched on session and query,
   with the optional `ts` (the span's start, epoch microseconds) breaking the
@@ -291,7 +291,7 @@ uv run pytest
   Plugins reach each other only by link or by an accessor the owner
   publishes on `app.extensions` — never by opening another's data source
   (ADR 4): the memory plugin publishes `memory_prior_text` and serves the
-  `/memory/search-event` redirect, and the timing tab uses both while
+  `/memory/search-event` redirect, and the timing plugin uses both while
   holding no database handle of its own. The
   timing plugin is a package holding the full ATOF reader (ADR 2):
   `plugins/timing/tailer.py` (byte-offset incremental file read; records

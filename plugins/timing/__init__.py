@@ -1,4 +1,5 @@
-"""Prompt-timing view — per-turn waterfalls from the NeMo Relay ATOF stream.
+"""The Prompts view (blueprint `timing`) — per-turn waterfalls from the
+NeMo Relay ATOF stream.
 
 Reader per docs/adr/0002: tailer (byte-offset incremental read) → parser
 (JSONL line → typed event) → assembler (events → sessions → turns →
@@ -21,7 +22,7 @@ from plugins.timing.assembler import assemble
 from plugins.timing.tailer import AtofTailer
 
 bp = Blueprint("timing", __name__)
-TAB_LABEL = "Prompt timing"
+TAB_LABEL = "Prompts"
 
 # An in-flight turn silent this long is probably a lost end mark, not a
 # running prompt: still listed in the strip, but never auto-followed.

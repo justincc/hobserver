@@ -197,13 +197,13 @@ def test_gap_text_reads_in_the_right_unit():
 
 
 def test_prior_text_lookup_is_published_for_other_plugins(memory_change_db):
-    # ADR 4: the timing tab calls this rather than opening the event log
+    # ADR 4: the Prompts tab calls this rather than opening the event log
     app = create_app(memory_change_db)
     assert app.extensions["memory_prior_text"] is memory.prior_memory_text
 
 
 def test_search_event_redirects_to_the_matching_event(client):
-    # the timing tab's mem0_search spans carry no event id, so they are
+    # the Prompts tab's mem0_search spans carry no event id, so they are
     # matched back to the log on (session_id, query) — event 4 in the fixture
     resp = client.get("/memory/search-event?session=sessionabc"
                       "&query=tool+search+terms")

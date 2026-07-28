@@ -12,7 +12,7 @@ def test_root_redirects_to_memory_tab(client):
 def test_tab_bar_lists_all_plugins(client):
     page = client.get("/memory/").get_data(as_text=True)
     assert "Memory" in page
-    assert "Prompt timing" in page
+    assert "Prompts" in page
     assert "/timing/" in page
 
 

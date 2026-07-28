@@ -843,7 +843,7 @@ def test_turn_detail_without_a_matching_memory_shows_no_previous_text(tmp_path):
 
 
 def test_turn_detail_renders_without_the_memory_plugin_lookup(tmp_path):
-    # ADR 4: the timing tab does without when the lookup is not published,
+    # ADR 4: the Prompts tab does without when the lookup is not published,
     # rather than reaching into the event log itself
     db_path = tmp_path / "changes.db"
     make_memory_change_db(db_path)
