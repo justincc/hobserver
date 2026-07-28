@@ -1,8 +1,8 @@
 # Span rendering on the turn page
 
-What a span shows, scope by scope. The turn page (`templates/timing/turn.html`)
+What a span shows, scope by scope. The turn page (`templates/prompts/turn.html`)
 lists one row per span or mark; the readers behind it are `Span` properties in
-`plugins/timing/assembler.py`.
+`plugins/prompts/assembler.py`.
 
 ## The two layouts
 
@@ -150,7 +150,7 @@ the row is enough to reach it.
 An update and a delete both show what the memory said *before* the change,
 recovered from the local event log by `memory.prior_memory_text` (ADR 4 covers
 why it is an `app.extensions` accessor rather than a link; `prior_memory` in
-the timing turn view holds the per-span map). It renders through the same
+the prompts turn view holds the per-span map). It renders through the same
 `diff_rows` macro the patch scopes use — an update gets − old / + new, a
 delete only the − side — under a muted `.prov` row naming the source.
 
@@ -249,7 +249,7 @@ Plus, on skill_manage:
   replace text; they never carry a V4A patch text the way the file tools' patch
   scope does in patch mode. The pair matches that scope's *replace* mode
   instead, and both render through the one `diff_rows` macro in
-  `templates/timing/turn.html`.
+  `templates/prompts/turn.html`.
 
 The two sides render on their own detail-mode-only rows (`.list-item`), marked
 − and + — glyph first, tint second, never color alone. `new_string` may be the
@@ -306,12 +306,12 @@ A last row links to the whole ranked list in the Mem0 tab
 two plugins meet, and they share no key — ATOF carries no event id, the db
 carries no span uuid.
 
-`memory.search_event` therefore matches on (session_id, query), which resolved
+`mem0.search_event` therefore matches on (session_id, query), which resolved
 to exactly one event for all 104 mem0_search spans in the log. An optional `ts`
 (the span start, in epoch µs) breaks the only tie possible: the same query
 twice in one session.
 
-It is a redirect owned by the memory plugin, not a lookup at render time — the
+It is a redirect owned by the mem0 plugin, not a lookup at render time — the
 Prompts tab never opens the event log, and a turn page polling every 2 s costs
 no queries. Unmatched requests 404 saying so: the two logs are written
 independently, so either can cover a call the other misses.

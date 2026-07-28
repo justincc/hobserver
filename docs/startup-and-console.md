@@ -28,7 +28,7 @@ the banner prints — the shell knows none of the above.
 
 ## Checking the db before serving
 
-`plugins.memory.check_db` gates the memory db from its `sources` hook: it must
+`plugins.mem0.check_db` gates the memory db from its `sources` hook: it must
 exist, be a regular file, and yield a row from `events` over a read-only
 connection. Since the source is marked required, a failure takes **that tab**
 out of service — marked in the bar, serving a page that names the problem —

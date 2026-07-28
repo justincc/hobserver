@@ -1,6 +1,6 @@
 """Dev-server request visibility: quiet console, tally on demand.
 
-The live-poll pages refetch every 2-3 s (timing index 3 s, a live turn 2 s,
+The live-poll pages refetch every 2-3 s (prompts index 3 s, a live turn 2 s,
 the memory fragment 3 s), which buries the console in identical lines. So
 successful (2xx/3xx) responses are not logged at all, and the running tally
 of every request — successes included — moves to /_status.
@@ -24,7 +24,7 @@ import time
 
 STATUS_PATH = "/_status"
 # The status page refreshes itself, so watching it does not mean watching a
-# frozen number. Same cadence as the timing index.
+# frozen number. Same cadence as the prompts index.
 REFRESH_SECONDS = 3
 
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")

@@ -3,9 +3,9 @@
 {% block title %}event {{ event['id'] }} — hermes observer{% endblock %}
 {% block content %}
 {{ item_nav(
-     url_for('memory.index'), 'all events',
-     prev_url=url_for('memory.event', event_id=prev_id) if prev_id else None,
-     next_url=url_for('memory.event', event_id=next_id) if next_id else None,
+     url_for('mem0.index'), 'all events',
+     prev_url=url_for('mem0.event', event_id=prev_id) if prev_id else None,
+     next_url=url_for('mem0.event', event_id=next_id) if next_id else None,
      prev_title='previous (older) event' if prev_id else 'no older event',
      next_title='next (newer) event' if next_id else 'no newer event') }}
 
@@ -23,12 +23,12 @@
 
 {% if prior %}
 {# What the memory said before this change. Reconstructed from the local
-   event log, never fetched from mem0 — see plugins.memory.prior_memory_text
+   event log, never fetched from mem0 — see plugins.mem0.prior_memory_text
    for why mem0 cannot answer this — so the heading names its source. #}
 <h2>Previous text
   <span class="provenance"
         title="Not retrieved from mem0: this is the memory as it appeared in mem0_search event #{{ prior.event_id }}, {{ prior.gap_text }} before this change, which is the most recent copy in the local event log. mem0 is never queried — once a memory is deleted it cannot return it at all, and the pre-update text is not exposed either. A change made outside hermes in between would therefore not be reflected here.">from
-    the local log · <a href="{{ url_for('memory.event', event_id=prior.event_id) }}">search #{{ prior.event_id }}</a>,
+    the local log · <a href="{{ url_for('mem0.event', event_id=prior.event_id) }}">search #{{ prior.event_id }}</a>,
     {{ prior.gap_text }} earlier</span>
 </h2>
 <pre class="blob">{{ prior.text }}</pre>

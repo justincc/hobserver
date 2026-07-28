@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}prompts — hermes observer{% endblock %}
 {% block content %}
-{% include "timing/_follow.html" %}
+{% include "prompts/_follow.html" %}
 <div data-live-poll="3000">
 {% if state == "missing" %}
 <p class="notice warn">
@@ -17,8 +17,8 @@
   variable.
 </p>
 {% else %}
-{% include "timing/_problems.html" %}
-{% include "timing/_inflight.html" %}
+{% include "prompts/_problems.html" %}
+{% include "prompts/_inflight.html" %}
 {% if not turns %}
 <p class="notice warn">
   Reading <code>{{ atof_path }}</code> — no turns yet.
@@ -42,7 +42,7 @@
   <tbody>
     {% for t in turns %}
     <tr>
-      <td><a href="{{ url_for('timing.turn', session_id=t.session_id, start_us=t.start_us) }}">{{ t.start_us | us_time }}</a></td>
+      <td><a href="{{ url_for('prompts.turn', session_id=t.session_id, start_us=t.start_us) }}">{{ t.start_us | us_time }}</a></td>
       <td>{{ t.session_id | truncate(24) }}</td>
       <td>{{ t.turn_id or '—' }}</td>
       <td class="prompt-cell">{{ (t.user_message | truncate(100)) if t.user_message else '—' }}</td>

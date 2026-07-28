@@ -60,7 +60,7 @@ def test_a_plugin_from_outside_the_tree_loads_and_serves(tmp_path, memory_db):
     name = write_plugin(tmp_path, "outside_tab", label="Outside")
     client = make_app(entries=[
         {"module": name},
-        {"module": "plugins.memory", "settings": {"db": memory_db}},
+        {"module": "plugins.mem0", "settings": {"db": memory_db}},
     ]).test_client()
     assert client.get("/outside_tab/").get_data(as_text=True) == \
         "hello from outside_tab"
@@ -79,7 +79,7 @@ def test_settings_reach_the_plugin_untouched(tmp_path):
 def test_settings_expand_user_and_env(tmp_path, monkeypatch):
     monkeypatch.setenv("SOME_DIR", "/srv/data")
     specs = tabs_module.parse_config({"tabs": [
-        {"module": "plugins.timing", "settings": {"atof_log": "$SOME_DIR/a.jsonl"}}]})
+        {"module": "plugins.prompts", "settings": {"atof_log": "$SOME_DIR/a.jsonl"}}]})
     assert specs[0].settings["atof_log"] == "/srv/data/a.jsonl"
 
 
@@ -90,8 +90,8 @@ def test_disabled_tab_is_not_loaded(tmp_path):
 
 def test_config_order_is_tab_order(memory_db):
     app = make_app(entries=[
-        {"module": "plugins.memory", "settings": {"db": memory_db}},
-        {"module": "plugins.timing", "settings": {"atof_log": "/nope.jsonl"}},
+        {"module": "plugins.mem0", "settings": {"db": memory_db}},
+        {"module": "plugins.prompts", "settings": {"atof_log": "/nope.jsonl"}},
     ])
     page = app.test_client().get("/memory/mem0/").get_data(as_text=True)
     assert page.index("Mem0") < page.index("Prompts")
@@ -104,7 +104,7 @@ def test_a_broken_plugin_does_not_stop_the_others(tmp_path, memory_db):
                  body="raise RuntimeError('boom')\n")
     app = make_app(entries=[
         {"module": "exploding_tab"},
-        {"module": "plugins.memory", "settings": {"db": memory_db}},
+        {"module": "plugins.mem0", "settings": {"db": memory_db}},
     ])
     client = app.test_client()
     assert client.get("/memory/mem0/").status_code == 200
@@ -156,8 +156,8 @@ def test_an_optional_source_problem_leaves_the_tab_serving(tmp_path):
 def test_the_mem0_tab_survives_an_unusable_database(tmp_path):
     # was a process exit before ADR 5; now one tab's problem, not the app's
     app = make_app(entries=[
-        {"module": "plugins.timing", "settings": {"atof_log": "/nope.jsonl"}},
-        {"module": "plugins.memory", "settings": {"db": str(tmp_path)}},
+        {"module": "plugins.prompts", "settings": {"atof_log": "/nope.jsonl"}},
+        {"module": "plugins.mem0", "settings": {"db": str(tmp_path)}},
     ])
     client = app.test_client()
     assert client.get("/prompts/").status_code == 200
@@ -205,24 +205,24 @@ def test_config_errors_name_the_entry(tmp_path):
 def test_a_missing_config_file_falls_back_to_the_built_in_tabs(tmp_path):
     specs, origin = tabs_module.read_config(str(tmp_path / "absent.toml"))
     assert origin == "built-in defaults"
-    assert [s.module for s in specs] == ["plugins.timing", "plugins.memory"]
+    assert [s.module for s in specs] == ["plugins.prompts", "plugins.mem0"]
 
 
 def test_a_config_file_is_read_in_order(tmp_path):
     path = tmp_path / "observer.toml"
     path.write_text(textwrap.dedent("""
         [[tabs]]
-        module = "plugins.memory"
+        module = "plugins.mem0"
         settings = { db = "/tmp/x.db" }
 
         [[tabs]]
-        module = "plugins.timing"
+        module = "plugins.prompts"
         enabled = false
     """))
     specs, origin = tabs_module.read_config(str(path))
     assert origin == str(path)
     assert [(s.module, s.enabled) for s in specs] == [
-        ("plugins.memory", True), ("plugins.timing", False)]
+        ("plugins.mem0", True), ("plugins.prompts", False)]
     assert specs[0].settings == {"db": "/tmp/x.db"}
 
 

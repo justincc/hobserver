@@ -4,7 +4,7 @@
 
 Pages self-update via the poll-and-swap script in `templates/base.html`: any
 element with `data-live-poll="<ms>"` is refetched from the current URL on that
-interval and swapped in place. "0" means static; the timing index uses 3 s, an
+interval and swapped in place. "0" means static; the prompts index uses 3 s, an
 in-flight turn 2 s, and a finished turn page polls slowly while follow mode is
 on. Polling pauses while the browser tab is hidden.
 
@@ -13,8 +13,8 @@ what the exporter appended since the last request.
 
 ## The in-flight strip
 
-Both timing pages show an in-flight strip
-(`templates/timing/_inflight.html`) listing every running turn, newest first,
+Both Prompts pages show an in-flight strip
+(`templates/prompts/_inflight.html`) listing every running turn, newest first,
 with a short prompt snippet, elapsed time and span count, each linking to its
 waterfall. The turn being viewed is marked.
 
@@ -64,7 +64,7 @@ On the index the toggle stands alone above the live region.
 ## Item navigation
 
 The nav row is the `item_nav` macro in `templates/_item_nav.html`, shared by
-every plugin's detail page (timing turn, memory event) so item-by-item
+every plugin's detail page (prompts turn, mem0 event) so item-by-item
 navigation is identical everywhere: "← all X" first, then muted « prev /
 next » steppers grouped beside it, prev always meaning older.
 

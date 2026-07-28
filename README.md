@@ -43,10 +43,10 @@ and must never be exposed on `0.0.0.0`.
 
 ```toml
 [[tabs]]
-module = "plugins.timing"
+module = "plugins.prompts"
 
 [[tabs]]
-module = "plugins.memory"
+module = "plugins.mem0"
 enabled = false            # one line to turn a tab off
 ```
 
@@ -241,16 +241,16 @@ uv run pytest
   contract, [docs/plugins-and-urls.md](docs/plugins-and-urls.md) for how
   plugins reach each other (by link or published accessor, never by opening
   another's data source — ADR 4).
-- `plugins/timing/` — a package holding the full ATOF reader (ADR 2):
+- `plugins/prompts/` — a package holding the full ATOF reader (ADR 2):
   `tailer.py` (incremental read), `atof_reader.py` (JSONL line → typed event,
   fail-soft) and `assembler.py` (events → sessions → turns → waterfall, with
   overhead as the residual of turn duration minus llm and tool time). See
   [docs/atof-reader.md](docs/atof-reader.md).
 - `templates/` — `base.html` (shared chrome + tab bar), `_item_nav.html` (the
   `item_nav` macro every detail page uses), plus one subdirectory per plugin
-  (`memory/`, `timing/`)
+  (`mem0/`, `prompts/`)
 - `tests/` — `conftest.py` (shared fixtures), `test_app.py` (shell),
-  `test_memory.py`, `test_timing.py`, `test_atof_reader.py`,
+  `test_mem0.py`, `test_prompts.py`, `test_tabs.py`, `test_atof_reader.py`,
   `test_assembler.py`, `test_tailer.py`
 - `docs/` — [writing-a-plugin.md](docs/writing-a-plugin.md),
   [plugins-and-urls.md](docs/plugins-and-urls.md),

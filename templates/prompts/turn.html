@@ -42,15 +42,15 @@
    automatic. Inside the live region, so base.html re-resolves it after each
    swap. #}
 {% call item_nav(
-     url_for('timing.index'), 'all turns',
-     prev_url=url_for('timing.turn', session_id=older.session_id, start_us=older.start_us) if older else None,
-     next_url=url_for('timing.turn', session_id=newer.session_id, start_us=newer.start_us) if newer else None,
+     url_for('prompts.index'), 'all turns',
+     prev_url=url_for('prompts.turn', session_id=older.session_id, start_us=older.start_us) if older else None,
+     next_url=url_for('prompts.turn', session_id=newer.session_id, start_us=newer.start_us) if newer else None,
      prev_title=("previous (older) turn" + (" — " + older.user_message | truncate(120) if older.user_message else "")) if older else "no older turn",
      next_title=("next (newer) turn" + (" — " + newer.user_message | truncate(120) if newer.user_message else "")) if newer else "no newer turn") %}
-  {% include "timing/_follow.html" %}
+  {% include "prompts/_follow.html" %}
 {%- endcall %}
 
-{% include "timing/_inflight.html" %}
+{% include "prompts/_inflight.html" %}
 
 <h2>Turn {{ turn.turn_id or '(no id)' }}{% if turn.turn_id %}{{ copy_btn(turn.turn_id, "copy turn id") }}{% endif %} · session {{ turn.session_id }}</h2>
 <p class="meta">started {{ turn.start_us | us_time }} UTC
@@ -197,7 +197,7 @@
         {% endfor %}
         {% if s.mem0_results %}
         <div class="span-detail list-item">
-          <a href="{{ url_for('memory.search_event', session=s.session_id, query=s.search_query, ts=s.start_us) }}"
+          <a href="{{ url_for('mem0.search_event', session=s.session_id, query=s.search_query, ts=s.start_us) }}"
              title="Open this search in the Mem0 tab: all {{ s.mem0_result_count }} results, the context messages mem0 retrieved against, and the raw payload.">{% if s.mem0_result_count and s.mem0_result_count > shown | length %}all {{ s.mem0_result_count }} results{% else %}full result{% endif %} in Mem0 &rarr;</a>
         </div>
         {% endif %}
@@ -252,7 +252,7 @@
            payload is only an id, so without this the row says nothing about
            what was lost; an update shows the replacement but not what it
            replaced. Reconstructed from the local event log, never from mem0
-           (which cannot answer it — see plugins.memory.prior_memory_text),
+           (which cannot answer it — see plugins.mem0.prior_memory_text),
            so the provenance row names its source and the tooltip spells it
            out. The − / + pair is the same diff macro the patch scopes use;
            on a delete there is no + side. `was` is bound above, where the
@@ -261,7 +261,7 @@
         {{ diff_rows(was.text, s.memory_content) }}
         <div class="span-detail list-item prov">
           <span title="Not retrieved from mem0: this is the memory as it appeared in mem0_search event #{{ was.event_id }}, {{ was.gap_text }} before this change, which is the most recent copy in the local event log. mem0 is never queried — once a memory is deleted it cannot return it at all, and the pre-update text is not exposed either. A change made outside hermes in between would therefore not be reflected here.">previous text from the local log ·
-            <a href="{{ url_for('memory.event', event_id=was.event_id) }}">search #{{ was.event_id }}</a>, {{ was.gap_text }} earlier</span>
+            <a href="{{ url_for('mem0.event', event_id=was.event_id) }}">search #{{ was.event_id }}</a>, {{ was.gap_text }} earlier</span>
         </div>
         {% endif %}
         {% elif s.memory_action %}

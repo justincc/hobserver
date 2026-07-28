@@ -3,7 +3,7 @@
 import app as app_module
 import hermes_paths
 import tabs as tabs_module
-from plugins import memory, timing
+from plugins import mem0, prompts
 
 
 def load(entries):
@@ -27,8 +27,8 @@ def test_tab_bar_lists_all_plugins_in_order(client):
 def test_tab_bar_marks_active_tab(client):
     memory_page = client.get("/memory/mem0/").get_data(as_text=True)
     assert '/memory/mem0/" class="active"' in memory_page
-    timing_page = client.get("/prompts/").get_data(as_text=True)
-    assert '/prompts/" class="active"' in timing_page
+    prompts_page = client.get("/prompts/").get_data(as_text=True)
+    assert '/prompts/" class="active"' in prompts_page
 
 
 def test_a_plugin_is_served_under_its_own_url_prefix(client):
@@ -51,8 +51,8 @@ def test_sources_derive_from_hermes_home(monkeypatch):
     monkeypatch.delenv("JMEM0_DB", raising=False)
     monkeypatch.delenv("ATOF_LOG", raising=False)
     assert hermes_paths.hermes_config_dir() == "/srv/hermes/config"
-    assert memory.db_path({})[0] == "/srv/hermes/config/jmem0_logged.db"
-    assert timing.atof_path({})[0] == \
+    assert mem0.db_path({})[0] == "/srv/hermes/config/jmem0_logged.db"
+    assert prompts.atof_path({})[0] == \
         "/srv/hermes/config/nemo-relay/atof/hermes-atof.jsonl"
 
 
@@ -66,7 +66,7 @@ def test_sources_fall_back_without_hermes_home(monkeypatch):
     monkeypatch.delenv("HERMES_HOME", raising=False)
     monkeypatch.delenv("JMEM0_DB", raising=False)
     assert hermes_paths.hermes_config_dir() == hermes_paths.FALLBACK_CONFIG_DIR
-    assert memory.db_path({})[0].endswith("/config/jmem0_logged.db")
+    assert mem0.db_path({})[0].endswith("/config/jmem0_logged.db")
 
 
 def test_env_vars_override_the_defaults(monkeypatch):
@@ -74,23 +74,23 @@ def test_env_vars_override_the_defaults(monkeypatch):
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
     monkeypatch.setenv("JMEM0_DB", "/tmp/other.db")
     monkeypatch.setenv("ATOF_LOG", "/tmp/other.jsonl")
-    assert memory.db_path({}) == ("/tmp/other.db", "JMEM0_DB")
-    assert timing.atof_path({}) == ("/tmp/other.jsonl", "ATOF_LOG")
+    assert mem0.db_path({}) == ("/tmp/other.db", "JMEM0_DB")
+    assert prompts.atof_path({}) == ("/tmp/other.jsonl", "ATOF_LOG")
 
 
 def test_settings_win_over_the_environment(monkeypatch):
     monkeypatch.setenv("JMEM0_DB", "/tmp/env.db")
     monkeypatch.setenv("ATOF_LOG", "/tmp/env.jsonl")
-    assert memory.db_path({"db": "/tmp/set.db"}) == ("/tmp/set.db", "settings")
-    assert timing.atof_path({"atof_log": "/tmp/set.jsonl"}) == \
+    assert mem0.db_path({"db": "/tmp/set.db"}) == ("/tmp/set.db", "settings")
+    assert prompts.atof_path({"atof_log": "/tmp/set.jsonl"}) == \
         ("/tmp/set.jsonl", "settings")
 
 
 def test_banner_reports_each_tabs_sources(memory_db, tmp_path, monkeypatch):
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
     tabs = load([
-        {"module": "plugins.timing", "settings": {"atof_log": "/nope/absent.jsonl"}},
-        {"module": "plugins.memory", "settings": {"db": memory_db}},
+        {"module": "plugins.prompts", "settings": {"atof_log": "/nope/absent.jsonl"}},
+        {"module": "plugins.mem0", "settings": {"db": memory_db}},
     ])
     banner = app_module.startup_banner(tabs, 5090, "observer.toml")
     assert f"{memory_db}  [ok]" in banner
@@ -106,7 +106,7 @@ def test_banner_reports_an_unusable_database(monkeypatch):
     was the stray `app.py .` failure, which only showed up as a 500. It no
     longer exits the app, so the banner is where it has to be obvious."""
     monkeypatch.delenv("HERMES_HOME", raising=False)
-    tabs = load([{"module": "plugins.memory", "settings": {"db": "."}}])
+    tabs = load([{"module": "plugins.mem0", "settings": {"db": "."}}])
     banner = app_module.startup_banner(tabs, 5090, "observer.toml")
     assert "UNAVAILABLE (event db: not a regular file)" in banner
     assert ".  [UNUSABLE (not a regular file)]" in banner

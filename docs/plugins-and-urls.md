@@ -38,11 +38,11 @@ re-addressing the tabs cheap.
 
 ```toml
 [[tabs]]
-module = "plugins.timing"
+module = "plugins.prompts"
 settings = { atof_log = "$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl" }
 
 [[tabs]]
-module = "plugins.memory"
+module = "plugins.mem0"
 enabled = false
 ```
 
@@ -74,8 +74,8 @@ Only an empty tab bar — nothing loaded at all — exits.
 
 | tab | blueprint | URL | source |
 | --- | --- | --- | --- |
-| Prompts | `timing` | `/prompts/` | NeMo Relay ATOF JSONL |
-| Mem0 | `memory` | `/memory/mem0/` | `jmem0_logged.db` |
+| Prompts | `prompts` | `/prompts/` | NeMo Relay ATOF JSONL |
+| Mem0 | `mem0` | `/memory/mem0/` | `jmem0_logged.db` |
 
 Prompts leads because a turn is the unit of activity — memory calls included —
 where the mem0 log covers one tool.
@@ -101,9 +101,9 @@ earlier prefixes; both simply 404 now.)
 Per ADR 4, a plugin may link to another's page, or call an accessor the other
 publishes in `app.extensions`. It never opens another plugin's data source.
 
-Both directions are in use today, memory → timing:
+Both directions are in use today, mem0 → prompts:
 
-- `memory_prior_text` (the accessor) — what a memory said before a change.
+- `mem0_prior_text` (the accessor) — what a memory said before a change.
 - `/memory/mem0/search-event` (the link) — a mem0_search span to its logged
   event.
 

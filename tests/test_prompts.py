@@ -846,7 +846,7 @@ def test_turn_detail_renders_without_the_memory_plugin_lookup(tmp_path):
         {"memory_id": "aaa11111", "text": "the new fact"}))
     app = make_app(db=str(db_path), atof=str(atof))
     app.config["TESTING"] = True
-    app.extensions.pop("memory_prior_text")
+    app.extensions.pop("mem0_prior_text")
     page = app.test_client().get(
         "/prompts/turn/s9/2020000000").get_data(as_text=True)
     assert page.count("mem0_update") >= 1     # the span still renders

@@ -3,7 +3,7 @@
 import sqlite3
 
 from conftest import make_app
-from plugins import memory
+from plugins import mem0
 
 
 def test_index_lists_all_events(client):
@@ -65,7 +65,7 @@ def test_event_detail_prev_next_links(client):
 
 
 def test_event_detail_nav_uses_shared_item_nav_layout(client):
-    # Same shape as the timing turn page: back-to-list and the muted steppers
+    # Same shape as the prompts turn page: back-to-list and the muted steppers
     # grouped together on one row (see templates/_item_nav.html).
     page = client.get("/memory/mem0/event/2").get_data(as_text=True)
     nav = page[page.index('<nav class="event-nav">'):]
@@ -168,7 +168,7 @@ def test_previous_text_ignores_searches_after_the_change(memory_change_db):
     # must still show what it replaced, not what it produced
     app = make_app(db=memory_change_db)
     with app.test_request_context():
-        prior = memory.prior_memory_text("aaa11111", 2030.0)
+        prior = mem0.prior_memory_text("aaa11111", 2030.0)
     assert prior["text"] == "the old fact"
     assert prior["event_id"] == 1
 
@@ -176,9 +176,9 @@ def test_previous_text_ignores_searches_after_the_change(memory_change_db):
 def test_previous_text_absent_when_no_search_surfaced_the_memory(memory_change_db):
     app = make_app(db=memory_change_db)
     with app.test_request_context():
-        assert memory.prior_memory_text("never-seen", 2030.0) is None
+        assert mem0.prior_memory_text("never-seen", 2030.0) is None
         # the only search naming it is later than the change
-        assert memory.prior_memory_text("aaa11111", 1999.0) is None
+        assert mem0.prior_memory_text("aaa11111", 1999.0) is None
 
 
 def test_events_without_a_change_get_no_previous_text(memory_change_db):
@@ -189,17 +189,17 @@ def test_events_without_a_change_get_no_previous_text(memory_change_db):
 
 
 def test_gap_text_reads_in_the_right_unit():
-    assert memory._gap_text(29.8) == "30 s"
-    assert memory._gap_text(174.1) == "3 min"
-    assert memory._gap_text(9000) == "2.5 h"
+    assert mem0._gap_text(29.8) == "30 s"
+    assert mem0._gap_text(174.1) == "3 min"
+    assert mem0._gap_text(9000) == "2.5 h"
     # a clock skew between the two logs must not print a negative gap
-    assert memory._gap_text(-5) == "0 s"
+    assert mem0._gap_text(-5) == "0 s"
 
 
 def test_prior_text_lookup_is_published_for_other_plugins(memory_change_db):
     # ADR 4: the Prompts tab calls this rather than opening the event log
     app = make_app(db=memory_change_db)
-    assert app.extensions["memory_prior_text"] is memory.prior_memory_text
+    assert app.extensions["mem0_prior_text"] is mem0.prior_memory_text
 
 
 def test_search_event_redirects_to_the_matching_event(client):
@@ -265,23 +265,23 @@ def test_search_event_breaks_a_repeated_query_tie_by_time(tmp_path):
 
 
 def test_check_db_accepts_a_real_event_log(memory_db):
-    assert memory.check_db(memory_db) is None
+    assert mem0.check_db(memory_db) is None
 
 
 def test_check_db_rejects_a_missing_path(tmp_path):
-    assert memory.check_db(str(tmp_path / "nope.db")) == "no such file"
+    assert mem0.check_db(str(tmp_path / "nope.db")) == "no such file"
 
 
 def test_check_db_rejects_a_directory(tmp_path):
     # `app.py .` — the path exists, so an existence check passed it through
     # and sqlite only failed later, per-request, with "disk I/O error".
-    assert memory.check_db(str(tmp_path)) == "not a regular file"
+    assert mem0.check_db(str(tmp_path)) == "not a regular file"
 
 
 def test_check_db_rejects_a_file_that_is_not_sqlite(tmp_path):
     plain = tmp_path / "notes.txt"
     plain.write_text("this is not a database")
-    assert "not a mem0 event log" in memory.check_db(str(plain))
+    assert "not a mem0 event log" in mem0.check_db(str(plain))
 
 
 def test_check_db_rejects_a_database_without_the_events_table(tmp_path):
@@ -289,5 +289,5 @@ def test_check_db_rejects_a_database_without_the_events_table(tmp_path):
     conn = sqlite3.connect(other)
     conn.execute("CREATE TABLE something_else (id INTEGER)")
     conn.close()
-    problem = memory.check_db(str(other))
+    problem = mem0.check_db(str(other))
     assert "not a mem0 event log" in problem and "events" in problem

@@ -1,6 +1,6 @@
 # The ATOF reader
 
-Three layers in `plugins/timing/`, per ADR 2 (direct JSONL reading, no ETL).
+Three layers in `plugins/prompts/`, per ADR 2 (direct JSONL reading, no ETL).
 Views run the tailer on each request and assemble in memory.
 
 ## tailer.py — incremental read

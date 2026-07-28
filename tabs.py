@@ -1,15 +1,15 @@
 """Reading the tab configuration and loading the plugins it names.
 
 Per ADR 5: tabs are declared in a TOML file, in tab order, and loaded by
-module path — `plugins.timing` from this tree and `hermes_observer_zep` from
+module path — `plugins.prompts` from this tree and `hermes_observer_zep` from
 site-packages arrive the same way, so a tab needs no fork to be added.
 
     [[tabs]]
-    module = "plugins.timing"
+    module = "plugins.prompts"
     settings = { atof_log = "…" }
 
     [[tabs]]
-    module = "plugins.memory"
+    module = "plugins.mem0"
     enabled = false
 
 Everything here is deliberately tolerant except one case. A tab that will not
@@ -37,7 +37,7 @@ DEFAULT_CONFIG_FILE = "observer.toml"
 
 # Used when no config file is found at all, so a fresh checkout runs with no
 # setup. Same two tabs, same order, as the shipped observer.toml.
-BUILTIN_TABS = ({"module": "plugins.timing"}, {"module": "plugins.memory"})
+BUILTIN_TABS = ({"module": "plugins.prompts"}, {"module": "plugins.mem0"})
 
 REQUIRED_ATTRS = ("bp", "TAB_LABEL", "URL_PREFIX")
 

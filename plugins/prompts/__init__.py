@@ -1,4 +1,4 @@
-"""The Prompts view (blueprint `timing`) — per-turn waterfalls from the
+"""The Prompts view (blueprint `prompts`) — per-turn waterfalls from the
 NeMo Relay ATOF stream.
 
 Reader per docs/adr/0002: tailer (byte-offset incremental read) → parser
@@ -19,11 +19,11 @@ from datetime import datetime, timezone
 from flask import Blueprint, abort, current_app, render_template
 
 import hermes_paths
-from plugins.timing.assembler import assemble
-from plugins.timing.tailer import AtofTailer
+from plugins.prompts.assembler import assemble
+from plugins.prompts.tailer import AtofTailer
 
 PLUGIN_API = 1
-bp = Blueprint("timing", __name__)
+bp = Blueprint("prompts", __name__)
 TAB_LABEL = "Prompts"
 URL_PREFIX = "prompts"
 
@@ -117,7 +117,7 @@ def _source_problem():
     """
     atof_path = current_app.config["ATOF_PATH"]
     if not os.path.exists(atof_path):
-        return render_template("timing/index.html", state="missing",
+        return render_template("prompts/index.html", state="missing",
                                atof_path=atof_path)
     return None
 
@@ -182,7 +182,7 @@ def index():
     last_us = max((s.last_us for s in assembly.sessions
                    if s.last_us is not None), default=None)
     return render_template(
-        "timing/index.html",
+        "prompts/index.html",
         state="ok",
         atof_path=current_app.config["ATOF_PATH"],
         turns=turns,
@@ -197,13 +197,13 @@ def _prior_memory_texts(turn):
     """{span uuid: prior-text record} for the turn's mem0_update/mem0_delete
     spans — what each memory said before the span changed it.
 
-    The lookup belongs to the memory plugin, which owns the event log; this
+    The lookup belongs to the mem0 plugin, which owns the event log; this
     tab reaches it through `app.extensions` and simply does without when that
     plugin is not registered (ADR 4 — link and call, never open another
     plugin's source). One indexed row per such span, and most turns have
     none, so this costs nothing on the 2 s poll.
     """
-    lookup = current_app.extensions.get("memory_prior_text")
+    lookup = current_app.extensions.get("mem0_prior_text")
     if lookup is None:
         return {}
     prior = {}
@@ -236,7 +236,7 @@ def turn(session_id, start_us):
     scale_us = max(scale_end - found.start_us, 1)
     older, newer = _neighbours(assembly, found)
     return render_template(
-        "timing/turn.html",
+        "prompts/turn.html",
         turn=found,
         current=found,
         scale_us=scale_us,

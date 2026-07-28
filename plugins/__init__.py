@@ -25,6 +25,6 @@ move; TAB_LABEL is UI copy and URL_PREFIX is the address, both free to change
 without touching a single `url_for` call. Do not collapse them back together.
 
 Every plugin is a read-only view over a data source produced by another
-process (ADR 2): timing reads the NeMo Relay ATOF JSONL, memory reads
+process (ADR 2): prompts reads the NeMo Relay ATOF JSONL, mem0 reads
 jmem0_logged.db.
 """

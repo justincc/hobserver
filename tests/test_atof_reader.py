@@ -10,7 +10,7 @@ import json
 
 import pytest
 
-from plugins.timing.atof_reader import (
+from plugins.prompts.atof_reader import (
     AtofParseError,
     normalize_timestamp,
     parse_line,

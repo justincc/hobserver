@@ -26,7 +26,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Iterable, List, Optional
 
-from plugins.timing.atof_reader import AtofEvent
+from plugins.prompts.atof_reader import AtofEvent
 
 TURN_START_MARK = "hermes.turn.start"
 TURN_END_MARK = "hermes.turn.end"

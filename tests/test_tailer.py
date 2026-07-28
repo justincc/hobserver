@@ -2,7 +2,7 @@
 
 import json
 
-from plugins.timing.tailer import AtofTailer
+from plugins.prompts.tailer import AtofTailer
 
 
 def event_line(uuid, us):

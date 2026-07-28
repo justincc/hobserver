@@ -1,4 +1,4 @@
-"""The Mem0 view (blueprint `memory`) — browses jmem0_logged.db, the mem0
+"""The Mem0 view (blueprint `mem0`) — browses jmem0_logged.db, the mem0
 event log.
 
 The database is always opened read-only, so it is safe to point at the live
@@ -8,8 +8,9 @@ The tab is named for the provider, not for "memory" in general: hermes also
 keeps its own in-prompt stores (MEMORY.md / USER.md, the `memory` tool) and
 may yet be pointed at other external providers, and those get their own tabs
 rather than being folded in here — under /memory/ alongside this one, see
-URL_PREFIX. The blueprint and package stay `memory`, so every `url_for` and
-template path is unaffected by what the tab is called or where it is served.
+URL_PREFIX. The module, the blueprint and the tab all read `mem0`; the URL
+keeps the `memory/` namespace, which is the one place the three names
+deliberately differ.
 """
 
 import json
@@ -22,7 +23,7 @@ from flask import (Blueprint, abort, current_app, g, redirect, render_template,
 import hermes_paths
 
 PLUGIN_API = 1
-bp = Blueprint("memory", __name__)
+bp = Blueprint("mem0", __name__)
 TAB_LABEL = "Mem0"
 # Namespaced under memory/ because mem0 is one memory system of several to
 # come: hermes' own in-prompt stores and any other provider get a sibling
@@ -141,9 +142,9 @@ def init_app(app, settings):
 
 
 def get_db():
-    if "memory_db" not in g:
-        g.memory_db = connect_ro(current_app.config["DB_PATH"])
-    return g.memory_db
+    if "mem0_db" not in g:
+        g.mem0_db = connect_ro(current_app.config["DB_PATH"])
+    return g.mem0_db
 
 
 def _gap_text(seconds):
@@ -228,15 +229,15 @@ def _register_lookup(state):
 
     The Prompts tab needs a memory's previous text but must not open the
     event log itself; it calls this through `app.extensions` and does
-    without when the memory plugin is not registered. The db stays behind
+    without when the mem0 plugin is not registered. The db stays behind
     the plugin that owns it.
     """
-    state.app.extensions["memory_prior_text"] = prior_memory_text
+    state.app.extensions["mem0_prior_text"] = prior_memory_text
 
 
 @bp.teardown_app_request
 def close_db(_exc):
-    db = g.pop("memory_db", None)
+    db = g.pop("mem0_db", None)
     if db is not None:
         db.close()
 
@@ -247,7 +248,7 @@ def index():
         "SELECT id, ts_utc, event_type, session_id, platform, query,"
         " memory_count, elapsed_ms FROM events ORDER BY id DESC"
     ).fetchall()
-    return render_template("memory/index.html", events=events)
+    return render_template("mem0/index.html", events=events)
 
 
 @bp.route("/fragment/events")
@@ -260,7 +261,7 @@ def event_rows_fragment():
         " ORDER BY id DESC",
         (since,),
     ).fetchall()
-    return render_template("memory/_event_rows.html", events=events)
+    return render_template("mem0/_event_rows.html", events=events)
 
 
 @bp.route("/search-event")
@@ -301,7 +302,7 @@ def search_event():
         row = min(rows, key=lambda r: abs(r["ts_epoch"] - ts / 1_000_000))
     else:
         row = rows[0]
-    return redirect(url_for("memory.event", event_id=row["id"]))
+    return redirect(url_for("mem0.event", event_id=row["id"]))
 
 
 @bp.route("/event/<int:event_id>")
@@ -338,7 +339,7 @@ def event(event_id):
         if memory_id:
             prior = prior_memory_text(memory_id, row["ts_epoch"])
     return render_template(
-        "memory/event.html",
+        "mem0/event.html",
         event=row,
         result_text=prettify_result(row["result"]),
         metadata=metadata,

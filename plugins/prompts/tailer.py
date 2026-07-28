@@ -20,7 +20,7 @@ import os
 import threading
 from typing import List
 
-from plugins.timing.atof_reader import AtofEvent, ParseError, parse_lines
+from plugins.prompts.atof_reader import AtofEvent, ParseError, parse_lines
 
 
 class AtofTailer:

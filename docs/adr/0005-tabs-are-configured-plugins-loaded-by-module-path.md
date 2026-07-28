@@ -51,6 +51,13 @@ app down with it.
 
 **Tabs are declared in a TOML config file, and loaded by module path.**
 
+*(Naming note: the in-tree modules were renamed to `plugins.prompts` and
+`plugins.mem0` right after this ADR, once the module name became something a
+reader meets in the config file. Blueprint names, template directories and
+endpoints moved with them — so `memory.index` and `timing.index` in ADRs 3 and
+4 are now `mem0.index` and `prompts.index`. The mechanism below is unchanged;
+only the example module names below are as they were written.)*
+
 ```toml
 [[tabs]]
 module = "plugins.timing"
