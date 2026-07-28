@@ -1,13 +1,20 @@
 # AGENTS.md
 
 ## General Instructions
+- Keep this generation instructions section and subsections at the top of the file, except of a short description of the project if applicable.
 - All new functionality must have an accompanying passing unit test.
 - Document and code should follow the DRY (Don't Repeat Yourself) principle when reasonable.
 - Tests should always be run after making any changes and any fails fixed.
 
 ### Documentation
 - Documentation must be kept up to date with relevant changes to the project, or when you discover significant things about the project which have not already been recorded. This includes but is not limited to build commands, architecture decisions, code conventions, debugging insights and workflow preferences.
-- Keep the documentation organized and concise. A new file in docs/ can be split off and referenced from here when necessary.
+- Keep the documentation organized and concise. 
+- For this file, when a subject outgrows its bullet, split it into docs/<topic>.md and
+  leave a single line here naming the file and what it covers. Prefer this
+  to writing more compactly.
+- Documentation is read by humans as well as agents. A passage that is
+  accurate but unscannable is not sufficient: if a person cannot find one fact in
+  it without reading the whole thing, it needs breaking up.
 
 ## Project
 hermes-observer (formerly jmem0-logged-browser): Flask webapp for observing
