@@ -1,7 +1,15 @@
-"""Memory view — browses jmem0_logged.db, the mem0 event log.
+"""The Mem0 view (blueprint `memory`) — browses jmem0_logged.db, the mem0
+event log.
 
 Moved verbatim from the pre-plugin app.py; the database is always opened
 read-only so it is safe to point at the live log while hermes is writing.
+
+The tab is named for the provider, not for "memory" in general: hermes also
+keeps its own in-prompt stores (MEMORY.md / USER.md, the `memory` tool) and
+may yet be pointed at other external providers, and those get their own tabs
+rather than being folded in here. The blueprint, URL prefix and package stay
+`memory` — renaming them would break the /memory/ URLs this plugin already
+redirects the pre-plugin ones to.
 """
 
 import json
@@ -12,7 +20,7 @@ from flask import (Blueprint, abort, current_app, g, redirect, render_template,
                    request, url_for)
 
 bp = Blueprint("memory", __name__)
-TAB_LABEL = "Memory"
+TAB_LABEL = "Mem0"
 
 # Columns shown as metadata on the detail page; everything except the
 # query/result pair, which get their own sections.

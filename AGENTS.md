@@ -2,8 +2,18 @@
 
 ## Project
 hermes-observer (formerly jmem0-logged-browser): Flask webapp for observing
-hermes-agent activity. Views are plugins rendered as horizontal tabs: memory (`jmem0_logged.db`, the mem0 event log) and prompt
-timing (per-turn waterfalls from the NeMo Relay ATOF JSONL). See README.md
+hermes-agent activity. Views are plugins rendered as horizontal tabs, in
+`plugins.PLUGINS` order with the first one serving `/`: Prompts (blueprint
+`timing`; per-turn waterfalls from the NeMo Relay ATOF JSONL) then Mem0
+(blueprint `memory`; `jmem0_logged.db`, the mem0 event log). Prompts leads
+because a turn is the unit of activity, memory calls included, where the
+mem0 log covers one tool. Tab labels and blueprint names are deliberately
+allowed to differ — the labels are UI copy, the names are URLs the app
+already redirects legacy paths to, so renaming a tab never moves a URL. The
+Mem0 tab is named for the provider, not for memory in general: hermes' own
+in-prompt stores (MEMORY.md / USER.md — the `memory` tool described below)
+and any other external provider tried later are expected to get their own
+tabs beside it rather than be folded in. See README.md
 for pages, layout, and data-source path resolution; see docs/adr/ for the
 architecture decisions (ATOF as timing source, direct JSONL reading with no
 ETL, blueprints-as-plugins, cross-plugin access by link or published
@@ -246,7 +256,7 @@ in `app.extensions`, but never opens another's data source).
   own faint `.mem-id` row, the same treatment mem0_update/mem0_delete give
   theirs — those spans' ids are a lookup key *for* these, so the pair now
   resolves without leaving the UI. A last row links to the whole ranked list
-  in the memory tab (`Span.mem0_result_count` names it: "all 10 results").
+  in the Mem0 tab (`Span.mem0_result_count` names it: "all 10 results").
   That link is the one place two plugins meet, and they share no key — ATOF
   carries no event id, the db carries no span uuid — so `memory.search_event`
   matches on (session_id, query), which resolved to exactly one event for all

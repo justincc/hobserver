@@ -3,17 +3,17 @@
 import app as app_module
 
 
-def test_root_redirects_to_memory_tab(client):
+def test_root_redirects_to_the_first_tab(client):
+    # the leftmost tab is the landing page, so tab order decides this
     resp = client.get("/")
     assert resp.status_code == 302
-    assert resp.headers["Location"].endswith("/memory/")
+    assert resp.headers["Location"].endswith("/timing/")
 
 
-def test_tab_bar_lists_all_plugins(client):
+def test_tab_bar_lists_all_plugins_in_order(client):
     page = client.get("/memory/").get_data(as_text=True)
-    assert "Memory" in page
-    assert "Prompts" in page
     assert "/timing/" in page
+    assert page.index("Prompts") < page.index("Mem0")
 
 
 def test_tab_bar_marks_active_tab(client):

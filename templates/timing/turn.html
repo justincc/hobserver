@@ -180,7 +180,7 @@
            Each hit's memory id rides its own faint row, the same treatment
            mem0_update/mem0_delete give theirs — that is the id those spans
            are a lookup key *for*, so the pair now resolves inside the UI.
-           The link hands off to the memory tab for the full ranked list.
+           The link hands off to the Mem0 tab for the full ranked list.
            How many to preview is bound once here — the count is also what
            decides whether that link says "all N results". #}
         {% set shown = s.mem0_results[:3] %}
@@ -198,7 +198,7 @@
         {% if s.mem0_results %}
         <div class="span-detail list-item">
           <a href="{{ url_for('memory.search_event', session=s.session_id, query=s.search_query, ts=s.start_us) }}"
-             title="Open this search in the Memory tab: all {{ s.mem0_result_count }} results, the context messages mem0 retrieved against, and the raw payload.">{% if s.mem0_result_count and s.mem0_result_count > shown | length %}all {{ s.mem0_result_count }} results{% else %}full result{% endif %} in Memory &rarr;</a>
+             title="Open this search in the Mem0 tab: all {{ s.mem0_result_count }} results, the context messages mem0 retrieved against, and the raw payload.">{% if s.mem0_result_count and s.mem0_result_count > shown | length %}all {{ s.mem0_result_count }} results{% else %}full result{% endif %} in Mem0 &rarr;</a>
         </div>
         {% endif %}
         {% elif s.session_search_mode %}

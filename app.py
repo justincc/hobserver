@@ -1,9 +1,10 @@
 """App shell for the hermes observer.
 
-Views live in plugins/ (Flask blueprints): memory browses jmem0_logged.db,
-timing shows prompt-timing waterfalls from the NeMo Relay ATOF stream. The
-shell registers each plugin under /<name>/, renders one tab per plugin, and
-keeps the pre-plugin URLs working via redirects.
+Views live in plugins/ (Flask blueprints): timing shows prompt-timing
+waterfalls from the NeMo Relay ATOF stream, memory browses jmem0_logged.db.
+The shell registers each plugin under /<name>/, renders one tab per plugin
+in PLUGINS order, sends / to the first of them, and keeps the pre-plugin
+URLs working via redirects.
 """
 
 import logging

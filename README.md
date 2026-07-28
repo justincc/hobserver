@@ -3,12 +3,20 @@
 A small Flask webapp for observing hermes-agent activity (formerly
 jmem0-logged-browser). Views are plugins, shown as horizontal tabs:
 
-- **Memory** — browses `jmem0_logged.db`, the SQLite event log produced by
-  the hermes-agent mem0 logging wrapper.
 - **Prompts** — per-turn latency waterfalls from the NeMo Relay ATOF
   JSONL stream exported by the hermes-agent `observability/nemo_relay`
   plugin: where each turn's time went (llm vs tool vs overhead), with a
   span timeline per turn. See `docs/adr/` for the design.
+- **Mem0** — browses `jmem0_logged.db`, the SQLite event log produced by
+  the hermes-agent mem0 logging wrapper.
+
+Tabs read left to right in the order `plugins.PLUGINS` lists them, and the
+first is where `/` lands. Prompts leads because a turn is the unit of
+activity — what hermes was asked and everything it did about it, memory
+calls included — while the mem0 log covers one tool. Mem0 is named for the
+provider rather than for memory in general: hermes also keeps its own
+in-prompt stores (MEMORY.md / USER.md), and other external providers may be
+tried, and each of those would arrive as its own tab beside this one.
 
 Every view is read-only over a log another process produces, so it is safe
 to point at live files while hermes is writing to them.
@@ -126,7 +134,7 @@ pointing this tool at its output (consuming) — is in
   prefixed with its event id, oldest first.
 - `/memory/search-event?session=<id>&query=<q>[&ts=<µs>]` — redirects to the
   `/memory/event/<id>` page for one `mem0_search` call. This is how a
-  mem0_search span in the Prompts tab hands off to the memory tab: the two
+  mem0_search span in the Prompts tab hands off to the Mem0 tab: the two
   logs record the same call but share no key (ATOF has no event id, the
   event log has no span uuid), so the pair is matched on session and query,
   with the optional `ts` (the span's start, epoch microseconds) breaking the
@@ -186,8 +194,8 @@ pointing this tool at its output (consuming) — is in
   ranked `results` — relevance score, then the remembered fact, with the
   memory id on a faint row beneath (the same id a mem0_update or
   mem0_delete names, so the two can be matched by eye), followed by a
-  link into the Memory tab for the whole ranked list ("all 10 results
-  in Memory →"); web_extract scopes show the first
+  link into the Mem0 tab for the whole ranked list ("all 10 results
+  in Mem0 →"); web_extract scopes show the first
   of their `urls` plus a "+N more" count, with the full list in the
   title attribute and every url on its own line in detail mode;
   execute_code scopes show the first line of their

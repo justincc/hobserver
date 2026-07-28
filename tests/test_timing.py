@@ -677,7 +677,7 @@ def test_turn_detail_shows_top_mem0_results_and_links_to_memory(tmp_path):
     assert "fourth fact" not in page         # the preview stops at three
     assert "0.80" in page and "0.53" in page and "0.42" in page
     assert "b760576d" in page                # each hit's id, for the lookup
-    # the handoff to the memory tab carries what identifies the logged call
+    # the handoff to the Mem0 tab carries what identifies the logged call
     assert "/memory/search-event?" in page
     assert "session=s1" in page
     assert "query=job+preferences" in page
@@ -704,7 +704,7 @@ def test_turn_detail_mem0_link_reads_full_result_when_nothing_is_hidden(tmp_path
     # target page as carrying all the results, which it does
     link_text = page[page.index("search-event"):]
     link_text = link_text[link_text.index('">') + 2:link_text.index("</a>")]
-    assert link_text.strip() == "full result in Memory &rarr;"
+    assert link_text.strip() == "full result in Mem0 &rarr;"
 
 
 def test_turn_detail_mem0_link_absent_while_the_search_is_open(tmp_path):
