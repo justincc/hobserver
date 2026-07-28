@@ -1,0 +1,156 @@
+# Writing a tab
+
+A tab is a Python module. It can live in this repo under `plugins/`, or in a
+package of your own installed alongside — both load the same way, so a tab
+written elsewhere needs no fork and no patch carried on top of this tree.
+
+## A whole plugin
+
+```python
+"""A tab showing the last few lines of a log file."""
+
+import os
+
+from flask import Blueprint, current_app, render_template_string
+
+PLUGIN_API = 1
+bp = Blueprint("tail", __name__)
+TAB_LABEL = "Tail"
+URL_PREFIX = "tail"
+
+
+def _path(settings):
+    return settings.get("path", "/var/log/syslog")
+
+
+def sources(settings):
+    """What this tab reads. Shown in the startup banner."""
+    path = _path(settings)
+    return [{"label": "log", "path": path, "from": "settings",
+             "required": True,
+             "problem": None if os.path.exists(path) else "no such file"}]
+
+
+def init_app(app, settings):
+    """Called once at registration."""
+    app.config["TAIL_PATH"] = _path(settings)
+
+
+@bp.route("/")
+def index():
+    with open(current_app.config["TAIL_PATH"]) as fh:
+        lines = fh.readlines()[-50:]
+    return render_template_string(
+        "{% extends 'base.html' %}{% block content %}"
+        "<pre class='blob'>{{ text }}</pre>{% endblock %}",
+        text="".join(lines))
+```
+
+Add it to `observer.toml`:
+
+```toml
+[[tabs]]
+module = "my_tail_tab"          # or "plugins.tail" if it lives in this tree
+settings = { path = "~/logs/app.log" }
+```
+
+That is the whole mechanism. There is no registry to add yourself to.
+
+## The contract
+
+| attribute | required | meaning |
+| --- | --- | --- |
+| `PLUGIN_API` | yes | the contract version you wrote against — currently `1` |
+| `bp` | yes | a Flask blueprint, registered under your prefix |
+| `TAB_LABEL` | yes | what the tab reads in the bar |
+| `URL_PREFIX` | yes | your address; may be multi-segment (`memory/mem0`) |
+| `init_app(app, settings)` | no | called once at registration |
+| `sources(settings)` | no | what you read, for the banner and error states |
+
+Your blueprint must have an `index` endpoint — that is what the tab links to.
+
+**Import nothing from hermes-observer.** The contract is these attributes plus
+Flask, so your tab does not depend on this app's internals or track its
+version. (The in-tree plugins import `hermes_paths` to default their paths;
+nothing requires you to.)
+
+`bp.name` is your code identifier — it appears in `url_for("tail.index")` and
+names your template directory. `TAB_LABEL` and `URL_PREFIX` are free to change
+without touching either.
+
+## Settings
+
+`settings` is whatever your `[[tabs]]` entry carried, passed through untouched.
+The shell expands `~` and `$VARS` in string values and does nothing else — it
+never inspects your keys. Supply your own defaults, and validate what you are
+given.
+
+It is also available at request time as
+`current_app.extensions["tab_settings"][<blueprint name>]`, if you would rather
+not stash it yourself in `init_app`.
+
+## Sources
+
+Each entry is a plain dict, so you need no import:
+
+```python
+{"label": "log", "path": "/var/log/app.log", "from": "settings",
+ "required": True, "problem": None}
+```
+
+`problem` is `None` when the source is fine, else a short phrase saying what is
+wrong. `required` decides what happens then:
+
+- **`required: True`** — the tab is taken out of service. The shell serves a
+  page in its place naming the problem, the tab bar marks it, and every other
+  tab carries on. Use this when your views cannot render at all without the
+  source.
+- **`required: False`** — you stay in service and explain the situation
+  yourself. The Prompts tab does this: a missing ATOF log is expected when
+  hermes has not run with the exporter on, and the page says so with the path
+  it tried.
+
+## Templates and page furniture
+
+Extending `base.html` gives you the tab bar, the copy-to-clipboard button, the
+live-poll script and the shared CSS. These are the public surface:
+
+| what | how |
+| --- | --- |
+| page chrome | `{% extends "base.html" %}`, fill `{% block content %}` and `{% block title %}` |
+| self-updating region | wrap content in an element with `data-live-poll="<ms>"`; `"0"` means static |
+| item navigation | `{% from "_item_nav.html" import item_nav %}` for "← all X" plus prev/next |
+| notices | `<p class="notice warn">` for a problem the reader must see |
+
+A blueprint in your own package carries its own `template_folder` and
+`static_folder`; `base.html` still resolves, because the app's templates stay
+on the Jinja loader path.
+
+## Failure and collisions
+
+Anything wrong with your tab — import error, missing attribute, wrong
+`PLUGIN_API`, unusable required source — takes your tab out of service and
+leaves the rest of the app running. The reason is printed at startup and shown
+on your tab's page.
+
+One case is fatal to the whole app: two tabs claiming the same `URL_PREFIX` or
+the same blueprint name. Either could answer a request and nothing would say
+which, so the app refuses to start and names both. Pick a prefix specific
+enough not to collide — namespace it (`memory/zep`) if it belongs to a family.
+
+## Reading other tabs' data
+
+Don't. Per [ADR 4](adr/0004-cross-plugin-access-by-link-or-published-accessor.md),
+a tab may link to another's page, or call an accessor the other publishes in
+`app.extensions`, but never opens another tab's data source. Handle the
+accessor being absent — the tab that publishes it may be disabled.
+
+## Checklist
+
+- [ ] `PLUGIN_API`, `bp`, `TAB_LABEL`, `URL_PREFIX`, and an `index` route
+- [ ] imports nothing from hermes-observer
+- [ ] `sources()` reports every file or store you read, with `required` set
+      deliberately
+- [ ] a prefix unlikely to collide
+- [ ] your own defaults for every setting, and a sensible error when a setting
+      is wrong

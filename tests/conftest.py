@@ -2,7 +2,30 @@ import sqlite3
 
 import pytest
 
+import tabs as tabs_module
 from app import create_app
+
+
+def make_app(db=None, atof=None, entries=None):
+    """An app serving the two in-tree tabs, pointed at test sources.
+
+    Tests describe tabs the way observer.toml does — a list of entries — so
+    what they exercise is the real config path, not a private shortcut.
+    """
+    # An explicit non-existent path rather than nothing: a settings key left
+    # empty would fall through to this machine's real hermes log, so a test
+    # that does not care about a source would silently read live data.
+    if entries is None:
+        entries = [
+            {"module": "plugins.timing",
+             "settings": {"atof_log": atof or "/nonexistent/atof.jsonl"}},
+            {"module": "plugins.memory",
+             "settings": {"db": db or "/nonexistent/events.db"}},
+        ]
+    specs = tabs_module.parse_config({"tabs": entries})
+    app = create_app(tabs_module.load_tabs(specs))
+    app.config["TESTING"] = True
+    return app
 
 SCHEMA = """
 CREATE TABLE events (
@@ -117,6 +140,4 @@ def memory_db(tmp_path):
 
 @pytest.fixture
 def client(memory_db):
-    app = create_app(memory_db)
-    app.config["TESTING"] = True
-    return app.test_client()
+    return make_app(db=memory_db).test_client()

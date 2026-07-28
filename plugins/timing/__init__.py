@@ -6,7 +6,7 @@ Reader per docs/adr/0002: tailer (byte-offset incremental read) → parser
 waterfall). Views run the tailer on each request and assemble in memory.
 
 Per ADR 2's fail-open caveat, the page states loudly when the source is
-unconfigured, missing, or silent instead of rendering an empty timeline,
+missing or silent instead of rendering an empty timeline,
 and parse errors / assembly anomalies are always surfaced, never dropped —
 as collapsed problem sections on the turn-list page only, so turn pages
 stay uncluttered.
@@ -18,9 +18,11 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, abort, current_app, render_template
 
+import hermes_paths
 from plugins.timing.assembler import assemble
 from plugins.timing.tailer import AtofTailer
 
+PLUGIN_API = 1
 bp = Blueprint("timing", __name__)
 TAB_LABEL = "Prompts"
 URL_PREFIX = "prompts"
@@ -28,6 +30,39 @@ URL_PREFIX = "prompts"
 # An in-flight turn silent this long is probably a lost end mark, not a
 # running prompt: still listed in the strip, but never auto-followed.
 STALE_AFTER_US = 10 * 60 * 1_000_000
+
+
+def atof_path(settings):
+    """The ATOF log to read: the `atof_log` setting, else $ATOF_LOG, else the
+    nemo_relay exporter's default under the hermes config dir. A path is
+    always returned — if it does not exist this tab says so itself, naming the
+    path it looked at, which beats the vaguer unconfigured state."""
+    if settings.get("atof_log"):
+        return settings["atof_log"], "settings"
+    if os.environ.get("ATOF_LOG"):
+        return os.environ["ATOF_LOG"], "ATOF_LOG"
+    return (os.path.join(hermes_paths.hermes_config_dir(), "nemo-relay",
+                         "atof", "hermes-atof.jsonl"),
+            f"default ({hermes_paths.config_dir_origin()})")
+
+
+def sources(settings):
+    """What this tab reads, for the startup banner (ADR 5).
+
+    Not required: the log is allowed to be absent — hermes may simply not have
+    run with the exporter on — and the tab explains that itself rather than
+    being replaced by a shell error page.
+    """
+    path, origin = atof_path(settings)
+    return [{"label": "ATOF log", "path": path, "from": origin,
+             "required": False,
+             "problem": None if os.path.exists(path) else "no such file"}]
+
+
+def init_app(app, settings):
+    """Resolve the source once, at registration, so every request and the
+    banner agree on which file this tab is reading."""
+    app.config["ATOF_PATH"] = atof_path(settings)[0]
 
 
 def get_tailer() -> AtofTailer:
@@ -74,10 +109,13 @@ def us_time(us):
 
 
 def _source_problem():
-    """The loud no-source states; None when the file is readable."""
-    atof_path = current_app.config.get("ATOF_PATH")
-    if not atof_path:
-        return render_template("timing/index.html", state="unconfigured")
+    """The loud no-source state; None when the file is readable.
+
+    There is no "unconfigured" case any more: a path is always resolved (the
+    setting, then $ATOF_LOG, then the default), so an absent log is always a
+    path that does not exist — which is the more useful thing to say.
+    """
+    atof_path = current_app.config["ATOF_PATH"]
     if not os.path.exists(atof_path):
         return render_template("timing/index.html", state="missing",
                                atof_path=atof_path)

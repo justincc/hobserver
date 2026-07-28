@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ label }} unavailable — hermes observer{% endblock %}
+{# Served by the shell in place of a tab whose plugin could not be loaded
+   (ADR 5). It names the module and what went wrong, because the fix is
+   almost always in observer.toml or in the file the tab wanted to read. #}
+{% block content %}
+<h2>{{ label }} is unavailable</h2>
+<p class="problem">{{ problem }}</p>
+<p class="hint">Configured as <code>{{ module }}</code> in observer.toml.</p>
+{% if sources %}
+<h3>What this tab reads</h3>
+<ul class="sources">
+  {% for source in sources %}
+  <li>
+    <strong>{{ source.label }}</strong>
+    <code>{{ source.path }}</code>
+    {% if source.problem %}<span class="bad">— {{ source.problem }}</span>
+    {% else %}<span class="ok">— ok</span>{% endif %}
+    <span class="from">(from {{ source.from or 'default' }})</span>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+<p class="hint">The other tabs are unaffected. Fix the path or set
+<code>enabled = false</code> for this tab to drop it entirely.</p>
+<style>
+  p.problem { font-weight: 600; color: #a33; }
+  p.hint { color: #666; }
+  ul.sources { list-style: none; padding: 0; }
+  ul.sources li { margin: 0.4rem 0; }
+  ul.sources .bad { color: #a33; }
+  ul.sources .ok { color: #2a6; }
+  ul.sources .from { color: #777; font-size: 0.85rem; }
+</style>
+{% endblock %}

@@ -2,7 +2,7 @@
 
 import sqlite3
 
-from app import create_app
+from conftest import make_app
 from plugins import memory
 
 
@@ -119,7 +119,7 @@ def test_event_detail_missing_id_returns_404(client):
 
 
 def _change_client(memory_change_db):
-    app = create_app(memory_change_db)
+    app = make_app(db=memory_change_db)
     app.config["TESTING"] = True
     return app.test_client()
 
@@ -166,7 +166,7 @@ def test_previous_text_says_it_is_local_not_mem0(memory_change_db):
 def test_previous_text_ignores_searches_after_the_change(memory_change_db):
     # event 5 re-reports aaa11111 with its *new* text; the update at event 2
     # must still show what it replaced, not what it produced
-    app = create_app(memory_change_db)
+    app = make_app(db=memory_change_db)
     with app.test_request_context():
         prior = memory.prior_memory_text("aaa11111", 2030.0)
     assert prior["text"] == "the old fact"
@@ -174,7 +174,7 @@ def test_previous_text_ignores_searches_after_the_change(memory_change_db):
 
 
 def test_previous_text_absent_when_no_search_surfaced_the_memory(memory_change_db):
-    app = create_app(memory_change_db)
+    app = make_app(db=memory_change_db)
     with app.test_request_context():
         assert memory.prior_memory_text("never-seen", 2030.0) is None
         # the only search naming it is later than the change
@@ -198,7 +198,7 @@ def test_gap_text_reads_in_the_right_unit():
 
 def test_prior_text_lookup_is_published_for_other_plugins(memory_change_db):
     # ADR 4: the Prompts tab calls this rather than opening the event log
-    app = create_app(memory_change_db)
+    app = make_app(db=memory_change_db)
     assert app.extensions["memory_prior_text"] is memory.prior_memory_text
 
 
@@ -247,7 +247,7 @@ def test_search_event_breaks_a_repeated_query_tie_by_time(tmp_path):
     )
     db.commit()
     db.close()
-    app = create_app(str(db_path))
+    app = make_app(db=str(db_path))
     app.config["TESTING"] = True
     dupe_client = app.test_client()
 

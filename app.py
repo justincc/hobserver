@@ -1,9 +1,14 @@
 """App shell for the hermes observer.
 
-Views live in plugins/ (Flask blueprints): timing shows prompt-timing
-waterfalls from the NeMo Relay ATOF stream, memory browses jmem0_logged.db.
-The shell registers each plugin under its own URL_PREFIX, renders one tab
-per plugin in PLUGINS order, and sends / to the first of them.
+Views are plugins (Flask blueprints) named by a TOML config file and loaded by
+module path — see ADR 5 and tabs.py. The shell registers each tab under its
+own URL_PREFIX, renders one tab per plugin in config order, and sends / to the
+first of them.
+
+It knows nothing about any particular tab: no plugin is imported here, and a
+tab's data sources are its own business, reported through its `sources` hook
+for the banner. A tab that cannot load is replaced by a page saying why, so
+one broken plugin never stops the others from serving.
 
 URLs are free to move: this is a single-user tool, so nothing redirects an
 old address to a new one — rename the prefix and follow it.
@@ -13,66 +18,30 @@ import logging
 import os
 import sys
 
-from flask import Flask, redirect, request, url_for
+from flask import (Blueprint, Flask, redirect, render_template, request,
+                   url_for)
 
-from plugins import PLUGINS
-from plugins.memory import check_db
+import hermes_paths
+import tabs as tabs_module
 from request_log import (REFRESH_SECONDS, STATUS_PATH, RequestStats,
                          SuppressSuccessFilter, format_status)
 
-# Both data sources live under the hermes-agent config directory, which the
-# agent itself points at with HERMES_HOME — deriving them from it keeps this
-# machine's absolute paths out of the repo and means neither source needs to
-# be passed on the command line. The literal is the fallback for a shell that
-# never exported HERMES_HOME.
-FALLBACK_CONFIG_DIR = os.path.expanduser(
-    "~/jc/knowledge/data/processing/analysis/reasoning/artificial/agents/"
-    "autonomous/resident/hermes-agent/product/src/config"
-)
 
-
-def hermes_config_dir():
-    """The hermes-agent config directory: $HERMES_HOME, else the fallback.
-    HERMES_HOME is conventionally set to <checkout>/hermes-agent/../config,
-    so it is normalized rather than used raw."""
-    home = os.environ.get("HERMES_HOME")
-    return os.path.normpath(home) if home else FALLBACK_CONFIG_DIR
-
-
-def default_db_path():
-    return os.path.join(hermes_config_dir(), "jmem0_logged.db")
-
-
-def default_atof_path():
-    """Where the nemo_relay ATOF exporter writes by default. A path is always
-    returned: if it does not exist the Prompts tab says so loudly, naming the
-    path it looked at, which beats the vaguer unconfigured state."""
-    return os.path.join(hermes_config_dir(), "nemo-relay", "atof",
-                        "hermes-atof.jsonl")
-
-
-def create_app(db_path, atof_path=None):
+def create_app(tabs):
+    """The app for an already-loaded list of `tabs.Tab`."""
     app = Flask(__name__)
-    app.config["DB_PATH"] = db_path
-    app.config["ATOF_PATH"] = atof_path
     # Re-read templates from disk when they change, so edits show up on the
     # next request (or next live-region poll) without a server restart.
     app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.extensions["tab_settings"] = {}
 
-    tabs = []
-    for plugin in PLUGINS:
-        app.register_blueprint(plugin.bp, url_prefix=f"/{plugin.URL_PREFIX}")
-        tabs.append(
-            {
-                "name": plugin.bp.name,
-                "label": plugin.TAB_LABEL,
-                "endpoint": f"{plugin.bp.name}.index",
-            }
-        )
+    entries = []
+    for tab in tabs:
+        entries.append(_register(app, tab))
 
     @app.context_processor
     def inject_tabs():
-        return {"tabs": tabs}
+        return {"tabs": entries}
 
     # Request tally behind /_status: the console suppresses successful
     # responses, so this is what answers "is anything still reaching the
@@ -97,51 +66,85 @@ def create_app(db_path, atof_path=None):
             "Content-Type": "text/plain; charset=utf-8",
             "Refresh": str(REFRESH_SECONDS)}
 
-    @app.route("/")
-    def root():
-        return redirect(url_for(tabs[0]["endpoint"]))
+    if entries:
+        @app.route("/")
+        def root():
+            return redirect(url_for(entries[0]["endpoint"]))
 
     return app
 
 
-def resolve_sources():
-    """Both data sources, each with the reason it resolved that way, so
-    startup can show where the app is actually reading from."""
-    if len(sys.argv) > 1:
-        db_path, db_from = sys.argv[1], "command line"
-    elif os.environ.get("JMEM0_DB"):
-        db_path, db_from = os.environ["JMEM0_DB"], "JMEM0_DB"
-    else:
-        db_path, db_from = default_db_path(), "default"
+def _register(app, tab):
+    """Register one tab and return its entry for the tab bar."""
+    if tab.bp is None:
+        return _register_unavailable(app, tab)
 
-    if os.environ.get("ATOF_LOG"):
-        atof_path, atof_from = os.environ["ATOF_LOG"], "ATOF_LOG"
-    else:
-        atof_path, atof_from = default_atof_path(), "default"
-    return (db_path, db_from), (atof_path, atof_from)
+    # The tab's own settings, reachable as
+    # current_app.extensions["tab_settings"][<blueprint name>]. Set before
+    # registration so a record_once hook can already read them.
+    app.extensions["tab_settings"][tab.bp.name] = tab.settings
+    init = getattr(tab.module, "init_app", None)
+    if init is not None:
+        init(app, tab.settings)
+    app.register_blueprint(tab.bp, url_prefix=f"/{tab.url_prefix}")
+    return {"name": tab.bp.name, "label": tab.label, "problem": None,
+            "endpoint": f"{tab.bp.name}.index"}
 
 
-def startup_banner(db, atof, port, db_problem=None):
-    """What the app resolved, and whether it is usable — a missing source is
-    the usual reason a tab looks empty, so say it at startup too. The memory
-    db's state comes from check_db (passed in, already computed by main)
-    rather than mere existence, so a path that exists but cannot be read as
-    an event log says so here instead of reading [ok] and then 500ing."""
+def _register_unavailable(app, tab):
+    """A page in place of a tab that could not be loaded.
+
+    The tab stays in the bar, marked, rather than vanishing: a tab that is
+    silently absent looks like a missing feature, where one that says "no such
+    file" names the fix.
+    """
+    name = f"unavailable_{tab.name}"
+    bp = Blueprint(name, __name__)
+    problem, label = tab.problem, tab.label
+
+    @bp.route("/")
+    def index():
+        return render_template("unavailable.html", label=label,
+                               problem=problem, module=tab.module_name,
+                               sources=tab.sources), 503
+
+    prefix = tab.url_prefix or f"unavailable/{tab.name}"
+    app.register_blueprint(bp, url_prefix=f"/{prefix}")
+    return {"name": name, "label": label, "problem": problem,
+            "endpoint": f"{name}.index"}
+
+
+def startup_banner(tabs, port, config_origin, serving=True):
+    """What the app resolved, and whether each tab can read what it needs.
+
+    A missing or unreadable source is the usual reason a tab looks empty, so
+    every tab's sources are listed with the rule that supplied each path. A
+    tab that could not load at all leads with its problem instead.
+    """
     home = os.environ.get("HERMES_HOME")
     lines = [
         "hermes-observer",
+        f"  config       {config_origin}",
         f"  HERMES_HOME  {home or '(unset — using built-in fallback path)'}",
-        f"  config dir   {hermes_config_dir()}",
+        f"  hermes dir   {hermes_paths.hermes_config_dir()}",
     ]
-    db_state = "ok" if db_problem is None else f"UNUSABLE ({db_problem})"
-    atof_state = "ok" if os.path.exists(atof[0]) else "MISSING"
-    for label, (path, source), state in (("memory db", db, db_state),
-                                         ("ATOF log", atof, atof_state)):
-        lines.append(f"  {label:<12} {path}  [{state}] (from {source})")
-    # Nothing is served when the db is unusable — main exits right after this
-    # — so the banner must not claim to be listening; the resolved paths above
-    # are the whole point of still printing it.
-    if db_problem is None:
+    if not tabs:
+        lines.append("  tabs         (none configured)")
+    for tab in tabs:
+        state = "ok" if tab.problem is None else f"UNAVAILABLE ({tab.problem})"
+        lines.append(f"  tab          {tab.label}  [{state}]"
+                     f"  ({tab.module_name})")
+        for source in tab.sources:
+            problem = source.get("problem")
+            if problem is None:
+                mark = "ok"
+            else:
+                mark = f"{'UNUSABLE' if source.get('required') else 'MISSING'}" \
+                       f" ({problem})"
+            lines.append(f"    {source.get('label', 'source'):<10} "
+                         f"{source.get('path', '')}  [{mark}]"
+                         f" (from {source.get('from', 'default')})")
+    if serving:
         lines.append(f"  listening    http://0.0.0.0:{port}/")
         lines.append(f"  status       http://localhost:{port}{STATUS_PATH}")
         lines.append("               successful requests are not logged below — only "
@@ -151,24 +154,31 @@ def startup_banner(db, atof, port, db_problem=None):
 
 def main():
     port = 5090
-    db, atof = resolve_sources()
-    db_path, atof_path = db[0], atof[0]
-    db_problem = check_db(db_path)
+    path = tabs_module.config_path(sys.argv[1] if len(sys.argv) > 1 else None)
+    try:
+        specs, origin = tabs_module.read_config(path)
+        tabs = tabs_module.load_tabs(specs)
+    except tabs_module.ConfigError as exc:
+        sys.exit(f"hermes-observer: {exc}")
+
     # The reloader runs main() in both the supervisor and the worker; only
     # the worker sets WERKZEUG_RUN_MAIN, so printing in the supervisor shows
     # the banner once at launch rather than again on every .py edit.
     if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
-        print(startup_banner(db, atof, port, db_problem=db_problem), flush=True)
-    if db_problem is not None:
-        sys.exit(f"Memory database unusable: {db_path} — {db_problem}")
+        print(startup_banner(tabs, port, origin, serving=bool(tabs)), flush=True)
+    # A broken tab is that tab's problem; no tab at all leaves nothing to
+    # serve, which is worth exiting for.
+    if not tabs:
+        sys.exit("hermes-observer: no tabs could be loaded — nothing to serve")
+
     # Installed on the werkzeug access logger, so it only affects the dev
     # server's own console output — the app logs nothing of its own.
     logging.getLogger("werkzeug").addFilter(SuppressSuccessFilter())
     # use_reloader restarts the server when a .py file changes; debug stays
     # False so the Werkzeug interactive debugger (arbitrary code execution)
     # is never exposed on 0.0.0.0.
-    create_app(db_path, atof_path=atof_path).run(
-        debug=False, use_reloader=True, host="0.0.0.0", port=port)
+    create_app(tabs).run(debug=False, use_reloader=True, host="0.0.0.0",
+                         port=port)
 
 
 if __name__ == "__main__":

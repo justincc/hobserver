@@ -1,6 +1,14 @@
 """Shell tests: plugin registration, tab bar, the root redirect."""
 
 import app as app_module
+import hermes_paths
+import tabs as tabs_module
+from plugins import memory, timing
+
+
+def load(entries):
+    """Config entries → loaded tabs, the way main() does it."""
+    return tabs_module.load_tabs(tabs_module.parse_config({"tabs": entries}))
 
 
 def test_root_redirects_to_the_first_tab(client):
@@ -37,69 +45,83 @@ def test_templates_reload_without_restart(client):
 
 
 def test_sources_derive_from_hermes_home(monkeypatch):
-    # both defaults hang off the hermes config dir, so a correctly set
-    # HERMES_HOME is all that is needed to start with no arguments
+    # both in-tree plugins default off the hermes config dir, so a correctly
+    # set HERMES_HOME is all that is needed to start with no config at all
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
-    assert app_module.hermes_config_dir() == "/srv/hermes/config"
-    assert app_module.default_db_path() == "/srv/hermes/config/jmem0_logged.db"
-    assert app_module.default_atof_path() == \
+    monkeypatch.delenv("JMEM0_DB", raising=False)
+    monkeypatch.delenv("ATOF_LOG", raising=False)
+    assert hermes_paths.hermes_config_dir() == "/srv/hermes/config"
+    assert memory.db_path({})[0] == "/srv/hermes/config/jmem0_logged.db"
+    assert timing.atof_path({})[0] == \
         "/srv/hermes/config/nemo-relay/atof/hermes-atof.jsonl"
 
 
 def test_hermes_home_is_normalized(monkeypatch):
     # the agent conventionally exports <checkout>/hermes-agent/../config
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/hermes-agent/../config")
-    assert app_module.hermes_config_dir() == "/srv/hermes/config"
+    assert hermes_paths.hermes_config_dir() == "/srv/hermes/config"
 
 
 def test_sources_fall_back_without_hermes_home(monkeypatch):
     monkeypatch.delenv("HERMES_HOME", raising=False)
-    assert app_module.hermes_config_dir() == app_module.FALLBACK_CONFIG_DIR
-    assert app_module.default_db_path().endswith("/config/jmem0_logged.db")
+    monkeypatch.delenv("JMEM0_DB", raising=False)
+    assert hermes_paths.hermes_config_dir() == hermes_paths.FALLBACK_CONFIG_DIR
+    assert memory.db_path({})[0].endswith("/config/jmem0_logged.db")
 
 
 def test_env_vars_override_the_defaults(monkeypatch):
-    monkeypatch.setattr(app_module.sys, "argv", ["app.py"])
+    # a plugin resolves its own source: setting, then env var, then default
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
     monkeypatch.setenv("JMEM0_DB", "/tmp/other.db")
     monkeypatch.setenv("ATOF_LOG", "/tmp/other.jsonl")
-    (db_path, db_from), (atof_path, atof_from) = app_module.resolve_sources()
-    assert (db_path, db_from) == ("/tmp/other.db", "JMEM0_DB")
-    assert (atof_path, atof_from) == ("/tmp/other.jsonl", "ATOF_LOG")
+    assert memory.db_path({}) == ("/tmp/other.db", "JMEM0_DB")
+    assert timing.atof_path({}) == ("/tmp/other.jsonl", "ATOF_LOG")
 
 
-def test_first_argument_wins_for_the_database(monkeypatch):
-    monkeypatch.setattr(app_module.sys, "argv", ["app.py", "/tmp/argv.db"])
+def test_settings_win_over_the_environment(monkeypatch):
     monkeypatch.setenv("JMEM0_DB", "/tmp/env.db")
-    (db_path, db_from), _ = app_module.resolve_sources()
-    assert (db_path, db_from) == ("/tmp/argv.db", "command line")
+    monkeypatch.setenv("ATOF_LOG", "/tmp/env.jsonl")
+    assert memory.db_path({"db": "/tmp/set.db"}) == ("/tmp/set.db", "settings")
+    assert timing.atof_path({"atof_log": "/tmp/set.jsonl"}) == \
+        ("/tmp/set.jsonl", "settings")
 
 
-def test_banner_reports_paths_and_whether_they_exist(memory_db, monkeypatch):
+def test_banner_reports_each_tabs_sources(memory_db, tmp_path, monkeypatch):
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
-    banner = app_module.startup_banner(
-        (memory_db, "default"), ("/nope/absent.jsonl", "ATOF_LOG"), 5090)
-    assert f"{memory_db}  [ok] (from default)" in banner
-    assert "/nope/absent.jsonl  [MISSING] (from ATOF_LOG)" in banner
+    tabs = load([
+        {"module": "plugins.timing", "settings": {"atof_log": "/nope/absent.jsonl"}},
+        {"module": "plugins.memory", "settings": {"db": memory_db}},
+    ])
+    banner = app_module.startup_banner(tabs, 5090, "observer.toml")
+    assert f"{memory_db}  [ok]" in banner
+    assert "/nope/absent.jsonl  [MISSING" in banner   # allowed to be absent
+    assert "Prompts  [ok]" in banner and "Mem0  [ok]" in banner
     assert "/srv/hermes/config" in banner
+    assert "observer.toml" in banner
     assert "http://0.0.0.0:5090/" in banner
 
 
 def test_banner_reports_an_unusable_database(monkeypatch):
     """A path that exists but is not an event log must not read [ok] — that
-    was the stray `app.py .` failure, which only showed up as a 500."""
+    was the stray `app.py .` failure, which only showed up as a 500. It no
+    longer exits the app, so the banner is where it has to be obvious."""
     monkeypatch.delenv("HERMES_HOME", raising=False)
-    banner = app_module.startup_banner(
-        (".", "command line"), ("/b.jsonl", "default"), 5090,
-        db_problem="not a regular file")
-    assert ".  [UNUSABLE (not a regular file)] (from command line)" in banner
-    assert "listening" not in banner  # it exits instead of serving
+    tabs = load([{"module": "plugins.memory", "settings": {"db": "."}}])
+    banner = app_module.startup_banner(tabs, 5090, "observer.toml")
+    assert "UNAVAILABLE (event db: not a regular file)" in banner
+    assert ".  [UNUSABLE (not a regular file)]" in banner
 
 
 def test_banner_flags_an_unset_hermes_home(monkeypatch):
     monkeypatch.delenv("HERMES_HOME", raising=False)
-    banner = app_module.startup_banner(("/a.db", "default"), ("/b.jsonl", "default"), 5090)
+    banner = app_module.startup_banner([], 5090, "built-in defaults")
     assert "unset" in banner and "fallback" in banner
+
+
+def test_banner_does_not_claim_to_listen_when_nothing_loaded():
+    banner = app_module.startup_banner([], 5090, "observer.toml", serving=False)
+    assert "none configured" in banner
+    assert "listening" not in banner
 
 
 def test_status_endpoint_reports_traffic(client):

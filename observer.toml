@@ -1,0 +1,16 @@
+# Which tabs this observer serves, in tab order. The first one serves /.
+#
+# Each entry names an importable module: `plugins.timing` from this tree and
+# `hermes_observer_zep` from site-packages load the same way, so a tab written
+# elsewhere needs no fork. See docs/writing-a-plugin.md for the contract.
+#
+# `enabled = false` turns a tab off without removing its settings.
+# `settings` is passed to the plugin untouched; ~ and $VARS are expanded.
+
+[[tabs]]
+module = "plugins.timing"
+# settings = { atof_log = "$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl" }
+
+[[tabs]]
+module = "plugins.memory"
+# settings = { db = "$HERMES_HOME/jmem0_logged.db" }

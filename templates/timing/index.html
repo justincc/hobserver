@@ -3,21 +3,18 @@
 {% block content %}
 {% include "timing/_follow.html" %}
 <div data-live-poll="3000">
-{% if state == "unconfigured" %}
-<p class="notice warn">
-  No ATOF source configured. Set the <code>ATOF_LOG</code> environment
-  variable to the events JSONL file written by the hermes-agent
-  <code>observability/nemo_relay</code> plugin
-  (its <code>HERMES_NEMO_RELAY_ATOF_OUTPUT_DIRECTORY</code> /
-  <code>HERMES_NEMO_RELAY_ATOF_FILENAME</code> settings).
-</p>
-{% elif state == "missing" %}
+{% if state == "missing" %}
 <p class="notice warn">
   ATOF log not found: <code>{{ atof_path }}</code>.
   Note the nemo_relay plugin fails open — a missing file usually means the
   plugin is not enabled, the <code>nemo-relay</code> package is not
   installed, or the exporter environment variables are not set in the
-  process running hermes-agent.
+  process running hermes-agent
+  (<code>HERMES_NEMO_RELAY_ATOF_OUTPUT_DIRECTORY</code> /
+  <code>HERMES_NEMO_RELAY_ATOF_FILENAME</code>).
+  To read a log elsewhere, set <code>atof_log</code> for this tab in
+  <code>observer.toml</code>, or the <code>ATOF_LOG</code> environment
+  variable.
 </p>
 {% else %}
 {% include "timing/_problems.html" %}

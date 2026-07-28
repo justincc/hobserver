@@ -29,17 +29,22 @@ never owns or mutates data.
 
 ### Commands
 
-- Run: `uv run python app.py` — no arguments needed when `HERMES_HOME` is
-  exported. Serves on port 5090; template and `.py` edits are picked up
-  without a restart.
+- Run: `uv run python app.py [observer.toml]` — no arguments needed when
+  `HERMES_HOME` is exported. Serves on port 5090; template and `.py` edits are
+  picked up without a restart.
 - Test: `uv run pytest`
+- Which tabs are served, in which order: `observer.toml`. `enabled = false`
+  turns one off; `module` is any importable path, in this tree or installed
+  elsewhere.
 
 ### Where things are written down
 
 - [README.md](README.md) — pages, layout, data-source path resolution
-- [docs/plugins-and-urls.md](docs/plugins-and-urls.md) — the plugin contract
-  (`bp` / `TAB_LABEL` / `URL_PREFIX`), tab order, URL naming, crossing between
-  plugins
+- [docs/writing-a-plugin.md](docs/writing-a-plugin.md) — how to add a tab,
+  with a whole worked plugin; the contract in full
+- [docs/plugins-and-urls.md](docs/plugins-and-urls.md) — the plugin contract,
+  the config file, what happens when a tab cannot load, URL naming, crossing
+  between plugins
 - [docs/startup-and-console.md](docs/startup-and-console.md) — source
   resolution, the db check, the startup banner, console noise, `/_status`
 - [docs/atof-reader.md](docs/atof-reader.md) — tailer → parser → assembler

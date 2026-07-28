@@ -15,6 +15,9 @@
     nav.tabs a { padding: 0.4rem 0.2rem; color: #555; border-bottom: 2px solid transparent; margin-bottom: -1px; }
     nav.tabs a:hover { text-decoration: none; border-bottom-color: #99b3e8; }
     nav.tabs a.active { color: #1a1a2e; font-weight: 600; border-bottom-color: #2456c4; }
+    /* A tab whose plugin could not load. The glyph carries the state too —
+       never colour alone. */
+    nav.tabs a.broken { color: #a33; }
     /* pushed to the far right of the tab row: a diagnostic, not a view, so
        it never takes the active underline the tabs use */
     nav.tabs a.status-link { margin-left: auto; color: #777; font-size: 0.85rem; }
@@ -199,8 +202,11 @@
 <body>
   <h1><a href="{{ url_for('root') }}">hermes observer</a></h1>
   <nav class="tabs">
+    {# A tab that could not load keeps its place, marked: one that vanished
+       would read as a missing feature rather than a fixable problem. #}
     {% for tab in tabs %}
-    <a href="{{ url_for(tab.endpoint) }}"{% if request.blueprint == tab.name %} class="active"{% endif %}>{{ tab.label }}</a>
+    {%- set cls = ('active' if request.blueprint == tab.name else '') ~ (' broken' if tab.problem else '') %}
+    <a href="{{ url_for(tab.endpoint) }}"{% if cls %} class="{{ cls.strip() }}"{% endif %}{% if tab.problem %} title="{{ tab.label }} is unavailable: {{ tab.problem }}"{% endif %}>{{ tab.label }}{% if tab.problem %} <span aria-hidden="true">⚠</span>{% endif %}</a>
     {% endfor %}
     {# Opens in its own tab: the tally is for checking while a page sits
        there polling, so navigating away from that page would defeat it. #}

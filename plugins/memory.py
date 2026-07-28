@@ -19,6 +19,9 @@ import sqlite3
 from flask import (Blueprint, abort, current_app, g, redirect, render_template,
                    request, url_for)
 
+import hermes_paths
+
+PLUGIN_API = 1
 bp = Blueprint("memory", __name__)
 TAB_LABEL = "Mem0"
 # Namespaced under memory/ because mem0 is one memory system of several to
@@ -82,8 +85,9 @@ def connect_ro(path):
 def check_db(path):
     """Why `path` is unusable as the mem0 event log, or None if it is fine.
 
-    Called once at startup so a bad path fails at launch, naming itself,
-    rather than as a 500 on the tab. Existence alone was not enough: a stray
+    Called from `sources` at load time, so a bad path shows as a tab that
+    names the problem rather than as a 500 from inside a view. Existence alone
+    was not enough: a stray
     `app.py .` made DB_PATH a directory, which exists, and sqlite then failed
     per-request with a bare "disk I/O error" from inside the view (sqlite
     reads the file header at connect, and the read returns EISDIR). Actually
@@ -105,6 +109,35 @@ def check_db(path):
     finally:
         conn.close()
     return None
+
+
+def db_path(settings):
+    """The event log to read: the `db` setting, else $JMEM0_DB, else the
+    default under the hermes config dir."""
+    if settings.get("db"):
+        return settings["db"], "settings"
+    if os.environ.get("JMEM0_DB"):
+        return os.environ["JMEM0_DB"], "JMEM0_DB"
+    return (os.path.join(hermes_paths.hermes_config_dir(), "jmem0_logged.db"),
+            f"default ({hermes_paths.config_dir_origin()})")
+
+
+def sources(settings):
+    """What this tab reads, for the startup banner (ADR 5).
+
+    Required: unlike a missing ATOF log, an unreadable db has nothing to
+    render and every page would 500 from inside a view. The shell replaces the
+    tab with the problem instead, and the rest of the app serves on.
+    """
+    path, origin = db_path(settings)
+    return [{"label": "event db", "path": path, "from": origin,
+             "required": True, "problem": check_db(path)}]
+
+
+def init_app(app, settings):
+    """Resolve the source once, at registration, so every request and the
+    banner agree on which file this tab is reading."""
+    app.config["DB_PATH"] = db_path(settings)[0]
 
 
 def get_db():

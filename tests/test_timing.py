@@ -6,7 +6,7 @@ import time
 
 from markupsafe import escape
 
-from app import create_app
+from conftest import make_app
 from tests.conftest import make_memory_change_db, make_memory_db
 from tests.test_assembler import (mark_line, scope_lines, session_scope_lines,
                                   two_turn_stream)
@@ -15,9 +15,7 @@ from tests.test_assembler import (mark_line, scope_lines, session_scope_lines,
 def make_client(tmp_path, atof_path):
     db_path = tmp_path / "test.db"
     make_memory_db(db_path)
-    app = create_app(str(db_path), atof_path=atof_path)
-    app.config["TESTING"] = True
-    return app.test_client()
+    return make_app(db=str(db_path), atof=atof_path).test_client()
 
 
 def write_atof(tmp_path, lines, name="events.jsonl"):
@@ -52,19 +50,17 @@ def recent_stream():
     ]
 
 
-def test_unconfigured_source_is_stated_loudly(tmp_path):
-    page = make_client(tmp_path, None).get("/prompts/").get_data(as_text=True)
-    assert "No ATOF source configured" in page
-    assert "ATOF_LOG" in page
-
-
 def test_missing_file_is_stated_loudly(tmp_path):
+    # there is no "unconfigured" state: a path is always resolved, so an
+    # absent log is always a named path that does not exist
     missing = tmp_path / "missing.jsonl"
     page = make_client(tmp_path, str(missing)).get("/prompts/").get_data(as_text=True)
     assert "ATOF log not found" in page
     assert str(missing) in page
     # the fail-open caveat from ADR 1/2 must be surfaced to the user
     assert "fails open" in page
+    # and how to point it somewhere else
+    assert "observer.toml" in page and "ATOF_LOG" in page
 
 
 def test_empty_file_states_no_events_loudly(tmp_path):
@@ -744,9 +740,7 @@ def _change_client(tmp_path, atof_path):
     turn page can recover what a mem0 memory said before a span changed it."""
     db_path = tmp_path / "changes.db"
     make_memory_change_db(db_path)
-    app = create_app(str(db_path), atof_path=atof_path)
-    app.config["TESTING"] = True
-    return app.test_client()
+    return make_app(db=str(db_path), atof=atof_path).test_client()
 
 
 def _change_stream(name, memory_id, start_data):
@@ -850,7 +844,7 @@ def test_turn_detail_renders_without_the_memory_plugin_lookup(tmp_path):
     atof = write_atof(tmp_path, _change_stream(
         "mem0_update", "aaa11111",
         {"memory_id": "aaa11111", "text": "the new fact"}))
-    app = create_app(str(db_path), atof_path=str(atof))
+    app = make_app(db=str(db_path), atof=str(atof))
     app.config["TESTING"] = True
     app.extensions.pop("memory_prior_text")
     page = app.test_client().get(

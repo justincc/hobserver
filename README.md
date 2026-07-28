@@ -24,7 +24,7 @@ to point at live files while hermes is writing to them.
 ## Running
 
 ```bash
-uv run python app.py [path/to/jmem0_logged.db]
+uv run python app.py [observer.toml]
 ```
 
 Then open http://127.0.0.1:5090. The server binds to `0.0.0.0`, so it is
@@ -37,41 +37,59 @@ reloader restarts the server when a `.py` file changes. Debug mode stays
 off — the Werkzeug interactive debugger allows arbitrary code execution
 and must never be exposed on `0.0.0.0`.
 
-Both data sources default to files under the hermes-agent config directory,
-so with `HERMES_HOME` exported neither has to be passed: `uv run python
-app.py` is enough. `HERMES_HOME` is normalized, since the agent conventionally
-exports it as `<checkout>/hermes-agent/../config`; if it is unset, a built-in
-literal path stands in.
+### Which tabs are served
 
-The memory database path is resolved in this order:
+`observer.toml` lists them, in tab order — the first one is where `/` lands:
 
-1. First command-line argument
-2. `JMEM0_DB` environment variable
-3. `$HERMES_HOME/jmem0_logged.db`
+```toml
+[[tabs]]
+module = "plugins.timing"
 
-The prompt-timing source is resolved as:
+[[tabs]]
+module = "plugins.memory"
+enabled = false            # one line to turn a tab off
+```
 
-1. `ATOF_LOG` environment variable
-2. `$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl`
+`module` is any importable path, so a tab written elsewhere and installed
+alongside is added the same way, with no fork of this repo — see
+[docs/writing-a-plugin.md](docs/writing-a-plugin.md). The config file is taken
+from the first command-line argument, else `$OBSERVER_CONFIG`, else
+`./observer.toml`; with none of them present the two tabs above are served by
+default, so a fresh checkout runs with no setup.
 
-pointing at the events JSONL file written by the nemo_relay plugin's ATOF
-exporter. If that file does not exist, the Prompts tab says so and
-names the path it tried, rather than showing an empty page.
+### Where the data comes from
 
-On startup the app prints what it resolved — `HERMES_HOME`, the config
-directory, both source paths with whether each is usable and which rule
-supplied it, and the listening URL — because a missing source is the usual
-reason a tab looks empty. It prints once at launch, not on reloader
+Each tab resolves its own source: its `settings` in the config file, then an
+environment variable, then a default under the hermes-agent config directory.
+So with `HERMES_HOME` exported nothing has to be configured at all.
+`HERMES_HOME` is normalized, since the agent conventionally exports it as
+`<checkout>/hermes-agent/../config`; if it is unset, a built-in literal path
+stands in.
+
+| tab | setting | env | default |
+| --- | --- | --- | --- |
+| Prompts | `atof_log` | `ATOF_LOG` | `$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl` |
+| Mem0 | `db` | `JMEM0_DB` | `$HERMES_HOME/jmem0_logged.db` |
+
+The Prompts source is the events JSONL written by the nemo_relay plugin's ATOF
+exporter. It is allowed to be absent — hermes may simply not have run with the
+exporter on — and the tab says so, naming the path it tried, rather than
+showing an empty page.
+
+The Mem0 source is checked before the tab is served: the path must exist, be a
+regular file, and yield a row from an `events` table when opened read-only.
+Existence alone was not enough — a stray argument (`app.py .`, the current
+directory) passed an exists check and then failed per request with a bare
+sqlite `disk I/O error`, which reads like a failing disk rather than a wrong
+path. A database that fails the check takes **that tab** out of service: the
+tab is marked in the bar and serves a page naming the problem, while every
+other tab carries on.
+
+On startup the app prints what it resolved — the config file, `HERMES_HOME`,
+and every tab with its sources, each marked ok, MISSING or UNUSABLE and
+labelled with the rule that supplied it — because a missing source is the
+usual reason a tab looks empty. It prints once at launch, not on reloader
 restarts.
-
-The memory database is checked before serving, and the app exits naming the
-problem if it fails: the path must exist, be a regular file, and yield a row
-from an `events` table when opened read-only. Existence alone was not
-enough — a stray argument (`app.py .`, the current directory) passed an
-exists check and then failed per request with a bare sqlite `disk I/O
-error`, which reads like a failing disk rather than a wrong path. The ATOF
-log is not checked this way: it is allowed to be absent, and the Prompts tab
-reports that itself.
 
 ### Console noise and observer status
 
@@ -209,13 +227,20 @@ uv run pytest
 
 ## Layout
 
-- `app.py` — app shell: app factory `create_app(db_path, atof_path=None)`,
-  plugin registration, tab list, the root redirect, CLI entry
-- `plugins/` — one module or package per view; each exposes a Flask blueprint
-  `bp` (registered under `/<URL_PREFIX>/`), a `TAB_LABEL` and a `URL_PREFIX`.
-  See [docs/plugins-and-urls.md](docs/plugins-and-urls.md) for the contract
-  and for how plugins reach each other (by link or published accessor, never
-  by opening another's data source — ADR 4).
+- `app.py` — app shell: app factory `create_app(tabs)`, tab registration, the
+  tab bar, the root redirect, CLI entry. Imports no plugin.
+- `tabs.py` — reads `observer.toml` and loads the modules it names; the
+  collision check and the per-tab failure handling live here
+- `observer.toml` — which tabs are served, in tab order
+- `hermes_paths.py` — where hermes-agent keeps things, for the in-tree
+  plugins' default paths
+- `plugins/` — one module or package per in-tree view; each exposes
+  `PLUGIN_API`, a Flask blueprint `bp` (registered under `/<URL_PREFIX>/`), a
+  `TAB_LABEL` and a `URL_PREFIX`, plus optional `init_app` and `sources`
+  hooks. See [docs/writing-a-plugin.md](docs/writing-a-plugin.md) for the
+  contract, [docs/plugins-and-urls.md](docs/plugins-and-urls.md) for how
+  plugins reach each other (by link or published accessor, never by opening
+  another's data source — ADR 4).
 - `plugins/timing/` — a package holding the full ATOF reader (ADR 2):
   `tailer.py` (incremental read), `atof_reader.py` (JSONL line → typed event,
   fail-soft) and `assembler.py` (events → sessions → turns → waterfall, with
@@ -227,7 +252,8 @@ uv run pytest
 - `tests/` — `conftest.py` (shared fixtures), `test_app.py` (shell),
   `test_memory.py`, `test_timing.py`, `test_atof_reader.py`,
   `test_assembler.py`, `test_tailer.py`
-- `docs/` — [plugins-and-urls.md](docs/plugins-and-urls.md),
+- `docs/` — [writing-a-plugin.md](docs/writing-a-plugin.md),
+  [plugins-and-urls.md](docs/plugins-and-urls.md),
   [startup-and-console.md](docs/startup-and-console.md),
   [atof-reader.md](docs/atof-reader.md),
   [span-rendering.md](docs/span-rendering.md),

@@ -2,32 +2,75 @@
 
 ## The shell
 
-`app.py` is the shell: the app factory `create_app(db_path, atof_path=None)`
-(so tests can point it at temporary sources), plugin registration, the tab
-list, and the root redirect.
+`app.py` is the shell: the app factory `create_app(tabs)`, tab registration,
+the tab bar, and the root redirect. It imports no plugin and knows nothing
+about any tab's data source. `tabs.py` reads the configuration and loads what
+it names; `hermes_paths.py` is a helper the in-tree plugins use to default
+their paths.
 
 ## The plugin contract
 
-A plugin is a module or package in `plugins/<name>` exposing:
+A plugin is any importable module exposing:
 
-| name | what it is |
-| --- | --- |
-| `bp` | the Flask blueprint, registered under `/<URL_PREFIX>/` |
-| `TAB_LABEL` | UI copy — what the tab reads |
-| `URL_PREFIX` | the address; may be multi-segment |
+| name | required | what it is |
+| --- | --- | --- |
+| `PLUGIN_API` | yes | contract version the plugin was written against (`1`) |
+| `bp` | yes | the Flask blueprint, registered under `/<URL_PREFIX>/` |
+| `TAB_LABEL` | yes | UI copy — what the tab reads |
+| `URL_PREFIX` | yes | the address; may be multi-segment |
+| `init_app(app, settings)` | no | called once at registration |
+| `sources(settings)` | no | what the tab reads, for the banner and error states |
 
-Templates live in `templates/<name>/`, keyed by blueprint name.
+In-tree plugins live in `plugins/<name>` with templates in
+`templates/<name>/`, keyed by blueprint name. A plugin imports nothing from
+this app, so an out-of-tree tab is the same thing in a different directory —
+see [writing-a-plugin.md](writing-a-plugin.md).
 
-These three names are deliberately independent. `bp.name` is the code
-identifier (`url_for`, template directory) and does not move; the label and the
+`bp.name`, `TAB_LABEL` and `URL_PREFIX` are deliberately independent. The code
+identifier (`url_for`, template directory) does not move; the label and the
 prefix are free to change without touching a single `url_for` call. **Do not
 collapse them back together** — that separation is what made renaming and
 re-addressing the tabs cheap.
 
-## The tabs
+## The configuration
 
-`plugins.PLUGINS` order is tab order, left to right, and its first entry is
-where `/` lands.
+`observer.toml` lists the tabs, in tab order:
+
+```toml
+[[tabs]]
+module = "plugins.timing"
+settings = { atof_log = "$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl" }
+
+[[tabs]]
+module = "plugins.memory"
+enabled = false
+```
+
+- File order is tab order; the first enabled tab is where `/` lands.
+- `enabled = false` turns a tab off in one line.
+- `module` is any importable path, in this tree or installed elsewhere.
+- `settings` is passed to the plugin untouched, with `~` and `$VARS` expanded.
+
+The file is found via the first command-line argument, else `$OBSERVER_CONFIG`,
+else `./observer.toml`. If none exists the built-in default list is used, so a
+fresh checkout runs with no setup.
+
+## When a tab cannot load
+
+A tab that will not import, is missing part of the contract, declares a
+different `PLUGIN_API`, or reports an unusable **required** source is taken out
+of service: the shell serves a 503 page naming the problem, the tab bar marks
+it, and every other tab carries on. A tab whose source problem is *not* marked
+required stays in service and explains itself — that is how the Prompts tab
+handles a missing ATOF log.
+
+Two tabs claiming the same `URL_PREFIX` or blueprint name is fatal: the app
+refuses to start and names both, because either could answer a request and
+nothing in the output would say which did.
+
+Only an empty tab bar — nothing loaded at all — exits.
+
+## The tabs shipped here
 
 | tab | blueprint | URL | source |
 | --- | --- | --- | --- |

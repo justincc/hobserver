@@ -1,36 +1,58 @@
 # Startup, data sources and the console
 
-## Resolving the two sources
+## Loading the tabs
 
-No arguments or env vars are needed when `HERMES_HOME` is exported: both the
-memory db and the ATOF log default to paths under `hermes_config_dir()`
-(normalized `$HERMES_HOME`, else a literal fallback).
+The first command-line argument, else `$OBSERVER_CONFIG`, else
+`./observer.toml` names the config file; with none present the built-in
+default list is used. `tabs.py` parses it and imports each enabled module. See
+[plugins-and-urls.md](plugins-and-urls.md).
 
-- memory db — first argv, else `JMEM0_DB`, else the default
-- ATOF log — `ATOF_LOG`, else the default
+Only two things are fatal: a config file that cannot be parsed or is
+internally impossible (two tabs at one URL prefix), and an empty tab bar. A
+single broken tab never is.
 
-README.md gives the exact paths.
+## Resolving sources
+
+Each plugin resolves its own, in this order: its `settings` from the config
+file, then an environment variable, then a default under
+`hermes_paths.hermes_config_dir()` (normalized `$HERMES_HOME`, else a literal
+fallback). So nothing has to be configured when `HERMES_HOME` is exported.
+
+| tab | setting | env |
+| --- | --- | --- |
+| Prompts | `atof_log` | `ATOF_LOG` |
+| Mem0 | `db` | `JMEM0_DB` |
+
+A plugin reports what it resolved through its `sources` hook, which is what
+the banner prints — the shell knows none of the above.
 
 ## Checking the db before serving
 
-`plugins.memory.check_db` gates the memory db: it must exist, be a regular
-file, and yield a row from `events` over a read-only connection. Otherwise the
-banner marks it UNUSABLE — dropping the "listening" lines, since it will not —
-and main exits naming the problem.
+`plugins.memory.check_db` gates the memory db from its `sources` hook: it must
+exist, be a regular file, and yield a row from `events` over a read-only
+connection. Since the source is marked required, a failure takes **that tab**
+out of service — marked in the bar, serving a page that names the problem —
+while the rest of the app runs. Before ADR 5 it exited the process.
 
-An existence check alone was not enough. `app.py .` made DB_PATH the
+An existence check alone was not enough. `app.py .` made the db path the
 *directory*, which exists; sqlite reads the file header at connect, so every
 request died with a bare `disk I/O error` (EISDIR) that reads like failing
 hardware rather than a wrong path.
 
-The ATOF log stays exists-only: it is allowed to be missing, and the Prompts
-tab says so itself.
+The ATOF log is not required in that sense: it is allowed to be missing, and
+the Prompts tab says so itself rather than going out of service.
 
 ## The startup banner
 
-Prints the resolved paths and whether each exists, once — in the reloader
-supervisor, since the worker sets `WERKZEUG_RUN_MAIN`. Its `status` line tells
-the user successful requests are not logged, and points at `/_status`.
+Prints the config file, `HERMES_HOME`, and every tab with its sources — each
+marked ok, MISSING or UNUSABLE, and labelled with the rule that supplied the
+path. Once, in the reloader supervisor, since the worker sets
+`WERKZEUG_RUN_MAIN`.
+
+It is the only place a tab's problem is visible without opening the tab, so it
+has to carry the whole picture: a tab that is out of service leads with
+UNAVAILABLE and the reason. Its `status` line tells the user successful
+requests are not logged, and points at `/_status`.
 
 ## Console noise
 
