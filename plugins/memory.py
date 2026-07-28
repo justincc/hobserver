@@ -1,15 +1,15 @@
 """The Mem0 view (blueprint `memory`) — browses jmem0_logged.db, the mem0
 event log.
 
-Moved verbatim from the pre-plugin app.py; the database is always opened
-read-only so it is safe to point at the live log while hermes is writing.
+The database is always opened read-only, so it is safe to point at the live
+log while hermes is writing.
 
 The tab is named for the provider, not for "memory" in general: hermes also
 keeps its own in-prompt stores (MEMORY.md / USER.md, the `memory` tool) and
 may yet be pointed at other external providers, and those get their own tabs
-rather than being folded in here. The blueprint, URL prefix and package stay
-`memory` — renaming them would break the /memory/ URLs this plugin already
-redirects the pre-plugin ones to.
+rather than being folded in here — under /memory/ alongside this one, see
+URL_PREFIX. The blueprint and package stay `memory`, so every `url_for` and
+template path is unaffected by what the tab is called or where it is served.
 """
 
 import json
@@ -21,6 +21,13 @@ from flask import (Blueprint, abort, current_app, g, redirect, render_template,
 
 bp = Blueprint("memory", __name__)
 TAB_LABEL = "Mem0"
+# Namespaced under memory/ because mem0 is one memory system of several to
+# come: hermes' own in-prompt stores and any other provider get a sibling
+# (/memory/internal/, …), and /memory/ itself is left free to become an
+# index over them. Hierarchy rather than a punctuated single segment
+# (/memory:mem0/) — a colon in the first segment of a *relative* URL parses
+# as a scheme, which would silently break any link not built by url_for.
+URL_PREFIX = "memory/mem0"
 
 # Columns shown as metadata on the detail page; everything except the
 # query/result pair, which get their own sections.

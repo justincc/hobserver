@@ -109,14 +109,21 @@ pointing this tool at its output (consuming) — is in
 
 ## Pages
 
-- `/` — redirects to the first tab (`/memory/`).
-- `/memory/` — all mem0 events, newest first, with a truncated query; click
+Each tab is served under its own prefix — `plugins.<name>.URL_PREFIX`, which
+is independent of the blueprint name the code uses, so a tab can be renamed
+or moved without touching a single `url_for`. The mem0 tab is namespaced
+under `memory/` because it is one memory system of several to come: another
+provider, or hermes' own in-prompt stores, would be `/memory/<name>/`, and
+`/memory/` itself is left free to become an index over them.
+
+- `/` — redirects to the first tab (`/prompts/`).
+- `/memory/mem0/` — all mem0 events, newest first, with a truncated query; click
   an id or query to open the event. The page tails the log: it polls
-  `/memory/fragment/events?since=<last id>` every 3 seconds and prepends
+  `/memory/mem0/fragment/events?since=<last id>` every 3 seconds and prepends
   any new rows to the top of the table.
-- `/memory/fragment/events?since=<id>` — rendered table rows for events
+- `/memory/mem0/fragment/events?since=<id>` — rendered table rows for events
   newer than `<id>`, newest first (used by the index poll).
-- `/memory/event/<id>` — one event: all fields except query/result shown as
+- `/memory/mem0/event/<id>` — one event: all fields except query/result shown as
   a metadata block at the top, then the full query, the result, and the
   context messages rendered as plaintext. The `query` heading is named for
   what the column actually holds on that event type — "Query" on a
@@ -132,8 +139,8 @@ pointing this tool at its output (consuming) — is in
   events are excluded — they are not user messages) — an approximation
   of the extra conversational context mem0 uses during retrieval — each
   prefixed with its event id, oldest first.
-- `/memory/search-event?session=<id>&query=<q>[&ts=<µs>]` — redirects to the
-  `/memory/event/<id>` page for one `mem0_search` call. This is how a
+- `/memory/mem0/search-event?session=<id>&query=<q>[&ts=<µs>]` — redirects to the
+  `/memory/mem0/event/<id>` page for one `mem0_search` call. This is how a
   mem0_search span in the Prompts tab hands off to the Mem0 tab: the two
   logs record the same call but share no key (ATOF has no event id, the
   event log has no span uuid), so the pair is matched on session and query,
@@ -143,7 +150,7 @@ pointing this tool at its output (consuming) — is in
   spans polling every 2 s costs no database queries. 404s when the event log
   has no matching call: the two logs are written independently, so either
   can cover a call the other does not.
-- `/timing/` — all turns, newest first: start time, session, a one-line
+- `/prompts/` — all turns, newest first: start time, session, a one-line
   prompt snippet (from the turn-start mark's `user_message`; ellipsized so
   long prompts never widen the table, em dash when absent), total / llm /
   tool / overhead durations (overhead is the residual), model-call and span
@@ -152,7 +159,7 @@ pointing this tool at its output (consuming) — is in
   dropped. The page updates itself every
   3 s (the tailer reads only what the exporter appended since the last
   request), so new turns appear without a manual reload.
-- `/timing/turn/<session>/<start_us>` — one turn: the nav row ("all turns"
+- `/prompts/turn/<session>/<start_us>` — one turn: the nav row ("all turns"
   followed, muted a shade, by "« prev" / "next »" stepping one turn older
   / newer through the
   same interleaved-by-start-time ordering the turn list uses, so they cross
@@ -281,8 +288,11 @@ never follows a stale entry. With follow on, a finished turn's page keeps
 polling slowly so the next turn start is noticed. On a turn page the toggle
 sits at the right of the all/prev/next row — it is navigation too, just
 automatic; on the index it stands alone above the turn table.
-- `/event/<id>` and `/fragment/events` — pre-plugin URLs, redirect to their
-  `/memory/` equivalents.
+
+Nothing else is served: a URL that moves is not redirected from its old
+address. This is a single-user tool, and carrying compatibility routes for
+one reader costs more in reading than it saves in typing — expect a page
+open across a rename to 404 until it is reloaded.
 
 ## Tests
 
@@ -293,13 +303,14 @@ uv run pytest
 ## Layout
 
 - `app.py` — app shell: app factory `create_app(db_path, atof_path=None)`,
-  plugin registration, tab list, root/legacy redirects, CLI entry
+  plugin registration, tab list, the root redirect, CLI entry
 - `plugins/` — one module or package per view; each exposes a Flask
-  blueprint `bp` (registered under `/<bp.name>/`) and a `TAB_LABEL`.
+  blueprint `bp` (registered under `/<URL_PREFIX>/`), a `TAB_LABEL` and a
+  `URL_PREFIX`.
   Plugins reach each other only by link or by an accessor the owner
   publishes on `app.extensions` — never by opening another's data source
   (ADR 4): the memory plugin publishes `memory_prior_text` and serves the
-  `/memory/search-event` redirect, and the timing plugin uses both while
+  `/memory/mem0/search-event` redirect, and the timing plugin uses both while
   holding no database handle of its own. The
   timing plugin is a package holding the full ATOF reader (ADR 2):
   `plugins/timing/tailer.py` (byte-offset incremental file read; records

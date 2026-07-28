@@ -1,4 +1,4 @@
-"""Memory plugin tests — the pre-plugin app.py behaviour under /memory/."""
+"""Memory plugin tests — the Mem0 tab, served under /memory/mem0/."""
 
 import sqlite3
 
@@ -7,20 +7,20 @@ from plugins import memory
 
 
 def test_index_lists_all_events(client):
-    page = client.get("/memory/").get_data(as_text=True)
+    page = client.get("/memory/mem0/").get_data(as_text=True)
     assert "please commit the changes" in page
     assert "second query" in page
-    assert '/memory/event/1' in page
-    assert '/memory/event/2' in page
+    assert '/memory/mem0/event/1' in page
+    assert '/memory/mem0/event/2' in page
 
 
 def test_index_orders_newest_first(client):
-    page = client.get("/memory/").get_data(as_text=True)
+    page = client.get("/memory/mem0/").get_data(as_text=True)
     assert page.index("second query") < page.index("please commit the changes")
 
 
 def test_event_detail_shows_query_result_and_metadata(client):
-    page = client.get("/memory/event/1").get_data(as_text=True)
+    page = client.get("/memory/mem0/event/1").get_data(as_text=True)
     assert "please commit the changes" in page
     assert "remembered thing one" in page
     for field in ("ts_utc", "event_type", "session_id", "platform",
@@ -31,7 +31,7 @@ def test_event_detail_shows_query_result_and_metadata(client):
 
 
 def test_fragment_returns_only_newer_events(client):
-    page = client.get("/memory/fragment/events?since=3").get_data(as_text=True)
+    page = client.get("/memory/mem0/fragment/events?since=3").get_data(as_text=True)
     assert 'data-event-id="5"' in page
     assert 'data-event-id="4"' in page
     assert 'data-event-id="3"' not in page
@@ -40,34 +40,34 @@ def test_fragment_returns_only_newer_events(client):
 
 
 def test_fragment_empty_when_no_new_events(client):
-    assert client.get("/memory/fragment/events?since=5").get_data(as_text=True).strip() == ""
+    assert client.get("/memory/mem0/fragment/events?since=5").get_data(as_text=True).strip() == ""
 
 
 def test_index_polls_fragment_endpoint(client):
-    page = client.get("/memory/").get_data(as_text=True)
-    assert '"/memory/fragment/events"' in page
+    page = client.get("/memory/mem0/").get_data(as_text=True)
+    assert '"/memory/mem0/fragment/events"' in page
     assert "let lastId = 5" in page
 
 
 def test_event_detail_prev_next_links(client):
     # id 1 is the oldest: next goes to 2, no previous
-    page = client.get("/memory/event/1").get_data(as_text=True)
-    assert '/memory/event/2' in page
+    page = client.get("/memory/mem0/event/1").get_data(as_text=True)
+    assert '/memory/mem0/event/2' in page
     assert '<span class="disabled" title="no older event">&laquo; prev</span>' in page
     # id 2 is in the middle: links to both neighbours
-    page = client.get("/memory/event/2").get_data(as_text=True)
-    assert '/memory/event/1' in page
-    assert '/memory/event/3' in page
+    page = client.get("/memory/mem0/event/2").get_data(as_text=True)
+    assert '/memory/mem0/event/1' in page
+    assert '/memory/mem0/event/3' in page
     # id 5 is the newest: previous goes to 4, no next
-    page = client.get("/memory/event/5").get_data(as_text=True)
-    assert '/memory/event/4' in page
+    page = client.get("/memory/mem0/event/5").get_data(as_text=True)
+    assert '/memory/mem0/event/4' in page
     assert '<span class="disabled" title="no newer event">next &raquo;</span>' in page
 
 
 def test_event_detail_nav_uses_shared_item_nav_layout(client):
     # Same shape as the timing turn page: back-to-list and the muted steppers
     # grouped together on one row (see templates/_item_nav.html).
-    page = client.get("/memory/event/2").get_data(as_text=True)
+    page = client.get("/memory/mem0/event/2").get_data(as_text=True)
     nav = page[page.index('<nav class="event-nav">'):]
     nav = nav[: nav.index("</nav>")]
     assert "all events" in nav
@@ -77,7 +77,7 @@ def test_event_detail_nav_uses_shared_item_nav_layout(client):
 
 def test_event_detail_context_messages_from_same_session(client):
     # event 3 shares sessionabc with event 1; event 2 (no session) is excluded
-    page = client.get("/memory/event/3").get_data(as_text=True)
+    page = client.get("/memory/mem0/event/3").get_data(as_text=True)
     assert "Context Messages" in page
     assert "[#1]" in page
     assert "please commit the changes" in page
@@ -88,7 +88,7 @@ def test_event_detail_context_messages_from_same_session(client):
 
 def test_context_messages_exclude_tool_call_events(client):
     # event 5's session context: prefetch events 1 and 3, not tool event 4
-    page = client.get("/memory/event/5").get_data(as_text=True)
+    page = client.get("/memory/mem0/event/5").get_data(as_text=True)
     assert "[#1]" in page
     assert "[#3]" in page
     assert "[#4]" not in page
@@ -96,7 +96,7 @@ def test_context_messages_exclude_tool_call_events(client):
 
 
 def test_event_detail_context_messages_none_for_first_in_session(client):
-    page = client.get("/memory/event/1").get_data(as_text=True)
+    page = client.get("/memory/mem0/event/1").get_data(as_text=True)
     assert "Context Messages" in page
     assert "(none)" in page
 
@@ -104,18 +104,18 @@ def test_event_detail_context_messages_none_for_first_in_session(client):
 def test_json_result_is_pretty_printed(client):
     # event 4's mem0_search result is a one-line JSON blob; the detail page
     # shows it indented, one key per line
-    page = client.get("/memory/event/4").get_data(as_text=True)
+    page = client.get("/memory/mem0/event/4").get_data(as_text=True)
     assert '{\n  &#34;results&#34;: [\n    {\n      &#34;memory&#34;: &#34;a remembered fact&#34;' in page
     assert '&#34;score&#34;: 0.53' in page
 
 
 def test_non_json_result_is_left_unchanged(client):
-    page = client.get("/memory/event/1").get_data(as_text=True)
+    page = client.get("/memory/mem0/event/1").get_data(as_text=True)
     assert "## Mem0 Memory\n- remembered thing one" in page
 
 
 def test_event_detail_missing_id_returns_404(client):
-    assert client.get("/memory/event/999").status_code == 404
+    assert client.get("/memory/mem0/event/999").status_code == 404
 
 
 def _change_client(memory_change_db):
@@ -128,27 +128,27 @@ def test_query_heading_names_what_the_column_holds(memory_change_db):
     # the column is only literally a query on the retrieval events; calling
     # it "Query" made a stored fact and a bare memory id read as searches
     c = _change_client(memory_change_db)
-    assert "<h2>Query</h2>" in c.get("/memory/event/1").get_data(as_text=True)
-    assert "<h2>New text</h2>" in c.get("/memory/event/2").get_data(as_text=True)
+    assert "<h2>Query</h2>" in c.get("/memory/mem0/event/1").get_data(as_text=True)
+    assert "<h2>New text</h2>" in c.get("/memory/mem0/event/2").get_data(as_text=True)
     assert "<h2>Deleted memory id</h2>" in c.get(
-        "/memory/event/3").get_data(as_text=True)
-    assert "<h2>Added text</h2>" in c.get("/memory/event/4").get_data(as_text=True)
+        "/memory/mem0/event/3").get_data(as_text=True)
+    assert "<h2>Added text</h2>" in c.get("/memory/mem0/event/4").get_data(as_text=True)
 
 
 def test_deleted_memory_text_recovered_from_the_log(memory_change_db):
     # a delete's whole payload is an id — mem0 cannot return the memory once
     # it is gone, but the search that surfaced the id still has its text
     page = _change_client(memory_change_db).get(
-        "/memory/event/3").get_data(as_text=True)
+        "/memory/mem0/event/3").get_data(as_text=True)
     assert "the doomed fact" in page
     assert "Previous text" in page
-    assert "/memory/event/1" in page          # links to the search it came from
+    assert "/memory/mem0/event/1" in page          # links to the search it came from
     assert "45 s earlier" in page
 
 
 def test_updated_memory_shows_the_text_it_replaced(memory_change_db):
     page = _change_client(memory_change_db).get(
-        "/memory/event/2").get_data(as_text=True)
+        "/memory/mem0/event/2").get_data(as_text=True)
     assert "the old fact" in page             # recovered
     assert "the new fact" in page             # the update's own payload
     assert "30 s earlier" in page
@@ -157,7 +157,7 @@ def test_updated_memory_shows_the_text_it_replaced(memory_change_db):
 def test_previous_text_says_it_is_local_not_mem0(memory_change_db):
     # the reader must never take this for something mem0 returned
     page = _change_client(memory_change_db).get(
-        "/memory/event/2").get_data(as_text=True)
+        "/memory/mem0/event/2").get_data(as_text=True)
     assert "the local log" in page            # visible, not only in the tooltip
     assert "Not retrieved from mem0" in page  # the tooltip spells it out
     assert "mem0 is never queried" in page
@@ -184,8 +184,8 @@ def test_previous_text_absent_when_no_search_surfaced_the_memory(memory_change_d
 def test_events_without_a_change_get_no_previous_text(memory_change_db):
     # a search or an add replaces nothing, so the section must not appear
     c = _change_client(memory_change_db)
-    assert "Previous text" not in c.get("/memory/event/1").get_data(as_text=True)
-    assert "Previous text" not in c.get("/memory/event/4").get_data(as_text=True)
+    assert "Previous text" not in c.get("/memory/mem0/event/1").get_data(as_text=True)
+    assert "Previous text" not in c.get("/memory/mem0/event/4").get_data(as_text=True)
 
 
 def test_gap_text_reads_in_the_right_unit():
@@ -205,30 +205,30 @@ def test_prior_text_lookup_is_published_for_other_plugins(memory_change_db):
 def test_search_event_redirects_to_the_matching_event(client):
     # the Prompts tab's mem0_search spans carry no event id, so they are
     # matched back to the log on (session_id, query) — event 4 in the fixture
-    resp = client.get("/memory/search-event?session=sessionabc"
+    resp = client.get("/memory/mem0/search-event?session=sessionabc"
                       "&query=tool+search+terms")
     assert resp.status_code == 302
-    assert resp.headers["Location"].endswith("/memory/event/4")
+    assert resp.headers["Location"].endswith("/memory/mem0/event/4")
 
 
 def test_search_event_ignores_non_search_events(client):
     # event 3 is a prefetch with its own query in the same session; only
     # mem0_search calls are what a mem0_search span can mean
-    assert client.get("/memory/search-event?session=sessionabc"
+    assert client.get("/memory/mem0/search-event?session=sessionabc"
                       "&query=third+query").status_code == 404
 
 
 def test_search_event_unmatched_query_404s(client):
     # the two logs are written independently, so one can cover a call the
     # other does not — that must say so rather than land somewhere wrong
-    resp = client.get("/memory/search-event?session=sessionabc&query=nope")
+    resp = client.get("/memory/mem0/search-event?session=sessionabc&query=nope")
     assert resp.status_code == 404
     assert "written" in resp.get_data(as_text=True)
 
 
 def test_search_event_requires_session_and_query(client):
-    assert client.get("/memory/search-event").status_code == 400
-    assert client.get("/memory/search-event?session=s").status_code == 400
+    assert client.get("/memory/mem0/search-event").status_code == 400
+    assert client.get("/memory/mem0/search-event?session=s").status_code == 400
 
 
 def test_search_event_breaks_a_repeated_query_tie_by_time(tmp_path):
@@ -252,16 +252,16 @@ def test_search_event_breaks_a_repeated_query_tie_by_time(tmp_path):
     dupe_client = app.test_client()
 
     # event 4 is logged at 1783686600, event 6 at 1783692000
-    near_first = dupe_client.get("/memory/search-event?session=sessionabc"
+    near_first = dupe_client.get("/memory/mem0/search-event?session=sessionabc"
                                 "&query=tool+search+terms&ts=1783686599000000")
-    assert near_first.headers["Location"].endswith("/memory/event/4")
-    near_second = dupe_client.get("/memory/search-event?session=sessionabc"
+    assert near_first.headers["Location"].endswith("/memory/mem0/event/4")
+    near_second = dupe_client.get("/memory/mem0/search-event?session=sessionabc"
                                  "&query=tool+search+terms&ts=1783691999000000")
-    assert near_second.headers["Location"].endswith("/memory/event/6")
+    assert near_second.headers["Location"].endswith("/memory/mem0/event/6")
     # without a ts there is nothing to choose on, so it takes the earlier
-    no_ts = dupe_client.get("/memory/search-event?session=sessionabc"
+    no_ts = dupe_client.get("/memory/mem0/search-event?session=sessionabc"
                             "&query=tool+search+terms")
-    assert no_ts.headers["Location"].endswith("/memory/event/4")
+    assert no_ts.headers["Location"].endswith("/memory/mem0/event/4")
 
 
 def test_check_db_accepts_a_real_event_log(memory_db):

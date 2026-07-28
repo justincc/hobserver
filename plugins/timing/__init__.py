@@ -23,6 +23,7 @@ from plugins.timing.tailer import AtofTailer
 
 bp = Blueprint("timing", __name__)
 TAB_LABEL = "Prompts"
+URL_PREFIX = "prompts"
 
 # An in-flight turn silent this long is probably a lost end mark, not a
 # running prompt: still listed in the strip, but never auto-followed.

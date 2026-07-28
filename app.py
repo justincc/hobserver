@@ -2,9 +2,11 @@
 
 Views live in plugins/ (Flask blueprints): timing shows prompt-timing
 waterfalls from the NeMo Relay ATOF stream, memory browses jmem0_logged.db.
-The shell registers each plugin under /<name>/, renders one tab per plugin
-in PLUGINS order, sends / to the first of them, and keeps the pre-plugin
-URLs working via redirects.
+The shell registers each plugin under its own URL_PREFIX, renders one tab
+per plugin in PLUGINS order, and sends / to the first of them.
+
+URLs are free to move: this is a single-user tool, so nothing redirects an
+old address to a new one — rename the prefix and follow it.
 """
 
 import logging
@@ -59,7 +61,7 @@ def create_app(db_path, atof_path=None):
 
     tabs = []
     for plugin in PLUGINS:
-        app.register_blueprint(plugin.bp, url_prefix=f"/{plugin.bp.name}")
+        app.register_blueprint(plugin.bp, url_prefix=f"/{plugin.URL_PREFIX}")
         tabs.append(
             {
                 "name": plugin.bp.name,
@@ -98,18 +100,6 @@ def create_app(db_path, atof_path=None):
     @app.route("/")
     def root():
         return redirect(url_for(tabs[0]["endpoint"]))
-
-    # Pre-plugin URLs: bookmarks and still-open index pages (whose poll loop
-    # hits /fragment/events) from before the memory view moved to /memory/.
-    @app.route("/event/<int:event_id>")
-    def legacy_event(event_id):
-        return redirect(url_for("memory.event", event_id=event_id))
-
-    @app.route("/fragment/events")
-    def legacy_event_rows_fragment():
-        return redirect(
-            url_for("memory.event_rows_fragment", **request.args.to_dict())
-        )
 
     return app
 

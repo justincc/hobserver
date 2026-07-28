@@ -44,6 +44,10 @@ Conventions:
 - Each plugin's `/` route is its tab landing page, endpoint `<name>.index`.
 - The shell keeps pre-plugin URLs working via redirects (`/` → first tab,
   `/event/<id>` and `/fragment/events` → their `/memory/` equivalents).
+  *(No longer true: the compatibility redirects were dropped later, along
+  with the prefixes themselves — a plugin is now served under its own
+  `URL_PREFIX`, `/prompts/` and `/memory/mem0/` today. With one user there
+  is nothing to keep working. Only `/` → first tab remains.)*
 
 The UI starts as separate tabs, one per plugin. A combined
 memory-plus-timing display, if it proves feasible, would arrive as its own

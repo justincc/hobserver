@@ -53,14 +53,14 @@ def recent_stream():
 
 
 def test_unconfigured_source_is_stated_loudly(tmp_path):
-    page = make_client(tmp_path, None).get("/timing/").get_data(as_text=True)
+    page = make_client(tmp_path, None).get("/prompts/").get_data(as_text=True)
     assert "No ATOF source configured" in page
     assert "ATOF_LOG" in page
 
 
 def test_missing_file_is_stated_loudly(tmp_path):
     missing = tmp_path / "missing.jsonl"
-    page = make_client(tmp_path, str(missing)).get("/timing/").get_data(as_text=True)
+    page = make_client(tmp_path, str(missing)).get("/prompts/").get_data(as_text=True)
     assert "ATOF log not found" in page
     assert str(missing) in page
     # the fail-open caveat from ADR 1/2 must be surfaced to the user
@@ -69,7 +69,7 @@ def test_missing_file_is_stated_loudly(tmp_path):
 
 def test_empty_file_states_no_events_loudly(tmp_path):
     atof = write_atof(tmp_path, [])
-    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/").get_data(as_text=True)
     assert "no turns yet" in page
     assert "produced no events" in page
     assert "fails open" in page
@@ -77,7 +77,7 @@ def test_empty_file_states_no_events_loudly(tmp_path):
 
 def test_index_lists_turns_with_waterfall_numbers(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
-    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/").get_data(as_text=True)
     # complete turn t1: total 5.5s = llm 4s + tool 0.5s + overhead 1s
     assert "5.50 s" in page
     assert "4.00 s" in page
@@ -85,19 +85,19 @@ def test_index_lists_turns_with_waterfall_numbers(tmp_path):
     assert "1.00 s" in page
     # in-flight turn t2 has no total yet
     assert "in flight" in page
-    assert "/timing/turn/s1/1000000" in page
-    assert "/timing/turn/s1/10000000" in page
+    assert "/prompts/turn/s1/1000000" in page
+    assert "/prompts/turn/s1/10000000" in page
 
 
 def test_index_orders_turns_newest_first(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
-    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
-    assert page.index('/timing/turn/s1/10000000"') < page.index('/timing/turn/s1/1000000"')
+    page = make_client(tmp_path, str(atof)).get("/prompts/").get_data(as_text=True)
+    assert page.index('/prompts/turn/s1/10000000"') < page.index('/prompts/turn/s1/1000000"')
 
 
 def test_turn_detail_renders_waterfall_bars(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     # summary stats
     assert "5.50 s" in page and "overhead" in page
     # spans with identity in text, not color alone
@@ -129,7 +129,7 @@ def test_workdir_under_home_collapses_to_tilde(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert "in ~/proj" in page
     # the full path survives in the title attribute for copy/hover
     assert f'title="{home_proj}"' in page
@@ -170,7 +170,7 @@ def test_skill_scope_details_shown_inline(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert "github-pr-workflow" in page
     assert "references/hygiene.md" in page
     assert "patch" in page and "job-seeker" in page
@@ -202,7 +202,7 @@ def test_session_search_discover_query_inline_and_stats_detail_only(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     # the mode is named and the query renders inline in the summary
     assert "mode-tag" in page and ">discover<" in page
     assert "jobs report workflow" in page
@@ -231,7 +231,7 @@ def test_session_search_scroll_mode_renders(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert ">scroll<" in page
     assert "session 1941bdb78476 · around msg 14571 · window 20" in page
     # message counts on detail-only rows with explanatory tooltips
@@ -257,7 +257,7 @@ def test_skill_patch_strings_are_detail_only(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     # the file within the skill stays on the summary line, as for write_file
     assert "workflows/report.md" in page
     # both sides of the patch, each on a detail-only row (.list-item)
@@ -279,7 +279,7 @@ def test_file_tool_path_shown_inline_tail_first(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert "~/docs/notes.md" in page
     assert f'title="{home_notes}"' in page
     # left-ellipsized so the end of the path survives truncation
@@ -299,7 +299,7 @@ def test_patch_mode_paths_shown_inline(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert "/home/u/proj/a.md" in page   # first path shown inline
     assert "+1 more" in page             # remaining files as a count
     assert "/home/u/proj/b.md" in page   # all paths in the hover title
@@ -324,7 +324,7 @@ def test_patch_replace_strings_are_detail_only(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     # the path keeps the summary line; the mode names which shape follows
     assert "/home/u/notes.md" in page and ">replace<" in page
     # both sides of the edit, each on a detail-only row (.list-item)
@@ -345,7 +345,7 @@ def test_search_files_pattern_and_glob_shown_inline(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert "turn_id" in page
     assert "*.py" in page
     assert "/home/u/proj" in page
@@ -364,7 +364,7 @@ def test_search_queries_shown_inline(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert "flask blueprint url_prefix" in page
     assert "user timezone preference" in page
     # both search queries wrap out in full in the detailed layout
@@ -381,7 +381,7 @@ def test_mem0_add_content_shown_inline(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert "User prefers tea over coffee." in page
     # the full fact wraps out in the detailed layout
     assert '<span class="path wide wrap-detail" title="User prefers tea over coffee.">' in page
@@ -400,7 +400,7 @@ def test_mem0_update_and_delete_show_the_memory_id(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     # the replacement text leads the summary line, wrapping out in detail
     text = '<span class="path wide wrap-detail" title="User prefers coffee after all.">'
     assert text in page
@@ -425,7 +425,7 @@ def test_execute_code_first_line_shown_inline(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert "from pathlib import Path" in page
 
 
@@ -439,7 +439,7 @@ def test_vision_analyze_image_inline_question_detail_only(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     # the image path shows in the summary line, left-ellipsized
     assert "/tmp/cv-page-1.png" in page
     assert 'class="path tail"' in page
@@ -460,7 +460,7 @@ def test_web_extract_first_url_and_count_shown_inline(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert "https://a.example/one" in page
     assert "+2 more" in page
     # every url is available on hover via the title attribute
@@ -485,7 +485,7 @@ def test_todo_first_item_inline_and_full_list_for_detail_mode(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     # inline mode: first item plus a count of the rest
     assert "Inventory the report" in page
     assert "+2 more" in page
@@ -512,7 +512,7 @@ def test_delegate_task_and_subagent_goals_shown(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     # delegate_task: first goal plus a count inline …
     assert "+1 more" in page
     # … and each task's goal with its context nested under it in detail,
@@ -540,7 +540,7 @@ def test_subagent_stop_shows_ordinal_status_and_echoed_goal(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     # the pair tag rides both the start and the stop row, with an
     # inline-only middot ahead of the goal/status
     assert page.count('class="subagent-ord"') == 2
@@ -557,7 +557,7 @@ def test_subagent_stop_shows_ordinal_status_and_echoed_goal(tmp_path):
 
 def test_turn_page_has_details_switch(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     # unchecked on every load — visibility state is per page load, not persisted
     assert "data-detail-toggle" in page
     assert "data-detail-toggle checked" not in page
@@ -565,7 +565,7 @@ def test_turn_page_has_details_switch(tmp_path):
 
 def test_span_extra_info_stays_inline_when_details_off(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     # with the switch off, extra info joins the name line instead of hiding …
     assert "body:not(.show-detail) tr:not(.detail-open) .span-detail { display: inline;" in page
     # … pinned to a single line by ellipsizing the name cell …
@@ -583,7 +583,7 @@ def test_rows_carry_uuids_for_click_to_expand(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     # every span and mark row is click-to-expand, keyed by its uuid …
     assert '<tr data-span-uuid="L1">' in page
     assert '<tr data-span-uuid="mark-hermes.approval.request-1700000">' in page
@@ -593,7 +593,7 @@ def test_rows_carry_uuids_for_click_to_expand(tmp_path):
 
 def test_turn_id_has_copy_button(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert 'class="copy-btn" data-copy="t1"' in page
 
 
@@ -606,7 +606,7 @@ def test_span_and_mark_uuids_have_copy_buttons(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert 'class="copy-btn" data-copy="L1"' in page
     assert 'class="copy-btn" data-copy="mark-hermes.approval.request-1700000"' in page
 
@@ -622,7 +622,7 @@ def test_marks_render_as_ticks_in_the_waterfall(tmp_path):
         mark_line("hermes.session.end", 2_100_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     # marks are waterfall rows with a tick, not a separate table
     assert "<h2>Marks</h2>" not in page
     assert "hermes.approval.request" in page
@@ -634,7 +634,7 @@ def test_marks_render_as_ticks_in_the_waterfall(tmp_path):
 
 def test_in_flight_turn_detail_scales_to_last_span(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/10000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/10000000").get_data(as_text=True)
     assert "in flight" in page
     assert "anthropic" in page
 
@@ -650,7 +650,7 @@ def test_turn_detail_renders_with_string_tool_result_data(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    resp = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000")
+    resp = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000")
     assert resp.status_code == 200
     page = resp.get_data(as_text=True)
     assert "mem0_search" in page
@@ -672,13 +672,13 @@ def test_turn_detail_shows_top_mem0_results_and_links_to_memory(tmp_path):
     ]
     atof = write_atof(tmp_path, lines)
     page = make_client(tmp_path, str(atof)).get(
-        "/timing/turn/s1/1000000").get_data(as_text=True)
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
     assert "top fact" in page and "next fact" in page and "third fact" in page
     assert "fourth fact" not in page         # the preview stops at three
     assert "0.80" in page and "0.53" in page and "0.42" in page
     assert "b760576d" in page                # each hit's id, for the lookup
     # the handoff to the Mem0 tab carries what identifies the logged call
-    assert "/memory/search-event?" in page
+    assert "/memory/mem0/search-event?" in page
     assert "session=s1" in page
     assert "query=job+preferences" in page
     assert "ts=1100000" in page
@@ -699,7 +699,7 @@ def test_turn_detail_mem0_link_reads_full_result_when_nothing_is_hidden(tmp_path
     ]
     atof = write_atof(tmp_path, lines)
     page = make_client(tmp_path, str(atof)).get(
-        "/timing/turn/s1/1000000").get_data(as_text=True)
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
     # the link's own text, not its tooltip — the tooltip still describes the
     # target page as carrying all the results, which it does
     link_text = page[page.index("search-event"):]
@@ -716,8 +716,8 @@ def test_turn_detail_mem0_link_absent_while_the_search_is_open(tmp_path):
     ]
     atof = write_atof(tmp_path, lines)
     page = make_client(tmp_path, str(atof)).get(
-        "/timing/turn/s1/1000000").get_data(as_text=True)
-    assert "/memory/search-event" not in page
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
+    assert "/memory/mem0/search-event" not in page
 
 
 def test_turn_detail_web_search_gets_no_mem0_result_rows(tmp_path):
@@ -733,10 +733,10 @@ def test_turn_detail_web_search_gets_no_mem0_result_rows(tmp_path):
     ]
     atof = write_atof(tmp_path, lines)
     page = make_client(tmp_path, str(atof)).get(
-        "/timing/turn/s1/1000000").get_data(as_text=True)
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
     assert "flask blueprints" in page
     assert "not a memory" not in page
-    assert "/memory/search-event" not in page
+    assert "/memory/mem0/search-event" not in page
 
 
 def _change_client(tmp_path, atof_path):
@@ -765,13 +765,13 @@ def test_turn_detail_shows_what_an_update_replaced(tmp_path):
         "mem0_update", "aaa11111",
         {"memory_id": "aaa11111", "text": "the new fact"}))
     page = _change_client(tmp_path, str(atof)).get(
-        "/timing/turn/s9/2020000000").get_data(as_text=True)
+        "/prompts/turn/s9/2020000000").get_data(as_text=True)
     assert "the old fact" in page             # recovered from the event log
     assert "the new fact" in page             # the span's own payload
     assert '<span class="diff-mark del">' in page      # both diff sides
     assert '<span class="diff-mark ins">' in page
     assert "previous text from the local log" in page
-    assert "/memory/event/1" in page          # the search it came from
+    assert "/memory/mem0/event/1" in page          # the search it came from
     assert "30 s earlier" in page
 
 
@@ -781,7 +781,7 @@ def test_turn_detail_recovers_a_deleted_memory_with_no_new_side(tmp_path):
     atof = write_atof(tmp_path, _change_stream(
         "mem0_delete", "bbb22222", {"memory_id": "bbb22222"}))
     page = _change_client(tmp_path, str(atof)).get(
-        "/timing/turn/s9/2020000000").get_data(as_text=True)
+        "/prompts/turn/s9/2020000000").get_data(as_text=True)
     assert "the doomed fact" in page
     assert "previous text from the local log" in page
     assert '<span class="diff-mark ins">' not in page
@@ -794,7 +794,7 @@ def test_delete_summary_line_leads_with_the_deleted_memory(tmp_path):
     atof = write_atof(tmp_path, _change_stream(
         "mem0_delete", "bbb22222", {"memory_id": "bbb22222"}))
     page = _change_client(tmp_path, str(atof)).get(
-        "/timing/turn/s9/2020000000").get_data(as_text=True)
+        "/prompts/turn/s9/2020000000").get_data(as_text=True)
     summary = page[page.index("mem0_delete"):page.index('class="mem-id"')]
     assert "the doomed fact" in summary
     # .list-compact, so detail mode drops it rather than repeating the text
@@ -806,7 +806,7 @@ def test_delete_summary_line_absent_when_nothing_was_recovered(tmp_path):
     atof = write_atof(tmp_path, _change_stream(
         "mem0_delete", "unknown-id", {"memory_id": "unknown-id"}))
     page = _change_client(tmp_path, str(atof)).get(
-        "/timing/turn/s9/2020000000").get_data(as_text=True)
+        "/prompts/turn/s9/2020000000").get_data(as_text=True)
     summary = page[page.index("mem0_delete"):page.index('class="mem-id"')]
     assert "list-compact" not in summary
 
@@ -818,7 +818,7 @@ def test_update_summary_line_still_leads_with_its_own_new_text(tmp_path):
         "mem0_update", "aaa11111",
         {"memory_id": "aaa11111", "text": "the new fact"}))
     page = _change_client(tmp_path, str(atof)).get(
-        "/timing/turn/s9/2020000000").get_data(as_text=True)
+        "/prompts/turn/s9/2020000000").get_data(as_text=True)
     summary = page[page.index("mem0_update"):page.index('class="mem-id"')]
     assert "the new fact" in summary
     assert "the old fact" not in summary
@@ -828,7 +828,7 @@ def test_turn_detail_previous_text_names_the_local_log_not_mem0(tmp_path):
     atof = write_atof(tmp_path, _change_stream(
         "mem0_delete", "bbb22222", {"memory_id": "bbb22222"}))
     page = _change_client(tmp_path, str(atof)).get(
-        "/timing/turn/s9/2020000000").get_data(as_text=True)
+        "/prompts/turn/s9/2020000000").get_data(as_text=True)
     assert "Not retrieved from mem0" in page
     assert "mem0 is never queried" in page
 
@@ -837,7 +837,7 @@ def test_turn_detail_without_a_matching_memory_shows_no_previous_text(tmp_path):
     atof = write_atof(tmp_path, _change_stream(
         "mem0_delete", "unknown-id", {"memory_id": "unknown-id"}))
     page = _change_client(tmp_path, str(atof)).get(
-        "/timing/turn/s9/2020000000").get_data(as_text=True)
+        "/prompts/turn/s9/2020000000").get_data(as_text=True)
     assert "previous text from the local log" not in page
     assert "unknown-id" in page               # the id itself still shows
 
@@ -854,7 +854,7 @@ def test_turn_detail_renders_without_the_memory_plugin_lookup(tmp_path):
     app.config["TESTING"] = True
     app.extensions.pop("memory_prior_text")
     page = app.test_client().get(
-        "/timing/turn/s9/2020000000").get_data(as_text=True)
+        "/prompts/turn/s9/2020000000").get_data(as_text=True)
     assert page.count("mem0_update") >= 1     # the span still renders
     assert "the new fact" in page
     assert "the old fact" not in page
@@ -863,12 +863,12 @@ def test_turn_detail_renders_without_the_memory_plugin_lookup(tmp_path):
 
 def test_turn_detail_unknown_turn_404s(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
-    assert make_client(tmp_path, str(atof)).get("/timing/turn/s1/999").status_code == 404
+    assert make_client(tmp_path, str(atof)).get("/prompts/turn/s1/999").status_code == 404
 
 
 def test_parse_errors_are_shown_not_dropped(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream() + ["this is not json"])
-    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/").get_data(as_text=True)
     assert "unparseable line" in page
     assert "this is not json" in page
     assert "5.50 s" in page             # good events still render
@@ -878,7 +878,7 @@ def test_parse_errors_are_shown_not_dropped(tmp_path):
 
 def test_problems_only_on_turn_list_page(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream() + ["this is not json"])
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert "unparseable line" not in page
 
 
@@ -887,7 +887,7 @@ def test_anomalies_are_shown(tmp_path):
         mark_line("hermes.turn.end", 500_000, session="s2"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/").get_data(as_text=True)
     assert "assembly anomal" in page
     assert "turn end without turn start" in page
 
@@ -895,33 +895,33 @@ def test_anomalies_are_shown(tmp_path):
 def test_index_is_a_live_region(tmp_path):
     # the index always polls, so new turns appear without a manual reload
     atof = write_atof(tmp_path, two_turn_stream())
-    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/").get_data(as_text=True)
     assert 'data-live-poll="3000"' in page
 
 
 def test_no_source_states_are_live_too(tmp_path):
     # a missing file page must come alive once the exporter starts writing
     missing = tmp_path / "missing.jsonl"
-    page = make_client(tmp_path, str(missing)).get("/timing/").get_data(as_text=True)
+    page = make_client(tmp_path, str(missing)).get("/prompts/").get_data(as_text=True)
     assert 'data-live-poll="3000"' in page
 
 
 def test_turn_detail_polls_only_while_in_flight(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     client = make_client(tmp_path, str(atof))
-    in_flight = client.get("/timing/turn/s1/10000000").get_data(as_text=True)
+    in_flight = client.get("/prompts/turn/s1/10000000").get_data(as_text=True)
     assert 'data-live-poll="2000"' in in_flight
-    finished = client.get("/timing/turn/s1/1000000").get_data(as_text=True)
+    finished = client.get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert 'data-live-poll="0"' in finished
 
 
 def test_inflight_strip_lists_running_turns(tmp_path):
     _, inflight_start, lines = recent_stream()
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/").get_data(as_text=True)
     assert "in flight:" in page
     assert f'data-inflight-start-us="{inflight_start}"' in page
-    assert f"/timing/turn/s9/{inflight_start}" in page
+    assert f"/prompts/turn/s9/{inflight_start}" in page
     assert 'data-stale="1"' not in page  # a fresh turn is never marked stale
 
 
@@ -953,7 +953,7 @@ def subagent_stream():
 def test_inflight_strip_drops_stopped_subagents(tmp_path):
     running_start, stopped_start, lines = subagent_stream()
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/").get_data(as_text=True)
     # the subagent the parent reported stopped is gone from the strip
     assert f'data-inflight-start-us="{stopped_start}"' not in page
     # its still-running sibling, and the parent, stay
@@ -967,9 +967,9 @@ def test_stopped_subagent_turn_still_listed_and_reachable(tmp_path):
     _, stopped_start, lines = subagent_stream()
     atof = write_atof(tmp_path, lines)
     client = make_client(tmp_path, str(atof))
-    assert f"/timing/turn/kid-stopped/{stopped_start}" in \
-        client.get("/timing/").get_data(as_text=True)
-    assert client.get(f"/timing/turn/kid-stopped/{stopped_start}").status_code == 200
+    assert f"/prompts/turn/kid-stopped/{stopped_start}" in \
+        client.get("/prompts/").get_data(as_text=True)
+    assert client.get(f"/prompts/turn/kid-stopped/{stopped_start}").status_code == 200
 
 
 def superseded_stream():
@@ -995,7 +995,7 @@ def superseded_stream():
 def test_superseded_turn_leaves_the_inflight_strip(tmp_path):
     first_start, second_start, lines = superseded_stream()
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/").get_data(as_text=True)
     assert f'data-inflight-start-us="{first_start}"' not in page
     assert f'data-inflight-start-us="{second_start}"' in page
 
@@ -1006,12 +1006,12 @@ def test_superseded_turn_page_does_not_block_follow(tmp_path):
     first_start, second_start, lines = superseded_stream()
     atof = write_atof(tmp_path, lines)
     client = make_client(tmp_path, str(atof))
-    page = client.get(f"/timing/turn/s7/{first_start}").get_data(as_text=True)
+    page = client.get(f"/prompts/turn/s7/{first_start}").get_data(as_text=True)
     assert 'data-inflight-current="1"' not in page
     # and it stops polling as though it were live
     assert 'data-live-poll="0"' in page
     # the genuinely live turn still marks itself current and polls fast
-    live = client.get(f"/timing/turn/s7/{second_start}").get_data(as_text=True)
+    live = client.get(f"/prompts/turn/s7/{second_start}").get_data(as_text=True)
     assert 'data-inflight-current="1"' in live
     assert 'data-live-poll="2000"' in live
 
@@ -1020,10 +1020,10 @@ def test_superseded_turn_is_listed_without_claiming_to_be_in_flight(tmp_path):
     first_start, _, lines = superseded_stream()
     atof = write_atof(tmp_path, lines)
     client = make_client(tmp_path, str(atof))
-    index = client.get("/timing/").get_data(as_text=True)
+    index = client.get("/prompts/").get_data(as_text=True)
     # still in the table and reachable — this is a liveness call, not retention
-    assert f"/timing/turn/s7/{first_start}" in index
-    assert client.get(f"/timing/turn/s7/{first_start}").status_code == 200
+    assert f"/prompts/turn/s7/{first_start}" in index
+    assert client.get(f"/prompts/turn/s7/{first_start}").status_code == 200
     # but shown as ended-without-an-end-mark, not as running
     assert "no end mark" in index
 
@@ -1032,7 +1032,7 @@ def test_inflight_strip_marks_stale_turns(tmp_path):
     # two_turn_stream's in-flight turn has 1970-era stamps: silent far past
     # the cutoff, so it is listed but flagged and excluded from auto-follow
     atof = write_atof(tmp_path, two_turn_stream())
-    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/").get_data(as_text=True)
     assert "in flight:" in page
     assert 'data-stale="1"' in page
     assert "stale — last event" in page
@@ -1042,7 +1042,7 @@ def test_turn_page_marks_its_own_inflight_entry(tmp_path):
     _, inflight_start, lines = recent_stream()
     atof = write_atof(tmp_path, lines)
     page = make_client(tmp_path, str(atof)).get(
-        f"/timing/turn/s9/{inflight_start}").get_data(as_text=True)
+        f"/prompts/turn/s9/{inflight_start}").get_data(as_text=True)
     assert 'data-inflight-current="1"' in page
     assert "(viewing)" in page
     assert f'data-turn-start-us="{inflight_start}"' in page
@@ -1052,7 +1052,7 @@ def test_finished_turn_page_lists_inflight_without_current(tmp_path):
     finished_start, inflight_start, lines = recent_stream()
     atof = write_atof(tmp_path, lines)
     page = make_client(tmp_path, str(atof)).get(
-        f"/timing/turn/s9/{finished_start}").get_data(as_text=True)
+        f"/prompts/turn/s9/{finished_start}").get_data(as_text=True)
     assert f'data-inflight-start-us="{inflight_start}"' in page
     assert 'data-inflight-current="1"' not in page
 
@@ -1061,15 +1061,15 @@ def test_follow_toggle_rendered_on_both_pages(tmp_path):
     _, inflight_start, lines = recent_stream()
     atof = write_atof(tmp_path, lines)
     client = make_client(tmp_path, str(atof))
-    assert "data-follow-toggle" in client.get("/timing/").get_data(as_text=True)
+    assert "data-follow-toggle" in client.get("/prompts/").get_data(as_text=True)
     assert "data-follow-toggle" in client.get(
-        f"/timing/turn/s9/{inflight_start}").get_data(as_text=True)
+        f"/prompts/turn/s9/{inflight_start}").get_data(as_text=True)
 
 
 def test_index_shows_prompt_snippet_single_line(tmp_path):
     _, _, lines = recent_stream()
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/").get_data(as_text=True)
     assert SHORT_PROMPT in page                      # short prompts fit whole
     assert "investigate these logging traces" in page
     assert "ZZZ-END" not in page                     # long ones are truncated
@@ -1077,7 +1077,7 @@ def test_index_shows_prompt_snippet_single_line(tmp_path):
 
 def test_index_shows_placeholder_when_start_mark_has_no_prompt(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
-    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/").get_data(as_text=True)
     assert "prompt-cell" in page and "—" in page
 
 
@@ -1085,7 +1085,7 @@ def test_turn_page_long_prompt_collapses_but_keeps_full_text(tmp_path):
     _, inflight_start, lines = recent_stream()
     atof = write_atof(tmp_path, lines)
     page = make_client(tmp_path, str(atof)).get(
-        f"/timing/turn/s9/{inflight_start}").get_data(as_text=True)
+        f"/prompts/turn/s9/{inflight_start}").get_data(as_text=True)
     assert '<details class="prompt">' in page
     assert "investigate these logging traces" in page   # summary snippet
     assert "ZZZ-END" in page                             # full text expandable
@@ -1095,7 +1095,7 @@ def test_turn_page_short_prompt_shown_plain(tmp_path):
     finished_start, _, lines = recent_stream()
     atof = write_atof(tmp_path, lines)
     page = make_client(tmp_path, str(atof)).get(
-        f"/timing/turn/s9/{finished_start}").get_data(as_text=True)
+        f"/prompts/turn/s9/{finished_start}").get_data(as_text=True)
     assert SHORT_PROMPT in page
     assert '<details class="prompt">' not in page
 
@@ -1103,34 +1103,34 @@ def test_turn_page_short_prompt_shown_plain(tmp_path):
 def test_inflight_strip_shows_prompt_snippet(tmp_path):
     _, _, lines = recent_stream()
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/").get_data(as_text=True)
     assert "“investigate these logging" in page
 
 
 def test_index_picks_up_appended_turns_between_requests(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     client = make_client(tmp_path, str(atof))
-    first = client.get("/timing/").get_data(as_text=True)
-    assert "/timing/turn/s1/20000000" not in first
+    first = client.get("/prompts/").get_data(as_text=True)
+    assert "/prompts/turn/s1/20000000" not in first
     with open(atof, "a", encoding="utf-8") as handle:
         handle.write(mark_line("hermes.turn.start", 20_000_000, session="s1", turn="t3") + "\n")
         for line in scope_lines("L9", "llm", 20_100_000, 21_100_000,
                                 session="s1", turn="t3"):
             handle.write(line + "\n")
         handle.write(mark_line("hermes.turn.end", 22_000_000, session="s1", turn="t3") + "\n")
-    second = client.get("/timing/").get_data(as_text=True)
-    assert "/timing/turn/s1/20000000" in second
+    second = client.get("/prompts/").get_data(as_text=True)
+    assert "/prompts/turn/s1/20000000" in second
 
 
 def test_turn_page_links_to_neighbouring_turns(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     client = make_client(tmp_path, str(atof))
-    older = client.get("/timing/turn/s1/1000000").get_data(as_text=True)
+    older = client.get("/prompts/turn/s1/1000000").get_data(as_text=True)
     # oldest turn: nothing before it, the later turn is "next"
     assert '<span class="disabled" title="no older turn">&laquo; prev</span>' in older
-    assert '/timing/turn/s1/10000000"' in older
-    newer = client.get("/timing/turn/s1/10000000").get_data(as_text=True)
-    assert '/timing/turn/s1/1000000"' in newer
+    assert '/prompts/turn/s1/10000000"' in older
+    newer = client.get("/prompts/turn/s1/10000000").get_data(as_text=True)
+    assert '/prompts/turn/s1/1000000"' in newer
     assert '<span class="disabled" title="no newer turn">next &raquo;</span>' in newer
 
 
@@ -1139,7 +1139,7 @@ def test_neighbour_prompt_snippet_reaches_the_step_link_title(tmp_path):
     finished_start, inflight_start, lines = recent_stream()
     atof = write_atof(tmp_path, lines)
     page = make_client(tmp_path, str(atof)).get(
-        f"/timing/turn/s9/{inflight_start}").get_data(as_text=True)
+        f"/prompts/turn/s9/{inflight_start}").get_data(as_text=True)
     assert f'title="previous (older) turn — {SHORT_PROMPT}"' in page
 
 
@@ -1147,7 +1147,7 @@ def test_follow_toggle_rides_the_turn_nav_row(tmp_path):
     # same line as all/prev/next: it is navigation too, just automatic
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get(
-        "/timing/turn/s1/1000000").get_data(as_text=True)
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
     start = page.index('<nav class="event-nav">')
     nav = page[start:page.index("</nav>", start)]
     assert "data-follow-toggle" in nav
@@ -1158,7 +1158,7 @@ def test_follow_toggle_rides_the_turn_nav_row(tmp_path):
 
 def test_index_keeps_its_standalone_follow_toggle(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
-    page = make_client(tmp_path, str(atof)).get("/timing/").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/").get_data(as_text=True)
     assert "data-follow-toggle" in page
     # the index has no turn nav to ride, so it stands alone above the region
     assert page.index("data-follow-toggle") < page.index('data-live-poll="3000"')
@@ -1180,7 +1180,7 @@ def test_detail_mode_carries_the_whole_command_and_code(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     # the command wraps out in full, in one code element that keeps newlines
     esc_script, esc_code = escape(script), escape(code)
     assert f'<code class="wrap-detail" title="{esc_script}">{esc_script}</code>' in page
@@ -1202,7 +1202,7 @@ def test_memory_scope_shows_action_store_and_entry(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert '<span class="mode-tag">replace</span>' in page
     assert "· user" in page                      # which of the two stores
     assert "User requires a staged diff before commits." in page
@@ -1224,7 +1224,7 @@ def test_memory_add_shows_only_the_added_side(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert '<span class="mode-tag">add</span>' in page
     assert '<span class="diff-mark ins">+</span>' in page
     # an add replaces nothing, so there is no − row to show
@@ -1244,7 +1244,7 @@ def test_memory_batch_lists_every_operation(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert '<span class="mode-tag">batch</span>' in page
     # first entry stands in for the batch inline, the rest counted
     assert '<div class="span-detail list-compact">' in page
@@ -1270,7 +1270,7 @@ def test_failed_span_is_badged_and_shows_the_tools_error(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert '<span class="badge-error"' in page
     # the message is visible without expanding the row — a failure should
     # never need a click to notice
@@ -1293,7 +1293,7 @@ def test_memory_rejection_shows_the_budget_and_the_store(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert '<span class="badge-error"' in page
     assert "Adding this entry would exceed the limit." in page
     # budget and the store it has to fit in — detail-only, like the
@@ -1317,7 +1317,7 @@ def test_memory_success_reports_usage_without_the_store(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    page = make_client(tmp_path, str(atof)).get("/timing/turn/s1/1000000").get_data(as_text=True)
+    page = make_client(tmp_path, str(atof)).get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert '<span class="badge-error"' not in page
     assert "usage 99% — 2,198/2,200 chars" in page   # the tool's own wording
     assert "entries 10" in page

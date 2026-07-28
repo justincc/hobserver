@@ -1,4 +1,4 @@
-"""Shell tests: plugin registration, tab bar, root and legacy redirects."""
+"""Shell tests: plugin registration, tab bar, the root redirect."""
 
 import app as app_module
 
@@ -7,33 +7,26 @@ def test_root_redirects_to_the_first_tab(client):
     # the leftmost tab is the landing page, so tab order decides this
     resp = client.get("/")
     assert resp.status_code == 302
-    assert resp.headers["Location"].endswith("/timing/")
+    assert resp.headers["Location"].endswith("/prompts/")
 
 
 def test_tab_bar_lists_all_plugins_in_order(client):
-    page = client.get("/memory/").get_data(as_text=True)
-    assert "/timing/" in page
+    page = client.get("/memory/mem0/").get_data(as_text=True)
+    assert "/prompts/" in page
     assert page.index("Prompts") < page.index("Mem0")
 
 
 def test_tab_bar_marks_active_tab(client):
-    memory_page = client.get("/memory/").get_data(as_text=True)
-    assert '/memory/" class="active"' in memory_page
-    timing_page = client.get("/timing/").get_data(as_text=True)
-    assert '/timing/" class="active"' in timing_page
+    memory_page = client.get("/memory/mem0/").get_data(as_text=True)
+    assert '/memory/mem0/" class="active"' in memory_page
+    timing_page = client.get("/prompts/").get_data(as_text=True)
+    assert '/prompts/" class="active"' in timing_page
 
 
-def test_legacy_event_url_redirects(client):
-    resp = client.get("/event/3")
-    assert resp.status_code == 302
-    assert resp.headers["Location"].endswith("/memory/event/3")
-
-
-def test_legacy_fragment_url_redirects_with_query(client):
-    resp = client.get("/fragment/events?since=3")
-    assert resp.status_code == 302
-    assert "/memory/fragment/events" in resp.headers["Location"]
-    assert "since=3" in resp.headers["Location"]
+def test_a_plugin_is_served_under_its_own_url_prefix(client):
+    # URL_PREFIX is independent of the blueprint name, and may be a path
+    assert client.get("/memory/mem0/event/1").status_code == 200
+    assert client.get("/prompts/").status_code == 200
 
 
 def test_templates_reload_without_restart(client):
@@ -110,10 +103,10 @@ def test_banner_flags_an_unset_hermes_home(monkeypatch):
 
 
 def test_status_endpoint_reports_traffic(client):
-    client.get("/memory/")
-    client.get("/timing/")
+    client.get("/memory/mem0/")
+    client.get("/prompts/")
     body = client.get("/_status").get_data(as_text=True)
-    assert "/memory/" in body and "/timing/" in body
+    assert "/memory/mem0/" in body and "/prompts/" in body
     assert "200x1" in body
 
 
@@ -140,7 +133,7 @@ def test_status_endpoint_refreshes_itself(client):
 def test_status_link_in_the_tab_bar_opens_a_new_tab(client):
     # the tally is for checking while a page sits polling, so following it
     # in place would defeat the purpose
-    page = client.get("/memory/").get_data(as_text=True)
+    page = client.get("/memory/mem0/").get_data(as_text=True)
     assert 'href="/_status"' in page
     assert 'target="_blank"' in page
     assert 'class="status-link"' in page
@@ -153,5 +146,5 @@ def test_status_link_in_the_tab_bar_opens_a_new_tab(client):
 
 
 def test_status_link_is_on_every_page(client):
-    for url in ("/memory/", "/timing/"):
+    for url in ("/memory/mem0/", "/prompts/"):
         assert 'href="/_status"' in client.get(url).get_data(as_text=True)

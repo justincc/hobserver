@@ -4,16 +4,26 @@
 hermes-observer (formerly jmem0-logged-browser): Flask webapp for observing
 hermes-agent activity. Views are plugins rendered as horizontal tabs, in
 `plugins.PLUGINS` order with the first one serving `/`: Prompts (blueprint
-`timing`; per-turn waterfalls from the NeMo Relay ATOF JSONL) then Mem0
-(blueprint `memory`; `jmem0_logged.db`, the mem0 event log). Prompts leads
-because a turn is the unit of activity, memory calls included, where the
-mem0 log covers one tool. Tab labels and blueprint names are deliberately
-allowed to differ — the labels are UI copy, the names are URLs the app
-already redirects legacy paths to, so renaming a tab never moves a URL. The
-Mem0 tab is named for the provider, not for memory in general: hermes' own
+`timing`, served at `/prompts/`; per-turn waterfalls from the NeMo Relay
+ATOF JSONL) then Mem0 (blueprint `memory`, served at `/memory/mem0/`;
+`jmem0_logged.db`, the mem0 event log). Prompts leads because a turn is the
+unit of activity, memory calls included, where the mem0 log covers one tool.
+Each plugin therefore carries three independent names: `bp.name` is the code
+identifier (`url_for`, `templates/<name>/`) and does not move, `TAB_LABEL`
+is UI copy, `URL_PREFIX` is the address and may be multi-segment. Keeping
+them apart is what let the tabs be renamed and re-addressed without touching
+any `url_for` call — do not collapse them back together. The Mem0 tab is
+named for the provider, not for memory in general, and namespaced under
+`memory/` because it is one memory system of several to come: hermes' own
 in-prompt stores (MEMORY.md / USER.md — the `memory` tool described below)
-and any other external provider tried later are expected to get their own
-tabs beside it rather than be folded in. See README.md
+and any other external provider tried later get `/memory/<name>/` beside it
+rather than being folded in, and `/memory/` itself stays free to become an
+index over them. `memory/mem0` rather than a punctuated single segment
+(`memory:mem0`) because a colon in the first segment of a *relative* URL
+parses as a scheme. Moving a URL is cheap and stays that way: no redirect
+from an old address is kept, and none should be added — this app has one
+user, who adapts, so compatibility routes are pure reading cost. (`/timing/`
+and `/memory/` were the earlier prefixes; both simply 404 now.) See README.md
 for pages, layout, and data-source path resolution; see docs/adr/ for the
 architecture decisions (ATOF as timing source, direct JSONL reading with no
 ETL, blueprints-as-plugins, cross-plugin access by link or published
@@ -64,9 +74,10 @@ in `app.extensions`, but never opens another's data source).
   browser never owns or mutates data.
 - `app.py` is the shell: app factory (`create_app(db_path, atof_path=None)`)
   so tests can point it at temporary sources, plugin registration, tab list,
-  and legacy-URL redirects. Plugins live in `plugins/<name>` (module or
-  package), each exposing a blueprint `bp` (registered under `/<bp.name>/`)
-  and a `TAB_LABEL`; their templates live in `templates/<name>/`. The ATOF
+  and the root redirect. Plugins live in `plugins/<name>` (module or
+  package), each exposing a blueprint `bp` (registered under
+  `/<URL_PREFIX>/`), a `TAB_LABEL` and a `URL_PREFIX`; their templates live
+  in `templates/<name>/`, keyed by blueprint name. The ATOF
   reader is three layers in `plugins/timing/`: `tailer.py` (byte-offset
   incremental read; app-lifetime instance in `app.extensions`; split the
   chunk on `"\n"` only — `str.splitlines()` also breaks on U+0085/U+2028/
