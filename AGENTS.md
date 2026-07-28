@@ -322,11 +322,10 @@ in `app.extensions`, but never opens another's data source).
   numbered markdown files).
 
 ## General Instructions
-- Documentation must be kept up to date with any relevant changes to the project. 
-- Keep documentation organized and concise. A new file in docs/ can be split off and referenced from here when necessary.
 - All new functionality must have an accompanying passing unit test.
 - Document and code should follow the DRY (Don't Repeat Yourself) principle when reasonable.
 - Tests should always be run after making any changes and any fails fixed.
 
-## Documentation
-- When you learn something important about this project (build commands, architecture decisions, code conventions, debugging insights, workflow preferences. etc), update this file and other documentation to record it.
+### Documentation
+- Documentation must be kept up to date with relevant changes to the project, or when you discover significant things about the project which have not already been recorded. This includes but is not limited to build commands, architecture decisions, code conventions, debugging insights and workflow preferences.
+- Keep the documentation organized and concise. A new file in docs/ can be split off and referenced from here when necessary.
