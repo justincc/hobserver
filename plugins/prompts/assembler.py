@@ -37,6 +37,26 @@ LLM_CATEGORY = "llm"
 TOOL_CATEGORY = "tool"
 UNKNOWN_SESSION = "(unknown session)"
 
+# How much of an assistant message shows on the span. It is a start, not the
+# message: these routinely run to thousands of characters, so the row shows
+# the opening and then says how many there were.
+LLM_TEXT_PREVIEW_CHARS = 400
+
+# Token counts worth a slot on the line, in reading order: what went in,
+# what came out, then what the cache and the reasoning effort cost.
+# prompt_tokens is skipped when it merely repeats input_tokens, which it
+# does whenever nothing was served from the cache.
+TOKEN_LABELS = (
+    ("input_tokens", "in"),
+    ("prompt_tokens", "prompt"),
+    ("output_tokens", "out"),
+    ("cache_read_tokens", "cache read"),
+    ("cache_write_tokens", "cache write"),
+    ("reasoning_tokens", "reasoning"),
+    ("total_tokens", "total"),
+    ("request_count", "requests"),
+)
+
 
 @dataclass
 class Anomaly:
@@ -138,6 +158,68 @@ class Span:
             if isinstance(value, str) and value:
                 return value
         return None
+
+    # --- llm scopes ---------------------------------------------------
+    # An llm span's end payload holds what the model decided, what it said
+    # and what it cost. Read here rather than left to the generic fallback,
+    # which only ever reads a start payload — and an llm start carries an
+    # empty headers dict and a usually-empty content.
+    @property
+    def is_llm(self) -> bool:
+        return self.category == "llm"
+
+    @property
+    def _assistant_message(self) -> Optional[dict]:
+        end = _as_dict(self.end_data)
+        if end is None:
+            return None
+        return _as_dict(end.get("assistant_message"))
+
+    # The tool calls an llm span asked for are deliberately not rendered:
+    # the spans that ran them are the next rows down, carrying their
+    # arguments, and each names its call through tool_call_id. A list here
+    # would restate the waterfall.
+
+    @property
+    def llm_text(self) -> Optional[dict]:
+        """The assistant's own words, as {text, truncated, chars}.
+
+        Empty whenever the model was calling tools rather than talking, and
+        long enough otherwise that what shows is the start of it and how much
+        there was.
+        """
+        message = self._assistant_message
+        if message is None:
+            return None
+        text = message.get("content")
+        if not isinstance(text, str) or not text:
+            return None
+        return {"text": text[:LLM_TEXT_PREVIEW_CHARS],
+                "truncated": len(text) > LLM_TEXT_PREVIEW_CHARS,
+                "chars": len(text)}
+
+    @property
+    def token_summary(self) -> Optional[str]:
+        """Tokens in one line: `in 18,976 · out 407 · cache read 78,336 …`.
+
+        A cache read can be most of a prompt and is often why one call is
+        faster than another, so these belong on the page rather than in the
+        bar's tooltip where they were.
+        """
+        usage = self.usage
+        if not usage:
+            return None
+        parts = []
+        for key, label in TOKEN_LABELS:
+            value = usage.get(key)
+            if not isinstance(value, (int, float)) or isinstance(value, bool):
+                continue
+            if key == "prompt_tokens" and value == usage.get("input_tokens"):
+                continue        # the same number under a second name
+            if key != "request_count" and not value:
+                continue        # a zero cache read says nothing worth a slot
+            parts.append(f"{label} {value:,}")
+        return " · ".join(parts) or None
 
     @property
     def generic_fields(self) -> List[dict]:

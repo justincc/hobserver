@@ -1411,3 +1411,92 @@ def test_unknown_mark_shows_its_payload(tmp_path):
         "/prompts/turn/s1/1000000").get_data(as_text=True)
     assert '<span class="gen-key">completed</span>' in page
     assert "True" in page
+
+
+# --- llm scopes ---------------------------------------------------------
+# What the model decided, what it said and what it cost — all in the end
+# payload, and none of it rendered before.
+
+
+def _llm_turn(tmp_path, end_data):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L1", "llm", 1_100_000, 1_600_000, name="openai-codex",
+                     session="s1", turn="t1", start_data={"headers": {}},
+                     end_data=end_data),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    return make_client(tmp_path, str(atof)).get(
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
+
+
+def _assistant(content="", *tool_names):
+    return {"assistant_message": {
+        "role": "assistant", "content": content,
+        "tool_calls": [{"name": n, "id": f"call{i}", "arguments": "{}"}
+                       for i, n in enumerate(tool_names)]}}
+
+
+def test_llm_span_shows_the_finish_reason(tmp_path):
+    page = _llm_turn(tmp_path, {**_assistant("done"), "finish_reason": "stop"})
+    assert '<span class="mode-tag"' in page and ">stop<" in page
+
+
+def test_llm_span_does_not_restate_its_tool_calls(tmp_path):
+    # the spans that ran them are the next rows down, with their arguments
+    page = _llm_turn(tmp_path, {**_assistant("", "mem0_search", "web_search"),
+                                "finish_reason": "tool_calls"})
+    rows = page[page.index("<tbody>"):]        # the page's own CSS names tools
+    assert "mem0_search" not in rows
+    assert "web_search" not in rows
+    assert ">tool_calls<" in rows          # how it ended is still said
+
+
+def test_llm_span_shows_the_start_of_what_the_model_said(tmp_path):
+    text = "The answer is 42. " * 40         # 720 chars
+    page = _llm_turn(tmp_path, {**_assistant(text), "finish_reason": "stop"})
+    assert "The answer is 42." in page
+    assert text not in page                  # only the start of it
+    assert "start of 720 chars" in page
+
+
+def test_llm_span_shows_short_text_whole_without_a_size_note(tmp_path):
+    page = _llm_turn(tmp_path, {**_assistant("Short reply."),
+                                "finish_reason": "stop"})
+    assert "Short reply." in page
+    assert "start of" not in page
+
+
+def test_llm_span_reports_tokens_including_cache_reads(tmp_path):
+    # a cache read can be most of a prompt, and was only in a tooltip
+    page = _llm_turn(tmp_path, {**_assistant("hi"), "usage": {
+        "input_tokens": 2465, "prompt_tokens": 20897, "output_tokens": 719,
+        "cache_read_tokens": 18432, "cache_write_tokens": 0,
+        "reasoning_tokens": 124, "total_tokens": 21616, "request_count": 1}})
+    assert "in 2,465" in page
+    assert "prompt 20,897" in page            # differs from in, so shown
+    assert "cache read 18,432" in page
+    assert "reasoning 124" in page
+    assert "cache write" not in page          # zero says nothing
+
+
+def test_llm_span_drops_prompt_tokens_when_they_repeat_the_input(tmp_path):
+    page = _llm_turn(tmp_path, {**_assistant("hi"), "usage": {
+        "input_tokens": 18976, "prompt_tokens": 18976, "output_tokens": 407,
+        "total_tokens": 19383, "request_count": 1}})
+    assert "in 18,976" in page
+    assert "prompt 18,976" not in page
+
+
+def test_open_llm_span_renders_without_an_end_payload(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L1", "llm", 1_100_000, None, name="openai-codex",
+                     session="s1", turn="t1", start_data={"headers": {}}),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
+    assert "openai-codex" in page
+    assert "badge-inflight" in page

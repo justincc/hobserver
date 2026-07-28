@@ -39,6 +39,36 @@ unreadable without it:
 
 Payloads are opaque and read defensively even where the log has been uniform.
 
+## llm scopes
+
+An llm span carries what the model decided, said and cost — all of it in the
+**end** event. The start payload is an empty `headers` dict and a `content`
+that is usually empty, so the generic fallback below has nothing to work with;
+this is a branch of its own.
+
+- **Finish reason** — a `.mode-tag`, always visible. `tool_calls` means the
+  spans below are what it asked for; `length` would mean the answer was cut
+  off.
+- **Tool calls are deliberately not listed.** The spans that ran them are the
+  next rows down, with their arguments, and each carries the `tool_call_id` of
+  the call that asked for it — so a list here would restate the waterfall. A
+  call with no matching span is possible; it is treated as an error, not as a
+  case this page detects.
+- **What the model said** — `assistant_message.content`, detail-only. Empty
+  whenever the model was calling tools rather than talking, and long enough
+  otherwise that the row shows the first 400 characters
+  (`LLM_TEXT_PREVIEW_CHARS`) and then says how many there were —
+  `start of 2,579 chars`.
+- **Tokens** — `usage`, on one detail row, e.g. `in 2,465 · prompt 20,897 ·
+  out 719 · cache read 18,432 · reasoning 124 · total 21,616 · requests 1`.
+  `in` is what was sent fresh, `cache read` what the provider served from its
+  prompt cache, `prompt` the two together — shown only when it differs from
+  `in`, which is exactly when the cache was used. Zero counts are dropped.
+
+Tokens are on the row rather than in the bar's tooltip because a cache read
+can be most of a prompt, and is often the difference between a fast call and a
+slow one — worth seeing while scanning, not on hover.
+
 ## Unrecognised scopes
 
 Everything below is a branch written against a hermes tool this app knows. A

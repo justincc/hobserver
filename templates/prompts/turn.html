@@ -368,6 +368,31 @@
         <div class="span-detail">
           <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>
         </div>
+        {% elif s.is_llm %}
+        {# An llm call: how it ended, what it said, what it cost. Its tool
+           calls are not listed — the spans that ran them are the next rows
+           down, with their arguments. #}
+        {% if s.finish_reason %}
+        <div class="span-detail">
+          <span class="mode-tag" title="Why the model stopped, as the provider reported it. `tool_calls` means the spans below are what it asked for; `length` would mean its answer was cut off.">{{ s.finish_reason }}</span>
+        </div>
+        {% endif %}
+        {% if s.llm_text %}
+        <div class="span-detail list-item">
+          <span class="path wide wrap-detail">{{ s.llm_text.text }}{% if s.llm_text.truncated %}…{% endif %}</span>
+        </div>
+        {% if s.llm_text.truncated %}
+        <div class="span-detail list-item">
+          <span class="gen-omitted" title="Only the start is shown here; the whole message is in the ATOF log, and its last word is the turn's own response.">start of {{ '{:,}'.format(s.llm_text.chars) }} chars</span>
+        </div>
+        {% endif %}
+        {% endif %}
+        {% if s.token_summary %}
+        <div class="span-detail list-item">
+          <span class="mode-tag" title="Tokens this call reported. `in` is what was sent fresh and `cache read` what the provider served from its prompt cache; `prompt` is the two together, shown only when it differs from `in`. A cache read can be most of a prompt, and is often why one call is quicker than another.">tokens</span>
+          <span class="path wide">{{ s.token_summary }}</span>
+        </div>
+        {% endif %}
         {% else %}
         {# No branch matched: a tool this app has never heard of, or one
            whose payload is empty. Falls back to the payload itself. #}
