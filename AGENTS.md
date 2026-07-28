@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## General Instructions
-- Keep this generation instructions section and subsections at the top of the file, except of a short description of the project if applicable.
+- Keep this generation instructions section and its subsections at the top of the file.
 - Document and code should follow the DRY (Don't Repeat Yourself) principle when reasonable.
 
 ### Testing
