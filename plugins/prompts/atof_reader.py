@@ -47,17 +47,17 @@ GENERIC_SKIP_KEYS = frozenset({
     "middleware_trace",
 })
 
-# Substrings of key names whose values must never be rendered. The log has
-# none today — hermes' llm spans carry an empty `headers` dict — but a
+# Substrings of key names whose values must never be rendered. Nothing fills
+# them today — hermes' llm spans carry an empty `headers` dict — but a
 # generic renderer must not be the thing that prints a bearer token onto a
 # page, so the guard does not wait for the exporter to start filling it in.
 GENERIC_SECRET_HINTS = ("token", "secret", "password", "api_key", "apikey",
                         "authorization", "auth", "credential", "cookie",
                         "headers")
 
-# Above this, a value is described rather than printed. The log holds a 7 MB
-# conversation_history and a 153 KB tool result, and a live turn page
-# refetches itself every 2 s.
+# Above this, a value is described rather than printed. Payloads reach
+# megabytes — a turn mark carries the whole conversation history — and a live
+# turn page refetches itself every 2 s.
 GENERIC_MAX_VALUE_CHARS = 2000
 
 # All a single summary line can hold; everything else is detail-only.

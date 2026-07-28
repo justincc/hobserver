@@ -4,6 +4,12 @@ What a span shows, scope by scope. The turn page (`templates/prompts/turn.html`)
 lists one row per span or mark; the readers behind it are `Span` properties in
 `plugins/prompts/assembler.py`.
 
+Example values here are illustrations from one stream, not a contract: hermes'
+tools differ between users and versions, and a payload's real shape is
+whatever the tool's own signature says (`$h/tools/`, and
+`$h/plugins/memory/mem0/` for the mem0 tools). Anything phrased as "in
+practice" means observed while building this, and could differ for you.
+
 ## The two layouts
 
 Every row has a summary line and a detail layout:
@@ -81,14 +87,15 @@ The rules (`generic_payload_fields` in `plugins/prompts/atof_reader.py`):
 - Keys come in payload order, which is the tool's own argument order.
 - The first three scalars ride the summary line; every key gets a detail row.
 - A value over 2 KB is named and measured — `conversation_history: list, 412
-  items (7.3 MB)` — never printed. The log holds a 7 MB conversation history
-  and a 153 KB tool result, and a live turn page refetches itself every 2 s.
+  items (7.3 MB)` — never printed. Payloads reach megabytes (a turn mark
+  carries the whole conversation history), and a live turn page refetches
+  itself every 2 s.
 - Correlation plumbing is skipped (`session_id`, `turn_id`, `tool_call_id`,
   `telemetry_schema_version`, …): it is already on the row or of no interest.
 - So is anything whose key looks like a credential (`headers`,
-  `authorization`, `token`, `api_key`, …). No such value appears in the log
-  today — hermes' llm spans carry an empty `headers` dict — but a generic
-  renderer must never be what puts a bearer token on a screen.
+  `authorization`, `token`, `api_key`, …). Nothing fills those keys today —
+  hermes' llm spans carry an empty `headers` dict — but a generic renderer
+  must never be what puts a bearer token on a screen.
 
 A scope with its own branch never collects these rows: the fallback is the
 `else` of the branch chain, so curated rendering always wins.
@@ -214,8 +221,8 @@ cannot return a deleted memory at all.
 
 The log can answer because a mem0_search result carries each hit's text beside
 its id, and the agent can only learn an id *from* a search — so every change
-is preceded by the search that surfaced it. All 19 changes in the log follow
-that pattern, same session, median 30 s earlier (13 s–2.9 min).
+is preceded by the search that surfaced it — in practice within the same
+session, seconds to minutes earlier.
 
 It is therefore the memory as of that search, not a guaranteed pre-change
 snapshot. The row and its tooltip say the text is from the local log, name the
@@ -243,8 +250,8 @@ agent's own notes, `target` "memory") and USER.md (who the user is, `target`
 start, where mem0 is searched on demand.
 
 Because the stores are small (1375 chars for user by default) most writes are
-entries being shortened to fit, and roughly half the calls in the log error on
-the budget and get retried within the turn.
+entries being shortened to fit, and failing the budget and retrying within the
+turn is routine rather than exceptional.
 
 Two payload shapes, dispatched in this order: an `operations` list of
 {action, content?, old_text?} applied atomically, else a single top-level
@@ -314,9 +321,9 @@ folds "" into None; the empty side renders in words. They stay out of the
 summary line because a real `new_string` runs to kilobytes of markdown.
 
 skill_manage's six actions are create/edit/patch/delete/write_file/remove_file
-(checked against `$h/tools/skill_manager_tool.py`). The ATOF log to date only
-exercises create/patch/write_file, so edit/delete/remove_file rendering is
-covered by test alone.
+(checked against `$h/tools/skill_manager_tool.py`). Only create, patch and
+write_file have turned up in practice so far, so the other three are covered
+by test alone.
 
 `file_path` (skill_view, skill_manage write_file and remove_file, and an
 optional patch target) is middot-separated from the skill name and
@@ -326,22 +333,22 @@ left-ellipsized (`.tail`, like the file tools' path).
 
 Every hermes tool reports a failure the same two ways: `metadata.status` is
 "error" on the end event, and the end payload carries an `error` string. That
-holds across every non-ok tool end in the log (terminal, patch, read_file,
-search_files, write_file, execute_code, web_search, skill_view, skill_manage,
-memory), so `Span.failed` and `Span.error` are one generic pair rather than a
-reader per scope, rendered after the scope's own branch as a `badge-error`
-beside the name plus an `.err` row.
+is how the tools in `$h/tools/` report errors, and has held for every failing
+call seen here (terminal, patch, read_file, search_files, write_file,
+execute_code, web_search, skill_view, skill_manage, memory), so `Span.failed`
+and `Span.error` are one generic pair rather than a reader per scope, rendered
+after the scope's own branch as a `badge-error` beside the name plus an `.err`
+row.
 
-Both stay out of detail mode: a failed call must not need a click to notice,
-and ~7% of tool calls fail (skill_manage more than half).
+Both stay out of detail mode: failures are common enough — some tools fail
+more often than they succeed — that noticing one must never need a click.
 
 ## mem0_search results
 
 `Span.mem0_results` reads the end payload —
 `{"count": n, "results": [{id, memory, score}, …]}` — which arrives as a JSON
-string ranked by score descending. That shape is uniform across all 102
-mem0_search ends in the log (1080 results, no key ever missing) and is still
-read defensively.
+string ranked by score descending. That shape has been uniform in practice
+and is still read defensively: payloads are opaque per the ATOF spec.
 
 Only the top three render, on detail-only rows: whole facts would swamp the
 summary line. How many is bound once, as `shown` in the template — the same
@@ -360,10 +367,10 @@ A last row links to the whole ranked list in the Mem0 tab
 two plugins meet, and they share no key — ATOF carries no event id, the db
 carries no span uuid.
 
-`mem0.search_event` therefore matches on (session_id, query), which resolved
-to exactly one event for all 104 mem0_search spans in the log. An optional `ts`
-(the span start, in epoch µs) breaks the only tie possible: the same query
-twice in one session.
+`mem0.search_event` therefore matches on (session_id, query), which has
+resolved to exactly one event for every span checked. An optional `ts` (the
+span start, in epoch µs) breaks the only tie possible: the same query twice in
+one session.
 
 It is a redirect owned by the mem0 plugin, not a lookup at render time — the
 Prompts tab never opens the event log, and a turn page polling every 2 s costs

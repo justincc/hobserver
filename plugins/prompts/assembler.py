@@ -132,11 +132,12 @@ class Span:
 
     # Every tool that fails says so the same two ways, whatever the scope:
     # metadata.status is "error" on the end event, and the end payload
-    # carries an "error" string. Verified across every non-ok tool end in
-    # the log to date — terminal, patch, read_file, search_files,
-    # write_file, execute_code, web_search, skill_view, skill_manage,
-    # memory — so this is one generic pair rather than per-scope readers.
-    # A failed call used to look exactly like a successful one here.
+    # carries an "error" string. That is how the tools in $h/tools/ report
+    # errors, and it has held for every failing call seen here — terminal,
+    # patch, read_file, search_files, write_file, execute_code, web_search,
+    # skill_view, skill_manage, memory — so this is one generic pair rather
+    # than per-scope readers. A failed call used to look exactly like a
+    # successful one here.
     @property
     def failed(self) -> bool:
         return self.metadata.get("status") == "error"
@@ -304,9 +305,8 @@ class Span:
 
     # What a mem0_search actually retrieved, from its end payload —
     # {"count": n, "results": [{"id", "memory", "score"}, …]}, ranked by
-    # score descending, so the first entries are the top hits. Uniform
-    # across every mem0_search end in the log to date (102 ends, 1080
-    # results, none missing a key), but still read defensively: payloads
+    # score descending, so the first entries are the top hits. That shape
+    # has been uniform in practice, but is still read defensively: payloads
     # are opaque per the ATOF spec. Rendering output at all is the
     # exception here — see Span.memory_stats for the other one — and it
     # earns it because the query alone never says whether the search was

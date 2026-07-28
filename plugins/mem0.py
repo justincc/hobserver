@@ -184,9 +184,8 @@ def prior_memory_text(memory_id, before_epoch):
     mem0 for either case. The local event log has it anyway: a mem0_search
     result carries each hit's full text beside its id, and the agent can only
     learn a memory id *from* a search, so every update and delete is preceded
-    by the search that surfaced it. Across the log to date that holds for all
-    19 of them, always in the same session, a median of 30 s earlier (13 s to
-    2.9 min).
+    by the search that surfaced it — in practice within the same session, and
+    seconds to minutes earlier.
 
     This is therefore the memory as of that search, not a guaranteed
     pre-change snapshot: a change made outside hermes in between would not
@@ -271,8 +270,8 @@ def search_event():
     The Prompts tab's mem0_search spans and this tab's events are two
     independent records of the same call, with no shared key: ATOF carries
     no event id and the db carries no span uuid. They are matched instead on
-    (session_id, query), which resolved to exactly one event for all 104
-    mem0_search spans in the log to date — no ambiguity, no misses. The one
+    (session_id, query), which has resolved to exactly one event for every
+    span checked — no ambiguity, no misses. The one
     ambiguity the pair admits is the same query repeated in one session, so
     an optional ?ts= (the span's start, epoch microseconds) breaks the tie by
     nearest logged time; the db timestamps the call's completion, about a
