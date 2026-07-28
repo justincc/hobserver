@@ -1,5 +1,14 @@
 # AGENTS.md
 
+## General Instructions
+- All new functionality must have an accompanying passing unit test.
+- Document and code should follow the DRY (Don't Repeat Yourself) principle when reasonable.
+- Tests should always be run after making any changes and any fails fixed.
+
+### Documentation
+- Documentation must be kept up to date with relevant changes to the project, or when you discover significant things about the project which have not already been recorded. This includes but is not limited to build commands, architecture decisions, code conventions, debugging insights and workflow preferences.
+- Keep the documentation organized and concise. A new file in docs/ can be split off and referenced from here when necessary.
+
 ## Project
 hermes-observer (formerly jmem0-logged-browser): Flask webapp for observing
 hermes-agent activity. Views are plugins rendered as horizontal tabs, in
@@ -321,11 +330,3 @@ in `app.extensions`, but never opens another's data source).
 - Architecture decisions are recorded as ADRs in docs/adr/ (sequentially
   numbered markdown files).
 
-## General Instructions
-- All new functionality must have an accompanying passing unit test.
-- Document and code should follow the DRY (Don't Repeat Yourself) principle when reasonable.
-- Tests should always be run after making any changes and any fails fixed.
-
-### Documentation
-- Documentation must be kept up to date with relevant changes to the project, or when you discover significant things about the project which have not already been recorded. This includes but is not limited to build commands, architecture decisions, code conventions, debugging insights and workflow preferences.
-- Keep the documentation organized and concise. A new file in docs/ can be split off and referenced from here when necessary.
