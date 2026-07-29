@@ -172,17 +172,25 @@
        detail overruns that reserve the block is dropped whole at the cell
        edge — acceptable, that case only loses an already-clipped path */
     body:not(.show-detail) tr:not(.detail-open) .span-detail .tail { display: inline-block; max-width: calc(100% - 12rem); overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+    /* the share sits one monospace character from the figure it qualifies,
+       the same width as the space inside `prompt 20,193`. It needs saying
+       here because the detail layout's flex `gap` does not survive the
+       `display: inline` above: 1ch resolves against .tok-share's own
+       monospace font, so the two gaps match by construction rather than by
+       a literal space rendering at whatever width system-ui gives it */
+    body:not(.show-detail) tr:not(.detail-open) .span-detail .tok-share { margin-left: 1ch; }
     /* the parts of the token tree carry .list-item and so are detail-only by
        the rule below, as does the `tokens` label; the two buckets do not, and
        inline onto the summary line — ~25 characters, where the whole tree
        would be five more figures for the cell's ellipsis to eat.
-       A `·` divides them from the finish reason and from each other, the
-       same separator _inflight.html and index.html use between inline
-       metadata. Both rules need a *visible* left neighbour to match — a
-       preceding .finish, or an earlier bucket — so a lone `prompt` on a row
-       with no finish reason never gets a leading dot. */
-    body:not(.show-detail) tr:not(.detail-open) .span-detail.finish ~ .span-detail.tok-d1::before,
-    body:not(.show-detail) tr:not(.detail-open) .span-detail.tok-d1 ~ .span-detail.tok-d1::before { content: "· "; color: #bbb; }
+       The `·` between them is a real .gen-key span the template puts inside
+       the row (turn.html), not a pseudo-element on it — same glyph, font
+       and colour as a generic payload's separator, which is what makes the
+       two look alike. A row carrying one drops the 0.35rem above: that
+       margin sits outside the dot and would push it right, leaving a wider
+       gap before the dot than after it. Without it the dot has one plain
+       space either side, as it does in payload_rows. */
+    body:not(.show-detail) tr:not(.detail-open) .span-detail.tok-sep { margin-left: 0; }
     /* a task's context nests fainter under its goal line (delegate_task
        detail view); a gap above each goal after the first keeps the
        task+context pairs visually separate */
@@ -195,6 +203,10 @@
     .span-detail.tok-d1 { margin-left: 2.3rem; }
     .span-detail.tok-d2 { margin-left: 3.45rem; }
     .span-detail.tok-part { color: #8a8a8a; }
+    /* the cache share rides the prompt figure, in the same #8a8a8a as the
+       counts: it is a figure to be read, not a lookup id to be copied, and
+       the #bbb used for those is too faint to take in at a glance */
+    .span-detail .tok-share { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; color: #8a8a8a; }
     .span-detail.list-item + .span-detail.task-goal { margin-top: 0.95rem; }
     /* .wrap-detail text (search queries, subagent goals, delegate
        briefs) drops the one-line ellipsis in the detailed layout and

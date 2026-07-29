@@ -1435,6 +1435,7 @@ def _token_rows(page):
     """The rendered token tree as [(label, css classes)], in page order."""
     return [(label, klass.strip()) for klass, label, _ in re.findall(
         r'<div class="span-detail ([^"]*)">\s*'
+        r'(?:<span class="gen-key inline-only">·</span>\s*)?'
         r'<span class="mode-tag"[^>]*>([a-z ]+) ([\d,]+)<', page)]
 
 
@@ -1502,7 +1503,7 @@ def test_llm_span_nests_token_counts_under_the_sums_they_make(tmp_path):
     assert [label for label, _ in depths] == [
         "prompt", "cache read", "in", "out", "reasoning", "requests"]
     assert ("prompt", "tok-d1") in depths            # a top-level bucket…
-    assert ("out", "tok-d1") in depths
+    assert ("out", "tok-sep tok-d1") in depths       # …with a `·` before it
     assert ("cache read", "list-item tok-d2") in depths   # …and its parts
     assert ("in", "list-item tok-d2") in depths
     # reasoning is counted within out, not alongside it: deeper, and marked
@@ -1511,6 +1512,52 @@ def test_llm_span_nests_token_counts_under_the_sums_they_make(tmp_path):
     # on a tool-calling turn most of it is the arguments, rendered below
     assert "counted within out rather than added to it" in page
     assert "arguments of any tool calls" in page
+
+
+def test_llm_span_reports_how_much_of_the_prompt_was_cached(tmp_path):
+    # on the summary line this is the only place the cache shows at all —
+    # cache read is detail-only. 17,920/20,193 is 88.74%, so 89 rounding up
+    page = _llm_turn(tmp_path, {**_assistant("hi"), "finish_reason": "stop",
+                                "usage": {
+        "input_tokens": 2273, "prompt_tokens": 20193, "output_tokens": 84,
+        "cache_read_tokens": 17920, "request_count": 1}})
+    assert '<span class="tok-share">(89% cached)</span>' in page
+    # …and it rides the prompt row, which survives the collapse. No
+    # whitespace between the two spans: the summary layout is inline, where
+    # the detail layout's flex gap does not apply, so a literal space there
+    # would render at the proportional body font's width and land on top of
+    # the 1ch margin base.html sets. The gap is stated in one place.
+    assert re.search(r'<div class="span-detail tok-sep tok-d1">\s*'
+                     r'<span class="gen-key inline-only">·</span>\s*'
+                     r'<span class="mode-tag"[^>]*>prompt 20,193</span>'
+                     r'<span class="tok-share">\(89% cached\)</span>', page)
+
+
+def test_llm_span_never_claims_a_wholly_cached_prompt_it_did_not_have(tmp_path):
+    # 12,900/12,901 is 99.99%, which would round to a flat 100% while a token
+    # was still fresh — 2.4% of the calls in the log do this
+    page = _llm_turn(tmp_path, {**_assistant("hi"), "usage": {
+        "input_tokens": 1, "prompt_tokens": 12901, "output_tokens": 40,
+        "cache_read_tokens": 12900, "request_count": 1}})
+    assert '<span class="tok-share">(99% cached)</span>' in page
+    assert "100% cached)" not in page
+
+
+def test_llm_span_reports_a_wholly_cached_prompt_as_all_of_it(tmp_path):
+    # the cap is for rounding, not a refusal to ever say 100: nothing fresh
+    page = _llm_turn(tmp_path, {**_assistant("hi"), "usage": {
+        "input_tokens": 0, "prompt_tokens": 12900, "output_tokens": 40,
+        "cache_read_tokens": 12900, "request_count": 1}})
+    assert '<span class="tok-share">(100% cached)</span>' in page
+
+
+def test_llm_span_omits_the_cache_share_when_no_cache_read_was_reported(tmp_path):
+    # absent is not zero: with no cache_read_tokens at all this app cannot
+    # tell nothing-cached from nothing-said, so it claims neither
+    page = _llm_turn(tmp_path, {**_assistant("hi"), "usage": {
+        "input_tokens": 18976, "prompt_tokens": 18976, "output_tokens": 407,
+        "request_count": 1}})
+    assert '<span class="tok-share">' not in page   # not the stylesheet's rule
 
 
 def test_llm_span_has_no_total_row(tmp_path):
@@ -1544,9 +1591,7 @@ def test_llm_span_keeps_the_two_buckets_on_a_collapsed_row(tmp_path):
     # is detail-only: beside a figure named `prompt` it says nothing new
     assert len(re.findall(r'>tokens</span>', page)) == 1
     assert re.search(r'<div class="span-detail list-item">\s*'
-                     r'<span class="mode-tag"[^>]*>tokens</span>\s*</div>\s*'
-                     r'<div class="span-detail tok-d1">\s*'
-                     r'<span class="mode-tag"[^>]*>prompt 19,349', page)
+                     r'<span class="mode-tag"[^>]*>tokens</span>\s*</div>', page)
     # the finish reason carries .finish so the `·` sibling rules can divide
     # it from the buckets that follow (base.html)
     assert '<div class="span-detail finish">' in page
@@ -1564,16 +1609,23 @@ def test_llm_span_gives_cache_writes_a_row_of_their_own(tmp_path):
     assert "prompt 9,200" in page             # and the three still sum to it
 
 
-def test_llm_span_drops_prompt_tokens_when_they_repeat_the_input(tmp_path):
-    # nothing cached: `prompt` would be `in` under a second name, one indent
-    # up. The parent goes and the child it stood over is lifted — taking the
-    # summary role with it, so a collapsed row still carries a prompt figure.
+def test_llm_span_shows_the_cached_fresh_split_on_a_cold_prompt(tmp_path):
+    # a cold prompt (the first call of a session, say). `cache read` and `in`
+    # keep their rows at zero: the detail view is where the split is read,
+    # and a missing row leaves a reader guessing whether the figure is zero
+    # or unreported. `prompt` and `in` repeating one number is the price.
     page = _llm_turn(tmp_path, {**_assistant("hi"), "usage": {
-        "input_tokens": 18976, "prompt_tokens": 18976, "output_tokens": 407,
-        "total_tokens": 19383, "request_count": 1}})
-    assert "in 18,976" in page
-    assert "prompt 18,976" not in page
-    assert ("in", "tok-d1") in _token_rows(page)
+        "input_tokens": 18824, "prompt_tokens": 18824, "output_tokens": 199,
+        "cache_read_tokens": 0, "cache_write_tokens": 0,
+        "reasoning_tokens": 91, "request_count": 1}})
+    assert [label for label, _ in _token_rows(page)] == [
+        "prompt", "cache read", "in", "out", "reasoning", "requests"]
+    assert ("cache read", "list-item tok-d2") in _token_rows(page)
+    assert "cache read 0" in page and "in 18,824" in page
+    assert '<span class="tok-share">(0% cached)</span>' in page
+    # cache write stays out: on the codex route hermes hard-codes that zero
+    # rather than measuring it, so the row would be a claim, not a reading
+    assert "cache write" not in page
 
 
 def test_open_llm_span_renders_without_an_end_payload(tmp_path):

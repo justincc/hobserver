@@ -70,7 +70,7 @@ this is a branch of its own.
 
   ```
   tokens
-      prompt 19,349
+      prompt 19,349 (93% cached)
           cache read 17,920
           in 1,429
           cache write 4,096
@@ -83,7 +83,7 @@ this is a branch of its own.
   is left from the finish reason:
 
   ```
-  tool_calls · prompt 20,193 · out 84
+  tool_calls · prompt 20,193 (89% cached) · out 84
   ```
 
   `cache read` leads the prompt's rows: how much of it the provider already
@@ -123,18 +123,57 @@ this is a branch of its own.
   the obvious reading of a `reasoning` row nested under `out` is that the
   remainder is what you read.
 
-  Zero counts are dropped, and because the leaves partition their parent
-  what remains still adds up. `prompt` goes when it merely repeats `in`
-  (exactly when nothing was cached) and the child it stood over is lifted a
-  level — taking the summary role with it, so the summary line still carries
-  a prompt-side figure rather than going blank.
+  **The cache share** — `(93% cached)` — rides the `prompt` figure in both
+  layouts. On the summary line it is the only sign the cache was involved at
+  all, `cache read` being detail-only; in the detail layout it sits directly
+  above the two rows it is read off, where it can be checked. Rounded to
+  whole percent, half up rather than to even, since a reader comparing rows
+  expects `.5` to go up.
+
+  It never reads `100% cached` unless every last token was: straight
+  rounding puts 27 of the 1,129 calls in the log at 100 with hundreds of
+  tokens still fresh (129,536 of 130,361 is 99.37%), so the figure caps at
+  99 unless `cache read == prompt` exactly. One percentage point of
+  imprecision beats a figure that claims a whole prompt was cached when it
+  was not.
+
+  `0% cached` **is** shown — a cold prompt (the first call of a session,
+  say) is a fact worth stating, and every llm row then reads the same shape
+  whether or not the cache was involved. But *absent* is not *zero*: a
+  payload that never reported `cache_read_tokens` gets no share at all,
+  because this app cannot tell nothing-cached from nothing-said. Every one
+  of the 94 cold calls in the log reports the zero explicitly.
+
+  **`cache read` and `in` keep their rows at zero** (`ALWAYS_SHOWN`), where
+  every other count loses one. They are the split the share is read off, and
+  the detail view is where a reader goes to see it; an absent row leaves
+  them working out whether the figure is zero or was never reported. So a
+  cold call has the same shape as a warm one, differing only in the numbers:
+
+  ```
+  prompt 18,824 (0% cached)        prompt 20,193 (89% cached)
+      cache read 0                     cache read 17,920
+      in 18,824                        in 2,273
+  ```
+
+  `prompt` and `in` then carry one figure an indent apart. That repetition
+  is the price of the split always being visible, and `cache read 0` beside
+  it is what makes the pair say something a lone `prompt` would not.
+
+  `cache write` is **not** in that set, and its zero is still dropped — see
+  below for why its zero is not a reading. Every other count keeps the plain
+  rule: zero, no row. Because the leaves partition their parent, dropping
+  one still leaves what is shown adding up.
 
   `cache write` is 0 on every call in the log today, and on the codex route
   that is hard-wired rather than a property of the provider: hermes'
-  `codex_runtime.py` builds its usage with `cache_write_tokens=0` outright.
-  The field is filled for real on the Anthropic route, from
-  `cache_creation_input_tokens` — the part of a prompt the provider stored
-  for later calls to read.
+  `codex_runtime.py` builds its usage with `cache_write_tokens=0` outright,
+  bypassing the normalizer that would have looked for the field. That is why
+  it is not in `ALWAYS_SHOWN` while `cache read` is: a `cache read 0` is
+  something the provider reported, but a `cache write 0` would be this app
+  asserting a measurement nobody took. The field is filled for real on the
+  Anthropic route, from `cache_creation_input_tokens` — the part of a prompt
+  the provider stored for later calls to read.
 
 ### How the two layouts are split
 
@@ -143,7 +182,8 @@ every element carrying it on a collapsed row. So the split is made by which
 rows get the class, not by a mechanism of their own:
 
 - `prompt` and `out` (`summary` in `token_rows`) omit it and survive the
-  collapse; the `tokens` label, the parts and `requests` carry it.
+  collapse, `prompt` taking its cache share with it; the `tokens` label, the
+  parts and `requests` carry it.
 - `requests` is top-level but stays detail-only: it is a count of API calls,
   not of tokens, and does not earn a place on a line being scanned.
 - The whole tree inlines onto one clipped line when collapsed, so five more

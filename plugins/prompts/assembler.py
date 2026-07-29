@@ -70,7 +70,8 @@ LLM_TEXT_PREVIEW_CHARS = 400
 TOKEN_TREE = (
     ("prompt_tokens", "prompt", 1, False,
      "What the model was sent, however it was served — the rows below it "
-     "sum to this."),
+     "sum to this. The share is how much of it came from the cache, rounded "
+     "to whole percent; it never reads 100% unless every last token did."),
     # cache read leads: how much of a prompt the provider already had is the
     # question these rows are usually being read to answer, and `in` reads as
     # the remainder — what was new — once it follows.
@@ -97,10 +98,18 @@ TOKEN_TREE = (
      "of several was summed."),
 )
 
-# The rows that partition `prompt`. When nothing was cached these collapse to
-# `in` alone, and the `prompt` row above it becomes the same number a second
-# time; see token_rows.
-PROMPT_PARTS = ("input_tokens", "cache_read_tokens", "cache_write_tokens")
+# Counts that keep their row at zero, where every other count loses it.
+#
+# `cache read` and `in` are the split the cache share is read off — cached
+# against fresh — and a reader opening the detail view is there to see that
+# split, not to infer it from a missing row. `cache read 0` beside
+# `in 18,824` states the cold call; a bare `prompt` leaves the reader
+# checking whether the row is missing or the figure is.
+#
+# `cache write` is not in the set: on the codex route hermes hard-codes it to
+# zero rather than measuring it (`codex_runtime.py`), so its zero would be a
+# claim this app cannot make. `requests` is here because it is always 1.
+ALWAYS_SHOWN = ("cache_read_tokens", "input_tokens", "request_count")
 
 
 @dataclass
@@ -256,8 +265,12 @@ class Span:
         prompt, so these belong on the page rather than in the bar's tooltip
         where they were.
 
-        Zero counts are dropped — and because the leaves partition their
-        parent, dropping one still leaves what is shown adding up.
+        Zero counts are dropped except for ALWAYS_SHOWN — and because the
+        leaves partition their parent, dropping one still leaves what is
+        shown adding up. On a cold call `prompt` and `in` therefore carry the
+        same figure an indent apart; that repetition is the price of the
+        detail view always showing the cached/fresh split, rather than
+        leaving a reader to infer a zero from an absent row.
         """
         usage = self.usage
         if not usage:
@@ -269,32 +282,53 @@ class Span:
                 return None     # payloads are opaque; a string here is not a count
             return value
 
-        # With nothing cached, `prompt` is `in` under a second name and one
-        # indent up. Drop the parent and lift the child it was standing over
-        # rather than print the figure twice.
-        uncached = count("prompt_tokens") == count("input_tokens")
-
         rows = []
         for key, label, depth, subset, tooltip in TOKEN_TREE:
             value = count(key)
             if value is None:
-                continue
-            if key == "prompt_tokens" and uncached:
-                continue
-            if key != "request_count" and not value:
-                continue        # a zero cache read says nothing worth a row
-            if uncached and key in PROMPT_PARTS:
-                depth -= 1      # lifted into the dropped parent's place…
+                continue        # not reported — which is not the same as zero
+            if key not in ALWAYS_SHOWN and not value:
+                continue        # a zero cache write says nothing worth a row
             rows.append({"label": label, "value": f"{value:,}",
+                         "share": self._cache_share(key, value),
                          "depth": depth, "subset": subset,
-                         # …and with it the summary role, so a collapsed row
-                         # still carries a prompt figure. The buckets sit at
-                         # depth 1, under the `tokens` label; requests is
-                         # outside the tree at depth 0 and does not earn a
-                         # place on that line.
+                         # the buckets sit at depth 1, under the `tokens`
+                         # label, and are what a collapsed row keeps;
+                         # requests is outside the tree at depth 0 and does
+                         # not earn a place on that line.
                          "summary": depth == 1,
                          "tooltip": tooltip})
         return rows
+
+    def _cache_share(self, key: str, prompt: int) -> Optional[str]:
+        """`89% cached` for the prompt row — how much of it was served.
+
+        On the summary line this is the only place the cache shows at all,
+        the parts being detail-only. Whole percent, rounded half up rather
+        than to even, since a reader comparing rows expects .5 to go up.
+
+        A cold prompt reads `0% cached` rather than dropping the note: the
+        provider reported the zero, and every llm row saying the same thing
+        in the same shape is worth more than the character it saves. Absent
+        is different from zero — a payload that never reported a cache read
+        gets no share at all, since this app cannot tell nothing-cached from
+        nothing-said.
+
+        Capped at 99 unless the prompt was cached to the last token: 2.4% of
+        the calls in the log round to 100 with hundreds of tokens still
+        fresh, and a figure that says everything was cached when it was not
+        is worse than one percentage point of imprecision.
+        """
+        usage = self.usage
+        if key != "prompt_tokens" or not usage or prompt <= 0:
+            return None
+        cached = usage.get("cache_read_tokens")
+        if not isinstance(cached, int) or isinstance(cached, bool) or cached < 0:
+            return None     # not reported — which is not the same as none
+        percent = (cached * 200 + prompt) // (2 * prompt)    # floor(x + 0.5)
+        if percent >= 100 and cached < prompt:
+            percent = 99
+        return f"{percent}% cached"
 
     @property
     def generic_fields(self) -> List[dict]:

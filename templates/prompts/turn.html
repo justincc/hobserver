@@ -398,16 +398,27 @@
            inline onto the summary line and the rest stays hidden. The
            `tokens` label is detail-only too — beside a figure named `prompt`
            on a summary line it says nothing the reader did not already know.
-           What separates them from the finish reason there is a `·`, from
-           the sibling rules in base.html. #}
+           What separates them from the finish reason there is a `·`. #}
         {% if s.token_rows %}
         <div class="span-detail list-item">
           <span class="mode-tag" title="What this call counted, as the provider reported it. There is no total: it would be prompt + out, both below.">tokens</span>
         </div>
+        {#- the summary line's separator, written the way a generic payload
+            writes its own (payload_rows, above): a real .gen-key span, so it
+            is the same glyph in the same font at the same colour, with one
+            plain space either side. `prior` is what keeps a leading dot off
+            a row with nothing to its left. #}
+        {% set ns = namespace(prior = true if s.finish_reason else false) %}
         {% for row in s.token_rows %}
-        <div class="span-detail{% if not row.summary %} list-item{% endif %} tok-d{{ row.depth }}{% if row.subset %} tok-part{% endif %}">
+        {%- set dot = row.summary and ns.prior %}
+        <div class="span-detail{% if not row.summary %} list-item{% endif %}{% if dot %} tok-sep{% endif %} tok-d{{ row.depth }}{% if row.subset %} tok-part{% endif %}">
+          {%- if dot %}<span class="gen-key inline-only">·</span> {% endif %}
+          {#- no space before the share: the gap is set in base.html, in both
+              layouts, rather than left to whatever a literal one renders as #}
           <span class="mode-tag" title="{{ row.tooltip }}">{{ row.label }} {{ row.value }}</span>
+          {%- if row.share %}<span class="tok-share">({{ row.share }})</span>{% endif %}
         </div>
+        {%- if row.summary %}{% set ns.prior = true %}{% endif %}
         {% endfor %}
         {% endif %}
         {% else %}
