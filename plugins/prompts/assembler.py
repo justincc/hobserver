@@ -42,20 +42,65 @@ UNKNOWN_SESSION = "(unknown session)"
 # the opening and then says how many there were.
 LLM_TEXT_PREVIEW_CHARS = 400
 
-# Token counts worth a slot on the line, in reading order: what went in,
-# what came out, then what the cache and the reasoning effort cost.
-# prompt_tokens is skipped when it merely repeats input_tokens, which it
-# does whenever nothing was served from the cache.
-TOKEN_LABELS = (
-    ("input_tokens", "in"),
-    ("prompt_tokens", "prompt"),
-    ("output_tokens", "out"),
-    ("cache_read_tokens", "cache read"),
-    ("cache_write_tokens", "cache write"),
-    ("reasoning_tokens", "reasoning"),
-    ("total_tokens", "total"),
-    ("request_count", "requests"),
+# The token counts, as the tree they actually form rather than the flat line
+# they used to be rendered as. The three relations behind the indent do not
+# hold equally firmly, and it is worth knowing which is which:
+#
+#   cache read + in + cache write == prompt   structural. hermes computes
+#       `prompt` as exactly this sum on every emit path (the
+#       `CanonicalUsage.prompt_tokens` property), so it cannot diverge.
+#   reasoning <= out                          observed, not enforced.
+#
+# So the children of `prompt` are its parts by construction, and `reasoning`
+# is a slice of `out` — counted within it, not added to it. A flat list
+# would have said these were six peers.
+#
+# depth is the indent; subset marks a row that is part of its parent rather
+# than a share of it, which is the difference between a figure that can be
+# added up and one that must not be. The leaves — in, cache read, cache
+# write, out — are the counts the provider reports; the parents are sums
+# this app derives from them.
+#
+# There is deliberately no `total` row. It is `prompt + out`, both of which
+# are here — and it is the one figure the tree could not vouch for, since
+# hermes' codex path takes the provider's reported total over the computed
+# sum. Nothing on screen now depends on that agreement. Depth 1 is where the
+# buckets it used to parent still sit: the template's `tokens` label heads
+# the tree in its place, carrying no number of its own.
+TOKEN_TREE = (
+    ("prompt_tokens", "prompt", 1, False,
+     "What the model was sent, however it was served — the rows below it "
+     "sum to this."),
+    # cache read leads: how much of a prompt the provider already had is the
+    # question these rows are usually being read to answer, and `in` reads as
+    # the remainder — what was new — once it follows.
+    ("cache_read_tokens", "cache read", 2, False,
+     "Prompt tokens the provider served from its cache instead of "
+     "processing again. This can be most of a prompt, and is often why one "
+     "call is quicker than another."),
+    ("input_tokens", "in", 2, False,
+     "Prompt tokens sent fresh, for the provider to process on this call."),
+    ("cache_write_tokens", "cache write", 2, False,
+     "Prompt tokens this call processed and the provider stored for later "
+     "calls to read. Only providers with an explicit cache report this; it "
+     "stays absent otherwise."),
+    ("output_tokens", "out", 1, False,
+     "Everything the model generated: its reasoning, its reply, and the "
+     "arguments of any tool calls."),
+    ("reasoning_tokens", "reasoning", 2, True,
+     "Hidden reasoning, counted within out rather than added to it. What is "
+     "left of out is not simply the reply — it is the reply plus the "
+     "arguments of any tool calls, which are shown on the spans below "
+     "rather than here."),
+    ("request_count", "requests", 0, False,
+     "How many provider API calls these figures cover — 1 unless the usage "
+     "of several was summed."),
 )
+
+# The rows that partition `prompt`. When nothing was cached these collapse to
+# `in` alone, and the `prompt` row above it becomes the same number a second
+# time; see token_rows.
+PROMPT_PARTS = ("input_tokens", "cache_read_tokens", "cache_write_tokens")
 
 
 @dataclass
@@ -200,27 +245,56 @@ class Span:
                 "chars": len(text)}
 
     @property
-    def token_summary(self) -> Optional[str]:
-        """Tokens in one line: `in 18,976 · out 407 · cache read 78,336 …`.
+    def token_rows(self) -> List[dict]:
+        """The call's token counts as rows of the TOKEN_TREE.
 
-        A cache read can be most of a prompt and is often why one call is
-        faster than another, so these belong on the page rather than in the
-        bar's tooltip where they were.
+        Rows marked `summary` — the top-level buckets, `prompt` and `out` —
+        are what a collapsed waterfall row shows; the rest are detail-only,
+        because a collapsed row inlines its details onto one clipped line and
+        every figure past the cut reads as a real one. Two short figures fit
+        where the whole tree would not, and a cache read can be most of a
+        prompt, so these belong on the page rather than in the bar's tooltip
+        where they were.
+
+        Zero counts are dropped — and because the leaves partition their
+        parent, dropping one still leaves what is shown adding up.
         """
         usage = self.usage
         if not usage:
-            return None
-        parts = []
-        for key, label in TOKEN_LABELS:
+            return []
+
+        def count(key: str) -> Optional[int]:
             value = usage.get(key)
             if not isinstance(value, (int, float)) or isinstance(value, bool):
+                return None     # payloads are opaque; a string here is not a count
+            return value
+
+        # With nothing cached, `prompt` is `in` under a second name and one
+        # indent up. Drop the parent and lift the child it was standing over
+        # rather than print the figure twice.
+        uncached = count("prompt_tokens") == count("input_tokens")
+
+        rows = []
+        for key, label, depth, subset, tooltip in TOKEN_TREE:
+            value = count(key)
+            if value is None:
                 continue
-            if key == "prompt_tokens" and value == usage.get("input_tokens"):
-                continue        # the same number under a second name
+            if key == "prompt_tokens" and uncached:
+                continue
             if key != "request_count" and not value:
-                continue        # a zero cache read says nothing worth a slot
-            parts.append(f"{label} {value:,}")
-        return " · ".join(parts) or None
+                continue        # a zero cache read says nothing worth a row
+            if uncached and key in PROMPT_PARTS:
+                depth -= 1      # lifted into the dropped parent's place…
+            rows.append({"label": label, "value": f"{value:,}",
+                         "depth": depth, "subset": subset,
+                         # …and with it the summary role, so a collapsed row
+                         # still carries a prompt figure. The buckets sit at
+                         # depth 1, under the `tokens` label; requests is
+                         # outside the tree at depth 0 and does not earn a
+                         # place on that line.
+                         "summary": depth == 1,
+                         "tooltip": tooltip})
+        return rows
 
     @property
     def generic_fields(self) -> List[dict]:

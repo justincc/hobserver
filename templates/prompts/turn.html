@@ -373,7 +373,7 @@
            calls are not listed — the spans that ran them are the next rows
            down, with their arguments. #}
         {% if s.finish_reason %}
-        <div class="span-detail">
+        <div class="span-detail finish">
           <span class="mode-tag" title="Why the model stopped, as the provider reported it. `tool_calls` means the spans below are what it asked for; `length` would mean its answer was cut off.">{{ s.finish_reason }}</span>
         </div>
         {% endif %}
@@ -387,11 +387,28 @@
         </div>
         {% endif %}
         {% endif %}
-        {% if s.token_summary %}
+        {# Tokens as the tree they form, not the flat line they were: the
+           rows under `prompt` and `out` sum to them, so the indent is the
+           arithmetic. The two top-level buckets are all a collapsed row
+           carries; the parts wait for the detail view, where each figure has
+           room for its own tooltip. Every row is a `.mode-tag` — they are
+           the same kind of thing, and the tree should not say otherwise. #}
+        {# `.list-item` is what marks a detail-only row, so it goes on the
+           parts and not on the two buckets: collapsed, `prompt` and `out`
+           inline onto the summary line and the rest stays hidden. The
+           `tokens` label is detail-only too — beside a figure named `prompt`
+           on a summary line it says nothing the reader did not already know.
+           What separates them from the finish reason there is a `·`, from
+           the sibling rules in base.html. #}
+        {% if s.token_rows %}
         <div class="span-detail list-item">
-          <span class="mode-tag" title="Tokens this call reported. `in` is what was sent fresh and `cache read` what the provider served from its prompt cache; `prompt` is the two together, shown only when it differs from `in`. A cache read can be most of a prompt, and is often why one call is quicker than another.">tokens</span>
-          <span class="path wide">{{ s.token_summary }}</span>
+          <span class="mode-tag" title="What this call counted, as the provider reported it. There is no total: it would be prompt + out, both below.">tokens</span>
         </div>
+        {% for row in s.token_rows %}
+        <div class="span-detail{% if not row.summary %} list-item{% endif %} tok-d{{ row.depth }}{% if row.subset %} tok-part{% endif %}">
+          <span class="mode-tag" title="{{ row.tooltip }}">{{ row.label }} {{ row.value }}</span>
+        </div>
+        {% endfor %}
         {% endif %}
         {% else %}
         {# No branch matched: a tool this app has never heard of, or one

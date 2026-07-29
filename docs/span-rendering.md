@@ -65,15 +65,106 @@ this is a branch of its own.
   otherwise that the row shows the first 400 characters
   (`LLM_TEXT_PREVIEW_CHARS`) and then says how many there were —
   `start of 2,579 chars`.
-- **Tokens** — `usage`, on one detail row, e.g. `in 2,465 · prompt 20,897 ·
-  out 719 · cache read 18,432 · reasoning 124 · total 21,616 · requests 1`.
-  `in` is what was sent fresh, `cache read` what the provider served from its
-  prompt cache, `prompt` the two together — shown only when it differs from
-  `in`, which is exactly when the cache was used. Zero counts are dropped.
+- **Tokens** — `usage`, as a tree (`TOKEN_TREE`), one row per count. In the
+  detail layout:
+
+  ```
+  tokens
+      prompt 19,349
+          cache read 17,920
+          in 1,429
+          cache write 4,096
+      out 1,089
+          reasoning 303
+  requests 1
+  ```
+
+  and on the summary line, where the parts are hidden and a `·` divides what
+  is left from the finish reason:
+
+  ```
+  tool_calls · prompt 20,193 · out 84
+  ```
+
+  `cache read` leads the prompt's rows: how much of it the provider already
+  had is the question they are usually being read to answer, and `in` reads
+  as the remainder — what was new — once it follows.
+
+  **There is no `total` row.** It would be `prompt + out`, both of which are
+  here, and it was the one figure the tree could not vouch for — see the
+  relations below. The `tokens` label heads the tree in its place, carrying
+  no number of its own; it is detail-only, because beside a figure already
+  named `prompt` it tells a summary-line reader nothing.
+
+  The indent is arithmetic, not decoration — and both relations behind it
+  now hold firmly:
+
+  | relation | strength |
+  |---|---|
+  | `cache read + in + cache write == prompt` | structural — hermes computes `prompt` as this sum on every emit path (`CanonicalUsage.prompt_tokens`), so it cannot diverge |
+  | `reasoning <= out` | observed, not enforced — hence the marking below |
+
+  (The dropped `total` was the exception: `prompt + out == total` held
+  throughout the log but was never guaranteed, because hermes' codex path
+  prefers the provider's reported total over the computed sum
+  — `codex_runtime.py`. Nothing on screen depends on that agreement now.)
+
+  So the rows under `prompt` are its parts by construction. `reasoning` is
+  counted *within* `out` rather than alongside it, and is marked `.tok-part`
+  (fainter, and its tooltip says so) precisely because it must not be added
+  to its siblings.
+
+  `out − reasoning` is **not** the reply. It is everything else the model
+  emitted — the reply *and* the arguments of any tool calls — and on most
+  calls here it is mostly the latter: 907 of 1,129 llm scopes in the log
+  made tool calls, and those usually carry no message content at all, so
+  hundreds of output tokens went on arguments that this span deliberately
+  does not list (they are on the spans below). Both tooltips say so, because
+  the obvious reading of a `reasoning` row nested under `out` is that the
+  remainder is what you read.
+
+  Zero counts are dropped, and because the leaves partition their parent
+  what remains still adds up. `prompt` goes when it merely repeats `in`
+  (exactly when nothing was cached) and the child it stood over is lifted a
+  level — taking the summary role with it, so the summary line still carries
+  a prompt-side figure rather than going blank.
+
+  `cache write` is 0 on every call in the log today, and on the codex route
+  that is hard-wired rather than a property of the provider: hermes'
+  `codex_runtime.py` builds its usage with `cache_write_tokens=0` outright.
+  The field is filled for real on the Anthropic route, from
+  `cache_creation_input_tokens` — the part of a prompt the provider stored
+  for later calls to read.
+
+### How the two layouts are split
+
+`.list-item` is this app's detail-only marker (`base.html`) — one rule hides
+every element carrying it on a collapsed row. So the split is made by which
+rows get the class, not by a mechanism of their own:
+
+- `prompt` and `out` (`summary` in `token_rows`) omit it and survive the
+  collapse; the `tokens` label, the parts and `requests` carry it.
+- `requests` is top-level but stays detail-only: it is a count of API calls,
+  not of tokens, and does not earn a place on a line being scanned.
+- The whole tree inlines onto one clipped line when collapsed, so five more
+  labelled figures would be five for the ellipsis to eat — and a clipped
+  count reads as a real one.
+
+A `·` (the separator `_inflight.html` and `index.html` already use between
+inline metadata) divides the buckets from the finish reason and from each
+other. Both sibling rules in `base.html` require a *visible* left neighbour —
+a preceding `.finish`, or an earlier bucket — so a span with no finish reason
+never shows a leading dot.
 
 Tokens are on the row rather than in the bar's tooltip because a cache read
 can be most of a prompt, and is often the difference between a fast call and a
-slow one — worth seeing while scanning, not on hover.
+slow one — worth seeing on the span, not on hover.
+
+The leaves — `in`, `cache read`, `cache write`, `out` — are the four counts
+the provider reports; the parents are sums the leaves make. An llm payload
+carries `usage`, `model`, `finish_reason` and `assistant_message`, and nothing
+else, so anything a row says beyond those has to come from somewhere other
+than the log.
 
 ## Unrecognised scopes
 

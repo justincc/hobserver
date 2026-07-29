@@ -172,10 +172,29 @@
        detail overruns that reserve the block is dropped whole at the cell
        edge — acceptable, that case only loses an already-clipped path */
     body:not(.show-detail) tr:not(.detail-open) .span-detail .tail { display: inline-block; max-width: calc(100% - 12rem); overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+    /* the parts of the token tree carry .list-item and so are detail-only by
+       the rule below, as does the `tokens` label; the two buckets do not, and
+       inline onto the summary line — ~25 characters, where the whole tree
+       would be five more figures for the cell's ellipsis to eat.
+       A `·` divides them from the finish reason and from each other, the
+       same separator _inflight.html and index.html use between inline
+       metadata. Both rules need a *visible* left neighbour to match — a
+       preceding .finish, or an earlier bucket — so a lone `prompt` on a row
+       with no finish reason never gets a leading dot. */
+    body:not(.show-detail) tr:not(.detail-open) .span-detail.finish ~ .span-detail.tok-d1::before,
+    body:not(.show-detail) tr:not(.detail-open) .span-detail.tok-d1 ~ .span-detail.tok-d1::before { content: "· "; color: #bbb; }
     /* a task's context nests fainter under its goal line (delegate_task
        detail view); a gap above each goal after the first keeps the
        task+context pairs visually separate */
     .span-detail.ctx { margin-left: 2.3rem; color: #8a8a8a; }
+    /* token rows indent by their place in the tree, so `in` and `cache read`
+       sit visibly under the `prompt` they sum to. .tok-part is a row counted
+       *within* its parent rather than a share of it (reasoning inside out) —
+       fainter because it must not be added to its siblings; its tooltip, not
+       the shade, is what says so */
+    .span-detail.tok-d1 { margin-left: 2.3rem; }
+    .span-detail.tok-d2 { margin-left: 3.45rem; }
+    .span-detail.tok-part { color: #8a8a8a; }
     .span-detail.list-item + .span-detail.task-goal { margin-top: 0.95rem; }
     /* .wrap-detail text (search queries, subagent goals, delegate
        briefs) drops the one-line ellipsis in the detailed layout and

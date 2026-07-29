@@ -1431,6 +1431,13 @@ def _llm_turn(tmp_path, end_data):
         "/prompts/turn/s1/1000000").get_data(as_text=True)
 
 
+def _token_rows(page):
+    """The rendered token tree as [(label, css classes)], in page order."""
+    return [(label, klass.strip()) for klass, label, _ in re.findall(
+        r'<div class="span-detail ([^"]*)">\s*'
+        r'<span class="mode-tag"[^>]*>([a-z ]+) ([\d,]+)<', page)]
+
+
 def _assistant(content="", *tool_names):
     return {"assistant_message": {
         "role": "assistant", "content": content,
@@ -1478,15 +1485,95 @@ def test_llm_span_reports_tokens_including_cache_reads(tmp_path):
     assert "prompt 20,897" in page            # differs from in, so shown
     assert "cache read 18,432" in page
     assert "reasoning 124" in page
+    assert "requests 1" in page               # no longer eaten by an ellipsis
     assert "cache write" not in page          # zero says nothing
 
 
+def test_llm_span_nests_token_counts_under_the_sums_they_make(tmp_path):
+    # in + cache read == prompt, prompt + out == total: the indent is that
+    # arithmetic, so a reader can see which figures add up and which don't
+    page = _llm_turn(tmp_path, {**_assistant("hi"), "usage": {
+        "input_tokens": 1429, "prompt_tokens": 19349, "output_tokens": 1089,
+        "cache_read_tokens": 17920, "cache_write_tokens": 0,
+        "reasoning_tokens": 303, "total_tokens": 20438, "request_count": 1}})
+    depths = _token_rows(page)
+    # cache read before in: how much the provider already had is the question
+    # these rows answer, and `in` then reads as the remainder that was new
+    assert [label for label, _ in depths] == [
+        "prompt", "cache read", "in", "out", "reasoning", "requests"]
+    assert ("prompt", "tok-d1") in depths            # a top-level bucket…
+    assert ("out", "tok-d1") in depths
+    assert ("cache read", "list-item tok-d2") in depths   # …and its parts
+    assert ("in", "list-item tok-d2") in depths
+    # reasoning is counted within out, not alongside it: deeper, and marked
+    assert ("reasoning", "list-item tok-d2 tok-part") in depths
+    # …and says so, including that the remainder is not simply the reply:
+    # on a tool-calling turn most of it is the arguments, rendered below
+    assert "counted within out rather than added to it" in page
+    assert "arguments of any tool calls" in page
+
+
+def test_llm_span_has_no_total_row(tmp_path):
+    # `total` is prompt + out, both already shown — and the one figure the
+    # tree could not vouch for, since hermes' codex path takes the provider's
+    # reported total over the computed sum
+    page = _llm_turn(tmp_path, {**_assistant("hi"), "usage": {
+        "input_tokens": 1429, "prompt_tokens": 19349, "output_tokens": 1089,
+        "cache_read_tokens": 17920, "total_tokens": 20438,
+        "request_count": 1}})
+    assert "20,438" not in page
+    assert [label for label, _ in _token_rows(page)] == [
+        "prompt", "cache read", "in", "out", "requests"]
+
+
+def test_llm_span_keeps_the_two_buckets_on_a_collapsed_row(tmp_path):
+    # what went in and what came out are ~30 characters together and worth
+    # scanning; their parts wait for the detail view, where each row has room
+    # for its own tooltip
+    page = _llm_turn(tmp_path, {**_assistant("hi"), "finish_reason": "stop",
+                                "usage": {
+        "input_tokens": 1429, "prompt_tokens": 19349, "output_tokens": 1089,
+        "cache_read_tokens": 17920, "total_tokens": 20438,
+        "request_count": 1}})
+    # `.list-item` is this codebase's detail-only marker (base.html), so a
+    # row without it is one the collapsed waterfall keeps
+    shown = [label for label, klass in _token_rows(page)
+             if "list-item" not in klass]
+    assert shown == ["prompt", "out"]
+    # `tokens` heads the tree on a row of its own, carrying no figure — and
+    # is detail-only: beside a figure named `prompt` it says nothing new
+    assert len(re.findall(r'>tokens</span>', page)) == 1
+    assert re.search(r'<div class="span-detail list-item">\s*'
+                     r'<span class="mode-tag"[^>]*>tokens</span>\s*</div>\s*'
+                     r'<div class="span-detail tok-d1">\s*'
+                     r'<span class="mode-tag"[^>]*>prompt 19,349', page)
+    # the finish reason carries .finish so the `·` sibling rules can divide
+    # it from the buckets that follow (base.html)
+    assert '<div class="span-detail finish">' in page
+
+
+def test_llm_span_gives_cache_writes_a_row_of_their_own(tmp_path):
+    # zero on the openai-shaped providers in the log today, but the part of
+    # a prompt an anthropic cache stores — the row it earns when non-zero
+    page = _llm_turn(tmp_path, {**_assistant("hi"), "usage": {
+        "input_tokens": 1200, "prompt_tokens": 9200, "output_tokens": 300,
+        "cache_read_tokens": 4000, "cache_write_tokens": 4000,
+        "total_tokens": 9500, "request_count": 1}})
+    assert "cache write 4,000" in page
+    assert "cache read 4,000" in page
+    assert "prompt 9,200" in page             # and the three still sum to it
+
+
 def test_llm_span_drops_prompt_tokens_when_they_repeat_the_input(tmp_path):
+    # nothing cached: `prompt` would be `in` under a second name, one indent
+    # up. The parent goes and the child it stood over is lifted — taking the
+    # summary role with it, so a collapsed row still carries a prompt figure.
     page = _llm_turn(tmp_path, {**_assistant("hi"), "usage": {
         "input_tokens": 18976, "prompt_tokens": 18976, "output_tokens": 407,
         "total_tokens": 19383, "request_count": 1}})
     assert "in 18,976" in page
     assert "prompt 18,976" not in page
+    assert ("in", "tok-d1") in _token_rows(page)
 
 
 def test_open_llm_span_renders_without_an_end_payload(tmp_path):
