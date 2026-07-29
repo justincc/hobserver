@@ -382,7 +382,11 @@
         {% if s.finish_reason or s.llm_tool_calls %}
         <div class="span-detail">
           {%- if s.finish_reason %}<span class="mode-tag" title="Why the model stopped, as the provider reported it. `tool_calls` means the spans below are what it asked for; `length` would mean its answer was cut off.">{{ s.finish_reason }}</span>{% endif %}
-          {%- if s.llm_tool_calls %}<span class="path wide wrap-detail list-item" title="The tools this call asked for, in the order it asked. Their arguments are on the spans below, one per call; what this adds is that they were decided together.">{% for name in s.llm_tool_calls %}{% if not loop.first %} <span class="gen-key">·</span> {% endif %}{{ name }}{% endfor %}</span>{% endif %}
+          {#- .call-list, not .path: a `.path` in the collapsed layout is
+              forced back to `display: inline` by a more specific rule than
+              the one .list-item hides it with, so these names would show on
+              the summary line. Its own class has no such fight. #}
+          {%- if s.llm_tool_calls %}<span class="call-list list-item" title="The tools this call asked for, in the order it asked. Their arguments are on the spans below, one per call; what this adds is that they were decided together.">{% for name in s.llm_tool_calls %}{% if not loop.first %} <span class="gen-key">·</span> {% endif %}{{ name }}{% endfor %}</span>{% endif %}
         </div>
         {% endif %}
         {% if s.llm_text %}

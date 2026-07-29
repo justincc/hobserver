@@ -1472,7 +1472,7 @@ def test_llm_span_lists_the_tools_it_asked_for(tmp_path):
     page = _llm_turn(tmp_path, {
         **_assistant("", "mem0_search", "read_file", "read_file"),
         "finish_reason": "tool_calls"})
-    calls = re.search(r'<span class="path wide wrap-detail list-item"[^>]*>'
+    calls = re.search(r'<span class="call-list list-item"[^>]*>'
                       r'(.*?)</span>\s*</div>', page, re.S)
     assert calls
     assert re.sub(r"<[^>]+>", "", calls.group(1)).split(" · ") == [
@@ -1482,8 +1482,8 @@ def test_llm_span_lists_the_tools_it_asked_for(tmp_path):
 def test_llm_span_names_nothing_when_the_model_only_talked(tmp_path):
     page = _llm_turn(tmp_path, {**_assistant("Just a reply."),
                                 "finish_reason": "stop"})
-    assert 'wrap-detail list-item' not in page   # no names beside the reason
-    assert ">stop<" in page                      # the reason still stands
+    assert '<span class="call-list' not in page   # no names beside the reason
+    assert ">stop<" in page                      # …and not the stylesheet's rule
 
 
 def test_llm_span_counts_a_tool_call_it_cannot_read(tmp_path):
@@ -1495,10 +1495,24 @@ def test_llm_span_counts_a_tool_call_it_cannot_read(tmp_path):
         "tool_calls": [{"name": "terminal", "id": "c1", "arguments": "{}"},
                        "not a dict",
                        {"id": "c3", "arguments": "{}"}]}})
-    calls = re.search(r'<span class="path wide wrap-detail list-item"[^>]*>'
+    calls = re.search(r'<span class="call-list list-item"[^>]*>'
                       r'(.*?)</span>\s*</div>', page, re.S)
     assert re.sub(r"<[^>]+>", "", calls.group(1)).split(" · ") == [
         "terminal", "(unreadable)", "(unnamed)"]
+
+
+def test_llm_tool_call_names_stay_off_the_summary_line(tmp_path):
+    # they are detail-only, and the mechanism is load-bearing: a `.path` in
+    # the collapsed layout is forced to `display: inline` by a rule more
+    # specific than the one .list-item hides it with, so carrying both
+    # classes would put these names on the summary line
+    page = _llm_turn(tmp_path, {**_assistant("", "terminal", "read_file"),
+                                "finish_reason": "tool_calls"})
+    names = re.search(r'<span class="([^"]*)"[^>]*>terminal', page)
+    assert names, "the names span is missing"
+    classes = names.group(1).split()
+    assert "list-item" in classes            # hidden when the row is collapsed
+    assert "path" not in classes             # …and nothing outranks that
 
 
 def test_llm_span_shows_the_start_of_what_the_model_said(tmp_path):

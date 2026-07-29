@@ -65,6 +65,10 @@ this is a branch of its own.
   They ride the reason rather than taking a row of their own, which would
   have needed a `calls` label restating the `tool_calls` next to it. Only
   the names carry `.list-item`, so the summary line keeps the reason alone.
+  They are a `.call-list` span and deliberately not a `.path` one: the
+  collapsed layout forces `.path` back to `display: inline` with a more
+  specific selector than the one `.list-item` hides it with, so the pair
+  would have put the names on the summary line.
 
   The arguments stay on the spans below, each rendered by the branch written
   for that tool; repeating them here would restate the waterfall, which is

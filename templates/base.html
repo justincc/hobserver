@@ -127,6 +127,11 @@
     /* fallback rendering for a scope with no branch of its own: the payload
        key stays quiet beside its value, like a label */
     .span-detail .gen-key { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; color: #8a8a8a; }
+    /* the tool names beside a finish reason. Detail-only (.list-item), so it
+       needs no collapsed-line ellipsis — and deliberately not .path, whose
+       collapsed rule outranks the one that hides .list-item and would put
+       these names on the summary line */
+    .span-detail .call-list { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
     /* a value too large to print — its type and size instead, in words */
     .span-detail .gen-omitted { flex: none; color: #8a8a8a; font-style: italic; }
     /* skill_manage patch sides. The −/+ glyph carries the meaning; the tint
