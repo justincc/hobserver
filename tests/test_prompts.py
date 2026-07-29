@@ -1451,14 +1451,54 @@ def test_llm_span_shows_the_finish_reason(tmp_path):
     assert '<span class="mode-tag"' in page and ">stop<" in page
 
 
-def test_llm_span_does_not_restate_its_tool_calls(tmp_path):
-    # the spans that ran them are the next rows down, with their arguments
-    page = _llm_turn(tmp_path, {**_assistant("", "mem0_search", "web_search"),
-                                "finish_reason": "tool_calls"})
-    rows = page[page.index("<tbody>"):]        # the page's own CSS names tools
-    assert "mem0_search" not in rows
-    assert "web_search" not in rows
-    assert ">tool_calls<" in rows          # how it ended is still said
+def test_llm_span_names_its_tool_calls_without_their_arguments(tmp_path):
+    # the names are worth restating — they were one decision — but the
+    # arguments are not: each span below renders its own, through a branch
+    # written for that tool
+    page = _llm_turn(tmp_path, {"finish_reason": "tool_calls",
+                                "assistant_message": {
+        "role": "assistant", "content": "",
+        "tool_calls": [{"name": "mem0_search", "id": "c1",
+                        "arguments": '{"query": "brain development"}'}]}})
+    rows = page[page.index("<tbody>"):]
+    assert "mem0_search" in rows
+    assert "brain development" not in rows     # the argument stays below
+    assert ">tool_calls<" in rows              # how it ended is still said
+
+
+def test_llm_span_lists_the_tools_it_asked_for(tmp_path):
+    # names only, in the order asked — the arguments are on the spans below.
+    # What this row adds is that the calls were one decision.
+    page = _llm_turn(tmp_path, {
+        **_assistant("", "mem0_search", "read_file", "read_file"),
+        "finish_reason": "tool_calls"})
+    calls = re.search(r'<span class="path wide wrap-detail list-item"[^>]*>'
+                      r'(.*?)</span>\s*</div>', page, re.S)
+    assert calls
+    assert re.sub(r"<[^>]+>", "", calls.group(1)).split(" · ") == [
+        "mem0_search", "read_file", "read_file"]     # repeats kept, order kept
+
+
+def test_llm_span_names_nothing_when_the_model_only_talked(tmp_path):
+    page = _llm_turn(tmp_path, {**_assistant("Just a reply."),
+                                "finish_reason": "stop"})
+    assert 'wrap-detail list-item' not in page   # no names beside the reason
+    assert ">stop<" in page                      # the reason still stands
+
+
+def test_llm_span_counts_a_tool_call_it_cannot_read(tmp_path):
+    # the count is the point of the row, so a malformed entry keeps its slot
+    # rather than being dropped into a shorter, tidier, wrong list
+    page = _llm_turn(tmp_path, {"finish_reason": "tool_calls",
+                                "assistant_message": {
+        "role": "assistant", "content": "",
+        "tool_calls": [{"name": "terminal", "id": "c1", "arguments": "{}"},
+                       "not a dict",
+                       {"id": "c3", "arguments": "{}"}]}})
+    calls = re.search(r'<span class="path wide wrap-detail list-item"[^>]*>'
+                      r'(.*?)</span>\s*</div>', page, re.S)
+    assert re.sub(r"<[^>]+>", "", calls.group(1)).split(" · ") == [
+        "terminal", "(unreadable)", "(unnamed)"]
 
 
 def test_llm_span_shows_the_start_of_what_the_model_said(tmp_path):
@@ -1592,9 +1632,6 @@ def test_llm_span_keeps_the_two_buckets_on_a_collapsed_row(tmp_path):
     assert len(re.findall(r'>tokens</span>', page)) == 1
     assert re.search(r'<div class="span-detail list-item">\s*'
                      r'<span class="mode-tag"[^>]*>tokens</span>\s*</div>', page)
-    # the finish reason carries .finish so the `·` sibling rules can divide
-    # it from the buckets that follow (base.html)
-    assert '<div class="span-detail finish">' in page
 
 
 def test_llm_span_gives_cache_writes_a_row_of_their_own(tmp_path):

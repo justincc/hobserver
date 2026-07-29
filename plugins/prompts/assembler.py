@@ -230,10 +230,34 @@ class Span:
             return None
         return _as_dict(end.get("assistant_message"))
 
-    # The tool calls an llm span asked for are deliberately not rendered:
-    # the spans that ran them are the next rows down, carrying their
-    # arguments, and each names its call through tool_call_id. A list here
-    # would restate the waterfall.
+    @property
+    def llm_tool_calls(self) -> List[str]:
+        """The tools the model asked for, in the order it asked.
+
+        Names only. The spans below ran these and carry their arguments,
+        rendered by a branch written for each tool, so repeating the
+        arguments here would restate the waterfall — which is why this row
+        was left out to begin with. What it adds is that the calls were one
+        decision: 441 assistant turns in the log fan out to two or more, and
+        one to sixteen, which a column of separate rows does not say.
+
+        A call whose name is missing still takes a slot. The count is the
+        point, so dropping one silently would be the wrong kind of tidy.
+        """
+        message = self._assistant_message
+        if message is None:
+            return []
+        calls = message.get("tool_calls")
+        if not isinstance(calls, list):
+            return []       # payloads are opaque; a dict or a string here is not a list
+        names = []
+        for call in calls:
+            if not isinstance(call, dict):
+                names.append("(unreadable)")
+                continue
+            name = call.get("name")
+            names.append(name if isinstance(name, str) and name else "(unnamed)")
+        return names
 
     @property
     def llm_text(self) -> Optional[dict]:

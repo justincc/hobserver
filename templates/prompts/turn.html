@@ -372,9 +372,17 @@
         {# An llm call: how it ended, what it said, what it cost. Its tool
            calls are not listed — the spans that ran them are the next rows
            down, with their arguments. #}
-        {% if s.finish_reason %}
-        <div class="span-detail finish">
-          <span class="mode-tag" title="Why the model stopped, as the provider reported it. `tool_calls` means the spans below are what it asked for; `length` would mean its answer was cut off.">{{ s.finish_reason }}</span>
+        {# The calls ride the finish reason that names them — `tool_calls`
+           and then what was called — rather than repeating the subject on a
+           row of their own. Names only: the spans below carry the arguments,
+           each rendered by its own branch. What this says is that they were
+           one decision; a sixteen-call fan-out is one line here and sixteen
+           rows down there. `.list-item` on the names alone keeps them out of
+           the summary line, where the reason still stands by itself. #}
+        {% if s.finish_reason or s.llm_tool_calls %}
+        <div class="span-detail">
+          {%- if s.finish_reason %}<span class="mode-tag" title="Why the model stopped, as the provider reported it. `tool_calls` means the spans below are what it asked for; `length` would mean its answer was cut off.">{{ s.finish_reason }}</span>{% endif %}
+          {%- if s.llm_tool_calls %}<span class="path wide wrap-detail list-item" title="The tools this call asked for, in the order it asked. Their arguments are on the spans below, one per call; what this adds is that they were decided together.">{% for name in s.llm_tool_calls %}{% if not loop.first %} <span class="gen-key">·</span> {% endif %}{{ name }}{% endfor %}</span>{% endif %}
         </div>
         {% endif %}
         {% if s.llm_text %}

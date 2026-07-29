@@ -52,13 +52,32 @@ An llm span carries what the model decided, said and cost — all of it in the
 that is usually empty, so the generic fallback below has nothing to work with;
 this is a branch of its own.
 
-- **Finish reason** — a `.mode-tag`, always visible. `tool_calls` means the
-  spans below are what it asked for; `length` would mean the answer was cut
-  off.
-- **Tool calls are deliberately not listed.** The spans that ran them are the
-  next rows down, with their arguments, and each carries the `tool_call_id` of
-  the call that asked for it — so a list here would restate the waterfall. A
-  call with no matching span is possible; it is treated as an error, not as a
+- **Finish reason, and the calls it names** — one row. The reason
+  (`.mode-tag`) is always visible; `tool_calls` means the spans below are
+  what it asked for, and `length` would mean the answer was cut off. The
+  calls themselves (`assistant_message.tool_calls`) sit beside it,
+  **detail-only and names only**:
+
+  ```
+  tool_calls  skill_view · mem0_search · terminal · read_file · read_file · skill_view
+  ```
+
+  They ride the reason rather than taking a row of their own, which would
+  have needed a `calls` label restating the `tool_calls` next to it. Only
+  the names carry `.list-item`, so the summary line keeps the reason alone.
+
+  The arguments stay on the spans below, each rendered by the branch written
+  for that tool; repeating them here would restate the waterfall, which is
+  why this was left out to begin with. What it adds is that the calls were
+  **one decision**: 441 assistant turns in the log fan out to two or more,
+  and one to sixteen — something a column of separate rows does not say.
+  Repeats and order are kept, since both are the model's own.
+
+  An entry that cannot be read keeps its slot (`(unreadable)` for a
+  non-dict, `(unnamed)` for a missing name) rather than being dropped into a
+  shorter, tidier, wrong list — the count is the point. The row also renders
+  when there are calls but no reason, so those are never lost. A call with
+  no matching span below is still possible; it is treated as an error, not a
   case this page detects.
 - **What the model said** — `assistant_message.content`, detail-only. Empty
   whenever the model was calling tools rather than talking, and long enough
@@ -190,11 +209,18 @@ rows get the class, not by a mechanism of their own:
   labelled figures would be five for the ellipsis to eat — and a clipped
   count reads as a real one.
 
-A `·` (the separator `_inflight.html` and `index.html` already use between
-inline metadata) divides the buckets from the finish reason and from each
-other. Both sibling rules in `base.html` require a *visible* left neighbour —
-a preceding `.finish`, or an earlier bucket — so a span with no finish reason
-never shows a leading dot.
+A `·` divides the buckets from the finish reason and from each other. It is a
+real `.gen-key` span the template puts inside the row — the same element
+`payload_rows` uses for its own separators, so the two are the same glyph in
+the same font at the same colour. A pseudo-element was tried first and was
+visibly wrong twice over: it inherited the body's proportional font, where a
+middle dot is a lighter mark than the monospace one beside it, and the row's
+`margin-left` sat outside it, leaving a wider gap before the dot than after.
+A row carrying a dot now takes `.tok-sep`, which drops that margin, so the
+dot has one plain space either side.
+
+The template decides where dots go, tracking whether anything precedes — so a
+row with nothing to its left never gets a leading one.
 
 Tokens are on the row rather than in the bar's tooltip because a cache read
 can be most of a prompt, and is often the difference between a fast call and a
