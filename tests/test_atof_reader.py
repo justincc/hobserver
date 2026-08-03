@@ -498,3 +498,102 @@ def test_request_headers_without_a_session_invent_nothing():
     e = parse_line(relay_llm_end(profile={
         "annotated_request": {"extra_headers": {"authorization": "Bearer x"}}}))
     assert e.session_id is None
+
+
+# --- the chat-completions route ------------------------------------------
+# hermes' auxiliary work — context compression, and whatever a plugin
+# registers via register_auxiliary_task — goes out over `chat_completions`
+# rather than the `responses` API the main loop uses. The payload is shaped
+# differently and, unlike the main route, reports no token counts of its own
+# beyond a total: the real figures live in hermes' annotation.
+
+CHAT_ANNOTATED = {
+    "model_name": "gpt-5.6-sol",
+    "annotated_response": {
+        "api_specific": {"api": "openai_chat"},
+        "finish_reason": "complete",
+        "message": "## Historical Task Snapshot\nUser asked: …",
+        "model": "gpt-5.6-sol",
+        "usage": {"prompt_tokens": 11517, "completion_tokens": 3192,
+                  "total_tokens": 14709},
+    },
+}
+
+CHAT_DATA = {
+    "choices": [{"finish_reason": "stop", "index": 0,
+                 "message": {"role": "assistant",
+                             "content": "## Historical Task Snapshot\nUser asked: …"}}],
+    "model": "gpt-5.6-sol",
+    "usage": {"total_tokens": 14709},
+}
+
+CHAT_METADATA = {
+    "api_mode": "chat_completions",
+    "api_request_id": "aux-7981c77a3bcd40ff9170fca41d3b063b",
+    "auxiliary_task": "compression",
+    "call_role": "auxiliary:compression",
+    "otel.status_code": "OK",
+    "retry_count": 0,
+}
+
+
+def test_chat_completions_text_is_read_from_the_annotation():
+    """`annotated_response.message` is hermes' own normalization and matched
+    the raw payload on every call in the log, both APIs — so it leads."""
+    e = parse_line(relay_llm_end(data=CHAT_DATA, profile=CHAT_ANNOTATED,
+                                 metadata=CHAT_METADATA))
+    assert e.data["assistant_message"]["content"].startswith(
+        "## Historical Task Snapshot")
+
+
+def test_chat_completions_text_falls_back_to_choices():
+    """With no annotation, the chat payload's own shape still yields it —
+    `choices[].message.content`, where the responses route has `output`."""
+    e = parse_line(relay_llm_end(data=CHAT_DATA, profile={},
+                                 metadata=CHAT_METADATA))
+    assert e.data["assistant_message"]["content"].startswith(
+        "## Historical Task Snapshot")
+
+
+def test_chat_completions_counts_come_from_the_annotation():
+    """The raw chat payload reports only a total; without the annotation the
+    span showed a duration and no tokens at all."""
+    e = parse_line(relay_llm_end(data=CHAT_DATA, profile=CHAT_ANNOTATED,
+                                 metadata=CHAT_METADATA))
+    assert e.data["usage"]["prompt_tokens"] == 11517
+    assert e.data["usage"]["output_tokens"] == 3192
+    assert e.data["usage"]["total_tokens"] == 14709
+
+
+def test_a_route_reporting_no_cache_gets_no_fresh_input_figure():
+    """Deriving `in` from an absent cache read would state that the whole
+    prompt was fresh — a claim about caching from a payload silent on it."""
+    e = parse_line(relay_llm_end(data=CHAT_DATA, profile=CHAT_ANNOTATED,
+                                 metadata=CHAT_METADATA))
+    assert "cache_read_tokens" not in e.data["usage"]
+    assert "input_tokens" not in e.data["usage"]
+
+
+def test_the_raw_payload_wins_where_both_report_a_count():
+    """On the responses route the raw usage is the more detailed of the two,
+    carrying the cache write and the reasoning split; the annotation only
+    fills what it did not say."""
+    e = parse_line(relay_llm_end())      # responses-shaped, both present
+    usage = e.data["usage"]
+    assert usage["prompt_tokens"] == 36105        # raw, not annotated
+    assert usage["cache_write_tokens"] == 0       # annotation has no such key
+    assert usage["reasoning_tokens"] == 43
+
+
+def test_chat_completions_tool_calls_are_read_from_the_choice():
+    """Chat-shaped tool calls nest name and arguments under `function`, and
+    the arguments arrive as a JSON string."""
+    data = {"choices": [{"message": {"role": "assistant", "content": None,
+        "tool_calls": [{"id": "call_1", "type": "function",
+                        "function": {"name": "skill_view",
+                                     "arguments": '{"name":"job-seeker"}'}}]}}]}
+    e = parse_line(relay_llm_end(data=data, profile={}, metadata=CHAT_METADATA))
+    calls = e.data["assistant_message"]["tool_calls"]
+    assert [c["name"] for c in calls] == ["skill_view"]
+    assert calls[0]["arguments"] == {"name": "job-seeker"}
+    assert calls[0]["id"] == "call_1"

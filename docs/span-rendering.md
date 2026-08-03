@@ -52,6 +52,30 @@ An llm span carries what the model decided, said and cost — all of it in the
 that is usually empty, so the generic fallback below has nothing to work with;
 this is a branch of its own.
 
+- **What the call was for** — a `.mode-tag` leading the finish-reason row,
+  from `metadata.call_role`, shown only when the call was *not* the ordinary
+  one. Its values are `delegated` (a subagent's call), `fallback` (the
+  configured model failed and a backup answered), `iteration_summary`, and
+  `auxiliary:<task>` for hermes' own background work — `auxiliary:compression`
+  is the conversation being compacted to fit the context window.
+
+  `primary` is withheld: it is 216 of the 218 calls in the log, and a tag
+  every row carries is one no row is read for. Its absence is what says the
+  call was ordinary. The auxiliary tasks are open-ended — hermes exposes
+  `register_auxiliary_task` to plugins — so the value is rendered as it
+  arrives rather than matched against a list kept here.
+
+  hermes stamps `auxiliary_task` beside it, which is deliberately **not**
+  read: both are built from one value in the same dict literal
+  (`$h/agent/auxiliary_client.py`), `call_role` being the f-string
+  `"auxiliary:{task}"`. They cannot disagree, and only `call_role` is
+  present on the other four roles.
+
+- **`retry N`** — from `metadata.retry_count`, a 0-based attempt index, so
+  it appears only when the call was retried or walked its fallback chain.
+  Often the reason a span is slow. Zero is withheld for the reason a zero
+  cache write is: it is every row, and says nothing.
+
 - **Finish reason, and the calls it names** — one row. The reason
   (`.mode-tag`) is always visible; `tool_calls` means the spans below are
   what it asked for, and `length` would mean the answer was cut off. The
@@ -230,11 +254,18 @@ Tokens are on the row rather than in the bar's tooltip because a cache read
 can be most of a prompt, and is often the difference between a fast call and a
 slow one — worth seeing on the span, not on hover.
 
-The leaves — `in`, `cache read`, `cache write`, `out` — are the four counts
-the provider reports; the parents are sums the leaves make. An llm payload
-carries `usage`, `model`, `finish_reason` and `assistant_message`, and nothing
-else, so anything a row says beyond those has to come from somewhere other
-than the log.
+The leaves — `in`, `cache read`, `cache write`, `out` — are the counts the
+provider reports; the parents are sums the leaves make. Two caveats since
+hermes' core runtime began emitting provider-native payloads (ADR 6): `in`
+is *derived* there rather than reported, and only where the cache read was
+reported at all, so a route silent on caching shows `prompt` and `out`
+alone. A missing row means the payload did not say, which is not the same
+as a zero — see [atof-reader.md](atof-reader.md) for the mapping.
+
+An llm payload the reader presents carries `usage`, `model`,
+`finish_reason` and `assistant_message`, so anything a row says beyond
+those has to come from somewhere other than the payload — the `.mode-tag`
+role and retry above come from the span's metadata.
 
 ## Unrecognised scopes
 

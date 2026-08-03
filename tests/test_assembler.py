@@ -1452,3 +1452,77 @@ def test_two_concurrent_subagent_turns_are_not_mistaken_for_duplicates():
     ids = sorted(s.session_id for s in assembly.sessions)
     assert ids == ["sess-a", "sess-b"]
     assert all(len(s.turns) == 1 for s in assembly.sessions)
+
+
+# --- what a call was for -------------------------------------------------
+# hermes stamps `call_role` on every llm span. Its value space is wider than
+# the log shows (checked against the emit sites in $h/agent/): primary,
+# delegated, fallback, iteration_summary, auxiliary:<task>.
+
+
+def llm_with_metadata(metadata):
+    return [
+        *session_scope_lines("s1", start_us=0),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L1", "llm", 1_100_000, 3_100_000, name="auto",
+                     session="s1", turn="t1", end_data={"usage": {}}),
+        mark_line("hermes.turn.end", 4_000_000, session="s1", turn="t1"),
+    ], metadata
+
+
+def span_with(metadata):
+    lines = [
+        *session_scope_lines("s1", start_us=0),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        json.dumps({"kind": "scope", "scope_category": "start", "uuid": "L1",
+                    "parent_uuid": SESSION_SCOPE_UUID, "name": "auto",
+                    "category": "llm", "timestamp": 1_100_000,
+                    "metadata": {"session_id": "s1", "turn_id": "t1", **metadata}}),
+        json.dumps({"kind": "scope", "scope_category": "end", "uuid": "L1",
+                    "parent_uuid": SESSION_SCOPE_UUID, "name": "auto",
+                    "category": "llm", "timestamp": 3_100_000,
+                    "metadata": {"session_id": "s1", "turn_id": "t1", **metadata}}),
+    ]
+    return assemble_lines(lines).sessions[0].turns[0].spans[0]
+
+
+def test_an_ordinary_call_shows_no_role():
+    """`primary` is 216 of the 218 calls in the log; a tag every row carries
+    is one no row is read for. Its absence is what says the call was
+    ordinary."""
+    assert span_with({"call_role": "primary"}).call_role is None
+    assert span_with({}).call_role is None
+
+
+def test_an_auxiliary_call_names_the_task_it_was_for():
+    assert span_with({"call_role": "auxiliary:compression",
+                      "auxiliary_task": "compression"}).call_role \
+        == "auxiliary:compression"
+
+
+def test_roles_beyond_the_auxiliary_ones_are_shown_too():
+    """`auxiliary_task` cannot express these — it is absent on all of them —
+    which is why call_role is the field read and it is not."""
+    for role in ("delegated", "fallback", "iteration_summary"):
+        assert span_with({"call_role": role}).call_role == role
+
+
+def test_an_unknown_role_is_shown_as_it_arrives():
+    """Auxiliary tasks are open-ended: hermes exposes register_auxiliary_task
+    to plugins, so this app keeps no list to match against."""
+    assert span_with({"call_role": "auxiliary:whatever-comes-next"}).call_role \
+        == "auxiliary:whatever-comes-next"
+
+
+def test_a_first_attempt_shows_no_retry_count():
+    assert span_with({"retry_count": 0}).retry_count is None
+    assert span_with({}).retry_count is None
+
+
+def test_a_retried_call_says_which_attempt_answered():
+    assert span_with({"retry_count": 2}).retry_count == 2
+
+
+def test_retry_count_type_guards_an_odd_payload():
+    assert span_with({"retry_count": "2"}).retry_count is None
+    assert span_with({"retry_count": True}).retry_count is None

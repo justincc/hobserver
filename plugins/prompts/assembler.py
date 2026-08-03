@@ -266,6 +266,43 @@ class Span:
     def is_llm(self) -> bool:
         return self.category == "llm"
 
+    # What this call was *for*, when it was not the ordinary one. hermes
+    # stamps `call_role` on every llm span, and its value space is wider
+    # than it looks (checked against the emit sites in $h/agent/, not just
+    # the log): "primary", "delegated" for a subagent's call, "fallback"
+    # when the configured model failed and a backup answered,
+    # "iteration_summary", and "auxiliary:<task>" for work like context
+    # compression. The auxiliary tasks are open-ended — hermes exposes
+    # `register_auxiliary_task` to plugins — so the value is shown as it
+    # arrives rather than matched against a list this app maintains.
+    #
+    # `primary` is withheld: it is 216 of the 218 calls in the log, and a
+    # tag every row carries is one no row is read for. Its absence is what
+    # says the call was ordinary.
+    #
+    # hermes also stamps `auxiliary_task` beside it, which is not read
+    # here: the two are built from one value in the same dict literal
+    # (`$h/agent/auxiliary_client.py`), `call_role` being the f-string
+    # "auxiliary:{task}". They cannot disagree, and only `call_role` is
+    # present on the non-auxiliary roles.
+    @property
+    def call_role(self) -> Optional[str]:
+        role = self.metadata.get("call_role")
+        if not isinstance(role, str) or not role or role == "primary":
+            return None
+        return role
+
+    # Which attempt this was, 0-based, within one request — so a non-zero
+    # value means the call was retried or walked its fallback chain, which
+    # is often the whole reason a span is slow. Zero is withheld for the
+    # same reason a zero cache write is: it is every row, and says nothing.
+    @property
+    def retry_count(self) -> Optional[int]:
+        count = self.metadata.get("retry_count")
+        if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
+            return None
+        return count
+
     @property
     def request_prompt(self) -> Optional[str]:
         """The prompt this llm call was answering, from its own request.

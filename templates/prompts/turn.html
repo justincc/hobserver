@@ -379,8 +379,15 @@
            one decision; a sixteen-call fan-out is one line here and sixteen
            rows down there. `.list-item` on the names alone keeps them out of
            the summary line, where the reason still stands by itself. #}
-        {% if s.finish_reason or s.llm_tool_calls %}
+        {% if s.call_role or s.retry_count or s.finish_reason or s.llm_tool_calls %}
         <div class="span-detail">
+          {#- the role leads: it says what the call was for, which qualifies
+              everything after it. Absent on an ordinary call — see
+              Span.call_role for why `primary` is withheld. #}
+          {#- no angle brackets in the title: they would sit raw inside an
+              HTML attribute, which browsers tolerate and nothing else does. #}
+          {%- if s.call_role %}<span class="mode-tag" title="What this call was for, when it was not the ordinary one. `delegated` is a subagent's call; `fallback` means the configured model failed and a backup answered; an `auxiliary:` role names hermes' own background work, such as compressing the conversation to fit the context window.">{{ s.call_role }}</span>{% endif %}
+          {%- if s.retry_count %}<span class="mode-tag" title="Which attempt this was, counting the first as 0 — so this call was retried, or walked its fallback chain, before it answered. Often the reason a span is slow.">retry {{ s.retry_count }}</span>{% endif %}
           {%- if s.finish_reason %}<span class="mode-tag" title="Why the model stopped, as the provider reported it. `tool_calls` means the spans below are what it asked for; `length` would mean its answer was cut off.">{{ s.finish_reason }}</span>{% endif %}
           {#- .call-list, not .path: a `.path` in the collapsed layout is
               forced back to `display: inline` by a more specific rule than
@@ -420,7 +427,7 @@
             is the same glyph in the same font at the same colour, with one
             plain space either side. `prior` is what keeps a leading dot off
             a row with nothing to its left. #}
-        {% set ns = namespace(prior = true if s.finish_reason else false) %}
+        {% set ns = namespace(prior = true if (s.finish_reason or s.call_role or s.retry_count) else false) %}
         {% for row in s.token_rows %}
         {%- set dot = row.summary and ns.prior %}
         <div class="span-detail{% if not row.summary %} list-item{% endif %}{% if dot %} tok-sep{% endif %} tok-d{{ row.depth }}{% if row.subset %} tok-part{% endif %}">
@@ -472,7 +479,7 @@
         <div class="bar-track">
           <div class="bar {{ cls }}{{ ' open' if s.is_open }}"
                style="left: {{ '%.2f' | format(left_pct) }}%; width: {{ '%.2f' | format(width_pct) }}%;"
-               title="{{ s.name }} · {{ s.duration_us | us_dur }}{% if s.usage %} · in {{ s.usage.get('input_tokens', '?') }} / out {{ s.usage.get('output_tokens', '?') }} tokens{% endif %}{% if s.finish_reason %} · {{ s.finish_reason }}{% endif %}"></div>
+               title="{{ s.name }}{% if s.call_role %} · {{ s.call_role }}{% endif %} · {{ s.duration_us | us_dur }}{% if s.usage %} · in {{ s.usage.get('input_tokens', '?') }} / out {{ s.usage.get('output_tokens', '?') }} tokens{% endif %}{% if s.finish_reason %} · {{ s.finish_reason }}{% endif %}{% if s.retry_count %} · retry {{ s.retry_count }}{% endif %}"></div>
         </div>
       </td>
     </tr>

@@ -59,18 +59,33 @@ properties, the assembler and every template about a second shape, new events
 are mapped back onto the canonical one as they are parsed — `atof_reader` is
 the only module that knows there were ever two formats.
 
+hermes speaks two provider APIs, and they are shaped differently: the main
+loop uses `openai_responses`, while auxiliary work — context compression,
+and whatever a plugin registers through `register_auxiliary_task` — goes out
+over `openai_chat`. **`category_profile.annotated_response` is hermes' own
+normalization and is uniform across both**: its `message` matched the raw
+payload text exactly on every llm call in the log, both routes. So it leads,
+and the raw payloads are the fallback.
+
 | canonical field | recovered from |
 |---|---|
-| `assistant_message.content` | `data.output[type=message].content[type=output_text].text` |
-| `assistant_message.tool_calls` | `annotated_response.tool_calls`, else `data.output[type=function_call]` (whose arguments are a JSON *string*) |
+| `assistant_message.content` | `annotated_response.message`; else `data.output[type=message].content[type=output_text].text` (responses) or `data.choices[].message.content` (chat) |
+| `assistant_message.tool_calls` | `annotated_response.tool_calls`; else `data.output[type=function_call]` (responses) or `data.choices[].message.tool_calls`, whose name and arguments nest under `function` (chat). Arguments arrive as a JSON *string* on both raw routes |
 | `finish_reason` | `annotated_response.finish_reason` |
-| `usage.prompt_tokens` | `usage.input_tokens` |
-| `usage.cache_read_tokens` | `usage.input_tokens_details.cached_tokens` |
+| `usage.prompt_tokens` | `usage.input_tokens`, else `annotated_response.usage.prompt_tokens` |
+| `usage.cache_read_tokens` | `usage.input_tokens_details.cached_tokens`, else `annotated_response.usage.cache_read_tokens` |
 | `usage.cache_write_tokens` | `usage.input_tokens_details.cache_write_tokens` |
+| `usage.output_tokens` | `usage.output_tokens`, else `annotated_response.usage.completion_tokens` |
 | `usage.reasoning_tokens` | `usage.output_tokens_details.reasoning_tokens` |
-| `usage.input_tokens` | **derived**: prompt − cache read − cache write |
+| `usage.input_tokens` | **derived**: prompt − cache read − cache write, and only where the cache read was reported |
 | `metadata.session_id` | the leading segment of the composite `turn_id`, else the llm request's `extra_headers.session_id` |
 | `metadata.status` | `"error"` when the end payload carries an error string |
+
+The raw payload wins wherever both report a count: on the responses route it
+is the more detailed of the two, carrying the cache write and the reasoning
+split that the annotation does not. The annotation only fills what the raw
+payload did not say — which on the chat route is nearly everything, since
+its `usage` reports a `total_tokens` and nothing else.
 
 Three of these are traps worth keeping written down:
 
@@ -82,6 +97,11 @@ Three of these are traps worth keeping written down:
 - **`otel.status_code` is not the old `status`.** It reports the span's
   transport and reads `OK` on every failing tool call in the log. The tool's
   own error string is what the outcome is taken from.
+- **A missing cache read is not a cache read of zero.** The `openai_chat`
+  route reports no cache figures at all; deriving fresh input there would
+  state that the whole prompt was new, which is a claim about caching from a
+  payload silent on it. So `input_tokens` is derived only where the cache
+  read was actually reported.
 - **`target` is not a renamed `file_glob`.** Both are still separate
   parameters of hermes' `search_files` (`tools/file_tools.py`); `file_glob`
   is simply absent when the call did not filter. Nothing to map.

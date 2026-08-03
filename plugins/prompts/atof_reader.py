@@ -191,14 +191,25 @@ def _output_items(data: Any, item_type: str) -> list:
             if isinstance(i, dict) and i.get("type") == item_type]
 
 
-def _assistant_text(data: Any) -> str:
-    """The assistant's words, joined from the response's message items.
+def _assistant_text(data: Any, annotated: dict) -> str:
+    """The assistant's words.
 
-    A message item's `content` is a list of typed parts; only `output_text`
-    parts are words. Reasoning items are deliberately not read — they are
-    the hidden reasoning, counted in the token tree but never shown.
+    `annotated_response.message` is hermes' own normalization and is
+    uniform across the provider APIs it speaks — it matched the raw payload
+    text exactly on every llm call in the log, `openai_responses` and
+    `openai_chat` alike. So it leads, and the raw payloads are the fallback
+    for a response the annotation missed.
+
+    Reasoning items are deliberately not read on either route: that is the
+    hidden reasoning, counted in the token tree but never shown.
     """
+    message = annotated.get("message")
+    if isinstance(message, str) and message:
+        return message
+
     parts = []
+    # openai_responses: a list of typed output items, whose message items
+    # hold a list of typed content parts.
     for item in _output_items(data, "message"):
         content = item.get("content")
         if isinstance(content, str):
@@ -211,7 +222,26 @@ def _assistant_text(data: Any) -> str:
                 text = part.get("text")
                 if isinstance(text, str) and text:
                     parts.append(text)
+    if parts:
+        return "".join(parts)
+
+    # openai_chat: choices, each with one message whose content is a string.
+    for choice in _choices(data):
+        content = (choice.get("message") or {}).get("content")
+        if isinstance(content, str) and content:
+            parts.append(content)
     return "".join(parts)
+
+
+def _choices(data: Any) -> list:
+    """A chat-completions response's `choices`, defensively."""
+    if not isinstance(data, dict):
+        return []
+    choices = data.get("choices")
+    if not isinstance(choices, list):
+        return []
+    return [c for c in choices
+            if isinstance(c, dict) and isinstance(c.get("message"), dict)]
 
 
 def _tool_calls(data: Any, annotated: Any) -> list:
@@ -228,17 +258,42 @@ def _tool_calls(data: Any, annotated: Any) -> list:
         if isinstance(calls, list) and calls:
             return [c for c in calls if isinstance(c, dict)]
     calls = []
+    # openai_responses: function_call items in the output array.
     for item in _output_items(data, "function_call"):
-        arguments = item.get("arguments")
-        if isinstance(arguments, str):
-            try:
-                arguments = json.loads(arguments)
-            except ValueError:
-                pass        # keep the raw string; it is still readable
         calls.append({"name": item.get("name"),
                       "id": item.get("call_id") or item.get("id"),
-                      "arguments": arguments})
+                      "arguments": _decoded_arguments(item.get("arguments"))})
+    if calls:
+        return calls
+    # openai_chat: tool_calls on each choice's message, where the name and
+    # arguments sit one level down under "function".
+    for choice in _choices(data):
+        raw = choice["message"].get("tool_calls")
+        if not isinstance(raw, list):
+            continue
+        for call in raw:
+            if not isinstance(call, dict):
+                continue
+            function = call.get("function")
+            function = function if isinstance(function, dict) else {}
+            calls.append({
+                "name": function.get("name") or call.get("name"),
+                "id": call.get("id"),
+                "arguments": _decoded_arguments(
+                    function.get("arguments", call.get("arguments"))),
+            })
     return calls
+
+
+def _decoded_arguments(arguments: Any) -> Any:
+    """Tool-call arguments, decoded when the provider sent them as JSON text.
+    An undecodable string is kept as it arrived — still readable."""
+    if isinstance(arguments, str):
+        try:
+            return json.loads(arguments)
+        except ValueError:
+            return arguments
+    return arguments
 
 
 def _count(value: Any) -> Optional[int]:
@@ -248,7 +303,30 @@ def _count(value: Any) -> Optional[int]:
     return int(value)
 
 
-def _canonical_usage(usage: Any) -> dict:
+def _annotated_usage(annotated: dict) -> dict:
+    """Token counts from hermes' own annotation, in canonical names.
+
+    Uniform across provider APIs where the raw payload is not: on the
+    `openai_chat` route the raw `usage` carries nothing but `total_tokens`,
+    and these are the only counts there are. Narrower than the raw
+    `openai_responses` usage, which also reports the cache write and the
+    reasoning split — hence a fill, not a replacement.
+    """
+    usage = annotated.get("usage")
+    if not isinstance(usage, dict):
+        return {}
+    canonical = {}
+    for source, key in (("prompt_tokens", "prompt_tokens"),
+                        ("cache_read_tokens", "cache_read_tokens"),
+                        ("completion_tokens", "output_tokens"),
+                        ("total_tokens", "total_tokens")):
+        value = _count(usage.get(source))
+        if value is not None:
+            canonical[key] = value
+    return canonical
+
+
+def _canonical_usage(usage: Any, annotated: dict) -> dict:
     """Provider-native token counts remapped to hermes' canonical names.
 
     The provider's `input_tokens` is the whole prompt including what the
@@ -262,8 +340,7 @@ def _canonical_usage(usage: Any) -> dict:
     count this app can vouch for. `request_count` has no counterpart and
     stays absent — absent is not zero.
     """
-    if not isinstance(usage, dict):
-        return {}
+    usage = usage if isinstance(usage, dict) else {}
     input_details = usage.get("input_tokens_details")
     input_details = input_details if isinstance(input_details, dict) else {}
     output_details = usage.get("output_tokens_details")
@@ -281,10 +358,22 @@ def _canonical_usage(usage: Any) -> dict:
         if value is not None:
             canonical[key] = value
 
+    # Fill only what the raw payload did not report. The raw usage wins
+    # where both speak, because on the responses route it is the more
+    # detailed of the two.
+    for key, value in _annotated_usage(annotated).items():
+        canonical.setdefault(key, value)
+
+    # Fresh input is the remainder of the prompt once the cache is taken
+    # off, so it can only be derived where the cache read was actually
+    # reported. Absent is not zero: the `openai_chat` route reports no
+    # cache figures at all, and deriving there would state that the whole
+    # prompt was fresh — a claim about caching from a payload that said
+    # nothing about caching.
     prompt = canonical.get("prompt_tokens")
-    if prompt is not None:
-        fresh = (prompt - canonical.get("cache_read_tokens", 0)
-                 - canonical.get("cache_write_tokens", 0))
+    cache_read = canonical.get("cache_read_tokens")
+    if prompt is not None and cache_read is not None:
+        fresh = prompt - cache_read - canonical.get("cache_write_tokens", 0)
         if fresh >= 0:
             canonical["input_tokens"] = fresh
     return canonical
@@ -305,7 +394,9 @@ def _normalize_llm_end(data: Any, category_profile: dict) -> Any:
         return data
     annotated = category_profile.get("annotated_response")
     annotated = annotated if isinstance(annotated, dict) else {}
-    if not isinstance(data.get("output"), list) and not annotated:
+    if (not isinstance(data.get("output"), list)
+            and not isinstance(data.get("choices"), list)
+            and not annotated):
         # Not a provider response either. The ATOF spec makes `data` opaque
         # and other producers put their own shapes here; inventing an empty
         # assistant_message over one would be noise, not normalization.
@@ -314,7 +405,7 @@ def _normalize_llm_end(data: Any, category_profile: dict) -> Any:
     normalized = dict(data)
     normalized["assistant_message"] = {
         "role": "assistant",
-        "content": _assistant_text(data),
+        "content": _assistant_text(data, annotated),
         "tool_calls": _tool_calls(data, annotated),
     }
     finish_reason = annotated.get("finish_reason")
@@ -324,7 +415,7 @@ def _normalize_llm_end(data: Any, category_profile: dict) -> Any:
         # this app inferring a provider's verdict from the presence of tool
         # calls, which the row beside it already shows.
         normalized["finish_reason"] = finish_reason
-    usage = _canonical_usage(data.get("usage"))
+    usage = _canonical_usage(data.get("usage"), annotated)
     if usage:
         normalized["usage"] = usage
     return normalized
