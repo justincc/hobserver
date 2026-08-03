@@ -59,8 +59,13 @@
 {% endfor %}
 {%- endmacro %}
 {% block content %}
+{# data-live-tail: the waterfall runs in time order, so new spans land at the
+   bottom — a reader who is already there is watching the newest work, and the
+   view follows it. The turn *list* deliberately does not opt in: it is
+   newest-first, so its new rows arrive at the top. #}
 <div data-live-poll="{{ 2000 if turn.is_live else 0 }}"
-     data-turn-start-us="{{ turn.start_us }}">
+     data-turn-start-us="{{ turn.start_us }}"
+     data-live-tail>
 {# Same row as the stepping links: the follow toggle is navigation too, just
    automatic. Inside the live region, so base.html re-resolves it after each
    swap. #}

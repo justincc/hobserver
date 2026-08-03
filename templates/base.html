@@ -268,6 +268,12 @@
     // page is itself showing an in-flight turn ([data-inflight-current]
     // present), and never to a stale entry ([data-stale]). Follow keeps an
     // otherwise-static page polling slowly so the next turn start is noticed.
+    //
+    // Tailing ([data-live-tail], the turn page only) is a different thing and
+    // has no switch: while the reader is at the bottom, each swap scrolls to
+    // the new bottom, so the newest spans stay in view. Follow mode moves you
+    // between turns; tailing moves you within one.
+    //
     // Waterfall rows the user clicked open (by span uuid), so their
     // per-row detail survives live-region swaps
     const openRows = new Set();
@@ -293,6 +299,22 @@
       });
       syncToggle();
       if (!region) return;
+
+      // Tailing: a region marked [data-live-tail] keeps the newest events in
+      // view, but only while the reader is already at the bottom — being
+      // there is the opt-in, so there is no switch to find or to leave on by
+      // mistake. Scroll up and it stops; scroll back down and it resumes.
+      //
+      // The slack is because "at the bottom" is never exact: subpixel
+      // rounding, browser zoom and rubber-banding all land you a pixel or
+      // two off. It also makes the test true for a page shorter than the
+      // viewport, which is what starts a short turn tailing the moment it
+      // grows past one screen rather than only once it is already scrollable.
+      const BOTTOM_SLACK_PX = 48;
+      const atBottom = () => {
+        const doc = document.documentElement;
+        return doc.scrollHeight - window.scrollY - window.innerHeight <= BOTTOM_SLACK_PX;
+      };
 
       const entries = () => Array.from(region.querySelectorAll("[data-inflight-start-us]"));
       const startOf = (el) => parseInt(el.dataset.inflightStartUs, 10);
@@ -324,6 +346,10 @@
           const doc = new DOMParser().parseFromString(await resp.text(), "text/html");
           const fresh = doc.querySelector("[data-live-poll]");
           if (!fresh) return;
+          // Measured before the swap, against the content the reader can
+          // actually see; applied after it, against the content that
+          // replaced it.
+          const tailing = region.hasAttribute("data-live-tail") && atBottom();
           // A swapped-in <details> arrives closed; reopen the ones the user
           // had open (matched by class — prompt, problems — else position).
           const open = new Set();
@@ -345,6 +371,11 @@
           region.querySelectorAll("tr[data-span-uuid]").forEach((tr) => {
             tr.classList.toggle("detail-open", openRows.has(tr.dataset.spanUuid));
           });
+          // After the reopened rows, not before: they change the height this
+          // is scrolling to. Instant rather than smooth — a 2 s poll would
+          // start the next swap while an animation was still running, and
+          // tailing wants to be where the newest row is, not on its way.
+          if (tailing) window.scrollTo(0, document.documentElement.scrollHeight);
           followNewTurn();
         } catch (err) {
           // transient fetch failure — try again next tick

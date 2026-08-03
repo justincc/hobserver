@@ -1690,3 +1690,36 @@ def test_open_llm_span_renders_without_an_end_payload(tmp_path):
         "/prompts/turn/s1/1000000").get_data(as_text=True)
     assert "openai-codex" in page
     assert "badge-inflight" in page
+
+
+def test_turn_page_opts_into_tailing(tmp_path):
+    """The waterfall runs in time order, so new spans land at the bottom and
+    a reader already there is watching the newest work."""
+    atof = write_atof(tmp_path, two_turn_stream())
+    client = make_client(tmp_path, str(atof))
+    for start in ("10000000", "1000000"):      # in flight and finished alike
+        page = client.get(f"/prompts/turn/s1/{start}").get_data(as_text=True)
+        assert "data-live-tail" in page
+
+
+def test_the_turn_list_does_not_tail(tmp_path):
+    """It is newest-first, so its new rows arrive at the top — scrolling to
+    the bottom would walk away from them."""
+    atof = write_atof(tmp_path, two_turn_stream())
+    client = make_client(tmp_path, str(atof))
+    page = client.get("/prompts/").get_data(as_text=True)
+    live = page.split("data-live-poll", 1)[1].split(">", 1)[0]
+    assert "data-live-tail" not in live
+
+
+def test_tailing_is_conditioned_on_being_at_the_bottom(tmp_path):
+    """Being at the bottom is the opt-in — there is no toggle to find, and
+    none to leave on by mistake. Guard the wiring, since nothing else here
+    exercises the script."""
+    atof = write_atof(tmp_path, two_turn_stream())
+    client = make_client(tmp_path, str(atof))
+    page = client.get("/prompts/turn/s1/10000000").get_data(as_text=True)
+    assert 'region.hasAttribute("data-live-tail") && atBottom()' in page
+    # measured before the swap, applied after it
+    assert page.index("const tailing =") < page.index("region.replaceWith(fresh)")
+    assert page.index("region.replaceWith(fresh)") < page.index("if (tailing) window.scrollTo")

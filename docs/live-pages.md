@@ -1,4 +1,4 @@
-# Live pages: polling, liveness, follow mode, navigation
+# Live pages: polling, liveness, follow mode, tailing, navigation
 
 ## Polling and swapping
 
@@ -60,6 +60,37 @@ swap, and uses a delegated change listener. A captured reference detaches on
 the first poll and the switch dies silently.
 
 On the index the toggle stands alone above the live region.
+
+## Tailing — following the newest spans within a turn
+
+A region marked `data-live-tail` scrolls to its new bottom after each swap,
+**but only if the reader was at the bottom when the swap began**. The turn
+page opts in; the turn list deliberately does not, because it is newest-first
+and its new rows arrive at the top.
+
+Distinct from follow mode, and easy to confuse with it: **follow mode moves
+you between turns, tailing moves you within one.**
+
+There is no toggle. Being at the bottom *is* the opt-in — scroll up and it
+stops, scroll back down and it resumes — so there is no switch to find, none
+to leave on by mistake, and no state to persist or resync across a swap.
+
+Two details that are load-bearing:
+
+- **Measured before the swap, applied after it.** Whether the reader was at
+  the bottom is a fact about the content they could see; where the bottom now
+  *is* is a fact about the content that replaced it.
+- **48px of slack, and it applies after the reopened detail rows.** "At the
+  bottom" is never exact — subpixel rounding, zoom and rubber-banding all land
+  a pixel or two off. The slack also makes the test true for a page shorter
+  than the viewport, which is what starts a short turn tailing the moment it
+  grows past one screen instead of only once it is already scrollable. The
+  scroll runs after the reopened rows are restored because those change the
+  height it is scrolling to.
+
+The scroll is instant, not smooth: a 2 s poll would begin the next swap while
+an animation was still running, and tailing wants to be where the newest row
+is rather than on its way there.
 
 ## Item navigation
 
