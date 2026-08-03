@@ -17,6 +17,12 @@ Parsing is fail-soft: one bad line becomes a ParseError record instead of
 killing the read, so the assembler and UI can surface it loudly (ADR 2)
 while still rendering every good event. Unknown extra fields are tolerated;
 only structurally unusable lines are rejected.
+
+hermes writes this stream through two exporters at once, and this module is
+the only one that knows it: each event is tagged with the schema that wrote
+it, and the newer exporter's provider-native payloads are mapped back onto
+the canonical envelope the rest of the app reads (ADR 6). See "schema eras"
+below and docs/atof-reader.md for the mapping table.
 """
 
 from __future__ import annotations
@@ -28,6 +34,23 @@ from typing import Any, Iterable, Optional
 
 KINDS = ("scope", "mark")
 SCOPE_CATEGORIES = ("start", "end")
+
+# --- schema eras ---------------------------------------------------------
+# hermes has exported this stream under two different owners, and one log
+# file holds both: the nemo_relay *plugin* stamped every event it emitted
+# with `telemetry_schema_version`, and the core relay runtime that
+# superseded it (hermes `agent/relay_runtime.py`, landed 2026-07-19) stamps
+# nothing. Presence of the key is therefore the era dial.
+#
+# The dial is read per event, never per file. The two exporters overlap:
+# when hermes restarts onto the new code the old runtime keeps emitting for
+# a few events, so a file-level sniff would misparse the tail of the old
+# session. One scope pair was also observed straddling the changeover, which
+# is why a span takes its era from its start event (see the assembler).
+SCHEMA_KEY = "telemetry_schema_version"
+OBSERVER_V1 = "hermes.observer.v1"      # the nemo_relay plugin's envelope
+RELAY_RUNTIME = "hermes.relay.runtime"  # core runtime; declares no version
+KNOWN_SCHEMAS = frozenset({OBSERVER_V1, RELAY_RUNTIME})
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 _MICROSECOND = timedelta(microseconds=1)
@@ -131,6 +154,256 @@ def generic_payload_fields(data: Any) -> list:
     return fields
 
 
+# --- relay-runtime normalization ----------------------------------------
+# The core runtime emits the provider's own response object where the plugin
+# emitted hermes' canonical envelope. Rather than teach forty Span
+# properties, the assembler and every template about a second shape, new
+# events are mapped back onto the canonical one as they are parsed — the
+# only place in this app that knows there were ever two formats.
+#
+# What is mapped is only what genuinely moved. Facts the new exporter never
+# emits at all (hermes.turn.* marks, subagent marks, approvals) are absent,
+# not renamed, and no amount of normalizing invents them.
+
+
+def detect_schema(metadata: dict) -> str:
+    """Which exporter wrote this event, from its own declaration.
+
+    An unrecognized version is returned verbatim rather than guessed at:
+    hermes' observability layer is under active change, and a reader that
+    silently treats an unknown envelope as one it understands would
+    misreport rather than fail (ADR 2). Callers check `KNOWN_SCHEMAS`.
+    """
+    declared = metadata.get(SCHEMA_KEY)
+    if isinstance(declared, str) and declared:
+        return declared
+    return RELAY_RUNTIME
+
+
+def _output_items(data: Any, item_type: str) -> list:
+    """Items of one type from a provider response's `output` array."""
+    if not isinstance(data, dict):
+        return []
+    output = data.get("output")
+    if not isinstance(output, list):
+        return []
+    return [i for i in output
+            if isinstance(i, dict) and i.get("type") == item_type]
+
+
+def _assistant_text(data: Any) -> str:
+    """The assistant's words, joined from the response's message items.
+
+    A message item's `content` is a list of typed parts; only `output_text`
+    parts are words. Reasoning items are deliberately not read — they are
+    the hidden reasoning, counted in the token tree but never shown.
+    """
+    parts = []
+    for item in _output_items(data, "message"):
+        content = item.get("content")
+        if isinstance(content, str):
+            parts.append(content)
+            continue
+        if not isinstance(content, list):
+            continue
+        for part in content:
+            if isinstance(part, dict) and part.get("type") == "output_text":
+                text = part.get("text")
+                if isinstance(text, str) and text:
+                    parts.append(text)
+    return "".join(parts)
+
+
+def _tool_calls(data: Any, annotated: Any) -> list:
+    """The tools the model asked for, as the canonical
+    [{name, id, arguments}].
+
+    `annotated_response.tool_calls` is preferred: hermes has already decoded
+    the arguments there, where the raw `output` array carries them as a JSON
+    string. The raw items are the fallback for a response the annotation
+    missed.
+    """
+    if isinstance(annotated, dict):
+        calls = annotated.get("tool_calls")
+        if isinstance(calls, list) and calls:
+            return [c for c in calls if isinstance(c, dict)]
+    calls = []
+    for item in _output_items(data, "function_call"):
+        arguments = item.get("arguments")
+        if isinstance(arguments, str):
+            try:
+                arguments = json.loads(arguments)
+            except ValueError:
+                pass        # keep the raw string; it is still readable
+        calls.append({"name": item.get("name"),
+                      "id": item.get("call_id") or item.get("id"),
+                      "arguments": arguments})
+    return calls
+
+
+def _count(value: Any) -> Optional[int]:
+    # bool is an int subclass and is never a token count
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return int(value)
+
+
+def _canonical_usage(usage: Any) -> dict:
+    """Provider-native token counts remapped to hermes' canonical names.
+
+    The provider's `input_tokens` is the whole prompt including what the
+    cache served; hermes' `input_tokens` meant only what was sent fresh. So
+    the name is not merely moved — passing it through unchanged would
+    silently overstate fresh input by the whole cache read, which is worse
+    than reporting nothing.
+
+    `input_tokens` is therefore derived as the remainder, and omitted when
+    the parts do not partition the prompt: a negative remainder is not a
+    count this app can vouch for. `request_count` has no counterpart and
+    stays absent — absent is not zero.
+    """
+    if not isinstance(usage, dict):
+        return {}
+    input_details = usage.get("input_tokens_details")
+    input_details = input_details if isinstance(input_details, dict) else {}
+    output_details = usage.get("output_tokens_details")
+    output_details = output_details if isinstance(output_details, dict) else {}
+
+    canonical = {}
+    for key, value in (
+        ("prompt_tokens", _count(usage.get("input_tokens"))),
+        ("cache_read_tokens", _count(input_details.get("cached_tokens"))),
+        ("cache_write_tokens", _count(input_details.get("cache_write_tokens"))),
+        ("output_tokens", _count(usage.get("output_tokens"))),
+        ("reasoning_tokens", _count(output_details.get("reasoning_tokens"))),
+        ("total_tokens", _count(usage.get("total_tokens"))),
+    ):
+        if value is not None:
+            canonical[key] = value
+
+    prompt = canonical.get("prompt_tokens")
+    if prompt is not None:
+        fresh = (prompt - canonical.get("cache_read_tokens", 0)
+                 - canonical.get("cache_write_tokens", 0))
+        if fresh >= 0:
+            canonical["input_tokens"] = fresh
+    return canonical
+
+
+def _normalize_llm_end(data: Any, category_profile: dict) -> Any:
+    """A provider response object, rewritten as hermes' canonical llm end.
+
+    Keeps the provider payload's own keys alongside the canonical ones, so
+    nothing is lost to a reader who goes looking for what the provider
+    actually said.
+    """
+    if not isinstance(data, dict) or "assistant_message" in data:
+        # Already canonical. An event that declared no schema but speaks the
+        # old envelope is left alone rather than rewritten — the mapping is
+        # for provider-shaped payloads, and running it over a canonical one
+        # would be this reader arguing with itself.
+        return data
+    annotated = category_profile.get("annotated_response")
+    annotated = annotated if isinstance(annotated, dict) else {}
+    if not isinstance(data.get("output"), list) and not annotated:
+        # Not a provider response either. The ATOF spec makes `data` opaque
+        # and other producers put their own shapes here; inventing an empty
+        # assistant_message over one would be noise, not normalization.
+        return data
+
+    normalized = dict(data)
+    normalized["assistant_message"] = {
+        "role": "assistant",
+        "content": _assistant_text(data),
+        "tool_calls": _tool_calls(data, annotated),
+    }
+    finish_reason = annotated.get("finish_reason")
+    if isinstance(finish_reason, str) and finish_reason:
+        # passed through as the exporter reports it. The old envelope's
+        # "tool_calls" / "stop" split is not reconstructed here: it would be
+        # this app inferring a provider's verdict from the presence of tool
+        # calls, which the row beside it already shows.
+        normalized["finish_reason"] = finish_reason
+    usage = _canonical_usage(data.get("usage"))
+    if usage:
+        normalized["usage"] = usage
+    return normalized
+
+
+def _error_text(data: Any) -> Optional[str]:
+    """A tool's own failure message from its end payload, dict or JSON string."""
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except ValueError:
+            return None
+    if not isinstance(data, dict):
+        return None
+    error = data.get("error")
+    return error if isinstance(error, str) and error else None
+
+
+def _session_from_turn_id(turn_id: Any) -> Optional[str]:
+    """The session segment of a composite "<session>:<task>:<hash>" turn id."""
+    if not isinstance(turn_id, str) or ":" not in turn_id:
+        return None
+    return turn_id.split(":", 1)[0] or None
+
+
+def _session_from_request_headers(category_profile: dict) -> Optional[str]:
+    """The session an llm request was sent under, from its own headers.
+
+    One named correlation key is read out of `extra_headers`; the dict
+    itself is never rendered. The generic payload renderer withholds
+    anything header-shaped precisely because such a dict is where a bearer
+    token would sit, and that guard is untouched by this.
+    """
+    request = category_profile.get("annotated_request")
+    if not isinstance(request, dict):
+        return None
+    headers = request.get("extra_headers")
+    if not isinstance(headers, dict):
+        return None
+    session_id = headers.get("session_id")
+    return session_id if isinstance(session_id, str) and session_id else None
+
+
+def normalize_relay_runtime(data, metadata, category_profile,
+                            category, scope_category):
+    """Map one core-runtime event onto the canonical envelope.
+
+    Returns the (data, metadata) an observer-v1 reader would have seen.
+    """
+    metadata = dict(metadata)
+
+    # Session grouping, from whichever of the two places it survived.
+    #
+    # Tool spans keep a composite turn_id that leads with the session —
+    # "<session>:<task>:<hash>". llm spans carry neither turn_id nor
+    # session_id, and their parents do not help: the logical_llm_call scope
+    # above them has no correlation keys, and the agent scope above that
+    # carries an empty payload. What they do have is the session the request
+    # was sent under, in the provider request's own headers.
+    if not metadata.get("session_id"):
+        session_id = _session_from_turn_id(metadata.get("turn_id"))
+        if not session_id:
+            session_id = _session_from_request_headers(category_profile)
+        if session_id:
+            metadata["session_id"] = session_id
+
+    # Tool outcome. `otel.status_code` is NOT the old `status`: it reports
+    # the span's transport, and reads "OK" on every failing tool call seen
+    # here — mapping it across would render failures as successes. The
+    # tool's own error string is the signal that survived, and the old
+    # `status` was "error" exactly when it was present.
+    if scope_category == "end" and _error_text(data) is not None:
+        metadata.setdefault("status", "error")
+
+    if category == "llm" and scope_category == "end":
+        data = _normalize_llm_end(data, category_profile)
+    return data, metadata
+
+
 class AtofParseError(ValueError):
     """A single line that cannot be parsed into an ATOF event."""
 
@@ -164,6 +437,18 @@ class AtofEvent:
     metadata: dict
     atof_version: Optional[str]
     line_no: int                    # provenance in the source JSONL
+    schema: str                     # which exporter wrote it; see SCHEMA_KEY
+
+    @property
+    def schema_is_known(self) -> bool:
+        """False for an envelope this reader has never seen.
+
+        `data` and `metadata` are then left exactly as they arrived — an
+        unrecognized shape is not one to map — so the event still renders
+        through the generic fallback while callers surface the schema
+        itself as an anomaly rather than quietly trusting it.
+        """
+        return self.schema in KNOWN_SCHEMAS
 
     @property
     def is_scope_start(self) -> bool:
@@ -324,6 +609,20 @@ def parse_line(line: str, line_no: int = 1) -> AtofEvent:
     if "timestamp" not in obj:
         raise AtofParseError("missing required field 'timestamp'", line_no)
 
+    category_profile = _optional_dict(obj, "category_profile", line_no)
+    metadata = _optional_dict(obj, "metadata", line_no)
+    data = obj.get("data")
+
+    # Everything above is the ATOF spec, identical in both eras. Only the
+    # hermes-shaped payload inside it differs, so normalization happens
+    # here, after the envelope has been validated.
+    schema = detect_schema(metadata)
+    if schema == RELAY_RUNTIME:
+        data, metadata = normalize_relay_runtime(
+            data, metadata, category_profile,
+            category=category, scope_category=scope_category,
+        )
+
     return AtofEvent(
         kind=kind,
         scope_category=scope_category,
@@ -332,12 +631,13 @@ def parse_line(line: str, line_no: int = 1) -> AtofEvent:
         timestamp_us=normalize_timestamp(obj["timestamp"], line_no),
         name=_require_str(obj, "name", line_no),
         category=category,
-        category_profile=_optional_dict(obj, "category_profile", line_no),
+        category_profile=category_profile,
         attributes=attributes,
-        data=obj.get("data"),
-        metadata=_optional_dict(obj, "metadata", line_no),
+        data=data,
+        metadata=metadata,
         atof_version=obj.get("atof_version"),
         line_no=line_no,
+        schema=schema,
     )
 
 

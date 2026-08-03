@@ -4,6 +4,12 @@ The first fixtures are the verbatim example lines from the ATOF v0.1 spec
 (NVIDIA/NeMo-Agent-Toolkit packages/nvidia_nat_atif/atof-event-format.md);
 the hermes-shaped fixtures mirror what the hermes-agent nemo_relay plugin
 emits (LLM/tool scopes with correlation metadata, hermes.turn.* marks).
+
+The `relay-runtime` fixtures at the end mirror the *second* exporter — the
+core runtime that superseded that plugin in hermes on 2026-07-19 — and are
+copied from real shapes in a live log, down to the awkward ones: a message
+item's content is a list of typed parts, a raw function_call's arguments
+are a JSON string, and a failing tool still reports `otel.status_code: OK`.
 """
 
 import json
@@ -11,7 +17,10 @@ import json
 import pytest
 
 from plugins.prompts.atof_reader import (
+    OBSERVER_V1,
+    RELAY_RUNTIME,
     AtofParseError,
+    detect_schema,
     normalize_timestamp,
     parse_line,
     parse_lines,
@@ -217,3 +226,275 @@ def test_mark_missing_optional_fields_defaults():
     assert e.attributes == ()
     assert e.atof_version is None
     assert e.timestamp_us == 0
+
+
+# --- schema eras: the relay-runtime exporter -----------------------------
+# Shapes copied from a live hermes log written after the 2026-07-19 core
+# runtime landed. The plugin stamped telemetry_schema_version on every event
+# it wrote; the core runtime stamps nothing, which is the whole dial.
+
+RELAY_TURN_ID = "eb8e54f7a700:eb8e54f7a700:3239e837"
+
+RELAY_USAGE = {
+    "input_tokens": 36105,
+    "input_tokens_details": {"cached_tokens": 16896, "cache_write_tokens": 0},
+    "output_tokens": 247,
+    "output_tokens_details": {"reasoning_tokens": 43},
+    "total_tokens": 36352,
+}
+
+RELAY_OUTPUT = [
+    {"type": "reasoning", "id": "rs_1", "summary": [], "encrypted_content": "..."},
+    {"type": "message", "id": "msg_1", "role": "assistant", "status": "completed",
+     "phase": "final_answer",
+     "content": [{"type": "output_text", "text": "Test received.",
+                  "annotations": [], "logprobs": []}]},
+    {"type": "function_call", "id": "fc_1", "call_id": "call_z5Rx",
+     "name": "skill_view", "arguments": '{"name":"job-seeker"}',
+     "status": "completed"},
+]
+
+
+def relay_llm_end(*, data=None, profile=None, metadata=None):
+    return json.dumps({
+        "kind": "scope", "scope_category": "end", "atof_version": "0.1",
+        "uuid": "u-llm", "parent_uuid": "u-logical", "name": "openai-codex",
+        "timestamp": 1785778552033752, "category": "llm", "attributes": [],
+        "category_profile": profile if profile is not None else {
+            "model_name": "gpt-5.6-sol",
+            "annotated_response": {
+                "finish_reason": "complete",
+                "tool_calls": [{"name": "skill_view", "id": "call_z5Rx",
+                                "arguments": {"name": "job-seeker"}}],
+                "usage": {"prompt_tokens": 36105, "cache_read_tokens": 16896,
+                          "completion_tokens": 247, "total_tokens": 36352},
+            },
+        },
+        "data": data if data is not None else {
+            "id": "resp_1", "model": "gpt-5.6-sol", "status": "completed",
+            "error": None, "incomplete_details": None, "output_text": "",
+            "output": RELAY_OUTPUT, "usage": RELAY_USAGE,
+        },
+        "metadata": metadata if metadata is not None else {
+            "api_mode": "responses", "api_request_id": "req-1",
+            "call_role": "primary", "retry_count": 0, "otel.status_code": "OK",
+        },
+    })
+
+
+def relay_tool_end(*, data, metadata=None):
+    return json.dumps({
+        "kind": "scope", "scope_category": "end", "atof_version": "0.1",
+        "uuid": "u-tool", "parent_uuid": "u-logical", "name": "read_file",
+        "timestamp": 1785778552033752, "category": "tool", "attributes": [],
+        "category_profile": {}, "data": data,
+        "metadata": metadata if metadata is not None else {
+            "api_request_id": "req-1", "task_id": "eb8e54f7a700",
+            "tool_call_id": "call_1", "turn_id": RELAY_TURN_ID,
+            "otel.status_code": "OK",
+        },
+    })
+
+
+# --- era detection -------------------------------------------------------
+
+def test_plugin_events_declare_their_schema_and_are_left_alone():
+    line = hermes_event(
+        scope_category="end",
+        metadata={**HERMES_METADATA, "telemetry_schema_version": OBSERVER_V1},
+        data={"assistant_message": {"role": "assistant", "content": "hi",
+                                    "tool_calls": []},
+              "finish_reason": "stop",
+              "usage": {"prompt_tokens": 10, "input_tokens": 4,
+                        "cache_read_tokens": 6, "request_count": 1}},
+    )
+    e = parse_line(line)
+    assert e.schema == OBSERVER_V1 and e.schema_is_known
+    # byte-for-byte what the exporter wrote: no mapping runs on this era
+    assert e.data["usage"] == {"prompt_tokens": 10, "input_tokens": 4,
+                               "cache_read_tokens": 6, "request_count": 1}
+    assert e.data["finish_reason"] == "stop"
+
+
+def test_unstamped_events_are_read_as_the_core_runtime():
+    e = parse_line(relay_llm_end())
+    assert e.schema == RELAY_RUNTIME and e.schema_is_known
+
+
+def test_detect_schema_reads_the_declaration_not_the_shape():
+    assert detect_schema({}) == RELAY_RUNTIME
+    assert detect_schema({"telemetry_schema_version": OBSERVER_V1}) == OBSERVER_V1
+
+
+def test_an_unrecognized_schema_is_surfaced_rather_than_guessed_at():
+    """hermes' observability layer is under active change; the next envelope
+    must fail loudly here instead of being mapped as one of these two."""
+    line = relay_llm_end(metadata={"telemetry_schema_version": "hermes.observer.v9"})
+    e = parse_line(line)
+    assert e.schema == "hermes.observer.v9"
+    assert not e.schema_is_known
+    # and its payload is left exactly as it arrived — an unknown shape is
+    # not one to rewrite
+    assert "assistant_message" not in e.data
+
+
+def test_both_eras_parse_from_one_stream():
+    """The exporters overlap: the old runtime keeps emitting for a few
+    events after the new one starts, so the dial is per event, not per file."""
+    events, errors = parse_lines([
+        hermes_event(metadata={**HERMES_METADATA,
+                               "telemetry_schema_version": OBSERVER_V1}),
+        relay_llm_end(),
+    ])
+    assert not errors
+    assert [e.schema for e in events] == [OBSERVER_V1, RELAY_RUNTIME]
+
+
+# --- llm payload normalization -------------------------------------------
+
+def test_relay_llm_end_yields_the_canonical_assistant_message():
+    e = parse_line(relay_llm_end())
+    message = e.data["assistant_message"]
+    assert message["role"] == "assistant"
+    # joined out of output[message].content[output_text].text
+    assert message["content"] == "Test received."
+    assert [c["name"] for c in message["tool_calls"]] == ["skill_view"]
+
+
+def test_relay_llm_end_carries_the_finish_reason_across():
+    """Passed through as the exporter reports it — "complete", not the old
+    envelope's tool_calls/stop split, which this app would be inferring."""
+    e = parse_line(relay_llm_end())
+    assert e.data["finish_reason"] == "complete"
+
+
+def test_relay_tool_calls_fall_back_to_the_raw_output_items():
+    """With no annotation to read, the provider's own function_call items
+    still name the tools — and their arguments arrive as a JSON string."""
+    e = parse_line(relay_llm_end(profile={"model_name": "gpt-5.6-sol"}))
+    calls = e.data["assistant_message"]["tool_calls"]
+    assert [c["name"] for c in calls] == ["skill_view"]
+    assert calls[0]["arguments"] == {"name": "job-seeker"}
+    assert calls[0]["id"] == "call_z5Rx"
+
+
+def test_relay_usage_is_remapped_to_canonical_names():
+    e = parse_line(relay_llm_end())
+    assert e.data["usage"] == {
+        "prompt_tokens": 36105,
+        "cache_read_tokens": 16896,
+        "cache_write_tokens": 0,
+        "output_tokens": 247,
+        "reasoning_tokens": 43,
+        "total_tokens": 36352,
+        # derived: the provider's input_tokens is the whole prompt, hermes'
+        # meant only what was sent fresh
+        "input_tokens": 36105 - 16896,
+    }
+
+
+def test_relay_usage_never_reports_a_request_count_it_was_not_given():
+    """The old envelope always said 1; the new one says nothing, and absent
+    is not the same as a count this app made up."""
+    assert "request_count" not in parse_line(relay_llm_end()).data["usage"]
+
+
+def test_relay_usage_omits_fresh_input_when_the_parts_do_not_partition():
+    usage = {"input_tokens": 100,
+             "input_tokens_details": {"cached_tokens": 400,
+                                      "cache_write_tokens": 0}}
+    e = parse_line(relay_llm_end(data={"output": [], "usage": usage}))
+    assert e.data["usage"]["prompt_tokens"] == 100
+    assert e.data["usage"]["cache_read_tokens"] == 400
+    assert "input_tokens" not in e.data["usage"]
+
+
+def test_relay_llm_end_keeps_the_provider_payload_beside_the_canonical_one():
+    e = parse_line(relay_llm_end())
+    assert e.data["id"] == "resp_1"          # nothing is dropped in mapping
+    assert isinstance(e.data["output"], list)
+
+
+def test_a_payload_that_is_already_canonical_is_not_rewritten():
+    """An old-format event that lost its stamp still reads correctly rather
+    than being mapped over."""
+    canonical = {"assistant_message": {"role": "assistant", "content": "hi",
+                                       "tool_calls": []},
+                 "finish_reason": "stop",
+                 "usage": {"prompt_tokens": 10, "input_tokens": 10}}
+    e = parse_line(relay_llm_end(data=canonical, profile={}))
+    assert e.data == canonical
+
+
+def test_a_non_provider_payload_is_left_alone():
+    """`data` is opaque per the spec — other producers put their own shapes
+    here, and an empty assistant_message over one would be noise."""
+    e = parse_line(SPEC_LLM_END)
+    assert e.data == {"response": "Hello!"}
+    assert "assistant_message" not in e.data
+
+
+# --- correlation and outcome ---------------------------------------------
+
+def test_session_id_is_recovered_from_the_composite_turn_id():
+    e = parse_line(relay_tool_end(data="{}"))
+    assert e.turn_id == RELAY_TURN_ID
+    assert e.session_id == "eb8e54f7a700"
+
+
+def test_session_id_is_not_invented_from_a_turn_id_without_one():
+    e = parse_line(relay_tool_end(
+        data="{}", metadata={"turn_id": "plain-turn-id"}))
+    assert e.session_id is None
+
+
+def test_a_declared_session_id_is_never_overwritten():
+    e = parse_line(relay_tool_end(
+        data="{}", metadata={"turn_id": RELAY_TURN_ID, "session_id": "real"}))
+    assert e.session_id == "real"
+
+
+def test_a_failing_tool_is_marked_failed_from_its_own_error_text():
+    """otel.status_code reads OK on every failing tool call in the log — it
+    reports the span's transport, not the tool's outcome — so the error
+    string the tool itself returned is what the status is taken from."""
+    line = relay_tool_end(data=json.dumps(
+        {"content": "", "error": "Binary file - cannot display as text."}))
+    e = parse_line(line)
+    assert e.metadata["otel.status_code"] == "OK"     # unchanged, and useless
+    assert e.metadata["status"] == "error"
+
+
+def test_a_succeeding_tool_is_not_marked_failed():
+    e = parse_line(relay_tool_end(data=json.dumps({"content": "ok"})))
+    assert "status" not in e.metadata
+
+
+def test_tool_end_payloads_stay_json_strings_for_the_span_to_decode():
+    """The exporter writes tool results as JSON text in both eras, and the
+    Span properties already decode that — normalization must not change it."""
+    e = parse_line(relay_tool_end(data='{"content": "ok"}'))
+    assert e.data == '{"content": "ok"}'
+
+
+def test_llm_session_is_recovered_from_the_request_headers():
+    """llm spans carry neither turn_id nor session_id, and neither does the
+    logical_llm_call scope above them — the provider request's own headers
+    are the only place the session survived."""
+    e = parse_line(relay_llm_end(profile={
+        "model_name": "gpt-5.6-sol",
+        "annotated_request": {"extra_headers": {"session_id": "eb8e54f7a700",
+                                                "x-client-request-id": "eb8e54f7a700"}},
+    }))
+    assert e.session_id == "eb8e54f7a700"
+
+
+def test_the_turn_id_wins_over_the_request_headers():
+    e = parse_line(relay_tool_end(data="{}", metadata={"turn_id": RELAY_TURN_ID}))
+    assert e.session_id == "eb8e54f7a700"
+
+
+def test_request_headers_without_a_session_invent_nothing():
+    e = parse_line(relay_llm_end(profile={
+        "annotated_request": {"extra_headers": {"authorization": "Bearer x"}}}))
+    assert e.session_id is None

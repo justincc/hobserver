@@ -1129,3 +1129,326 @@ def test_memory_results_report_the_char_budget():
     assert stored.memory_current_entries == []
     # both keys are far too generic to read outside a memory scope
     assert other.memory_stats == [] and other.memory_current_entries == []
+
+
+# --- the core runtime's turn tree ----------------------------------------
+# From hermes 2026-07-19 there are no hermes.turn.* marks. A turn is a scope
+# with its work nested under it by parent_uuid:
+#
+#   agent > hermes.turn > hermes.logical_llm_call > llm
+#                       > tool
+#
+# These streams carry no session_id and no telemetry_schema_version, exactly
+# as the core runtime writes them: the session is recovered from the
+# composite turn_id on tool spans and from the request headers on llm spans.
+
+RELAY_AGENT = "relay-agent"
+RELAY_TURN = "relay-turn-1"
+RELAY_SESSION = "eb8e54f7a700"
+RELAY_TURN_ID = f"{RELAY_SESSION}:{RELAY_SESSION}:3239e837"
+
+
+def relay_request(prompt):
+    return {"annotated_request": {
+        "extra_headers": {"session_id": RELAY_SESSION},
+        "messages": [{"role": "user", "content": prompt}]}}
+
+
+def relay_llm_lines(uuid, start_us, end_us, *, parent, prompt=None, wrapper=None):
+    """A logical_llm_call wrapper and the llm scope inside it."""
+    lines = []
+    if wrapper:
+        lines += scope_lines(wrapper, "function", start_us - 1_000, end_us + 1_000,
+                             name="hermes.logical_llm_call", parent=parent,
+                             end_data={"outcome": "success"})
+        parent = wrapper
+    profile = relay_request(prompt) if prompt else {}
+    profile["model_name"] = "gpt-5.6-sol"
+    lines += scope_lines(uuid, "llm", start_us, end_us, name="openai-codex",
+                         parent=parent, profile=profile,
+                         end_data={"output": [], "usage": {}})
+    return lines
+
+
+def relay_stream(*, turn_end=6_000_000, prompt="please produce a jobs report"):
+    return [
+        *scope_lines(RELAY_AGENT, "agent", 0, name="hermes-session", parent=None),
+        *scope_lines(RELAY_TURN, "function", 1_000_000, turn_end,
+                     name="hermes.turn", parent=RELAY_AGENT,
+                     end_data={"outcome": "success"}),
+        *relay_llm_lines("RL1", 1_100_000, 3_100_000,
+                         parent=RELAY_TURN, wrapper="RW1", prompt=prompt),
+        *scope_lines("RT1", "tool", 3_200_000, 3_700_000, name="terminal",
+                     parent=RELAY_TURN, turn=RELAY_TURN_ID,
+                     start_data={"command": "ls"}),
+    ]
+
+
+def test_a_turn_scope_becomes_a_turn_with_an_observed_duration():
+    """The extent is read off the scope pair, not inferred from its spans —
+    which is what makes the overhead residual mean something again."""
+    session = assemble_lines(relay_stream()).sessions[0]
+    assert session.session_id == RELAY_SESSION
+    turn, = session.turns
+    assert turn.start_us == 1_000_000
+    assert turn.end_us == 6_000_000
+    assert turn.duration_us == 5_000_000
+
+
+def test_the_containers_never_appear_as_spans():
+    """hermes.turn and hermes.logical_llm_call wrap work rather than being
+    it; left in, a turn double-counts the model time they enclose."""
+    turn, = assemble_lines(relay_stream()).sessions[0].turns
+    assert sorted(s.name for s in turn.spans) == ["openai-codex", "terminal"]
+
+
+def test_model_time_is_not_double_counted_through_the_wrapper():
+    turn, = assemble_lines(relay_stream()).sessions[0].turns
+    assert turn.llm_us == 2_000_000          # the llm scope alone
+    assert turn.tool_us == 500_000
+    assert turn.overhead_us == 5_000_000 - 2_000_000 - 500_000
+
+
+def test_spans_reach_their_turn_through_the_parent_chain():
+    """The llm scope is two hops below its turn, the tool scope one."""
+    turn, = assemble_lines(relay_stream()).sessions[0].turns
+    llm = next(s for s in turn.spans if s.category == "llm")
+    tool = next(s for s in turn.spans if s.category == "tool")
+    assert llm.parent_uuid == "RW1"          # the wrapper, not the turn
+    assert tool.parent_uuid == RELAY_TURN
+
+
+def test_a_turn_takes_its_session_from_the_spans_beneath_it():
+    """The turn scope carries no session of its own, and the agent scope
+    above it has an empty payload."""
+    turn, = assemble_lines(relay_stream()).sessions[0].turns
+    assert turn.session_id == RELAY_SESSION
+    assert all(s.session_id == RELAY_SESSION for s in turn.spans)
+
+
+def test_a_turn_takes_its_prompt_from_its_first_llm_request():
+    turn, = assemble_lines(relay_stream()).sessions[0].turns
+    assert turn.user_message == "please produce a jobs report"
+
+
+def test_the_prompt_is_unwrapped_of_hermes_own_envelope():
+    """The turn mark used to carry the bare prompt; the wire message it has
+    to be read from now is wrapped, and the two known wrappers come off."""
+    wrapped = ("[Workspace::v1: /home/justincc/workspace]\n"
+               "please produce a jobs report\n\n"
+               "<memory-context>\n[System note: recalled memory]\n</memory-context>")
+    turn, = assemble_lines(relay_stream(prompt=wrapped)).sessions[0].turns
+    assert turn.user_message == "please produce a jobs report"
+
+
+def test_an_unrecognized_wrapping_leaves_the_prompt_whole():
+    """Cutting at a guess would be this app inventing a prompt boundary."""
+    prompt = "Review the conversation above and update the skill library."
+    turn, = assemble_lines(relay_stream(prompt=prompt)).sessions[0].turns
+    assert turn.user_message == prompt
+
+
+def test_an_open_turn_scope_is_live():
+    turn, = assemble_lines(relay_stream(turn_end=None)).sessions[0].turns
+    assert turn.end_us is None
+    assert turn.duration_us is None      # never observed, never guessed
+    assert turn.overhead_us is None
+    assert turn.is_live
+
+
+def test_an_open_turn_with_a_later_turn_behind_it_is_over():
+    lines = [
+        *relay_stream(turn_end=None),
+        *scope_lines("relay-turn-2", "function", 7_000_000, 9_000_000,
+                     name="hermes.turn", parent=RELAY_AGENT),
+        *relay_llm_lines("RL2", 7_100_000, 8_000_000, parent="relay-turn-2",
+                         wrapper="RW2", prompt="and again"),
+    ]
+    first, second = assemble_lines(lines).sessions[0].turns
+    assert first.end_us is None and first.superseded and not first.is_live
+    assert second.is_live is False or second.end_us is not None
+
+
+def test_a_span_outside_every_turn_scope_is_surfaced_not_absorbed():
+    """An llm call parented straight to the session scope belongs to no
+    turn, and saying so is better than filing it under a neighbour."""
+    lines = [
+        *relay_stream(),
+        *relay_llm_lines("RL9", 20_000_000, 20_500_000, parent=RELAY_AGENT,
+                         prompt="orphan"),
+    ]
+    assembly = assemble_lines(lines)
+    orphans = [s for sess in assembly.sessions for s in sess.unassigned_spans]
+    assert [s.uuid for s in orphans] == ["RL9"]
+    assert any("falls outside every turn" in a.message for a in assembly.anomalies)
+
+
+def test_both_eras_assemble_into_one_session_in_time_order():
+    """A log spanning the changeover holds mark-bounded turns and
+    scope-bounded ones, and they are the same session's turns."""
+    lines = [
+        *session_scope_lines(RELAY_SESSION, start_us=0),
+        mark_line("hermes.turn.start", 100_000, session=RELAY_SESSION, turn="t-old"),
+        *scope_lines("OLD1", "llm", 110_000, 200_000, name="anthropic",
+                     session=RELAY_SESSION, turn="t-old"),
+        mark_line("hermes.turn.end", 300_000, session=RELAY_SESSION, turn="t-old"),
+        *scope_lines(RELAY_TURN, "function", 1_000_000, 6_000_000,
+                     name="hermes.turn", parent=RELAY_AGENT),
+        *relay_llm_lines("RL1", 1_100_000, 3_100_000, parent=RELAY_TURN,
+                         wrapper="RW1", prompt="after the update"),
+    ]
+    session = next(s for s in assemble_lines(lines).sessions
+                   if s.session_id == RELAY_SESSION)
+    assert [t.start_us for t in session.turns] == [100_000, 1_000_000]
+    assert session.turns[0].turn_id == "t-old"
+    assert session.turns[1].user_message == "after the update"
+
+
+def test_a_turn_scope_with_nothing_under_it_is_still_a_turn():
+    """An empty turn is a fact about the run; dropping it would hide a turn
+    that started and did nothing."""
+    lines = [
+        *scope_lines(RELAY_AGENT, "agent", 0, name="hermes-session", parent=None),
+        *scope_lines(RELAY_TURN, "function", 1_000_000, 2_000_000,
+                     name="hermes.turn", parent=RELAY_AGENT),
+    ]
+    assembly = assemble_lines(lines)
+    turn, = assembly.sessions[0].turns
+    assert turn.spans == []
+    assert turn.duration_us == 1_000_000
+    # and it says loudly that it could not be placed in a session
+    assert turn.session_id == UNKNOWN_SESSION
+    assert any("no span naming its session" in a.message for a in assembly.anomalies)
+
+
+# --- both exporters live at once -----------------------------------------
+# The plugin never stopped emitting its marks: the core runtime's scope tree
+# arrived *alongside* them, so each real turn is described twice, a few
+# milliseconds apart. Building a Turn from each produced a duplicate row
+# whose spans had all gone to the other one.
+
+
+def relay_and_mark_stream(*, mark_turn_id=RELAY_TURN_ID, mark_offset=30_000):
+    """One real turn, as both exporters describe it.
+
+    The mark always lands just after the scope opens, and its turn_id is the
+    one the tool spans beneath the scope carry.
+    """
+    return [
+        *scope_lines(RELAY_AGENT, "agent", 0, name="hermes-session", parent=None),
+        *scope_lines(RELAY_TURN, "function", 1_000_000, 6_000_000,
+                     name="hermes.turn", parent=RELAY_AGENT),
+        mark_line("hermes.turn.start", 1_000_000 + mark_offset,
+                  session=RELAY_SESSION, turn=mark_turn_id,
+                  data={"user_message": "please produce a jobs report"}),
+        *relay_llm_lines("RL1", 1_100_000, 3_100_000,
+                         parent=RELAY_TURN, wrapper="RW1", prompt="ignored"),
+        *scope_lines("RT1", "tool", 3_200_000, 3_700_000, name="terminal",
+                     parent=RELAY_TURN, turn=mark_turn_id,
+                     start_data={"command": "ls"}),
+        mark_line("hermes.turn.end", 5_900_000,
+                  session=RELAY_SESSION, turn=mark_turn_id),
+    ]
+
+
+def test_one_turn_described_by_both_exporters_is_one_turn():
+    session, = assemble_lines(relay_and_mark_stream()).sessions
+    assert len(session.turns) == 1
+
+
+def test_the_merged_turn_keeps_the_marks_account_of_what_it_was():
+    """The mark carries hermes' own unwrapped prompt and the turn_id; the
+    scope carries neither, so the mark wins on identity."""
+    turn, = assemble_lines(relay_and_mark_stream()).sessions[0].turns
+    assert turn.turn_id == RELAY_TURN_ID
+    assert turn.user_message == "please produce a jobs report"
+
+
+def test_the_merged_turn_keeps_the_scopes_account_of_what_ran():
+    turn, = assemble_lines(relay_and_mark_stream()).sessions[0].turns
+    assert sorted(s.name for s in turn.spans) == ["openai-codex", "terminal"]
+    assert turn.llm_us == 2_000_000
+    assert turn.tool_us == 500_000
+
+
+def test_the_merged_turn_covers_both_intervals():
+    """The two bracket the same work milliseconds apart; the union is the
+    one that certainly contains it, and the waterfall lays spans out from
+    the turn's own start."""
+    turn, = assemble_lines(relay_and_mark_stream()).sessions[0].turns
+    assert turn.start_us == 1_000_000          # the scope opened first
+    assert turn.end_us == 6_000_000            # the scope closed last
+    assert all(s.start_us >= turn.start_us for s in turn.spans)
+
+
+def test_the_pair_is_matched_on_turn_id_not_on_timing():
+    """A mark landing three seconds after its scope still belongs to it —
+    the observed offsets run that wide."""
+    lines = relay_and_mark_stream(mark_offset=3_100_000)
+    session, = assemble_lines(lines).sessions
+    assert len(session.turns) == 1
+    assert session.turns[0].turn_id == RELAY_TURN_ID
+
+
+def test_a_turn_whose_spans_carry_no_turn_id_still_matches_by_overlap():
+    """A turn with only llm calls under it has no turn_id anywhere — llm
+    spans carry none — so the fallback is that the two describe the same
+    stretch of time."""
+    lines = [
+        *scope_lines(RELAY_AGENT, "agent", 0, name="hermes-session", parent=None),
+        *scope_lines(RELAY_TURN, "function", 1_000_000, 6_000_000,
+                     name="hermes.turn", parent=RELAY_AGENT),
+        mark_line("hermes.turn.start", 1_030_000, session=RELAY_SESSION,
+                  turn="some-turn-id", data={"user_message": "test"}),
+        *relay_llm_lines("RL1", 1_100_000, 3_100_000, parent=RELAY_TURN,
+                         wrapper="RW1", prompt="test"),
+        mark_line("hermes.turn.end", 5_900_000, session=RELAY_SESSION,
+                  turn="some-turn-id"),
+    ]
+    session, = assemble_lines(lines).sessions
+    turn, = session.turns
+    assert turn.user_message == "test"
+    assert [s.name for s in turn.spans] == ["openai-codex"]
+
+
+def test_a_just_started_turn_inherits_its_session_from_its_agent_scope():
+    """A turn that has run no span names no session of its own. Without the
+    agent scope above it, it would strand itself in (unknown session) and
+    then fail to recognize the mark that describes it — an empty duplicate
+    row for every turn in flight."""
+    lines = [
+        *relay_and_mark_stream(),
+        # a second turn under the same agent, opened but not yet worked
+        *scope_lines("relay-turn-2", "function", 8_000_000,
+                     name="hermes.turn", parent=RELAY_AGENT),
+        mark_line("hermes.turn.start", 8_005_000, session=RELAY_SESSION,
+                  turn="turn-2-id", data={"user_message": "still there?"}),
+    ]
+    session, = assemble_lines(lines).sessions
+    assert session.session_id == RELAY_SESSION
+    assert len(session.turns) == 2
+    latest = session.turns[-1]
+    assert latest.spans == []
+    assert latest.user_message == "still there?"
+    assert latest.is_live
+
+
+def test_two_concurrent_subagent_turns_are_not_mistaken_for_duplicates():
+    """Delegated subagents start within milliseconds of each other. They are
+    separate sessions and must stay separate turns."""
+    lines = [
+        *scope_lines("agent-a", "agent", 0, name="hermes-session", parent=None),
+        *scope_lines("turn-a", "function", 1_000_000, 5_000_000,
+                     name="hermes.turn", parent="agent-a"),
+        *scope_lines("tool-a", "tool", 1_100_000, 1_200_000, name="terminal",
+                     parent="turn-a", turn="sess-a:sa-0:aaaa"),
+        *scope_lines("agent-b", "agent", 0, name="hermes-session", parent=None),
+        *scope_lines("turn-b", "function", 1_000_002, 5_000_002,
+                     name="hermes.turn", parent="agent-b"),
+        *scope_lines("tool-b", "tool", 1_100_002, 1_200_002, name="terminal",
+                     parent="turn-b", turn="sess-b:sa-1:bbbb"),
+    ]
+    assembly = assemble_lines(lines)
+    ids = sorted(s.session_id for s in assembly.sessions)
+    assert ids == ["sess-a", "sess-b"]
+    assert all(len(s.turns) == 1 for s in assembly.sessions)
