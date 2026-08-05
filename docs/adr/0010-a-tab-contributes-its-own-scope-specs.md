@@ -54,7 +54,7 @@ PLUGIN_API = 1
 bp = Blueprint("mem0", __name__, template_folder="templates")
 TAB_LABEL, URL_PREFIX = "Mem0", "memory/mem0"
 
-from plugins.mem0.specs import SCOPES     # how its spans show elsewhere
+from plugins.mem0.scopes import SCOPES    # how its spans show elsewhere
 ```
 
 **The shell carries them without understanding them.** `tabs.py` reads the two
@@ -84,7 +84,7 @@ for the ordinary typo.
 ## Consequences
 
 - **mem0 becomes a package**, `plugins/mem0/__init__.py` plus
-  `plugins/mem0/specs.py`, matching `plugins/prompts/`. Its rendering now
+  `plugins/mem0/scopes.py`, matching `plugins/prompts/` file for file. Its rendering now
   travels with it: lifting the directory into an installed package takes the
   tab, its templates, its accessor and its span rendering together. (The
   templates were still in the app's `templates/mem0/` when this was written,

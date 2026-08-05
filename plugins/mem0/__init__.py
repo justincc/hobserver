@@ -27,7 +27,7 @@ PLUGIN_API = 1
 # How this plugin's own spans show on a turn page (ADR 10). Contributed to
 # whichever tab paints spans, and gone the moment this tab is disabled — so a
 # link into a page that is no longer served cannot be left behind.
-from plugins.mem0.specs import SCOPES  # noqa: E402  (after PLUGIN_API)
+from plugins.mem0.scopes import SCOPES  # noqa: E402  (after PLUGIN_API)
 bp = Blueprint("mem0", __name__, template_folder="templates")
 TAB_LABEL = "Mem0"
 # Namespaced under memory/ because mem0 is one memory system of several to

@@ -52,8 +52,12 @@ the rest of hermes-observer.
 
 ```python
 # my_observer_tab/__init__.py
-from my_observer_tab.specs import SCOPES
+from my_observer_tab.scopes import SCOPES
 ```
+
+`scopes.py` beside your `__init__.py`, holding the table: the same shape as
+`plugins/mem0/` and `plugins/prompts/`, and named for the `SCOPES` it
+exports.
 
 Nothing else to configure: enabling your tab brings its spans with it, and
 disabling it takes them away again — which is what stops a span linking to a
@@ -137,7 +141,7 @@ looks up — the two shapes
 [ADR 4](adr/0004-cross-plugin-access-by-link-or-published-accessor.md) allows,
 available to a spec since
 [ADR 9](adr/0009-scope-specs-may-link-and-read-published-data.md). The mem0
-scopes in `plugins/mem0/specs.py` are written this way and are worth reading
+scopes in `plugins/mem0/scopes.py` are written this way and are worth reading
 as a worked example — they sit in the plugin that owns them, which is
 [the first route above](#wiring-it-up), and nothing about them is privileged
 for being in-tree.

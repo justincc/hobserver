@@ -369,7 +369,7 @@ because that plugin lives in this tree: what they needed was a link into
 another tab and a value from its published accessor, which
 [ADR 9](adr/0009-scope-specs-may-link-and-read-published-data.md) put in the
 vocabulary as `Link` and `accessor()`. Both scopes are now declared like any
-other — in `plugins/mem0/specs.py`, the plugin that owns them, contributed to
+other — in `plugins/mem0/scopes.py`, the plugin that owns them, contributed to
 this tab when that one loads
 ([ADR 10](adr/0010-a-tab-contributes-its-own-scope-specs.md)) — and anyone
 can write their own the same way, see

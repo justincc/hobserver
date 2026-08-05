@@ -427,7 +427,7 @@ def build_app(mem0=True, prompts_settings=None):
 
 
 def test_the_mem0_tab_contributes_its_own_span_rendering():
-    """The specs live in plugins/mem0/specs.py and arrive because that tab
+    """The specs live in plugins/mem0/scopes.py and arrive because that tab
     loaded, not because the Prompts tab knows about mem0."""
     table = build_app(mem0=True).config["SCOPE_SPECS"]
     for name in ("mem0_search", "mem0_add", "mem0_update", "mem0_delete"):
