@@ -11,6 +11,7 @@ import pathlib
 
 import pytest
 
+from conftest import REPO_ROOT
 from plugins.prompts.assembler import Span
 from plugins.prompts.scope_spec import (RENDER_MACROS, Alt, Diff, Each, Field,
                                         Items, Link, Row, Scope, SpecTable,
@@ -450,8 +451,7 @@ def test_the_prompts_tab_depends_on_no_other_plugin():
     """
     import ast
 
-    source = (pathlib.Path(__file__).parent.parent / "plugins" / "prompts"
-              / "__init__.py").read_text()
+    source = (REPO_ROOT / "plugins" / "prompts" / "__init__.py").read_text()
     tree = ast.parse(source)
 
     docstrings = set()
@@ -490,7 +490,7 @@ def test_contributed_specs_are_collected_before_any_tab_registers():
 def test_the_shell_carries_contributed_tables_without_reading_them():
     """tabs.py must not learn what a scope spec is — ADR 5's rule that the
     shell imports no plugin."""
-    source = (pathlib.Path(__file__).parent.parent / "tabs.py").read_text()
+    source = (REPO_ROOT / "tabs.py").read_text()
     assert "scope_spec" not in source and "import plugins" not in source
 
 
@@ -730,8 +730,7 @@ def test_every_class_the_vocabulary_resolves_to_exists_in_base_html():
     import re
 
     from plugins.prompts.scope_spec import _CLIP_CLS, _DECO_CLS
-    css = (pathlib.Path(__file__).parent.parent
-           / "templates" / "base.html").read_text()
+    css = (REPO_ROOT / "templates" / "base.html").read_text()
     css = re.sub(r"\{#.*?#\}", "", css, flags=re.S)     # drop Jinja comments
     named = set(list(_DECO_CLS.values()) + list(_CLIP_CLS.values()))
     named |= {"list-item", "list-compact", "span-detail", "path"}

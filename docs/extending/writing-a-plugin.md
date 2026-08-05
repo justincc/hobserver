@@ -132,6 +132,15 @@ under `templates/tail/` so the names cannot collide with another tab's.
 loader path. The in-tree plugins are built this way too, so nothing about
 your layout differs from theirs.
 
+## Tests
+
+Keep them in your package, `<your_package>/tests/`. The in-tree plugins are
+laid out that way — `plugins/mem0/tests/`, `plugins/prompts/tests/` — and this
+repo's `pyproject.toml` names both `tests` and `plugins` as test roots, so
+`uv run pytest` collects a plugin's tests without being told about it. The
+root `conftest.py` is on the path from anywhere, so `from conftest import
+make_app` gets you a whole app with the tabs registered.
+
 ## Failure and collisions
 
 Anything wrong with your tab — import error, missing attribute, wrong

@@ -252,9 +252,11 @@ uv run pytest
   (chrome, tab bar, the CSS classes plugins render against), `_item_nav.html`
   (the `item_nav` macro every detail page uses), and `unavailable.html` for a
   tab that could not load. Each plugin's own pages live with the plugin.
-- `tests/` — `conftest.py` (shared fixtures), `test_app.py` (shell),
-  `test_mem0.py`, `test_prompts.py`, `test_tabs.py`, `test_atof_reader.py`,
-  `test_assembler.py`, `test_tailer.py`
+- `conftest.py` — fixtures every test can reach, and `REPO_ROOT` for the
+  ones that read a file out of the tree
+- `tests/` — the shell's own: `test_app.py`, `test_tabs.py`,
+  `test_request_log.py`. A plugin's tests live with the plugin, in
+  `plugins/<name>/tests/`, and `uv run pytest` collects both roots
 - `docs/` — split by who reads it:
   - [`design/`](docs/design/) — why the app is shaped as it is, for anyone
     changing it: [design-principles.md](docs/design/design-principles.md),

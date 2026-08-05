@@ -32,7 +32,9 @@ never owns or mutates data.
 - Run: `uv run python app.py [observer.toml]` — no arguments needed when
   `HERMES_HOME` is exported. Serves on port 5090; template and `.py` edits are
   picked up without a restart.
-- Test: `uv run pytest`
+- Test: `uv run pytest` — collects both roots, the shell's `tests/` and each
+  plugin's `plugins/<name>/tests/`. `uv run pytest plugins/mem0` runs one
+  plugin's alone.
 - Which tabs are served, in which order: `observer.toml`. `enabled = false`
   turns one off; `module` is any importable path, in this tree or installed
   elsewhere.

@@ -228,6 +228,9 @@ one you forgot to wire up.
 
 ## Testing one
 
+Keep them with your plugin — `plugins/<name>/tests/` here, or a `tests/`
+directory in your own package — so the tests travel with the thing they test.
+
 A spec is data, so it resolves without a Flask app or a rendered page:
 
 ```python
@@ -242,7 +245,7 @@ def test_deploy_leads_with_the_service(make_span):
     assert rows[0]["cells"][0]["text"] == "api"
 ```
 
-`tests/test_scope_spec.py` in this repo is a worked set of these, including a
+`plugins/prompts/tests/test_scope_spec.py` is a worked set of these, including a
 `make_span` helper you can copy.
 
 ## Checklist

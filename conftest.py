@@ -1,9 +1,15 @@
+import pathlib
 import sqlite3
 
 import pytest
 
 import tabs as tabs_module
 from app import create_app
+
+# This file sits at the repo root, so it is the one fixed point every test can
+# anchor on. Tests live at two depths now — tests/ and plugins/<name>/tests/ —
+# and walking up from __file__ no longer means the same thing in both.
+REPO_ROOT = pathlib.Path(__file__).parent
 
 
 def make_app(db=None, atof=None, entries=None):

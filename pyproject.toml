@@ -9,3 +9,15 @@ dependencies = ["flask>=3.0"]
 
 [dependency-groups]
 dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+# Tests live with what they test: the shell's under tests/, a plugin's under
+# plugins/<name>/tests/. Both roots are named so `uv run pytest` from the
+# repo root collects everything, and so adding a plugin adds its tests with
+# no further wiring.
+testpaths = ["tests", "plugins"]
+# The repo root on sys.path, so a test anywhere can `import app`, `import
+# tabs`, or `from conftest import make_app`. Declared rather than inherited
+# from the working directory, which is what made the old layout's imports
+# work by accident.
+pythonpath = ["."]

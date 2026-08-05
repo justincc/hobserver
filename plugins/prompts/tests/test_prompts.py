@@ -7,8 +7,8 @@ import time
 from markupsafe import escape
 
 from conftest import make_app
-from tests.conftest import make_memory_change_db, make_memory_db
-from tests.test_assembler import (mark_line, scope_lines, session_scope_lines,
+from conftest import make_memory_change_db, make_memory_db
+from test_assembler import (mark_line, scope_lines, session_scope_lines,
                                   two_turn_stream)
 
 
