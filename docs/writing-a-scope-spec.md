@@ -108,7 +108,7 @@ in `plugins/prompts/scopes.py`:
 LLM = Scope(render="llm")
 ```
 
-That names a macro in `templates/prompts/_scope_*.html` which renders the
+That names a macro in `plugins/prompts/templates/prompts/_scope_*.html` which renders the
 scope by hand. Exactly one scope uses it — an llm call, whose token tree runs
 a separator state machine that is not a shape the vocabulary should learn.
 `scope_spec.RENDER_MACROS` is the list of names that exist, and it has one

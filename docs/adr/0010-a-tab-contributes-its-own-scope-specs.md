@@ -51,7 +51,7 @@ exposes nothing and is unaffected.
 ```python
 # plugins/mem0/__init__.py
 PLUGIN_API = 1
-bp = Blueprint("mem0", __name__)
+bp = Blueprint("mem0", __name__, template_folder="templates")
 TAB_LABEL, URL_PREFIX = "Mem0", "memory/mem0"
 
 from plugins.mem0.specs import SCOPES     # how its spans show elsewhere
@@ -86,7 +86,10 @@ for the ordinary typo.
 - **mem0 becomes a package**, `plugins/mem0/__init__.py` plus
   `plugins/mem0/specs.py`, matching `plugins/prompts/`. Its rendering now
   travels with it: lifting the directory into an installed package takes the
-  tab, its templates, its accessor and its span rendering together.
+  tab, its templates, its accessor and its span rendering together. (The
+  templates were still in the app's `templates/mem0/` when this was written,
+  which made the sentence aspirational; they moved into the plugin
+  immediately after, which is what made it true.)
 - **Disabling a tab removes its spans.** They fall back to the generic payload
   dump — which is what they showed before that plugin existed — and the page
   serves. Verified both ways.

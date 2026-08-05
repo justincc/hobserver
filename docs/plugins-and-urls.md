@@ -22,10 +22,18 @@ A plugin is any importable module exposing:
 | `sources(settings)` | no | what the tab reads, for the banner and error states |
 | `SCOPES` / `SCOPES_BY_CATEGORY` | no | how this tab's own hermes spans render on a tab that paints spans (ADR 10) |
 
-In-tree plugins live in `plugins/<name>` with templates in
-`templates/<name>/`, keyed by blueprint name. Nothing about the contract
-depends on being in this tree, so an out-of-tree tab is the same thing in a
-different directory — see [writing-a-plugin.md](writing-a-plugin.md).
+In-tree plugins live in `plugins/<name>/`, templates included:
+`plugins/<name>/templates/<name>/`, carried by the blueprint's own
+`template_folder` and still keyed by blueprint name. Nothing about the
+contract depends on being in this tree, so an out-of-tree tab is the same
+thing in a different directory — see
+[writing-a-plugin.md](writing-a-plugin.md).
+
+The app's own `templates/` holds only what the shell owns and every tab
+shares: `base.html`, `_item_nav.html`, and the `unavailable.html` served in
+place of a tab that could not load. It is searched before any blueprint's
+folder, so a template of the app's own name wins — which is the escape hatch
+for overriding a plugin's page without editing it.
 
 Most tabs import nothing from this app; those that need to may import the
 surfaces it publishes — `base.html`'s classes and conventions, and the

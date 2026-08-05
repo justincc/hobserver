@@ -125,9 +125,12 @@ live-poll script and the shared CSS. These are the public surface:
 | item navigation | `{% from "_item_nav.html" import item_nav %}` for "← all X" plus prev/next |
 | notices | `<p class="notice warn">` for a problem the reader must see |
 
-A blueprint in your own package carries its own `template_folder` and
-`static_folder`; `base.html` still resolves, because the app's templates stay
-on the Jinja loader path.
+Keep your templates in your own package —
+`Blueprint("tail", __name__, template_folder="templates")`, with the files
+under `templates/tail/` so the names cannot collide with another tab's.
+`base.html` still resolves, because the app's templates stay on the Jinja
+loader path. The in-tree plugins are built this way too, so nothing about
+your layout differs from theirs.
 
 ## Failure and collisions
 

@@ -29,7 +29,7 @@ from plugins.prompts.scopes import SCOPES, SCOPES_BY_CATEGORY
 from plugins.prompts.tailer import AtofTailer
 
 PLUGIN_API = 1
-bp = Blueprint("prompts", __name__)
+bp = Blueprint("prompts", __name__, template_folder="templates")
 TAB_LABEL = "Prompts"
 URL_PREFIX = "prompts"
 

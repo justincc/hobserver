@@ -521,7 +521,12 @@ def test_every_render_macro_named_is_defined_and_dispatched():
     by glob rather than by filename, so splitting or merging those files is
     not something this test has an opinion about.
     """
-    prompts = pathlib.Path(__file__).parent.parent / "templates" / "prompts"
+    # Found through the blueprint rather than by path: the Prompts tab carries
+    # its own templates, and where a plugin keeps them is its business.
+    import plugins.prompts as prompts_tab
+
+    prompts = (pathlib.Path(prompts_tab.__file__).parent
+               / prompts_tab.bp.template_folder / "prompts")
     macros = "\n".join(f.read_text() for f in prompts.glob("_scope_*.html"))
     page = (prompts / "turn.html").read_text()
     assert macros, "no _scope_*.html files found"

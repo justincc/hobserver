@@ -14,7 +14,7 @@ what the exporter appended since the last request.
 ## The in-flight strip
 
 Both Prompts pages show an in-flight strip
-(`templates/prompts/_inflight.html`) listing every running turn, newest first,
+(`plugins/prompts/templates/prompts/_inflight.html`) listing every running turn, newest first,
 with a short prompt snippet, elapsed time and span count, each linking to its
 waterfall. The turn being viewed is marked.
 

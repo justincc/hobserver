@@ -5,7 +5,7 @@ What a span shows, scope by scope.
 **Where it is decided** (ADR 7): each scope's rows are declared as data in
 `plugins/prompts/scopes.py`, keyed by the hermes tool's own scope name;
 `plugins/prompts/scope_spec.py` holds the vocabulary those declarations are
-written in; `templates/prompts/_macros.html` paints whatever they resolve to
+written in; `plugins/prompts/templates/prompts/_macros.html` paints whatever they resolve to
 and knows about no particular tool, and `turn.html` is the page around it.
 The values come from `Span` properties in `plugins/prompts/assembler.py`, or
 straight from the payload.
@@ -358,7 +358,7 @@ Two rules the machinery enforces so a spec cannot get them wrong:
 
 ## The one exception
 
-**llm** keeps hand-written Jinja, in `templates/prompts/_scope_llm.html`,
+**llm** keeps hand-written Jinja, in `plugins/prompts/templates/prompts/_scope_llm.html`,
 reached by `render="llm"` in the spec table and dispatched from the turn
 page. Its token tree runs a separator state machine — tracking whether
 anything precedes a row so one with nothing to its left takes no leading `·`
@@ -588,7 +588,7 @@ Plus, on skill_manage:
   replace text; they never carry a V4A patch text the way the file tools' patch
   scope does in patch mode. The pair matches that scope's *replace* mode
   instead, and both render through the one `diff_rows` macro in
-  `templates/prompts/_macros.html`.
+  `plugins/prompts/templates/prompts/_macros.html`.
 
 The two sides render on their own detail-mode-only rows (`.list-item`), marked
 − and + — glyph first, tint second, never color alone. `new_string` may be the

@@ -41,6 +41,10 @@ Conventions:
   Data-source paths live in the shell's app config.
 - Each plugin's templates live in `templates/<name>/`; shared chrome and
   styling stay in `templates/base.html`.
+  *(Later: a plugin's templates moved inside the plugin —
+  `plugins/<name>/templates/<name>/`, on the blueprint's own
+  `template_folder` — so a plugin is one directory and lifts out of this tree
+  whole, per ADR 10. Only the shared chrome named here stayed put.)*
 - Each plugin's `/` route is its tab landing page, endpoint `<name>.index`.
 - The shell keeps pre-plugin URLs working via redirects (`/` → first tab,
   `/event/<id>` and `/fragment/events` → their `/memory/` equivalents).
