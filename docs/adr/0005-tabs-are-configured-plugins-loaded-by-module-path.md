@@ -105,6 +105,13 @@ hermes-observer package or track its version. The one real coupling is
 `data-live-poll` convention and the CSS classes — so that surface is
 documented as public and changed with the same care as a URL.
 
+*(Relaxed by [ADR 8](0008-plugins-may-import-published-host-vocabulary.md):
+a plugin may import the surfaces this app publishes, `base.html` and the
+scope-spec vocabulary among them. The prohibition above described the tab
+contract, which needs no import, and generalised it too far — the coupling
+it named in its own last sentence was always there. What survives unchanged
+is that a plugin never imports another plugin.)*
+
 ### Failure is per-tab, except for collisions
 
 - A tab that fails to import, fails to register, or reports an unusable

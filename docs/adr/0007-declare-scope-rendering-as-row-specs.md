@@ -4,7 +4,20 @@ Date: 2026-08-05
 
 ## Status
 
-Proposed
+Accepted — implemented 2026-08-05.
+
+Two things the implementation settled that this ADR had left open:
+
+- **`Alt`, `Each` and `when_many` earned their place.** The vocabulary needed
+  a first-that-resolves (patch's path *or* its V4A files), a per-entry
+  repeat, and a way to hold back a label a lone entry does not need. All
+  three fell out of migrating the thirteen; none is a fifth axis.
+- **A payload key present with `""` is a value, not an absence.** The first
+  cut folded it into None, which would have lost the empty `new_string` a
+  patch passes to delete its matched text — the trap `Span._new_string`
+  already exists to avoid on the property side.
+
+The escape hatch stayed at the three named below.
 
 ## Context
 
@@ -251,6 +264,16 @@ comment beside it, and `docs/span-rendering.md` keeps narrating them.
   trusted than a tab — but a spec's *reach* is narrower than a blueprint's by
   construction, which is a reason to prefer specs over telling people to
   write a tab.
+- **A spec module imports the vocabulary it is written in**
+  (`plugins.prompts.scope_spec`), where a tab imports nothing. This read as
+  a break with ADR 5 and prompted
+  [ADR 8](0008-plugins-may-import-published-host-vocabulary.md), which found
+  the older rule drawn in the wrong place: `scope_spec` is a published
+  surface, on the same footing as `base.html`'s classes, and importing it is
+  ordinary. What the alternative would have cost is worth recording anyway —
+  a mini-language of plain dicts, a parser to write, and a worse thing to
+  read and to get wrong, with no less version coupling for having no import
+  statement in it.
 - **`ADR 5`'s payload-secret rule has to hold here too.** The generic
   renderer skips keys that look like credentials (`atof_reader.py:77`). A
   spec naming `payload=` bypasses that by being explicit, which is correct
