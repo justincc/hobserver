@@ -66,13 +66,16 @@ That is the whole mechanism. There is no registry to add yourself to.
 | `URL_PREFIX` | yes | your address; may be multi-segment (`memory/mem0`) |
 | `init_app(app, settings)` | no | called once at registration |
 | `sources(settings)` | no | what you read, for the banner and error states |
+| `SCOPES` / `SCOPES_BY_CATEGORY` | no | how your own hermes spans render on a tab that paints spans |
 
 Your blueprint must have an `index` endpoint — that is what the tab links to.
 
-**Import nothing from hermes-observer.** The contract is these attributes plus
-Flask, so your tab does not depend on this app's internals or track its
-version. (The in-tree plugins import `hermes_paths` to default their paths;
-nothing requires you to.)
+**Import only what this app publishes.** The contract is these attributes plus
+Flask, so most tabs import nothing at all and depend on no version of this
+app. Where you do need something — `base.html`'s classes, or the scope-spec
+vocabulary if you contribute `SCOPES` — those are published surfaces
+([ADR 8](adr/0008-plugins-may-import-published-host-vocabulary.md)). This
+app's internals and other plugins are not.
 
 `bp.name` is your code identifier — it appears in `url_for("tail.index")` and
 names your template directory. `TAB_LABEL` and `URL_PREFIX` are free to change
@@ -148,9 +151,15 @@ accessor being absent — the tab that publishes it may be disabled.
 ## Checklist
 
 - [ ] `PLUGIN_API`, `bp`, `TAB_LABEL`, `URL_PREFIX`, and an `index` route
-- [ ] imports nothing from hermes-observer
+- [ ] imports only surfaces this app publishes, and never another plugin
+      ([ADR 8](adr/0008-plugins-may-import-published-host-vocabulary.md)) —
+      most tabs need no import at all, which is still the lightest thing to be
 - [ ] `sources()` reports every file or store you read, with `required` set
       deliberately
+- [ ] `SCOPES` if your tab owns a kind of hermes span — how it shows on a
+      turn page travels with the tab that owns it, and goes when it is
+      disabled ([ADR 10](adr/0010-a-tab-contributes-its-own-scope-specs.md),
+      [writing-a-scope-spec.md](writing-a-scope-spec.md))
 - [ ] a prefix unlikely to collide
 - [ ] your own defaults for every setting, and a sensible error when a setting
       is wrong

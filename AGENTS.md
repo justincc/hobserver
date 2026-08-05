@@ -44,6 +44,8 @@ never owns or mutates data.
 - [README.md](README.md) — pages, layout, data-source path resolution
 - [docs/writing-a-plugin.md](docs/writing-a-plugin.md) — how to add a tab,
   with a whole worked plugin; the contract in full
+- [docs/writing-a-scope-spec.md](docs/writing-a-scope-spec.md) — how to make
+  the Prompts tab display your own hermes tool, from a module of your own
 - [docs/plugins-and-urls.md](docs/plugins-and-urls.md) — the plugin contract,
   the config file, what happens when a tab cannot load, URL naming, crossing
   between plugins

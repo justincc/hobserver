@@ -20,11 +20,18 @@ A plugin is any importable module exposing:
 | `URL_PREFIX` | yes | the address; may be multi-segment |
 | `init_app(app, settings)` | no | called once at registration |
 | `sources(settings)` | no | what the tab reads, for the banner and error states |
+| `SCOPES` / `SCOPES_BY_CATEGORY` | no | how this tab's own hermes spans render on a tab that paints spans (ADR 10) |
 
 In-tree plugins live in `plugins/<name>` with templates in
-`templates/<name>/`, keyed by blueprint name. A plugin imports nothing from
-this app, so an out-of-tree tab is the same thing in a different directory —
-see [writing-a-plugin.md](writing-a-plugin.md).
+`templates/<name>/`, keyed by blueprint name. Nothing about the contract
+depends on being in this tree, so an out-of-tree tab is the same thing in a
+different directory — see [writing-a-plugin.md](writing-a-plugin.md).
+
+Most tabs import nothing from this app; those that need to may import the
+surfaces it publishes — `base.html`'s classes and conventions, and the
+scope-spec vocabulary — but never another plugin
+([ADR 8](adr/0008-plugins-may-import-published-host-vocabulary.md),
+[ADR 4](adr/0004-cross-plugin-access-by-link-or-published-accessor.md)).
 
 `bp.name`, `TAB_LABEL` and `URL_PREFIX` are deliberately independent. The code
 identifier (`url_for`, template directory) does not move; the label and the

@@ -42,6 +42,13 @@ patching `assembler.py`, which is the same fork with an extra step.
   an opaque `settings` table, in-tree and installed modules loading
   identically. Do not add a second discovery route beside it — ADR 5 declined
   entry points so there is one place to look when something does not appear.
+- **Publish a surface deliberately, then keep it.** What an extension may
+  depend on is a named list, not whatever happens to be importable —
+  `base.html`'s classes, the scope-spec vocabulary, the tab contract
+  ([ADR 8](adr/0008-plugins-may-import-published-host-vocabulary.md)).
+  Adding to it is a commitment; the failure is publishing something by
+  accident. Note that an import is not the only way to couple: a class name
+  in a template binds just as tightly and shows up nowhere in an import list.
 - **User definitions override ours.** The in-tree table is a default, not a
   floor. Someone whose payload differs from hermes' replaces our handling of
   it; the override is announced at startup rather than silently applied.

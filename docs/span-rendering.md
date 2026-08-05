@@ -1,8 +1,24 @@
 # Span rendering on the turn page
 
-What a span shows, scope by scope. The turn page (`templates/prompts/turn.html`)
-lists one row per span or mark; the readers behind it are `Span` properties in
-`plugins/prompts/assembler.py`.
+What a span shows, scope by scope.
+
+**Where it is decided** (ADR 7): each scope's rows are declared as data in
+`plugins/prompts/scopes.py`, keyed by the hermes tool's own scope name;
+`plugins/prompts/scope_spec.py` holds the vocabulary those declarations are
+written in; `templates/prompts/_macros.html` paints whatever they resolve to
+and knows about no particular tool, and `turn.html` is the page around it.
+The values come from `Span` properties in `plugins/prompts/assembler.py`, or
+straight from the payload.
+
+One scope, llm, is not declarative and keeps hand-written Jinja, reached
+through `render=` — see [the one exception](#the-one-exception).
+
+**Adding a scope** is one entry in the `SCOPES` table. Order does not matter:
+each scope names its own rows, so nothing has to precede anything. A scope
+this app has no entry for renders its payload through the generic fallback,
+and a spec module named in `observer.toml` can add or replace entries without
+forking this tree — see
+[design-principles.md](design-principles.md#1-extension-without-a-fork).
 
 Example values here are illustrations from one stream, not a contract: hermes'
 tools differ between users and versions, and a payload's real shape is
@@ -49,8 +65,10 @@ Payloads are opaque and read defensively even where the log has been uniform.
 
 An llm span carries what the model decided, said and cost — all of it in the
 **end** event. The start payload is an empty `headers` dict and a `content`
-that is usually empty, so the generic fallback below has nothing to work with;
-this is a branch of its own.
+that is usually empty, so the generic fallback below has nothing to work with.
+This is one of the three scopes that keeps hand-written Jinja (`render="llm"`)
+— its token tree runs a separator state machine the spec vocabulary should not
+grow to absorb.
 
 - **What the call was for** — a `.mode-tag` leading the finish-reason row,
   from `metadata.call_role`, shown only when the call was *not* the ordinary
@@ -94,7 +112,7 @@ this is a branch of its own.
   specific selector than the one `.list-item` hides it with, so the pair
   would have put the names on the summary line.
 
-  The arguments stay on the spans below, each rendered by the branch written
+  The arguments stay on the spans below, each rendered by the spec written
   for that tool; repeating them here would restate the waterfall, which is
   why this was left out to begin with. What it adds is that the calls were
   **one decision**: 441 assistant turns in the log fan out to two or more,
@@ -269,10 +287,15 @@ role and retry above come from the span's metadata.
 
 ## Unrecognised scopes
 
-Everything below is a branch written against a hermes tool this app knows. A
-scope with no branch — another hermes user's tools, or one added since —
-falls back to rendering its start payload directly, so it shows what the call
-was for rather than a bare name and duration. Marks with no branch do the same.
+Everything below is a spec written against a hermes tool this app knows. A
+scope with no spec — another hermes user's tools, or one added since — falls
+back to rendering its start payload directly, so it shows what the call was
+for rather than a bare name and duration. Marks with no branch do the same.
+
+This is the default, not a failure: it is also where a scope lands whose spec
+resolved to nothing, or whose spec raised. A contributed spec that is wrong
+costs its own rows and nothing else — a turn page holds many spans and polls
+every 2 s, so one bad entry must never take the page down.
 
 The rules (`generic_payload_fields` in `plugins/prompts/atof_reader.py`):
 
@@ -289,8 +312,70 @@ The rules (`generic_payload_fields` in `plugins/prompts/atof_reader.py`):
   hermes' llm spans carry an empty `headers` dict — but a generic renderer
   must never be what puts a bearer token on a screen.
 
-A scope with its own branch never collects these rows: the fallback is the
-`else` of the branch chain, so curated rendering always wins.
+A scope with a spec never collects these rows: the fallback runs only when the
+lookup finds nothing, so a declared rendering always wins.
+
+## Writing a spec
+
+The vocabulary is below. For getting a module of your own loaded — from a
+package installed anywhere — see
+[writing-a-scope-spec.md](writing-a-scope-spec.md), which works one through
+end to end.
+
+A spec is a list of row descriptors. The vocabulary is four orthogonal axes,
+and a scope that seems to need a fifth usually wants `render=` instead:
+
+| axis | on | what it decides |
+| --- | --- | --- |
+| `font` | `Field` | `<span>` or `<code>` |
+| `clip` | `Field` | how it survives a narrow line |
+| `deco` | `Field` | what kind of thing it is, which picks the class |
+| `layer` | `Row` | which layout the row belongs to |
+
+**The values each one takes, and every other parameter, are documented on the
+classes themselves in `plugins/prompts/scope_spec.py`** — that is the
+reference, and it is what an editor shows you while you type. This section is
+the shape; the docstrings are the detail.
+
+A `Field` reads either a `Span` property (`Field("command")`) or a payload key
+(`Field(payload("command"))`). Use the property where one does real work —
+`patch_mode`'s inference, `memory_ops`' normalization of two payload shapes —
+and the payload otherwise. **A spec written with `payload=` needs no property,
+which is what lets someone declare a scope without patching this tree.**
+
+Row kinds: `Row` (fields on a line), `Diff` (a − / + pair), `Items` (a list as
+first-plus-count then one row each), `Each` (rows repeated per list entry,
+with `item("key")` reading the entry and `Row(when_many=True)` holding back a
+label a lone entry does not need). `Alt` picks the first field that resolves.
+
+Two rules the machinery enforces so a spec cannot get them wrong:
+
+- **A row with nothing on it does not render.** Every field resolving to
+  nothing means no row, so a spec never emits an empty line for an absent key.
+- **Absent is not empty.** A payload key present with `""` is a value — a
+  patch that deletes its matched text passes one — so a `Diff` shows that
+  side. A `Field` still drops it, because there is nothing to put on a row.
+
+## The one exception
+
+**llm** keeps hand-written Jinja, in `templates/prompts/_scope_llm.html`,
+reached by `render="llm"` in the spec table and dispatched from the turn
+page. Its token tree runs a separator state machine — tracking whether
+anything precedes a row so one with nothing to its left takes no leading `·`
+— and that is not a shape the vocabulary should learn.
+
+ADR 7 shipped three. The other two were mem0's, and were hand-written only
+because that plugin lives in this tree: what they needed was a link into
+another tab and a value from its published accessor, which
+[ADR 9](adr/0009-scope-specs-may-link-and-read-published-data.md) put in the
+vocabulary as `Link` and `accessor()`. Both scopes are now declared like any
+other — in `plugins/mem0/specs.py`, the plugin that owns them, contributed to
+this tab when that one loads
+([ADR 10](adr/0010-a-tab-contributes-its-own-scope-specs.md)) — and anyone
+can write their own the same way, see
+[writing-a-scope-spec.md](writing-a-scope-spec.md).
+
+A second exception would mean the same question is worth asking again.
 
 ## Scopes
 
@@ -311,11 +396,12 @@ Pattern in monospace, then the glob and the search path.
 
 ### patch — two modes
 
-Checked against `patch_tool` in `$h/tools/file_tools.py`. One branch, named by
+Checked against `patch_tool` in `$h/tools/file_tools.py`. One spec, named by
 a `.mode-tag`:
 
 - **replace** (the tool's default) — `path` plus `old_string`/`new_string`.
-  Must be matched *before* the plain-path branch it would otherwise fall into.
+  Its own spec names both, so it no longer depends on being matched before
+  the plain-path scopes (`read_file`, `write_file`) it once fell into.
 - **patch** — a V4A multi-file `patch` text and no top-level path.
   `Span.patch_paths` lists the files from its `*** <Op> File:` headers: first
   path plus a "+N more" count.
@@ -336,7 +422,7 @@ also renders what came *back*, see
 ### session_search — four modes
 
 Checked against `$h/tools/session_search_tool.py`, rendered mode-aware in one
-branch.
+spec.
 
 `Span.session_search_mode` prefers the end payload's explicit `mode`, falling
 back to inferring it from the start-payload keys using the tool's own dispatch
@@ -502,7 +588,7 @@ Plus, on skill_manage:
   replace text; they never carry a V4A patch text the way the file tools' patch
   scope does in patch mode. The pair matches that scope's *replace* mode
   instead, and both render through the one `diff_rows` macro in
-  `templates/prompts/turn.html`.
+  `templates/prompts/_macros.html`.
 
 The two sides render on their own detail-mode-only rows (`.list-item`), marked
 − and + — glyph first, tint second, never color alone. `new_string` may be the
@@ -529,7 +615,7 @@ is how the tools in `$h/tools/` report errors, and has held for every failing
 call seen here (terminal, patch, read_file, search_files, write_file,
 execute_code, web_search, skill_view, skill_manage, memory), so `Span.failed`
 and `Span.error` are one generic pair rather than a reader per scope, rendered
-after the scope's own branch as a `badge-error` beside the name plus an `.err`
+after the scope's own rows as a `badge-error` beside the name plus an `.err`
 row.
 
 Both stay out of detail mode: failures are common enough — some tools fail
