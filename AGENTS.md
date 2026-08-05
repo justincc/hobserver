@@ -39,6 +39,8 @@ never owns or mutates data.
 
 ### Where things are written down
 
+- [docs/design-principles.md](docs/design-principles.md) — standing
+  commitments, extensibility above all; **read before designing a change**
 - [README.md](README.md) — pages, layout, data-source path resolution
 - [docs/writing-a-plugin.md](docs/writing-a-plugin.md) — how to add a tab,
   with a whole worked plugin; the contract in full
@@ -59,10 +61,10 @@ never owns or mutates data.
 ### Conventions
 
 - Start simple and build functionality up as needed.
+- Before designing a change, meet the standing commitments in
+  [docs/design-principles.md](docs/design-principles.md): extensibility
+  without a fork, how to read a hermes payload, and what may carry identity
+  on screen. That file is the record for all three — shape is expensive to
+  retrofit, and the payload rules are how this app avoids reading the log as
+  if it were a contract.
 - Record an architecture decision as a new ADR, not as prose in this file.
-- Check a hermes payload against the tool's signature in the hermes source
-  (`$h/tools/`, and `$h/plugins/memory/mem0/` for the mem0 tools), not only
-  against shapes seen in the ATOF log. Read payloads defensively regardless.
-- The `platform` kwarg is `webui` today, but hermes has other frontends (a TUI,
-  for one) — never assume webui.
-- Identity is never carried by color alone; a color always has text beside it.

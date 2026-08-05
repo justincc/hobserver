@@ -1,0 +1,129 @@
+# Design principles
+
+Standing commitments that outlive any one feature. **Read this before
+designing a change**, not after — most of it is about shape, which is
+expensive to retrofit.
+
+An ADR decides one question once. A principle here is what the ADRs keep
+agreeing on. Where the two meet, the ADR is the record and this file is the
+pointer: nothing here restates an ADR's reasoning.
+
+## 1. Extension without a fork
+
+**Someone else should be able to run this observer against their hermes,
+display their own tools and stores, and carry no patch on top of this tree.**
+
+hermes' tool set differs between users and versions, and its frontends differ
+too. This app is therefore never the authority on what it will be asked to
+show. Anything shaped as "the list of things we support" is a fork waiting to
+happen — [ADR 5](adr/0005-tabs-are-configured-plugins-loaded-by-module-path.md)
+removed one such list (the `PLUGINS` tuple),
+[ADR 7](adr/0007-declare-scope-rendering-as-row-specs.md) another (the span
+branch chain).
+
+### The fork test
+
+For any new extension point, ask: *someone has a tool, store or log this app
+has never heard of — what do they do?* If the answer contains "edit a file in
+this tree", the design is not finished.
+
+Apply it to the whole path, not the entry point. It is easy to make
+registration pluggable and leave a fork one level down — ADR 7's first draft
+let a stranger register a scope spec but not read a payload key without
+patching `assembler.py`, which is the same fork with an extra step.
+
+### What it commits us to
+
+- **Reach the source, not just our accessors.** An extension must be able to
+  read the underlying payload/row/file directly. Curated accessors
+  (`Span` properties, and the like) are a convenience for in-tree code, never
+  the only road in.
+- **One loading mechanism.** `observer.toml`: an importable `module` path plus
+  an opaque `settings` table, in-tree and installed modules loading
+  identically. Do not add a second discovery route beside it — ADR 5 declined
+  entry points so there is one place to look when something does not appear.
+- **User definitions override ours.** The in-tree table is a default, not a
+  floor. Someone whose payload differs from hermes' replaces our handling of
+  it; the override is announced at startup rather than silently applied.
+- **Degrade to the generic, per component.** A broken or absent extension
+  falls back to the plainest rendering that still says something true, reports
+  why at startup, and never takes down a page or the app. Only a total failure
+  (no tab at all) is worth exiting for.
+- **Config over code for the operator; code for us.** What tabs load and how a
+  scope displays is a stranger's choice, expressed as data. It is not a knob
+  in `observer.toml` for the person merely *running* the observer — that file
+  wires tabs, and app structure does not belong in it.
+
+### What it does not mean
+
+- **Not everything must be pluggable.** The principle applies where hermes'
+  variability reaches us: tools, scopes, stores, log dialects. It is not a
+  case for abstracting the page layout, the polling, or the shell.
+- **Escape hatches stay internal.** Where we keep hand-written code for our
+  own hard cases (ADR 7's `render=`), that is legitimate and stays out of
+  reach. The rule is only that it must not be the way to do *ordinary* things.
+- **Pluggable is not unvalidated.** An extension is imported code and no less
+  trusted than a tab, but prefer forms whose reach is narrow by construction —
+  data interpreted by us beats a callback that renders itself.
+
+### The cost, and where we are with it
+
+Every extension point published becomes an interface: versioned with
+`PLUGIN_API`, and breaking it breaks a stranger's work. So open the smallest
+vocabulary that does the job.
+
+**This is provisional until the first public release.** Nothing outside this
+tree depends on these surfaces yet, so vocabulary — ADR 7's four rendering
+axes especially — is still free to churn, and should be shaken out while that
+is true. After release it is not free, and the cheap moment to get it right
+will have passed.
+
+## 2. Commitments decided in ADRs
+
+Decided in full in their ADRs; listed here so a design review meets them.
+
+- **Read-only over someone else's log.** The browser never owns or mutates
+  data, opens no authenticated network calls, and stores nothing derived —
+  [ADR 2](adr/0002-read-atof-jsonl-directly-no-etl.md), bent knowingly by
+  [ADR 6](adr/0006-parse-atof-by-declared-schema-era.md), which says where.
+- **Fail loudly, never quietly wrong.** An unreadable source, an unknown
+  schema or an unresolvable link says so on screen; parse errors and
+  anomalies are surfaced, never dropped — ADRs 2 and 5.
+- **Plugins share nothing but a link or a published accessor**, and never open
+  each other's sources —
+  [ADR 4](adr/0004-cross-plugin-access-by-link-or-published-accessor.md).
+- **Derived data says where it came from.** Anything reconstructed across
+  sources names its source and its age on screen, and is never presented as
+  something the origin vouched for — ADR 4.
+
+## 3. Reading hermes' payloads
+
+This section is the record; nothing else restates it.
+
+**Check a payload against the tool's own signature in the hermes source, not
+only against shapes seen in the ATOF log.** The log shows what has been
+exercised so far, which is not the same as what the tool can emit. Paths are
+relative to `$h`, the hermes-agent checkout:
+
+- `$h/tools/` — most tools.
+- `$h/plugins/memory/mem0/` — the four mem0 tools, which live in hermes'
+  memory *plugin* rather than with the rest.
+
+**Read payloads defensively regardless.** ATOF payloads are opaque by
+specification; a shape that has been uniform for a whole log is still not a
+contract. See [docs/atof-reader.md](atof-reader.md) for the mapping and the
+traps.
+
+**Never assume the `webui` platform.** The `platform` kwarg is `webui` today,
+but hermes has other frontends — a TUI among them — and the value space is
+open.
+
+## 4. On screen
+
+**Identity is never carried by colour alone.** A colour always has text
+beside it.
+
+**Metadata stays inline and faint**, not behind a disclosure and not
+right-floated; lookup ids are faint monospace. The detail view is the place
+for what a summary line cannot hold —
+[docs/span-rendering.md](span-rendering.md) works this through row by row.

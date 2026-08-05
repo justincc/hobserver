@@ -571,9 +571,7 @@ independently, so either can cover a call the other misses.
 
 ## Reading hermes' payloads
 
-Check a tool's signature in the hermes source rather than inferring the shape
-from the log alone — the log only shows what has been exercised so far. Paths
-above are relative to `$h` (the hermes-agent checkout).
-
-The `platform` kwarg is `webui` today, but hermes has other frontends (a TUI,
-for one). Never assume webui.
+Paths above are relative to `$h`, the hermes-agent checkout. The rules for
+reading a payload — check the tool's signature rather than the log, read
+defensively anyway, never assume the `webui` platform — are in
+[design-principles.md](design-principles.md#3-reading-hermes-payloads).
