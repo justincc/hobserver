@@ -34,6 +34,13 @@ def create_app(tabs):
     # next request (or next live-region poll) without a server restart.
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.extensions["tab_settings"] = {}
+    # Scope specs the loaded tabs contribute (ADR 10), collected before any
+    # tab is registered: a tab that paints spans resolves its table in
+    # `init_app`, which runs during registration, and would otherwise see
+    # only the tabs that happened to come before it in the config file.
+    # Opaque to the shell — it carries them, and never looks inside.
+    app.extensions["tab_scopes"] = {
+        tab.name: tab.scopes for tab in tabs if tab.bp is not None and tab.scopes}
 
     entries = []
     for tab in tabs:
@@ -83,6 +90,12 @@ def _register(app, tab):
     # current_app.extensions["tab_settings"][<blueprint name>]. Set before
     # registration so a record_once hook can already read them.
     app.extensions["tab_settings"][tab.bp.name] = tab.settings
+    # `init_app(app, settings)` — the optional hook a tab uses to resolve its
+    # configuration once and to publish an accessor other tabs may call
+    # (ADR 4). Called before the blueprint is registered, so anything it puts
+    # on `app.config` or `app.extensions` is already there for a route or a
+    # record_once. Absent means nothing to do; raising here is the tab
+    # author's bug and is left to surface rather than being swallowed.
     init = getattr(tab.module, "init_app", None)
     if init is not None:
         init(app, tab.settings)

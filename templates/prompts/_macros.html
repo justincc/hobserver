@@ -1,0 +1,107 @@
+{# Shared rendering primitives for the Prompts tab.
+
+   `copy_btn`, `item_list` and `diff_rows` are used by the page and by the
+   hand-written scope macros alike; `spec_cell` and `spec_rows` paint whatever
+   a declared scope spec resolves to (ADR 7), and `payload_rows` is the
+   generic fallback for a scope with no spec.
+
+   Imported rather than included: these take everything they need as
+   arguments and read no template context. #}
+{% macro copy_btn(text, label) -%}
+<button class="copy-btn" data-copy="{{ text }}" title="{{ label }}" aria-label="{{ label }}"><svg class="ic-copy" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="ic-check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+{%- endmacro %}
+{% macro item_list(items) -%}
+<div class="span-detail list-compact">
+  <span class="path wide" title="{{ items | join('\n') }}">{{ items[0] }}</span>
+  {%- if items | length > 1 %} <span>+{{ items | length - 1 }} more</span>{% endif %}
+</div>
+{% for item in items %}
+<div class="span-detail list-item">
+  <span class="path wide" title="{{ item }}">{{ item }}</span>
+</div>
+{% endfor %}
+{%- endmacro %}
+{# A patch's replaced text, shared by skill_manage patches and the file
+   tools' replace-mode patch: detail mode only — new_string alone runs to
+   kilobytes of markdown, far past what the summary line can carry. The
+   −/+ marks name each side in text, so the tint is decoration. #}
+{% macro diff_rows(old_string, new_string) -%}
+{% if old_string is not none %}
+<div class="span-detail list-item">
+  <span class="diff-mark del">&minus;</span>
+  <code class="wrap-detail" title="{{ old_string }}">{{ old_string }}</code>
+</div>
+{% endif %}
+{% if new_string is not none %}
+<div class="span-detail list-item">
+  <span class="diff-mark ins">+</span>
+  {%- if new_string %}
+  <code class="wrap-detail" title="{{ new_string }}">{{ new_string }}</code>
+  {%- else %}<span class="empty-new">(empty — deletes the matched text)</span>{% endif %}
+</div>
+{% endif %}
+{%- endmacro %}
+{# The fallback for a scope or mark with no branch of its own: its payload,
+   key by key. hermes' tool set is not ours to know, so anyone running it
+   with other tools sees this rather than a bare row. The first few scalars
+   ride the summary line (which stays one line, ellipsized like any other);
+   everything else, including values too big to print, is detail-only. #}
+{% macro payload_rows(fields) -%}
+{% set inline = fields | selectattr("inline") | list %}
+{% if inline %}
+<div class="span-detail list-compact">
+  {%- for f in inline %}
+  <span class="gen-key">{{ f.key }}</span> <span class="path wide">{{ f.text }}</span>
+  {%- if not loop.last %} <span class="gen-key">·</span>{% endif %}
+  {%- endfor %}
+</div>
+{% endif %}
+{% for f in fields %}
+<div class="span-detail list-item">
+  <span class="gen-key">{{ f.key }}</span>
+  {%- if f.oversize %} <span class="gen-omitted" title="Too large to show here — find this event by uuid in the ATOF log.">{{ f.text }}</span>
+  {%- else %} <span class="path wide wrap-detail" title="{{ f.text }}">{{ f.text }}</span>{% endif %}
+</div>
+{% endfor %}
+{%- endmacro %}
+{# One value of a declared scope spec (ADR 7). Everything about how it looks
+   was decided in plugins/prompts/scope_spec.py, which resolved the four axes
+   — font, clip, layer, deco — into an element and a class string; this macro
+   only writes them out. Nothing here is marked |safe: a spec picks payload
+   keys, never markup, so payload text stays auto-escaped. #}
+{% macro spec_cell(c) -%}
+{%- if c.sep %}<span class="skill-cat">·</span> {% endif -%}
+{%- if c.label %}<span>{{ c.label }}</span> {% endif -%}
+<{{ c.el }}{% if c.cls %} class="{{ c.cls }}"{% endif %}{% if c.title is not none %} title="{{ c.title }}"{% endif %}>{% if c.lrm %}&lrm;{% endif %}{{ c.text }}{% if c.lrm %}&lrm;{% endif %}{% if c.copy_text %}{{ copy_btn(c.copy_text, c.copy_title) }}{% endif %}</{{ c.el }}>
+{%- if c.more %} <span>+{{ c.more }} more</span>{% endif -%}
+{%- endmacro %}
+{# A declared scope's rows. Every key here is named to miss dict's own
+   attributes — `c.copy` would reach `dict.copy` and `row.items` the method
+   of that name, both truthy, neither the value meant. #}
+{% macro spec_rows(rows) -%}
+{%- for row in rows %}
+{%- if row.kind == "diff" %}{{ diff_rows(row.old, row.new) }}
+{%- elif row.kind == "items" %}{{ item_list(row.entries) }}
+{#- A link to another tab's page (ADR 9). `url_for` is called here rather than
+    in the spec: the spec names an endpoint and its parameters, so it stays
+    data, this is the only place that builds a URL, and Flask fails loudly on
+    an endpoint that does not exist. #}
+{%- elif row.kind == "link" %}
+{#- spec_link, not url_for: an endpoint nothing serves gives None here and the
+    row is skipped, where url_for would raise BuildError and take the whole
+    page with it. #}
+{%- set href = spec_link(row.endpoint, row.params) %}
+{%- if href %}
+<div class="span-detail{{ row.cls }}">
+  {%- for c in row.before %}{{ spec_cell(c) }} {% endfor -%}
+  <a href="{{ href }}"{% if row.title %} title="{{ row.title }}"{% endif %}>{{ row.text }}</a>
+  {%- for c in row.after %} {{ spec_cell(c) }}{% endfor %}
+</div>
+{%- endif %}
+{%- else %}
+<div class="span-detail{{ row.cls }}">
+  {% for c in row.cells %}{% if not loop.first %} {% endif %}{{ spec_cell(c) }}{% endfor %}
+</div>
+{%- endif %}
+{%- endfor %}
+{%- endmacro %}

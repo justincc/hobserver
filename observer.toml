@@ -10,6 +10,12 @@
 [[tabs]]
 module = "plugins.prompts"
 # settings = { atof_log = "$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl" }
+#
+# `scope_specs` names modules declaring how your own hermes tools should show
+# on a turn page — one entry per scope, no fork of this tree. A name already
+# in this app's table is overridden, and the banner says so at startup. See
+# docs/span-rendering.md for the vocabulary.
+# settings = { scope_specs = ["hermes_observer_acme.specs"] }
 
 [[tabs]]
 module = "plugins.mem0"

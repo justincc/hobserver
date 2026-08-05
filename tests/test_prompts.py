@@ -700,7 +700,9 @@ def test_turn_detail_mem0_link_reads_full_result_when_nothing_is_hidden(tmp_path
     # target page as carrying all the results, which it does
     link_text = page[page.index("search-event"):]
     link_text = link_text[link_text.index('">') + 2:link_text.index("</a>")]
-    assert link_text.strip() == "full result in Mem0 &rarr;"
+    # a literal arrow now, not the &rarr; entity the macro used: the spec
+    # table writes literals (· − → ) and Jinja leaves them alone
+    assert link_text.strip() == "full result in Mem0 →"
 
 
 def test_turn_detail_mem0_link_absent_while_the_search_is_open(tmp_path):

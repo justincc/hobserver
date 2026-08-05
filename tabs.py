@@ -39,7 +39,20 @@ DEFAULT_CONFIG_FILE = "observer.toml"
 # setup. Same two tabs, same order, as the shipped observer.toml.
 BUILTIN_TABS = ({"module": "plugins.prompts"}, {"module": "plugins.mem0"})
 
+# What a module must expose to be a tab: `bp` the Flask blueprint (its name
+# keys the template directory and every url_for), `TAB_LABEL` the text in the
+# tab bar, `URL_PREFIX` the address it is mounted at. All three are checked
+# before anything is registered, so a module that is not a tab is reported
+# rather than half-loaded. `init_app` and `sources` are optional and looked up
+# separately. docs/writing-a-plugin.md is the contract in full.
 REQUIRED_ATTRS = ("bp", "TAB_LABEL", "URL_PREFIX")
+
+# Optional, and carried untouched: a tab may describe how its own spans show
+# on a tab that paints spans (ADR 10). The shell never looks inside these —
+# it does not know what a scope spec is, the same way it does not know what a
+# setting means — it only hands them to the tabs that want them, which is
+# what ties their lifetime to this tab being enabled.
+SPEC_ATTRS = ("SCOPES", "SCOPES_BY_CATEGORY")
 
 
 class ConfigError(Exception):
@@ -71,6 +84,9 @@ class Tab:
     bp: object | None = None
     problem: str | None = None
     sources: tuple = ()
+    # {attribute name: table} from SPEC_ATTRS — opaque here, meaningful only
+    # to a tab that paints spans. Empty for a tab that contributes none.
+    scopes: dict = field(default_factory=dict)
 
     @property
     def name(self):
@@ -189,6 +205,8 @@ def _load(spec):
         tab.problem = f"{first.get('label', 'source')}: {first['problem']}"
         return tab
 
+    tab.scopes = {a: getattr(module, a) for a in SPEC_ATTRS
+                  if isinstance(getattr(module, a, None), dict)}
     tab.bp = module.bp
     return tab
 

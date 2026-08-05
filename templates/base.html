@@ -1,3 +1,21 @@
+{# The shell every tab extends — and a published surface (ADR 8), which is
+   the thing to know before renaming anything in here. Two audiences depend
+   on this file, neither of them in this tree:
+
+   - **Tab authors** extend it for the tab bar, the copy button, the live
+     poll and the shared chrome. What is promised to them is the table in
+     docs/writing-a-plugin.md: the `title`/`content` blocks, `data-live-poll`
+     / `data-live-tail`, `_item_nav.html`, and `.notice`.
+   - **Scope-spec authors** never touch this file, but every class the spec
+     vocabulary resolves to is defined here — `.mode-tag`, `.mem-id`,
+     `.gen-key`, `.skill-action`, `.skill-cat`, `.gen-omitted`, `.tail`,
+     `.wide`, `.wrap-detail`, and the `.list-item` / `.list-compact` split
+     that is the whole of summary-vs-detail. A test asserts these still
+     exist, because a spec naming one that has been renamed renders unstyled
+     and says nothing about why.
+
+   Rename one of those and someone else's tab breaks with no error. Treat
+   them the way ADR 5 treats a URL. #}
 <!doctype html>
 <html lang="en">
 <head>

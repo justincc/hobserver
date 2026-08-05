@@ -1,0 +1,83 @@
+{# The llm scope, rendered by hand (ADR 7), reached as `render="llm"`.
+
+   Not declarative because the token tree runs a separator state machine —
+   `ns.prior` tracks whether anything precedes a row so one with nothing to
+   its left never takes a leading `·`. The spec vocabulary should not grow a
+   concept for that.
+
+   Lives under prompts/ because it renders a row on the Prompts tab. There is
+   no llm blueprint, and a top-level templates/llm/ would imply one. #}
+{# An llm call: how it ended, what it said, what it cost. Its tool calls are
+   not listed — the spans that ran them are the next rows down, with their
+   arguments. Not declarative because the token tree runs a separator state
+   machine (`ns.prior`) so a row with nothing to its left never takes a
+   leading dot. #}
+{% macro llm_rows(s) -%}
+{# The calls ride the finish reason that names them — `tool_calls` and then
+   what was called — rather than repeating the subject on a row of their own.
+   Names only: the spans below carry the arguments, each rendered by its own
+   spec. What this says is that they were one decision; a sixteen-call fan-out
+   is one line here and sixteen rows down there. `.list-item` on the names
+   alone keeps them out of the summary line, where the reason still stands by
+   itself. #}
+{% if s.call_role or s.retry_count or s.finish_reason or s.llm_tool_calls %}
+<div class="span-detail">
+  {#- the role leads: it says what the call was for, which qualifies
+      everything after it. Absent on an ordinary call — see Span.call_role
+      for why `primary` is withheld. #}
+  {#- no angle brackets in the title: they would sit raw inside an HTML
+      attribute, which browsers tolerate and nothing else does. #}
+  {%- if s.call_role %}<span class="mode-tag" title="What this call was for, when it was not the ordinary one. `delegated` is a subagent's call; `fallback` means the configured model failed and a backup answered; an `auxiliary:` role names hermes' own background work, such as compressing the conversation to fit the context window.">{{ s.call_role }}</span>{% endif %}
+  {%- if s.retry_count %}<span class="mode-tag" title="Which attempt this was, counting the first as 0 — so this call was retried, or walked its fallback chain, before it answered. Often the reason a span is slow.">retry {{ s.retry_count }}</span>{% endif %}
+  {%- if s.finish_reason %}<span class="mode-tag" title="Why the model stopped, as the provider reported it. `tool_calls` means the spans below are what it asked for; `length` would mean its answer was cut off.">{{ s.finish_reason }}</span>{% endif %}
+  {#- .call-list, not .path: a `.path` in the collapsed layout is forced back
+      to `display: inline` by a more specific rule than the one .list-item
+      hides it with, so these names would show on the summary line. Its own
+      class has no such fight. #}
+  {%- if s.llm_tool_calls %}<span class="call-list list-item" title="The tools this call asked for, in the order it asked. Their arguments are on the spans below, one per call; what this adds is that they were decided together.">{% for name in s.llm_tool_calls %}{% if not loop.first %} <span class="gen-key">·</span> {% endif %}{{ name }}{% endfor %}</span>{% endif %}
+</div>
+{% endif %}
+{% if s.llm_text %}
+<div class="span-detail list-item">
+  <span class="path wide wrap-detail">{{ s.llm_text.text }}{% if s.llm_text.truncated %}…{% endif %}</span>
+</div>
+{% if s.llm_text.truncated %}
+<div class="span-detail list-item">
+  <span class="gen-omitted" title="Only the start is shown here; the whole message is in the ATOF log, and its last word is the turn's own response.">start of {{ '{:,}'.format(s.llm_text.chars) }} chars</span>
+</div>
+{% endif %}
+{% endif %}
+{# Tokens as the tree they form, not the flat line they were: the rows under
+   `prompt` and `out` sum to them, so the indent is the arithmetic. The two
+   top-level buckets are all a collapsed row carries; the parts wait for the
+   detail view, where each figure has room for its own tooltip. Every row is a
+   `.mode-tag` — they are the same kind of thing, and the tree should not say
+   otherwise. #}
+{# `.list-item` is what marks a detail-only row, so it goes on the parts and
+   not on the two buckets: collapsed, `prompt` and `out` inline onto the
+   summary line and the rest stays hidden. The `tokens` label is detail-only
+   too — beside a figure named `prompt` on a summary line it says nothing the
+   reader did not already know. What separates them from the finish reason
+   there is a `·`. #}
+{% if s.token_rows %}
+<div class="span-detail list-item">
+  <span class="mode-tag" title="What this call counted, as the provider reported it. There is no total: it would be prompt + out, both below.">tokens</span>
+</div>
+{#- the summary line's separator, written the way a generic payload writes its
+    own (payload_rows, above): a real .gen-key span, so it is the same glyph
+    in the same font at the same colour, with one plain space either side.
+    `prior` is what keeps a leading dot off a row with nothing to its left. #}
+{% set ns = namespace(prior = true if (s.finish_reason or s.call_role or s.retry_count) else false) %}
+{% for row in s.token_rows %}
+{%- set dot = row.summary and ns.prior %}
+<div class="span-detail{% if not row.summary %} list-item{% endif %}{% if dot %} tok-sep{% endif %} tok-d{{ row.depth }}{% if row.subset %} tok-part{% endif %}">
+  {%- if dot %}<span class="gen-key inline-only">·</span> {% endif %}
+  {#- no space before the share: the gap is set in base.html, in both layouts,
+      rather than left to whatever a literal one renders as #}
+  <span class="mode-tag" title="{{ row.tooltip }}">{{ row.label }} {{ row.value }}</span>
+  {%- if row.share %}<span class="tok-share">({{ row.share }})</span>{% endif %}
+</div>
+{%- if row.summary %}{% set ns.prior = true %}{% endif %}
+{% endfor %}
+{% endif %}
+{%- endmacro %}

@@ -1,63 +1,9 @@
 {% extends "base.html" %}
 {% from "_item_nav.html" import item_nav %}
 {% block title %}turn {{ turn.turn_id or turn.start_us }} — hermes observer{% endblock %}
-{% macro copy_btn(text, label) -%}
-<button class="copy-btn" data-copy="{{ text }}" title="{{ label }}" aria-label="{{ label }}"><svg class="ic-copy" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="ic-check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
-{%- endmacro %}
-{% macro item_list(items) -%}
-<div class="span-detail list-compact">
-  <span class="path wide" title="{{ items | join('\n') }}">{{ items[0] }}</span>
-  {%- if items | length > 1 %} <span>+{{ items | length - 1 }} more</span>{% endif %}
-</div>
-{% for item in items %}
-<div class="span-detail list-item">
-  <span class="path wide" title="{{ item }}">{{ item }}</span>
-</div>
-{% endfor %}
-{%- endmacro %}
-{# A patch's replaced text, shared by skill_manage patches and the file
-   tools' replace-mode patch: detail mode only — new_string alone runs to
-   kilobytes of markdown, far past what the summary line can carry. The
-   −/+ marks name each side in text, so the tint is decoration. #}
-{% macro diff_rows(old_string, new_string) -%}
-{% if old_string is not none %}
-<div class="span-detail list-item">
-  <span class="diff-mark del">&minus;</span>
-  <code class="wrap-detail" title="{{ old_string }}">{{ old_string }}</code>
-</div>
-{% endif %}
-{% if new_string is not none %}
-<div class="span-detail list-item">
-  <span class="diff-mark ins">+</span>
-  {%- if new_string %}
-  <code class="wrap-detail" title="{{ new_string }}">{{ new_string }}</code>
-  {%- else %}<span class="empty-new">(empty — deletes the matched text)</span>{% endif %}
-</div>
-{% endif %}
-{%- endmacro %}
-{# The fallback for a scope or mark with no branch of its own: its payload,
-   key by key. hermes' tool set is not ours to know, so anyone running it
-   with other tools sees this rather than a bare row. The first few scalars
-   ride the summary line (which stays one line, ellipsized like any other);
-   everything else, including values too big to print, is detail-only. #}
-{% macro payload_rows(fields) -%}
-{% set inline = fields | selectattr("inline") | list %}
-{% if inline %}
-<div class="span-detail list-compact">
-  {%- for f in inline %}
-  <span class="gen-key">{{ f.key }}</span> <span class="path wide">{{ f.text }}</span>
-  {%- if not loop.last %} <span class="gen-key">·</span>{% endif %}
-  {%- endfor %}
-</div>
-{% endif %}
-{% for f in fields %}
-<div class="span-detail list-item">
-  <span class="gen-key">{{ f.key }}</span>
-  {%- if f.oversize %} <span class="gen-omitted" title="Too large to show here — find this event by uuid in the ATOF log.">{{ f.text }}</span>
-  {%- else %} <span class="path wide wrap-detail" title="{{ f.text }}">{{ f.text }}</span>{% endif %}
-</div>
-{% endfor %}
-{%- endmacro %}
+{% from "prompts/_macros.html" import copy_btn, item_list, diff_rows,
+     payload_rows, spec_rows %}
+{% from "prompts/_scope_llm.html" import llm_rows %}
 {% block content %}
 {# data-live-tail: the waterfall runs in time order, so new spans land at the
    bottom — a reader who is already there is watching the newest work, and the
@@ -132,7 +78,7 @@
         {%- if ordinal %} <span class="subagent-ord">#{{ ordinal }}{% if s.child_status or s.child_goal %} <span class="inline-only">·</span>{% endif %}</span>{% endif %}
         <span class="span-uuid">· {{ s.uuid }}{{ copy_btn(s.uuid, "copy mark uuid") }}</span>
         {% if s.child_status %}
-        {% set goal = turn.subagent_goal(s) %}
+        {%- set goal = turn.subagent_goal(s) %}
         <div class="span-detail">
           <span>{{ s.child_status }}{% if goal %} ·{% endif %}</span>
           {%- if goal %} <span class="path wide wrap-detail" title="{{ goal }}">{{ goal }}</span>{% endif %}
@@ -147,7 +93,6 @@
           <span class="path wide">{{ s.child_session_id }}{% if s.child_duration_ms is not none %} · {{ (s.child_duration_ms * 1000) | int | us_dur }}{% endif %}</span>
         </div>
         {% elif not s.child_status and not s.child_goal %}
-        {# A mark with no branch above — approvals and session end today. #}
         {{ payload_rows(s.generic_fields) }}
         {% endif %}
       </td>
@@ -172,284 +117,19 @@
         <span class="span-uuid">· {{ s.uuid }}{{ copy_btn(s.uuid, "copy span uuid") }}</span>
         {%- if s.is_open %} · <span class="badge-inflight">open</span>{% endif %}
         {%- if s.failed %} · <span class="badge-error" title="The tool reported an error; its message is below.">failed</span>{% endif %}
-        {% if s.command %}
-        <div class="span-detail">
-          <code class="wrap-detail" title="{{ s.command }}">{{ s.command }}</code>
-          {%- if s.workdir %} <span class="path" title="{{ s.workdir }}">in {{ s.workdir | tilde }}</span>{% endif %}
-        </div>
-        {% elif s.skill_name or s.skill_action %}
-        <div class="span-detail">
-          {%- if s.skill_action %}<span class="skill-action">{{ s.skill_action }}</span> {% endif -%}
-          {%- if s.skill_category %}<span class="skill-cat">{{ s.skill_category }}</span> {% endif -%}
-          {%- if s.skill_category and s.skill_name %}<span class="skill-cat">·</span> {% endif -%}
-          {%- if s.skill_name %}<code title="{{ s.skill_name }}">{{ s.skill_name }}</code>{% endif %}
-          {%- if s.skill_file_path %}{% if s.skill_name %} <span class="skill-cat">·</span>{% endif %} <span class="path tail" title="{{ s.skill_file_path }}">&lrm;{{ s.skill_file_path }}&lrm;</span>{% endif %}
-          {%- if s.skill_absorbed_into %} <span>→ absorbed into</span> <code title="{{ s.skill_absorbed_into }}">{{ s.skill_absorbed_into }}</code>{% endif %}
-        </div>
-        {{ diff_rows(s.skill_old_string, s.skill_new_string) }}
-        {% elif s.search_pattern %}
-        <div class="span-detail">
-          <code title="{{ s.search_pattern }}">{{ s.search_pattern }}</code>
-        </div>
-        {% if s.file_glob %}
-        <div class="span-detail">
-          <span class="path wide" title="{{ s.file_glob }}">{{ s.file_glob }}</span>
-        </div>
-        {% endif %}
-        {% if s.path %}
-        <div class="span-detail">
-          <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>
-        </div>
-        {% endif %}
-        {% elif s.search_query %}
-        <div class="span-detail">
-          <code class="wrap-detail" title="{{ s.search_query }}">{{ s.search_query }}</code>
-        </div>
-        {# What a mem0_search got back — the top hits, ranked by score, on
-           detail-only rows: the query alone never says whether the search
-           worked, but whole facts are far too much for the summary line.
-           Each hit's memory id rides its own faint row, the same treatment
-           mem0_update/mem0_delete give theirs — that is the id those spans
-           are a lookup key *for*, so the pair now resolves inside the UI.
-           The link hands off to the Mem0 tab for the full ranked list.
-           How many to preview is bound once here — the count is also what
-           decides whether that link says "all N results". #}
-        {% set shown = s.mem0_results[:3] %}
-        {% for r in shown %}
-        <div class="span-detail list-item">
-          {%- if r.score is not none %}<span class="mem-score" title="mem0 relevance score">{{ '%.2f' | format(r.score) }}</span>{% endif %}
-          {%- if r.memory %} <span class="path wide wrap-detail" title="{{ r.memory }}">{{ r.memory }}</span>{% endif %}
-        </div>
-        {% if r.id %}
-        <div class="span-detail list-item">
-          <span class="mem-id">{{ r.id }}{{ copy_btn(r.id, "copy memory id") }}</span>
-        </div>
-        {% endif %}
-        {% endfor %}
-        {% if s.mem0_results %}
-        <div class="span-detail list-item">
-          <a href="{{ url_for('mem0.search_event', session=s.session_id, query=s.search_query, ts=s.start_us) }}"
-             title="Open this search in the Mem0 tab: all {{ s.mem0_result_count }} results, the context messages mem0 retrieved against, and the raw payload.">{% if s.mem0_result_count and s.mem0_result_count > shown | length %}all {{ s.mem0_result_count }} results{% else %}full result{% endif %} in Mem0 &rarr;</a>
-        </div>
-        {% endif %}
-        {% elif s.session_search_mode %}
-        {# session_search has four modes; the mode tag names it, the summary
-           says what it targets, and per-mode result counts sit on detail-only
-           rows. See hermes tools/session_search_tool.py. #}
-        <div class="span-detail">
-          <span class="mode-tag">{{ s.session_search_mode }}</span>
-          {%- if s.session_search_summary %} <code class="wrap-detail" title="{{ s.session_search_summary }}">{{ s.session_search_summary }}</code>{% endif %}
-        </div>
-        {% for stat in s.session_search_stats %}
-        <div class="span-detail list-item">
-          <span title="{{ stat.tooltip }}">{{ stat.label }}{% if stat.value != "" %} {{ stat.value }}{% endif %}</span>
-        </div>
-        {% endfor %}
-        {% elif s.code_first_line %}
-        <div class="span-detail list-compact">
-          <code title="{{ s.code }}">{{ s.code_first_line }}</code>
-        </div>
-        <div class="span-detail list-item">
-          <code class="wrap-detail" title="{{ s.code }}">{{ s.code }}</code>
-        </div>
-        {% elif s.memory_content or s.memory_id %}
-        {% set was = (prior_memory or {}).get(s.uuid) %}
-        {# The fact leads, ellipsized on the summary line and wrapping out in
-           detail — an add stores it, an update replaces one with it. The id
-           an update or delete names stays on a detail-only row: it is a
-           lookup key, and on the summary line it would read as a second uuid
-           beside the span's own, which lands there once the row is opened. #}
-        {% if s.memory_content %}
-        <div class="span-detail">
-          <span class="path wide wrap-detail" title="{{ s.memory_content }}">{{ s.memory_content }}</span>
-        </div>
-        {% elif was %}
-        {# A delete carries no fact of its own — only the id of the one it
-           destroyed — so the summary line would otherwise say nothing about
-           what was lost. Lead with the recovered text instead, reading like
-           an add's, but as .list-compact: in detail mode the − row below
-           carries the same text in full, so this one gives way rather than
-           printing it twice. #}
-        <div class="span-detail list-compact">
-          <span class="path wide" title="{{ was.text }}">{{ was.text }}</span>
-        </div>
-        {% endif %}
-        {% if s.memory_id %}
-        <div class="span-detail list-item">
-          <span class="mem-id">{{ s.memory_id }}{{ copy_btn(s.memory_id, "copy memory id") }}</span>
-        </div>
-        {% endif %}
-        {# What the memory said before this span changed it. A delete's
-           payload is only an id, so without this the row says nothing about
-           what was lost; an update shows the replacement but not what it
-           replaced. Reconstructed from the local event log, never from mem0
-           (which cannot answer it — see plugins.mem0.prior_memory_text),
-           so the provenance row names its source and the tooltip spells it
-           out. The − / + pair is the same diff macro the patch scopes use;
-           on a delete there is no + side. `was` is bound above, where the
-           summary line already needs it. #}
-        {% if was %}
-        {{ diff_rows(was.text, s.memory_content) }}
-        <div class="span-detail list-item prov">
-          <span title="Not retrieved from mem0: this is the memory as it appeared in mem0_search event #{{ was.event_id }}, {{ was.gap_text }} before this change, which is the most recent copy in the local event log. mem0 is never queried — once a memory is deleted it cannot return it at all, and the pre-update text is not exposed either. A change made outside hermes in between would therefore not be reflected here.">previous text from the local log ·
-            <a href="{{ url_for('mem0.event', event_id=was.event_id) }}">search #{{ was.event_id }}</a>, {{ was.gap_text }} earlier</span>
-        </div>
-        {% endif %}
-        {% elif s.memory_action %}
-        {# The `memory` tool, not mem0: curated §-delimited entries in the
-           MEMORY.md / USER.md stores that go into the system prompt. The
-           action and store name it; the entry text stands in for the write
-           inline; every op gets its own −/+ rows in detail, so a batch —
-           usually entries being shortened to fit the char budget — reads
-           as the list of edits it is. See $h/tools/memory_tool.py. #}
-        <div class="span-detail">
-          <span class="mode-tag">{{ s.memory_action }}</span>
-          {%- if s.memory_target %} <span class="skill-cat">· {{ s.memory_target }}</span>{% endif %}
-        </div>
-        {% if s.memory_ops %}
-        <div class="span-detail list-compact">
-          <span class="path wide" title="{{ s.memory_ops | map(attribute='text') | join('\n') }}">{{ s.memory_ops[0].text }}</span>
-          {%- if s.memory_ops | length > 1 %} <span>+{{ s.memory_ops | length - 1 }} more</span>{% endif %}
-        </div>
-        {% endif %}
-        {% for op in s.memory_ops %}
-        {# A batch names each op; a single one is already named by the mode
-           tag above, which stays visible in detail mode. #}
-        {% if s.memory_ops | length > 1 %}
-        <div class="span-detail list-item">
-          <span class="skill-action">{{ op.action }}</span>
-        </div>
-        {% endif %}
-        {# One row per side, so an add shows only +, a remove only −, and a
-           replace both — the same macro the patch scopes use. #}
-        {{ diff_rows(op.old_text, op.content) }}
-        {% endfor %}
-        {% elif s.web_extract_urls %}
-        {{ item_list(s.web_extract_urls) }}
-        {% elif s.todo_contents %}
-        {{ item_list(s.todo_contents) }}
-        {% elif s.delegate_tasks %}
-        <div class="span-detail list-compact">
-          <span class="path wide" title="{{ s.delegate_goals | join('\n') }}">{{ s.delegate_goals[0] }}</span>
-          {%- if s.delegate_tasks | length > 1 %} <span>+{{ s.delegate_tasks | length - 1 }} more</span>{% endif %}
-        </div>
-        {% for t in s.delegate_tasks %}
-        <div class="span-detail list-item task-goal">
-          <span class="path wide wrap-detail" title="{{ t.goal }}">{{ t.goal }}</span>
-        </div>
-        {% if t.context %}
-        <div class="span-detail list-item ctx">
-          <span class="path wide wrap-detail" title="{{ t.context }}">{{ t.context }}</span>
-        </div>
-        {% endif %}
-        {% endfor %}
-        {% elif s.vision_image_url %}
-        <div class="span-detail">
-          <span class="path tail" title="{{ s.vision_image_url }}">&lrm;{{ s.vision_image_url | tilde }}&lrm;</span>
-        </div>
-        {% if s.vision_question %}
-        <div class="span-detail list-item">
-          <code class="wrap-detail" title="{{ s.vision_question }}">{{ s.vision_question }}</code>
-        </div>
-        {% endif %}
-        {# The patch scope's two modes share one branch, named by a mode tag:
-           replace edits one path (and shows the two sides below), patch
-           applies a V4A text naming its own files (and shows that text).
-           Ahead of the plain-path branch, which replace mode would match. #}
-        {% elif s.patch_mode %}
-        <div class="span-detail">
-          <span class="mode-tag">{{ s.patch_mode }}</span>
-          {%- if s.path %} <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>
-          {%- elif s.patch_paths %} <span class="path tail" title="{{ s.patch_paths | join('\n') }}">&lrm;{{ s.patch_paths[0] | tilde }}&lrm;</span>
-          {%- if s.patch_paths | length > 1 %} <span>+{{ s.patch_paths | length - 1 }} more</span>{% endif %}{% endif %}
-        </div>
-        {{ diff_rows(s.patch_old_string, s.patch_new_string) }}
-        {% if s.patch_text %}
-        <div class="span-detail list-item">
-          <code class="wrap-detail" title="{{ s.patch_text }}">{{ s.patch_text }}</code>
-        </div>
-        {% endif %}
-        {% elif s.path %}
-        <div class="span-detail">
-          <span class="path tail" title="{{ s.path }}">&lrm;{{ s.path | tilde }}&lrm;</span>
-        </div>
-        {% elif s.is_llm %}
-        {# An llm call: how it ended, what it said, what it cost. Its tool
-           calls are not listed — the spans that ran them are the next rows
-           down, with their arguments. #}
-        {# The calls ride the finish reason that names them — `tool_calls`
-           and then what was called — rather than repeating the subject on a
-           row of their own. Names only: the spans below carry the arguments,
-           each rendered by its own branch. What this says is that they were
-           one decision; a sixteen-call fan-out is one line here and sixteen
-           rows down there. `.list-item` on the names alone keeps them out of
-           the summary line, where the reason still stands by itself. #}
-        {% if s.call_role or s.retry_count or s.finish_reason or s.llm_tool_calls %}
-        <div class="span-detail">
-          {#- the role leads: it says what the call was for, which qualifies
-              everything after it. Absent on an ordinary call — see
-              Span.call_role for why `primary` is withheld. #}
-          {#- no angle brackets in the title: they would sit raw inside an
-              HTML attribute, which browsers tolerate and nothing else does. #}
-          {%- if s.call_role %}<span class="mode-tag" title="What this call was for, when it was not the ordinary one. `delegated` is a subagent's call; `fallback` means the configured model failed and a backup answered; an `auxiliary:` role names hermes' own background work, such as compressing the conversation to fit the context window.">{{ s.call_role }}</span>{% endif %}
-          {%- if s.retry_count %}<span class="mode-tag" title="Which attempt this was, counting the first as 0 — so this call was retried, or walked its fallback chain, before it answered. Often the reason a span is slow.">retry {{ s.retry_count }}</span>{% endif %}
-          {%- if s.finish_reason %}<span class="mode-tag" title="Why the model stopped, as the provider reported it. `tool_calls` means the spans below are what it asked for; `length` would mean its answer was cut off.">{{ s.finish_reason }}</span>{% endif %}
-          {#- .call-list, not .path: a `.path` in the collapsed layout is
-              forced back to `display: inline` by a more specific rule than
-              the one .list-item hides it with, so these names would show on
-              the summary line. Its own class has no such fight. #}
-          {%- if s.llm_tool_calls %}<span class="call-list list-item" title="The tools this call asked for, in the order it asked. Their arguments are on the spans below, one per call; what this adds is that they were decided together.">{% for name in s.llm_tool_calls %}{% if not loop.first %} <span class="gen-key">·</span> {% endif %}{{ name }}{% endfor %}</span>{% endif %}
-        </div>
-        {% endif %}
-        {% if s.llm_text %}
-        <div class="span-detail list-item">
-          <span class="path wide wrap-detail">{{ s.llm_text.text }}{% if s.llm_text.truncated %}…{% endif %}</span>
-        </div>
-        {% if s.llm_text.truncated %}
-        <div class="span-detail list-item">
-          <span class="gen-omitted" title="Only the start is shown here; the whole message is in the ATOF log, and its last word is the turn's own response.">start of {{ '{:,}'.format(s.llm_text.chars) }} chars</span>
-        </div>
-        {% endif %}
-        {% endif %}
-        {# Tokens as the tree they form, not the flat line they were: the
-           rows under `prompt` and `out` sum to them, so the indent is the
-           arithmetic. The two top-level buckets are all a collapsed row
-           carries; the parts wait for the detail view, where each figure has
-           room for its own tooltip. Every row is a `.mode-tag` — they are
-           the same kind of thing, and the tree should not say otherwise. #}
-        {# `.list-item` is what marks a detail-only row, so it goes on the
-           parts and not on the two buckets: collapsed, `prompt` and `out`
-           inline onto the summary line and the rest stays hidden. The
-           `tokens` label is detail-only too — beside a figure named `prompt`
-           on a summary line it says nothing the reader did not already know.
-           What separates them from the finish reason there is a `·`. #}
-        {% if s.token_rows %}
-        <div class="span-detail list-item">
-          <span class="mode-tag" title="What this call counted, as the provider reported it. There is no total: it would be prompt + out, both below.">tokens</span>
-        </div>
-        {#- the summary line's separator, written the way a generic payload
-            writes its own (payload_rows, above): a real .gen-key span, so it
-            is the same glyph in the same font at the same colour, with one
-            plain space either side. `prior` is what keeps a leading dot off
-            a row with nothing to its left. #}
-        {% set ns = namespace(prior = true if (s.finish_reason or s.call_role or s.retry_count) else false) %}
-        {% for row in s.token_rows %}
-        {%- set dot = row.summary and ns.prior %}
-        <div class="span-detail{% if not row.summary %} list-item{% endif %}{% if dot %} tok-sep{% endif %} tok-d{{ row.depth }}{% if row.subset %} tok-part{% endif %}">
-          {%- if dot %}<span class="gen-key inline-only">·</span> {% endif %}
-          {#- no space before the share: the gap is set in base.html, in both
-              layouts, rather than left to whatever a literal one renders as #}
-          <span class="mode-tag" title="{{ row.tooltip }}">{{ row.label }} {{ row.value }}</span>
-          {%- if row.share %}<span class="tok-share">({{ row.share }})</span>{% endif %}
-        </div>
-        {%- if row.summary %}{% set ns.prior = true %}{% endif %}
-        {% endfor %}
-        {% endif %}
-        {% else %}
-        {# No branch matched: a tool this app has never heard of, or one
-           whose payload is empty. Falls back to the payload itself. #}
-        {{ payload_rows(s.generic_fields) }}
-        {% endif %}
+        {# What this scope shows is declared in plugins/prompts/scopes.py and
+           looked up by name (ADR 7). One scope, llm, keeps hand-written Jinja
+           and is reached through `render=`; everything else paints its
+           declared rows, and anything with no spec — a tool this app has
+           never heard of — falls back to its payload, which is what the
+           generic renderer is for. #}
+        {%- set spec_render = scope_render(s) %}
+        {%- if spec_render == "llm" %}{{ llm_rows(s) }}
+        {%- else %}
+        {%- set rows = scope_rows(s) %}
+        {%- if rows %}{{ spec_rows(rows) }}
+        {%- else %}{{ payload_rows(s.generic_fields) }}{% endif %}
+        {%- endif %}
         {# Outcome, after whatever the scope showed of its input. Every tool
            reports a failure the same way, so this is one row for all of
            them rather than a branch per scope. #}
@@ -460,7 +140,9 @@
         </div>
         {% endif %}
         {# Detail-only, like session_search's counts: the collapsed line
-           belongs to the entry written and, when it failed, to why. #}
+           belongs to the entry written and, when it failed, to why. These are
+           outcome rows, so they sit with the error row rather than in the
+           memory scope's spec, which describes the write itself. #}
         {% for stat in s.memory_stats %}
         <div class="span-detail list-item">
           <span class="mode-tag" title="{{ stat.tooltip }}">{{ stat.label }} {{ stat.value }}</span>
@@ -498,3 +180,4 @@ but no llm/tool scopes were assigned to it.</p>
 {% endif %}
 </div>
 {% endblock %}
+

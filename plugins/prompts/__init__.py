@@ -12,14 +12,20 @@ as collapsed problem sections on the turn-list page only, so turn pages
 stay uncluttered.
 """
 
+import importlib
 import os
 import time
 from datetime import datetime, timezone
 
-from flask import Blueprint, abort, current_app, render_template
+from flask import (Blueprint, abort, current_app, render_template,
+                   url_for)
+from werkzeug.routing import BuildError
 
 import hermes_paths
 from plugins.prompts.assembler import assemble
+from plugins.prompts.scope_spec import (SpecTable, check_table, render_macro,
+                                        rows_for)
+from plugins.prompts.scopes import SCOPES, SCOPES_BY_CATEGORY
 from plugins.prompts.tailer import AtofTailer
 
 PLUGIN_API = 1
@@ -46,23 +52,127 @@ def atof_path(settings):
             f"default ({hermes_paths.config_dir_origin()})")
 
 
+def spec_modules(settings):
+    """Modules contributing scope specs, from the `scope_specs` setting.
+
+    A string is accepted as well as a list, because writing one module path
+    without brackets is the obvious thing to try.
+    """
+    value = settings.get("scope_specs") or []
+    if isinstance(value, str):
+        value = [value]
+    return [str(v) for v in value] if isinstance(value, (list, tuple)) else []
+
+
+def tab_spec_tables(app):
+    """Scope specs the other loaded tabs contribute (ADR 10).
+
+    A tab that owns a kind of span describes it itself — mem0's spans are
+    declared in `plugins/mem0/specs.py`, not here — and the shell collects
+    them before any tab registers. Reading them from `app.extensions` rather
+    than importing anything keeps ADR 4's rule intact: this tab knows no
+    other plugin by name.
+
+    Their lifetime is the contributing tab's. Disable that tab and its specs
+    go with it, which is what stops a span linking to a page nobody serves.
+    """
+    out = []
+    for name, tables in (app.extensions.get("tab_scopes") or {}).items():
+        by_name = tables.get("SCOPES") or {}
+        by_category = tables.get("SCOPES_BY_CATEGORY") or {}
+        # This tab exposes SCOPES too — it owns the specs for hermes' own
+        # tools — and the shell offers them back like any other tab's. They
+        # are already the base here, so skip them rather than merging a table
+        # over itself and reporting it as a contribution.
+        if by_name is SCOPES or by_category is SCOPES_BY_CATEGORY:
+            continue
+        faults = check_table(by_name, by_category)
+        out.append({"tab": name, "by_name": by_name,
+                    "by_category": by_category,
+                    "problem": "; ".join(faults) if faults else None})
+    return out
+
+
+def spec_table(settings, app=None):
+    """This tree's scope specs with any contributed module laid over them.
+
+    Later wins: someone whose tool payload differs from hermes' replaces our
+    handling of it rather than losing to it, and the override is named in the
+    startup banner rather than applied silently (ADR 7). A module that cannot
+    be imported, or that offers no table, is reported and skipped — the
+    scopes it would have described fall back to the generic payload renderer,
+    which is what they had before it was installed.
+    """
+    table = SpecTable(dict(SCOPES), dict(SCOPES_BY_CATEGORY))
+    notes = []
+    # Three layers, each overriding the last: this tree's defaults, then what
+    # the loaded tabs contribute, then modules named in settings — most
+    # explicit wins, and every override is named in the banner.
+    for contributed in (tab_spec_tables(app) if app is not None else []):
+        note = {"label": "scope spec", "path": f"tab {contributed['tab']}",
+                "from": "contributed", "required": False,
+                "problem": contributed["problem"]}
+        if note["problem"] is None:
+            taken = table.overrides_of(contributed["by_name"],
+                                       contributed["by_category"])
+            if taken:
+                note["from"] = f"contributed, overriding {', '.join(taken)}"
+            table = table.merged_with(contributed["by_name"],
+                                      contributed["by_category"])
+        notes.append(note)
+    for path in spec_modules(settings):
+        note = {"label": "scope spec", "path": path, "from": "settings",
+                "required": False, "problem": None}
+        try:
+            module = importlib.import_module(path)
+            by_name = getattr(module, "SCOPES", None) or {}
+            by_category = getattr(module, "SCOPES_BY_CATEGORY", None) or {}
+            if not isinstance(by_name, dict) or not isinstance(by_category, dict):
+                raise TypeError("SCOPES must be a dict of scope name to Scope")
+            if not by_name and not by_category:
+                raise ValueError("no SCOPES in module")
+            faults = check_table(by_name, by_category)
+            if faults:
+                raise ValueError("; ".join(faults))
+        except Exception as exc:  # noqa: BLE001 - third-party module
+            note["problem"] = f"{type(exc).__name__}: {exc}"
+            notes.append(note)
+            continue
+        taken = table.overrides_of(by_name, by_category)
+        if taken:
+            note["from"] = f"settings, overriding {', '.join(taken)}"
+        table = table.merged_with(by_name, by_category)
+        notes.append(note)
+    return table, notes
+
+
 def sources(settings):
     """What this tab reads, for the startup banner (ADR 5).
 
     Not required: the log is allowed to be absent — hermes may simply not have
     run with the exporter on — and the tab explains that itself rather than
-    being replaced by a shell error page.
+    being replaced by a shell error page. Contributed spec modules are listed
+    the same way, so an override or a failed import is visible at startup
+    beside the log it renders.
     """
     path, origin = atof_path(settings)
-    return [{"label": "ATOF log", "path": path, "from": origin,
-             "required": False,
-             "problem": None if os.path.exists(path) else "no such file"}]
+    entries = [{"label": "ATOF log", "path": path, "from": origin,
+                "required": False,
+                "problem": None if os.path.exists(path) else "no such file"}]
+    entries.extend(spec_table(settings)[1])
+    return entries
 
 
 def init_app(app, settings):
     """Resolve the source once, at registration, so every request and the
-    banner agree on which file this tab is reading."""
+    banner agree on which file this tab is reading.
+
+    The spec table is resolved here too: importing a contributed module is
+    startup work, not per-request work, and a turn page polling every 2 s
+    must not pay for it.
+    """
     app.config["ATOF_PATH"] = atof_path(settings)[0]
+    app.config["SCOPE_SPECS"] = spec_table(settings, app)[0]
 
 
 def get_tailer() -> AtofTailer:
@@ -98,6 +208,23 @@ def tilde(path):
         if path == home or path.startswith(home + os.sep):
             return "~" + path[len(home):]
     return path
+
+
+@bp.app_template_global("spec_link")
+def spec_link(endpoint, params):
+    """A URL for a spec's `Link`, or None when nothing serves that endpoint.
+
+    Tying spec lifetime to the contributing tab (ADR 10) is what normally
+    stops a link outliving its target. This is the second line: a spec named
+    in settings can point at a tab that is not loaded, and a typo in an
+    endpoint is an ordinary mistake. `url_for` raises BuildError for both,
+    which on a turn page would be a 500 for every span of that scope — where
+    the right answer is to drop one row and render everything else.
+    """
+    try:
+        return url_for(endpoint, **(params or {}))
+    except BuildError:
+        return None
 
 
 @bp.app_template_filter("us_time")
@@ -193,27 +320,17 @@ def index():
     )
 
 
-def _prior_memory_texts(turn):
-    """{span uuid: prior-text record} for the turn's mem0_update/mem0_delete
-    spans — what each memory said before the span changed it.
+def _accessors():
+    """The accessors other plugins have published, for specs that name one.
 
-    The lookup belongs to the mem0 plugin, which owns the event log; this
-    tab reaches it through `app.extensions` and simply does without when that
-    plugin is not registered (ADR 4 — link and call, never open another
-    plugin's source). One indexed row per such span, and most turns have
-    none, so this costs nothing on the 2 s poll.
+    Passed whole rather than looked up here: which accessor a scope wants is
+    the spec's business, not this tab's (ADR 9). Before that, this function
+    named `mem0_prior_text` and keyed on `span.memory_id` — one plugin
+    reachable because this tab knew about it, which is exactly the privilege
+    ADR 9 removed. `app.extensions` also holds this tab's own entries; a spec
+    can only reach what it names, and names are the published contract.
     """
-    lookup = current_app.extensions.get("mem0_prior_text")
-    if lookup is None:
-        return {}
-    prior = {}
-    for span in turn.spans:
-        if span.memory_id is None:
-            continue
-        record = lookup(span.memory_id, span.start_us / 1_000_000)
-        if record is not None:
-            prior[span.uuid] = record
-    return prior
+    return current_app.extensions
 
 
 @bp.route("/turn/<session_id>/<int:start_us>")
@@ -235,6 +352,11 @@ def turn(session_id, start_us):
     scale_end = found.end_us or max(span_edges, default=found.start_us)
     scale_us = max(scale_end - found.start_us, 1)
     older, newer = _neighbours(assembly, found)
+    # The spec table resolved at registration; a page with no init_app behind
+    # it (a bare test app, say) still renders, on this tree's own specs.
+    table = current_app.config.get("SCOPE_SPECS") or SpecTable(
+        dict(SCOPES), dict(SCOPES_BY_CATEGORY))
+    accessors = _accessors()
     return render_template(
         "prompts/turn.html",
         turn=found,
@@ -243,5 +365,6 @@ def turn(session_id, start_us):
         inflight=_inflight_entries(assembly),
         older=older,
         newer=newer,
-        prior_memory=_prior_memory_texts(found),
+        scope_rows=lambda span: rows_for(span, table, accessors),
+        scope_render=lambda span: render_macro(span, table),
     )
