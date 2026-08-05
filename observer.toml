@@ -2,7 +2,7 @@
 #
 # Each entry names an importable module: `plugins.prompts` from this tree and
 # `hermes_observer_zep` from site-packages load the same way, so a tab written
-# elsewhere needs no fork. See docs/writing-a-plugin.md for the contract.
+# elsewhere needs no fork. See docs/extending/writing-a-plugin.md for the contract.
 #
 # `enabled = false` turns a tab off without removing its settings.
 # `settings` is passed to the plugin untouched; ~ and $VARS are expanded.
@@ -14,7 +14,8 @@ module = "plugins.prompts"
 # `scope_specs` names modules declaring how your own hermes tools should show
 # on a turn page — one entry per scope, no fork of this tree. A name already
 # in this app's table is overridden, and the banner says so at startup. See
-# docs/span-rendering.md for the vocabulary.
+# docs/extending/writing-a-scope-spec.md, and span-rendering.md for the
+# vocabulary itself.
 # settings = { scope_specs = ["hermes_observer_acme.specs"] }
 
 [[tabs]]

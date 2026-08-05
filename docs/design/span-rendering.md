@@ -319,7 +319,7 @@ lookup finds nothing, so a declared rendering always wins.
 
 The vocabulary is below. For getting a module of your own loaded — from a
 package installed anywhere — see
-[writing-a-scope-spec.md](writing-a-scope-spec.md), which works one through
+[writing-a-scope-spec.md](../extending/writing-a-scope-spec.md), which works one through
 end to end.
 
 A spec is a list of row descriptors. The vocabulary is four orthogonal axes,
@@ -373,7 +373,7 @@ other — in `plugins/mem0/scopes.py`, the plugin that owns them, contributed to
 this tab when that one loads
 ([ADR 10](adr/0010-a-tab-contributes-its-own-scope-specs.md)) — and anyone
 can write their own the same way, see
-[writing-a-scope-spec.md](writing-a-scope-spec.md).
+[writing-a-scope-spec.md](../extending/writing-a-scope-spec.md).
 
 A second exception would mean the same question is worth asking again.
 

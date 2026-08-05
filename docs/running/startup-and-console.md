@@ -5,7 +5,7 @@
 The first command-line argument, else `$OBSERVER_CONFIG`, else
 `./observer.toml` names the config file; with none present the built-in
 default list is used. `tabs.py` parses it and imports each enabled module. See
-[plugins-and-urls.md](plugins-and-urls.md).
+[plugins-and-urls.md](../extending/plugins-and-urls.md).
 
 Only two things are fatal: a config file that cannot be parsed or is
 internally impossible (two tabs at one URL prefix), and an empty tab bar. A

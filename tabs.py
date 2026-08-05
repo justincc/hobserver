@@ -44,7 +44,7 @@ BUILTIN_TABS = ({"module": "plugins.prompts"}, {"module": "plugins.mem0"})
 # tab bar, `URL_PREFIX` the address it is mounted at. All three are checked
 # before anything is registered, so a module that is not a tab is reported
 # rather than half-loaded. `init_app` and `sources` are optional and looked up
-# separately. docs/writing-a-plugin.md is the contract in full.
+# separately. docs/extending/writing-a-plugin.md is the contract in full.
 REQUIRED_ATTRS = ("bp", "TAB_LABEL", "URL_PREFIX")
 
 # Optional, and carried untouched: a tab may describe how its own spans show

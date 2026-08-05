@@ -1,4 +1,4 @@
-"""ATOF tailer — the bottom layer of the reader (docs/adr/0002).
+"""ATOF tailer — the bottom layer of the reader (docs/design/adr/0002).
 
 Incrementally reads the ATOF JSONL file, keeping a byte-offset cursor so
 each refresh parses only what the exporter appended since last time.

@@ -74,7 +74,7 @@ Your blueprint must have an `index` endpoint — that is what the tab links to.
 Flask, so most tabs import nothing at all and depend on no version of this
 app. Where you do need something — `base.html`'s classes, or the scope-spec
 vocabulary if you contribute `SCOPES` — those are published surfaces
-([ADR 8](adr/0008-plugins-may-import-published-host-vocabulary.md)). This
+([ADR 8](../design/adr/0008-plugins-may-import-published-host-vocabulary.md)). This
 app's internals and other plugins are not.
 
 `bp.name` is your code identifier — it appears in `url_for("tail.index")` and
@@ -146,7 +146,7 @@ enough not to collide — namespace it (`memory/zep`) if it belongs to a family.
 
 ## Reading other tabs' data
 
-Don't. Per [ADR 4](adr/0004-cross-plugin-access-by-link-or-published-accessor.md),
+Don't. Per [ADR 4](../design/adr/0004-cross-plugin-access-by-link-or-published-accessor.md),
 a tab may link to another's page, or call an accessor the other publishes in
 `app.extensions`, but never opens another tab's data source. Handle the
 accessor being absent — the tab that publishes it may be disabled.
@@ -155,13 +155,13 @@ accessor being absent — the tab that publishes it may be disabled.
 
 - [ ] `PLUGIN_API`, `bp`, `TAB_LABEL`, `URL_PREFIX`, and an `index` route
 - [ ] imports only surfaces this app publishes, and never another plugin
-      ([ADR 8](adr/0008-plugins-may-import-published-host-vocabulary.md)) —
+      ([ADR 8](../design/adr/0008-plugins-may-import-published-host-vocabulary.md)) —
       most tabs need no import at all, which is still the lightest thing to be
 - [ ] `sources()` reports every file or store you read, with `required` set
       deliberately
 - [ ] `SCOPES` if your tab owns a kind of hermes span — how it shows on a
       turn page travels with the tab that owns it, and goes when it is
-      disabled ([ADR 10](adr/0010-a-tab-contributes-its-own-scope-specs.md),
+      disabled ([ADR 10](../design/adr/0010-a-tab-contributes-its-own-scope-specs.md),
       [writing-a-scope-spec.md](writing-a-scope-spec.md))
 - [ ] a prefix unlikely to collide
 - [ ] your own defaults for every setting, and a sensible error when a setting

@@ -8,14 +8,14 @@ signature in the hermes source rather than against shapes seen in the log —
 A scope with no entry here renders its payload through the generic fallback.
 That is the right destination for a tool this app has never heard of, and a
 spec module named in `observer.toml` can override or extend this table
-without forking — see docs/design-principles.md.
+without forking — see docs/design/design-principles.md.
 
 Specs are alphabetical, and so is the SCOPES table at the foot, so a scope can
 be looked up rather than hunted for. Nothing depends on the order — a spec is
 reached by key — so where two belong together, adjacency wins over the
 alphabet and the exception is marked.
 
-`docs/span-rendering.md` narrates what each of these shows and why.
+`docs/design/span-rendering.md` narrates what each of these shows and why.
 """
 
 from plugins.prompts.scope_spec import (Alt, Diff, Each, Field, Items, Row,

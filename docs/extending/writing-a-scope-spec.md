@@ -11,7 +11,7 @@ You need one when a span shows up on a turn page as a payload dump: that is
 the generic fallback, and it means no spec claimed that scope name.
 
 - The **vocabulary** — the four axes, the field sources, the row kinds — is in
-  [span-rendering.md](span-rendering.md#writing-a-spec). This file is about
+  [span-rendering.md](../design/span-rendering.md#writing-a-spec). This file is about
   getting a module of your own loaded and knowing what happens when it breaks.
 - [writing-a-plugin.md](writing-a-plugin.md) is the equivalent for a whole
   tab. Write a spec when you want an existing tab to render your tool; write
@@ -48,7 +48,7 @@ the rest of hermes-observer.
 
 **If you also ship a tab**, expose the table from it and you are done —
 `SCOPES` on the tab module is picked up when that tab loads
-([ADR 10](adr/0010-a-tab-contributes-its-own-scope-specs.md)):
+([ADR 10](../design/adr/0010-a-tab-contributes-its-own-scope-specs.md)):
 
 ```python
 # my_observer_tab/__init__.py
@@ -94,14 +94,14 @@ answered it (`anthropic`), which is why that one is a category spec.
 
 **A spec module imports `plugins.prompts.scope_spec`, and nothing else from
 hermes-observer.** That vocabulary is a published surface — one of the few,
-listed in [ADR 8](adr/0008-plugins-may-import-published-host-vocabulary.md) —
+listed in [ADR 8](../design/adr/0008-plugins-may-import-published-host-vocabulary.md) —
 so importing it is the ordinary thing to do, and the names in it change with
 the same care as a URL.
 
 What you should not import is this app's internals (`assembler`,
 `atof_reader`, a tab's own helpers) or another plugin. Those are not
 promised to stay put, and reading another plugin's data has its own route:
-[ADR 4](adr/0004-cross-plugin-access-by-link-or-published-accessor.md).
+[ADR 4](../design/adr/0004-cross-plugin-access-by-link-or-published-accessor.md).
 
 ## `render=`, and why it is not for you
 
@@ -138,9 +138,9 @@ about the design rather than a gap for you to work around.
 
 A span row can link into a page your tab serves, and show a value your tab
 looks up — the two shapes
-[ADR 4](adr/0004-cross-plugin-access-by-link-or-published-accessor.md) allows,
+[ADR 4](../design/adr/0004-cross-plugin-access-by-link-or-published-accessor.md) allows,
 available to a spec since
-[ADR 9](adr/0009-scope-specs-may-link-and-read-published-data.md). The mem0
+[ADR 9](../design/adr/0009-scope-specs-may-link-and-read-published-data.md). The mem0
 scopes in `plugins/mem0/scopes.py` are written this way and are worth reading
 as a worked example — they sit in the plugin that owns them, which is
 [the first route above](#wiring-it-up), and nothing about them is privileged

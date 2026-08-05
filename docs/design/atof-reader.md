@@ -192,4 +192,4 @@ uncluttered.
 - What each span *shows* on the turn page: [span-rendering.md](span-rendering.md)
 - Liveness, polling and follow mode: [live-pages.md](live-pages.md)
 - Why the ATOF stream, and why no ETL: `docs/adr/0001`, `docs/adr/0002`
-- Producer-side setup: [setup-prompt-timing.md](setup-prompt-timing.md)
+- Producer-side setup: [setup-prompt-timing.md](../running/setup-prompt-timing.md)

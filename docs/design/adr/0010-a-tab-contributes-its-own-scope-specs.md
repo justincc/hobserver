@@ -112,7 +112,7 @@ for the ordinary typo.
 
 ## Related
 
-- [docs/writing-a-plugin.md](../writing-a-plugin.md) — the contract, now with
+- [docs/writing-a-plugin.md](../../extending/writing-a-plugin.md) — the contract, now with
   the optional spec attributes
-- [docs/writing-a-scope-spec.md](../writing-a-scope-spec.md) — which of the
+- [docs/writing-a-scope-spec.md](../../extending/writing-a-scope-spec.md) — which of the
   two routes to use, and when

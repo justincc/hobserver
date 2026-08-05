@@ -1,7 +1,7 @@
 """The Prompts view (blueprint `prompts`) — per-turn waterfalls from the
 NeMo Relay ATOF stream.
 
-Reader per docs/adr/0002: tailer (byte-offset incremental read) → parser
+Reader per docs/design/adr/0002: tailer (byte-offset incremental read) → parser
 (JSONL line → typed event) → assembler (events → sessions → turns →
 waterfall). Views run the tailer on each request and assemble in memory.
 

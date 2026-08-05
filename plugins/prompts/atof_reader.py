@@ -1,4 +1,4 @@
-"""ATOF v0.1 JSONL parser — the middle layer of the reader (docs/adr/0002).
+"""ATOF v0.1 JSONL parser — the middle layer of the reader (docs/design/adr/0002).
 
 Parses raw JSONL lines into typed events per the ATOF spec
 (NVIDIA/NeMo-Agent-Toolkit packages/nvidia_nat_atif/atof-event-format.md):
@@ -22,7 +22,7 @@ hermes writes this stream through two exporters at once, and this module is
 the only one that knows it: each event is tagged with the schema that wrote
 it, and the newer exporter's provider-native payloads are mapped back onto
 the canonical envelope the rest of the app reads (ADR 6). See "schema eras"
-below and docs/atof-reader.md for the mapping table.
+below and docs/design/atof-reader.md for the mapping table.
 """
 
 from __future__ import annotations

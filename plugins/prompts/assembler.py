@@ -1,4 +1,4 @@
-"""ATOF assembler — the top layer of the reader (docs/adr/0002).
+"""ATOF assembler — the top layer of the reader (docs/design/adr/0002).
 
 Takes parsed AtofEvents and builds the per-turn waterfall model:
 

@@ -160,7 +160,7 @@ wanted a macro is gone.
 
 ## Related
 
-- [docs/writing-a-scope-spec.md](../writing-a-scope-spec.md) — would gain the
+- [docs/writing-a-scope-spec.md](../../extending/writing-a-scope-spec.md) — would gain the
   cross-plugin case, which is currently the one thing it tells a contributor
   they cannot do
 - [docs/span-rendering.md](../span-rendering.md) — the three exceptions table

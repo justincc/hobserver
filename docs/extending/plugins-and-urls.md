@@ -38,8 +38,8 @@ for overriding a plugin's page without editing it.
 Most tabs import nothing from this app; those that need to may import the
 surfaces it publishes — `base.html`'s classes and conventions, and the
 scope-spec vocabulary — but never another plugin
-([ADR 8](adr/0008-plugins-may-import-published-host-vocabulary.md),
-[ADR 4](adr/0004-cross-plugin-access-by-link-or-published-accessor.md)).
+([ADR 8](../design/adr/0008-plugins-may-import-published-host-vocabulary.md),
+[ADR 4](../design/adr/0004-cross-plugin-access-by-link-or-published-accessor.md)).
 
 `bp.name`, `TAB_LABEL` and `URL_PREFIX` are deliberately independent. The code
 identifier (`url_for`, template directory) does not move; the label and the
@@ -122,4 +122,4 @@ Both directions are in use today, mem0 → prompts:
 - `/memory/mem0/search-event` (the link) — a mem0_search span to its logged
   event.
 
-Details of both are in [span-rendering.md](span-rendering.md).
+Details of both are in [span-rendering.md](../design/span-rendering.md).

@@ -12,7 +12,7 @@ is all a spec is allowed. The vocabulary comes from the Prompts tab because
 that is what paints the rows (ADR 8: importing a published surface is
 ordinary).
 
-`docs/writing-a-scope-spec.md` is the guide; this is a worked example of its
+`docs/extending/writing-a-scope-spec.md` is the guide; this is a worked example of its
 cross-plugin case.
 """
 

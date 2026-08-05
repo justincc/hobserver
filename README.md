@@ -52,7 +52,7 @@ enabled = false            # one line to turn a tab off
 
 `module` is any importable path, so a tab written elsewhere and installed
 alongside is added the same way, with no fork of this repo — see
-[docs/writing-a-plugin.md](docs/writing-a-plugin.md). The config file is taken
+[docs/extending/writing-a-plugin.md](docs/extending/writing-a-plugin.md). The config file is taken
 from the first command-line argument, else `$OBSERVER_CONFIG`, else
 `./observer.toml`; with none of them present the two tabs above are served by
 default, so a fresh checkout runs with no setup.
@@ -122,7 +122,7 @@ last-seen time.
 
 End-to-end setup — enabling the exporter in hermes-agent (producing) and
 pointing this tool at its output (consuming) — is in
-[docs/setup-prompt-timing.md](docs/setup-prompt-timing.md).
+[docs/running/setup-prompt-timing.md](docs/running/setup-prompt-timing.md).
 
 ## Pages
 
@@ -151,7 +151,7 @@ is reloaded.
 - `/memory/mem0/search-event?session=<id>&query=<q>[&ts=<µs>]` — redirects to
   the event page for one `mem0_search` call. This is the handoff from a
   mem0_search span in the Prompts tab; see
-  [docs/span-rendering.md](docs/span-rendering.md) for how the two logs are
+  [docs/design/span-rendering.md](docs/design/span-rendering.md) for how the two logs are
   matched, and why it is a redirect rather than a lookup.
 
 The event page opens with a metadata block (every field except query and
@@ -204,7 +204,7 @@ offset, clamped to the track — session end fires just after the turn-end mark.
 Each span row also shows what the call was *for*, drawn from its payload and
 rendered per tool scope: the command a terminal call ran, the path a file tool
 touched, a mem0_search's top hits, and so on. That is a subject of its own —
-see [docs/span-rendering.md](docs/span-rendering.md).
+see [docs/design/span-rendering.md](docs/design/span-rendering.md).
 
 While the turn is in flight the page updates itself every 2 s; once it ends
 the page is static.
@@ -216,7 +216,7 @@ offer a follow-mode toggle that opens new turns as they start. Because hermes
 drops `hermes.turn.end` marks often, an open turn is poor evidence of running
 work, and liveness is decided by proof rather than by a clock.
 
-See [docs/live-pages.md](docs/live-pages.md) for all of it.
+See [docs/design/live-pages.md](docs/design/live-pages.md) for all of it.
 
 
 ## Tests
@@ -234,29 +234,37 @@ uv run pytest
 - `observer.toml` — which tabs are served, in tab order
 - `hermes_paths.py` — where hermes-agent keeps things, for the in-tree
   plugins' default paths
-- `plugins/` — one module or package per in-tree view; each exposes
-  `PLUGIN_API`, a Flask blueprint `bp` (registered under `/<URL_PREFIX>/`), a
-  `TAB_LABEL` and a `URL_PREFIX`, plus optional `init_app` and `sources`
-  hooks. See [docs/writing-a-plugin.md](docs/writing-a-plugin.md) for the
-  contract, [docs/plugins-and-urls.md](docs/plugins-and-urls.md) for how
+- `plugins/` — one package per in-tree view, each self-contained: its module
+  attributes (`PLUGIN_API`, the Flask blueprint `bp` registered under
+  `/<URL_PREFIX>/`, `TAB_LABEL`, `URL_PREFIX`, optional `init_app` and
+  `sources`), its own `templates/<name>/`, and a `scopes.py` where it
+  describes how its own spans render elsewhere (ADR 10). A plugin is one
+  directory, so lifting it into an installed package takes all of it. See [docs/extending/writing-a-plugin.md](docs/extending/writing-a-plugin.md) for the
+  contract, [docs/extending/plugins-and-urls.md](docs/extending/plugins-and-urls.md) for how
   plugins reach each other (by link or published accessor, never by opening
   another's data source — ADR 4).
 - `plugins/prompts/` — a package holding the full ATOF reader (ADR 2):
   `tailer.py` (incremental read), `atof_reader.py` (JSONL line → typed event,
   fail-soft) and `assembler.py` (events → sessions → turns → waterfall, with
   overhead as the residual of turn duration minus llm and tool time). See
-  [docs/atof-reader.md](docs/atof-reader.md).
-- `templates/` — `base.html` (shared chrome + tab bar), `_item_nav.html` (the
-  `item_nav` macro every detail page uses), plus one subdirectory per plugin
-  (`mem0/`, `prompts/`)
+  [docs/design/atof-reader.md](docs/design/atof-reader.md).
+- `templates/` — only what the shell owns and every tab shares: `base.html`
+  (chrome, tab bar, the CSS classes plugins render against), `_item_nav.html`
+  (the `item_nav` macro every detail page uses), and `unavailable.html` for a
+  tab that could not load. Each plugin's own pages live with the plugin.
 - `tests/` — `conftest.py` (shared fixtures), `test_app.py` (shell),
   `test_mem0.py`, `test_prompts.py`, `test_tabs.py`, `test_atof_reader.py`,
   `test_assembler.py`, `test_tailer.py`
-- `docs/` — [writing-a-plugin.md](docs/writing-a-plugin.md),
-  [plugins-and-urls.md](docs/plugins-and-urls.md),
-  [startup-and-console.md](docs/startup-and-console.md),
-  [atof-reader.md](docs/atof-reader.md),
-  [span-rendering.md](docs/span-rendering.md),
-  [live-pages.md](docs/live-pages.md),
-  [setup-prompt-timing.md](docs/setup-prompt-timing.md), and `adr/` for the
-  architecture decision records
+- `docs/` — split by who reads it:
+  - [`design/`](docs/design/) — why the app is shaped as it is, for anyone
+    changing it: [design-principles.md](docs/design/design-principles.md),
+    [`adr/`](docs/design/adr/), [atof-reader.md](docs/design/atof-reader.md),
+    [span-rendering.md](docs/design/span-rendering.md),
+    [live-pages.md](docs/design/live-pages.md)
+  - [`extending/`](docs/extending/) — writing against it from outside:
+    [writing-a-plugin.md](docs/extending/writing-a-plugin.md),
+    [writing-a-scope-spec.md](docs/extending/writing-a-scope-spec.md),
+    [plugins-and-urls.md](docs/extending/plugins-and-urls.md)
+  - [`running/`](docs/running/) — operating it:
+    [setup-prompt-timing.md](docs/running/setup-prompt-timing.md),
+    [startup-and-console.md](docs/running/startup-and-console.md)
