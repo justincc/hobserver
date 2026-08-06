@@ -927,10 +927,10 @@ def test_the_llm_scope_offers_its_request_and_its_response():
     """Both, by category, so every model call has them whatever it was for —
     a turn's own prompt, a compaction, a subagent's delegated call."""
     fulls = {f.key: f for f in SCOPES_BY_CATEGORY["llm"].fulls}
-    assert set(fulls) == {"request", "response"}
+    assert set(fulls) == {"prompt", "response"}
     # a request is several messages, each labelled by this app; a response is
     # one string the model wrote, and nothing of ours goes near it
-    assert fulls["request"].render == "sections"
+    assert fulls["prompt"].render == "sections"
     assert fulls["response"].render == "markdown"
     for full in fulls.values():
         assert full.note is not None, f"{full.key} says nothing about where it came from"

@@ -164,7 +164,7 @@ grow to absorb.
   part of the spec vocabulary: a declared `Field` cannot ask for it, and the
   hand-written macro is its only user.
 - **The whole of either** — an open-in-a-new-tab icon at the end of both
-  rows, leading to `/prompts/span/<uuid>/request` and `…/response`
+  rows, leading to `/prompts/span/<uuid>/prompt` and `…/response`
   ([ADR 12](adr/0012-open-a-whole-value-on-its-own-page.md)). The request
   page is every message of `annotated_request` — system instructions, the
   conversation, each tool call and its result — one labelled box per message,

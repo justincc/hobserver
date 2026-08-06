@@ -14,7 +14,7 @@
    leading dot. #}
 {# `full` is the caller's `scope_full(span, key)` — the link to one of the
    scope's declared full values (ADR 12). A hand-written macro has no Field
-   to carry `full=`, so it asks by the key `scopes.py` declared: "request"
+   to carry `full=`, so it asks by the key `scopes.py` declared: "prompt"
    and "response". Passed in rather than imported so this file stays a
    template that reads no context, like every other macro here. #}
 {% from "prompts/_macros.html" import open_text %}
@@ -49,7 +49,7 @@
    compaction or any other auxiliary call is hermes' instruction to itself —
    the thing that appeared nowhere on this page before. The icon opens the
    whole request, all its messages, not just this one. #}
-{% set request_link = full(s, "request") if full else none %}
+{% set prompt_link = full(s, "prompt") if full else none %}
 {% set response_link = full(s, "response") if full else none %}
 {# No title attribute and no size note. The whole prompt in a title would put
    26 KB on the row and repeat it on every 2 s poll, and a size note here
@@ -70,7 +70,7 @@
       `tokens`, indented, and always carries a figure — and the word means
       the same thing in both: what the model was sent. #}
   <span class="gen-key key-col" title="The last user message of this call's request, with hermes' own wrappers taken off — this app's reading, not the wire text. The icon opens the request as sent, every message of it. (The `prompt` row under `tokens` counts the whole request, not just this message.)">prompt</span>
-  {{ open_text(request_link, s.request_prompt_excerpt.text,
+  {{ open_text(prompt_link, s.request_prompt_excerpt.text,
                s.request_prompt_excerpt.truncated) }}
 </div>
 {% endif %}

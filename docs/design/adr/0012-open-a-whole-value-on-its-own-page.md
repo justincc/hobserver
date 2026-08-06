@@ -46,7 +46,7 @@ own, addressed by span uuid and key, and reached by an icon at the end of the
 excerpt.**
 
     Scope(render="llm", fulls=[
-        Full(key="request", source="llm_request_messages", render="sections",
+        Full(key="prompt", source="llm_request_messages", render="sections",
              title=const("Prompt"), note=const("…")),
         Full(key="response", source="llm_response_text", render="markdown",
              title=const("Response"), note=const("…")),
@@ -58,7 +58,7 @@ Five decisions inside that.
 
 **One declaration, referenced from wherever the excerpt appears.** `fulls`
 lives on the `Scope`, so a `Field(full=…)` and a hand-written macro asking
-`scope_full(span, "request")` and the route serving `/prompts/span/<uuid>/
+`scope_full(span, "prompt")` and the route serving `/prompts/span/<uuid>/
 <key>` all read the same list. The alternative — a `Full` inline on the
 `Field` — would have left the route with nothing to resolve for a `render=`
 scope, and two places to keep in step for every other one. A `Field` naming a

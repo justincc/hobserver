@@ -1758,7 +1758,7 @@ def test_an_llm_span_offers_its_request_and_its_response(tmp_path):
     page = _llm_client(tmp_path).get(
         "/prompts/turn/s1/1000000").get_data(as_text=True)
     links = re.findall(r'class="[^"]*open-text" href="([^"]+)"', page)
-    assert "/prompts/span/L1/request" in links
+    assert "/prompts/span/L1/prompt" in links
     assert "/prompts/span/L1/response" in links
 
 
@@ -1819,7 +1819,7 @@ def test_a_call_that_said_nothing_offers_no_response_to_open(tmp_path):
     so there is no icon."""
     page = _llm_client(tmp_path, end_data=_assistant("", "terminal")).get(
         "/prompts/turn/s1/1000000").get_data(as_text=True)
-    assert "/prompts/span/L1/request" in page
+    assert "/prompts/span/L1/prompt" in page
     assert "/prompts/span/L1/response" not in page
 
 
@@ -1833,7 +1833,7 @@ def test_the_full_page_renders_the_response_as_markdown(tmp_path):
 
 def test_the_full_page_renders_the_whole_request(tmp_path):
     page = _llm_client(tmp_path).get(
-        "/prompts/span/L1/request").get_data(as_text=True)
+        "/prompts/span/L1/prompt").get_data(as_text=True)
     assert "You are Hermes Agent." in page  # the system prompt, not just the ask
     assert "summarise the turns" in page
     assert "<h2>Ask</h2>" in page           # the content's own heading, rendered
@@ -1844,7 +1844,7 @@ def test_each_message_is_boxed_under_a_label_of_its_own(tmp_path):
     two different kinds of thing on the page rather than two heading levels
     in one document."""
     page = _llm_client(tmp_path).get(
-        "/prompts/span/L1/request").get_data(as_text=True)
+        "/prompts/span/L1/prompt").get_data(as_text=True)
     boxes = re.findall(r'<section class="msg">.*?</section>', page, re.S)
     assert len(boxes) == 2, "instructions and the user message"
     assert '<div class="msg-label">instructions</div>' in boxes[0]
@@ -1861,7 +1861,7 @@ def test_the_full_page_says_where_the_value_came_from(tmp_path):
     """Anything reconstructed names its source and is never presented as
     something the origin vouched for (design principle 2)."""
     page = _llm_client(tmp_path).get(
-        "/prompts/span/L1/request").get_data(as_text=True)
+        "/prompts/span/L1/prompt").get_data(as_text=True)
     assert "annotated_request" in page
     assert "The labels are this app&#39;s" in page
 
@@ -1916,7 +1916,7 @@ def test_a_scope_with_no_full_declared_serves_none(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     client = make_client(tmp_path, str(write_atof(tmp_path, lines)))
-    assert client.get("/prompts/span/T1/request").status_code == 404
+    assert client.get("/prompts/span/T1/prompt").status_code == 404
 
 
 def test_a_full_page_carries_no_live_poll(tmp_path):
@@ -1975,7 +1975,7 @@ def test_every_call_role_gets_the_same_facility(tmp_path):
     client = make_client(tmp_path, str(write_atof(tmp_path, lines)))
     turn = client.get("/prompts/turn/s1/1000000").get_data(as_text=True)
     assert "auxiliary:compression" in turn
-    assert "/prompts/span/L1/request" in turn
+    assert "/prompts/span/L1/prompt" in turn
     page = client.get("/prompts/span/L1/response").get_data(as_text=True)
     assert "auxiliary:compression" in page          # the page names the role
     assert "<h2>Historical Task Snapshot</h2>" in page
@@ -2038,7 +2038,7 @@ def test_the_pages_own_words_are_boxed_apart_from_the_value(tmp_path):
     — the title, the facts, the provenance — sits in a panel above it, so
     none of it can be read as the value's own first lines."""
     page = _llm_client(tmp_path).get(
-        "/prompts/span/L1/request").get_data(as_text=True)
+        "/prompts/span/L1/prompt").get_data(as_text=True)
     head = re.search(r'<header class="full-head">.*?</header>', page, re.S)
     assert head, "the header panel is missing"
     head = head.group(0)
