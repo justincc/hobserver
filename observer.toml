@@ -1,6 +1,6 @@
 # Which tabs this observer serves, in tab order. The first one serves /.
 #
-# Each entry names an importable module: `plugins.prompts` from this tree and
+# Each entry names an importable module: `plugins.turns` from this tree and
 # `hermes_observer_zep` from site-packages load the same way, so a tab written
 # elsewhere needs no fork. See docs/extending/writing-a-plugin.md for the contract.
 #
@@ -8,7 +8,7 @@
 # `settings` is passed to the plugin untouched; ~ and $VARS are expanded.
 
 [[tabs]]
-module = "plugins.prompts"
+module = "plugins.turns"
 # settings = { atof_log = "$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl" }
 #
 # `index_db` moves this tab's index of that log, which defaults to a file in

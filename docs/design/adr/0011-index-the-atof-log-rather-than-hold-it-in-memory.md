@@ -193,9 +193,9 @@ Three things this decision did not anticipate:
   parent span is the first time they inform a real turn's liveness — which
   matters for a long streaming call that otherwise looks silent since it
   started.
-- **The module is `atof_index.py`, not `index.py`.** `plugins.prompts` already
+- **The module is `atof_index.py`, not `index.py`.** `plugins.turns` already
   has an `index` — the turn-list view function — and it shadows a submodule of
-  that name as a package attribute, which breaks `from plugins.prompts import
+  that name as a package attribute, which breaks `from plugins.turns import
   index` and anything resolving that dotted path.
 - **The threshold for keeping a payload is its size, never its key name.** A
   list of hermes' large keys would be the kind of in-tree list the fork test

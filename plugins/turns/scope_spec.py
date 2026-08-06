@@ -1,7 +1,7 @@
 """What each scope shows, declared as data rather than as template branches.
 
 ADR 7. A scope's rendering is a list of row descriptors keyed by scope name;
-`templates/prompts/turn.html` paints whatever `rows_for` returns and knows
+`templates/turns/turn.html` paints whatever `rows_for` returns and knows
 nothing about any particular tool. One scope keeps hand-written Jinja behind
 `render=` (ADR 7); the two that reached across the plugin boundary became
 declarable once the vocabulary grew a link and an accessor (ADR 9).
@@ -189,7 +189,7 @@ def _payload_key(span, which: str, key: str):
     `which` names the span attribute holding the payload — not `attr`, which
     is now a source helper in this module and would shadow it.
     """
-    from plugins.prompts.assembler import _as_dict
+    from plugins.turns.assembler import _as_dict
 
     data = _as_dict(getattr(span, which, None))
     if data is None:
@@ -223,7 +223,7 @@ FULL_RENDERERS = frozenset({"text", "markdown", "sections"})
 # The endpoint serving that page. Named here rather than in the template so
 # a spec's cell can carry the same (endpoint, params) pair a `Link` does,
 # and `url_for` stays the template's call (see `Link`).
-FULL_ENDPOINT = "prompts.span_full"
+FULL_ENDPOINT = "turns.span_full"
 
 # What a key may look like. It is a URL segment and it is what a `Field`
 # names, so: lower case, no slashes, no surprises.
@@ -620,7 +620,7 @@ def _row_cls(layer: Optional[str], extra: Optional[str]) -> str:
 # --- scopes ----------------------------------------------------------
 
 
-# The macros templates/prompts/_scope_*.html define for scopes that are not
+# The macros templates/turns/_scope_*.html define for scopes that are not
 # declarative, and that turn.html dispatches between. Kept
 # here so a spec naming one that does not exist is reported at load instead
 # of silently rendering as a payload dump — the template's `{% elif %}` chain
@@ -638,7 +638,7 @@ class Scope:
       `Items`, `Each`) resolved against the span and painted by a template
       that knows nothing about this particular tool.
     - `render` — the escape hatch. Names a macro in
-      `templates/prompts/_scope_*.html` which renders the scope by hand,
+      `templates/turns/_scope_*.html` which renders the scope by hand,
       for the
       few whose layout the vocabulary above should not grow to express. Only
       the names in `RENDER_MACROS` exist; a spec naming anything else is

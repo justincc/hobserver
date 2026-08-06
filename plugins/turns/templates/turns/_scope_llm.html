@@ -5,7 +5,7 @@
    its left never takes a leading `·`. The spec vocabulary should not grow a
    concept for that.
 
-   Lives under prompts/ because it renders a row on the Prompts tab. There is
+   Lives under turns/ because it renders a row on the Turns tab. There is
    no llm blueprint, and a top-level templates/llm/ would imply one. #}
 {# An llm call: how it ended, what it said, what it cost. Its tool calls are
    not listed — the spans that ran them are the next rows down, with their
@@ -17,7 +17,7 @@
    to carry `full=`, so it asks by the key `scopes.py` declared: "prompt"
    and "response". Passed in rather than imported so this file stays a
    template that reads no context, like every other macro here. #}
-{% from "prompts/_macros.html" import open_text %}
+{% from "turns/_macros.html" import open_text %}
 {% macro llm_rows(s, full=none) -%}
 {# The calls ride the finish reason that names them — `tool_calls` and then
    what was called — rather than repeating the subject on a row of their own.

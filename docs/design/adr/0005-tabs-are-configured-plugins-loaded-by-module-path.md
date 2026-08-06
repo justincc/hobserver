@@ -51,12 +51,25 @@ app down with it.
 
 **Tabs are declared in a TOML config file, and loaded by module path.**
 
-*(Naming note: the in-tree modules were renamed to `plugins.prompts` and
-`plugins.mem0` right after this ADR, once the module name became something a
-reader meets in the config file. Blueprint names, template directories and
-endpoints moved with them — so `memory.index` and `timing.index` in ADRs 3 and
-4 are now `mem0.index` and `prompts.index`. The mechanism below is unchanged;
-only the example module names below are as they were written.)*
+*(Naming note — the one place the tabs' names are tracked, so that an ADR
+written under an older one need not be rewritten to stay true. Two renames
+have happened since:*
+
+- *right after this ADR, `plugins.timing` and `plugins.memory` became
+  `plugins.prompts` and `plugins.mem0`, once the module name became something
+  a reader meets in the config file;*
+- *on 2026-08-07, the prompts tab became **Turns** — it lists turns, its
+  detail page is one turn, and every other tab is named for what it shows
+  rather than for what a reader typed.*
+
+*Blueprint names, template directories, packages and endpoints moved with the
+label both times. So `memory.index` and `timing.index` in ADRs 3 and 4 are
+`mem0.index` and `turns.index` today, and `/timing/`, `/memory/` and
+`/prompts/` were all earlier URL prefixes that now simply 404. Later ADRs
+have had their file paths, endpoints and URLs updated in place — they are
+navigation, not the decision — while what each ADR decided is left as
+written. The mechanism below is unchanged; the example module names are as
+they were.)*
 
 ```toml
 [[tabs]]

@@ -1,4 +1,4 @@
-{# Shared rendering primitives for the Prompts tab.
+{# Shared rendering primitives for the Turns tab.
 
    `copy_btn`, `item_list` and `diff_rows` are used by the page and by the
    hand-written scope macros alike; `spec_cell` and `spec_rows` paint whatever
@@ -104,7 +104,7 @@
 {% endfor %}
 {%- endmacro %}
 {# One value of a declared scope spec (ADR 7). Everything about how it looks
-   was decided in plugins/prompts/scope_spec.py, which resolved the four axes
+   was decided in plugins/turns/scope_spec.py, which resolved the four axes
    — font, clip, layer, deco — into an element and a class string; this macro
    only writes them out. Nothing here is marked |safe: a spec picks payload
    keys, never markup, so payload text stays auto-escaped. #}

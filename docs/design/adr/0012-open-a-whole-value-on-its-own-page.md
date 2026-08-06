@@ -58,7 +58,7 @@ Five decisions inside that.
 
 **One declaration, referenced from wherever the excerpt appears.** `fulls`
 lives on the `Scope`, so a `Field(full=…)` and a hand-written macro asking
-`scope_full(span, "prompt")` and the route serving `/prompts/span/<uuid>/
+`scope_full(span, "prompt")` and the route serving `/turns/span/<uuid>/
 <key>` all read the same list. The alternative — a `Full` inline on the
 `Field` — would have left the route with nothing to resolve for a `render=`
 scope, and two places to keep in step for every other one. A `Field` naming a
@@ -164,4 +164,4 @@ anyone reading it.
 - [docs/extending/writing-a-scope-spec.md](../../extending/writing-a-scope-spec.md)
   — `Full` in the vocabulary a contributed spec may use
 - [docs/extending/plugins-and-urls.md](../../extending/plugins-and-urls.md) —
-  `/prompts/span/<uuid>/<key>` among this app's URLs
+  `/turns/span/<uuid>/<key>` among this app's URLs

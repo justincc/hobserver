@@ -16,7 +16,7 @@ import json
 
 import pytest
 
-from plugins.prompts.atof_reader import (
+from plugins.turns.atof_reader import (
     OBSERVER_V1,
     RELAY_RUNTIME,
     AtofParseError,

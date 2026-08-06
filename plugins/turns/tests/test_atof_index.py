@@ -13,8 +13,8 @@ import sqlite3
 
 import pytest
 
-from plugins.prompts.assembler import assemble
-from plugins.prompts.atof_index import (HEAD_FINGERPRINT_BYTES,
+from plugins.turns.assembler import assemble
+from plugins.turns.atof_index import (HEAD_FINGERPRINT_BYTES,
                                         PAYLOAD_INLINE_MAX_BYTES, AtofIndex,
                                         default_index_path, hydrate_turn)
 
@@ -199,7 +199,7 @@ def test_a_changed_reader_invalidates_the_derived_fields(index, log,
     and that parser keeps changing while hermes' schema does."""
     write(log, mark("a", 1))
     index.refresh()
-    monkeypatch.setattr("plugins.prompts.atof_index.code_fingerprint",
+    monkeypatch.setattr("plugins.turns.atof_index.code_fingerprint",
                         lambda: "a-different-reader")
     state = index.refresh()
     assert state.action == "rebuilt"

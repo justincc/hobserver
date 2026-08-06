@@ -109,7 +109,7 @@ wrong. `required` decides what happens then:
   tab carries on. Use this when your views cannot render at all without the
   source.
 - **`required: False`** — you stay in service and explain the situation
-  yourself. The Prompts tab does this: a missing ATOF log is expected when
+  yourself. The Turns tab does this: a missing ATOF log is expected when
   hermes has not run with the exporter on, and the page says so with the path
   it tried.
 
@@ -127,7 +127,7 @@ live-poll script and the shared CSS. These are the public surface:
 | no tab bar | `{% block tabbar %}{% endblock %}` — for a page opened in its own tab to read one thing, never for one reached by navigating |
 
 The empty `tabbar` is the one piece of chrome worth turning off, and only in
-the case it exists for: `/prompts/span/<uuid>/<key>` is opened from a span
+the case it exists for: `/turns/span/<uuid>/<key>` is opened from a span
 icon into a new tab, so a row of tabs there offers to navigate away from a
 place the reader never navigated to. Any page a reader *walks* to keeps the
 bar, or they lose their place in the app. The `hermes observer` heading is
@@ -143,7 +143,7 @@ your layout differs from theirs.
 ## Tests
 
 Keep them in your package, `<your_package>/tests/`. The in-tree plugins are
-laid out that way — `plugins/mem0/tests/`, `plugins/prompts/tests/` — and this
+laid out that way — `plugins/mem0/tests/`, `plugins/turns/tests/` — and this
 repo's `pyproject.toml` names both `tests` and `plugins` as test roots, so
 `uv run pytest` collects a plugin's tests without being told about it. The
 root `conftest.py` is on the path from anywhere, so `from conftest import

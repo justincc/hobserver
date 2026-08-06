@@ -3,11 +3,11 @@
 What a span shows, scope by scope.
 
 **Where it is decided** (ADR 7): each scope's rows are declared as data in
-`plugins/prompts/scopes.py`, keyed by the hermes tool's own scope name;
-`plugins/prompts/scope_spec.py` holds the vocabulary those declarations are
-written in; `plugins/prompts/templates/prompts/_macros.html` paints whatever they resolve to
+`plugins/turns/scopes.py`, keyed by the hermes tool's own scope name;
+`plugins/turns/scope_spec.py` holds the vocabulary those declarations are
+written in; `plugins/turns/templates/turns/_macros.html` paints whatever they resolve to
 and knows about no particular tool, and `turn.html` is the page around it.
-The values come from `Span` properties in `plugins/prompts/assembler.py`, or
+The values come from `Span` properties in `plugins/turns/assembler.py`, or
 straight from the payload.
 
 One scope, llm, is not declarative and keeps hand-written Jinja, reached
@@ -164,7 +164,7 @@ grow to absorb.
   part of the spec vocabulary: a declared `Field` cannot ask for it, and the
   hand-written macro is its only user.
 - **The whole of either** — an open-in-a-new-tab icon at the end of both
-  rows, leading to `/prompts/span/<uuid>/prompt` and `…/response`
+  rows, leading to `/turns/span/<uuid>/prompt` and `…/response`
   ([ADR 12](adr/0012-open-a-whole-value-on-its-own-page.md)). The request
   page is every message of `annotated_request` — system instructions, the
   conversation, each tool call and its result — one labelled box per message,
@@ -352,7 +352,7 @@ resolved to nothing, or whose spec raised. A contributed spec that is wrong
 costs its own rows and nothing else — a turn page holds many spans and polls
 every 2 s, so one bad entry must never take the page down.
 
-The rules (`generic_payload_fields` in `plugins/prompts/atof_reader.py`):
+The rules (`generic_payload_fields` in `plugins/turns/atof_reader.py`):
 
 - Keys come in payload order, which is the tool's own argument order.
 - The first three scalars ride the summary line; every key gets a detail row.
@@ -392,7 +392,7 @@ and a scope that seems to need a fifth usually wants `render=` instead:
 | `layer` | `Row` | which layout the row belongs to |
 
 **The values each one takes, and every other parameter, are documented on the
-classes themselves in `plugins/prompts/scope_spec.py`** — that is the
+classes themselves in `plugins/turns/scope_spec.py`** — that is the
 reference, and it is what an editor shows you while you type. This section is
 the shape; the docstrings are the detail.
 
@@ -433,7 +433,7 @@ Two rules the machinery enforces so a spec cannot get them wrong:
 
 ## The one exception
 
-**llm** keeps hand-written Jinja, in `plugins/prompts/templates/prompts/_scope_llm.html`,
+**llm** keeps hand-written Jinja, in `plugins/turns/templates/turns/_scope_llm.html`,
 reached by `render="llm"` in the spec table and dispatched from the turn
 page. Its token tree runs a separator state machine — tracking whether
 anything precedes a row so one with nothing to its left takes no leading `·`
@@ -564,7 +564,7 @@ the row is enough to reach it.
 An update and a delete both show what the memory said *before* the change,
 recovered from the local event log by `memory.prior_memory_text` (ADR 4 covers
 why it is an `app.extensions` accessor rather than a link; `prior_memory` in
-the prompts turn view holds the per-span map). It renders through the same
+the turns turn view holds the per-span map). It renders through the same
 `diff_rows` macro the patch scopes use — an update gets − old / + new, a
 delete only the − side — under a muted `.prov` row naming the source.
 
@@ -663,7 +663,7 @@ Plus, on skill_manage:
   replace text; they never carry a V4A patch text the way the file tools' patch
   scope does in patch mode. The pair matches that scope's *replace* mode
   instead, and both render through the one `diff_rows` macro in
-  `plugins/prompts/templates/prompts/_macros.html`.
+  `plugins/turns/templates/turns/_macros.html`.
 
 The two sides render on their own detail-mode-only rows (`.list-item`), marked
 − and + — glyph first, tint second, never color alone. `new_string` may be the
@@ -726,7 +726,7 @@ span start, in epoch µs) breaks the only tie possible: the same query twice in
 one session.
 
 It is a redirect owned by the mem0 plugin, not a lookup at render time — the
-Prompts tab never opens the event log, and a turn page polling every 2 s costs
+Turns tab never opens the event log, and a turn page polling every 2 s costs
 no queries. Unmatched requests 404 saying so: the two logs are written
 independently, so either can cover a call the other misses.
 

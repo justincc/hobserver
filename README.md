@@ -3,7 +3,7 @@
 A small Flask webapp for observing hermes-agent activity (formerly
 jmem0-logged-browser). Views are plugins, shown as horizontal tabs:
 
-- **Prompts** — per-turn latency waterfalls from the NeMo Relay ATOF
+- **Turns** — per-turn latency waterfalls from the NeMo Relay ATOF
   JSONL stream exported by the hermes-agent `observability/nemo_relay`
   plugin: where each turn's time went (llm vs tool vs overhead), with a
   span timeline per turn. See `docs/adr/` for the design.
@@ -11,7 +11,7 @@ jmem0-logged-browser). Views are plugins, shown as horizontal tabs:
   the hermes-agent mem0 logging wrapper.
 
 Tabs read left to right in the order `plugins.PLUGINS` lists them, and the
-first is where `/` lands. Prompts leads because a turn is the unit of
+first is where `/` lands. Turns leads because a turn is the unit of
 activity — what hermes was asked and everything it did about it, memory
 calls included — while the mem0 log covers one tool. Mem0 is named for the
 provider rather than for memory in general: hermes also keeps its own
@@ -43,7 +43,7 @@ and must never be exposed on `0.0.0.0`.
 
 ```toml
 [[tabs]]
-module = "plugins.prompts"
+module = "plugins.turns"
 
 [[tabs]]
 module = "plugins.mem0"
@@ -68,17 +68,17 @@ stands in.
 
 | tab | setting | env | default |
 | --- | --- | --- | --- |
-| Prompts | `atof_log` | `ATOF_LOG` | `$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl` |
-| Prompts | `index_db` | — | `$XDG_CACHE_HOME/hermes-observer/atof-index-<hash>.sqlite3` |
+| Turns | `atof_log` | `ATOF_LOG` | `$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl` |
+| Turns | `index_db` | — | `$XDG_CACHE_HOME/hermes-observer/atof-index-<hash>.sqlite3` |
 | Mem0 | `db` | `JMEM0_DB` | `$HERMES_HOME/jmem0_logged.db` |
 
-The Prompts source is the events JSONL written by the nemo_relay plugin's ATOF
+The Turns source is the events JSONL written by the nemo_relay plugin's ATOF
 exporter. It is allowed to be absent — hermes may simply not have run with the
 exporter on — and the tab says so, naming the path it tried, rather than
 showing an empty page.
 
 `index_db` is the one path here that is **not** a source. It is a cache of the
-log — the Prompts tab does not hold a multi-gigabyte log in memory, it indexes
+log — the Turns tab does not hold a multi-gigabyte log in memory, it indexes
 where each event sits and reads payloads back as pages need them
 ([ADR 11](docs/design/adr/0011-index-the-atof-log-rather-than-hold-it-in-memory.md)).
 It holds no fact the log does not, so **deleting it is always safe**: the next
@@ -142,7 +142,7 @@ under `memory/` because it is one memory system of several to come: another
 provider, or hermes' own in-prompt stores, would be `/memory/<name>/`, and
 `/memory/` itself is left free to become an index over them.
 
-`/` redirects to the first tab (`/prompts/`). Nothing else is served: a URL
+`/` redirects to the first tab (`/turns/`). Nothing else is served: a URL
 that moves is not redirected from its old address. This is a single-user
 tool, and carrying compatibility routes for one reader costs more in reading
 than it saves in typing — expect a page open across a rename to 404 until it
@@ -159,7 +159,7 @@ is reloaded.
 - `/memory/mem0/event/<id>` — one event, described below.
 - `/memory/mem0/search-event?session=<id>&query=<q>[&ts=<µs>]` — redirects to
   the event page for one `mem0_search` call. This is the handoff from a
-  mem0_search span in the Prompts tab; see
+  mem0_search span in the Turns tab; see
   [docs/design/span-rendering.md](docs/design/span-rendering.md) for how the two logs are
   matched, and why it is a redirect rather than a lookup.
 
@@ -180,17 +180,17 @@ result), then the query, the result and the context messages as plaintext.
   events are excluded — they are not user messages. It approximates the extra
   conversational context mem0 uses during retrieval.
 
-### Prompts tab
+### Turns tab
 
-- `/prompts/` — all turns, newest first: start time, session, a one-line
+- `/turns/` — all turns, newest first: start time, session, a one-line
   prompt snippet (from the turn-start mark's `user_message`; ellipsized so
   long prompts never widen the table, em dash when absent), total / llm /
   tool / overhead durations (overhead is the residual), model-call and span
   counts. In-flight turns are marked. Parse errors and assembly anomalies are
   shown above the table, folded closed and on this page only — never dropped.
   Updates itself every 3 s.
-- `/prompts/turn/<session>/<start_us>` — one turn, described below.
-- `/prompts/span/<span uuid>/<key>` — one whole value of one span, on a page
+- `/turns/turn/<session>/<start_us>` — one turn, described below.
+- `/turns/span/<span uuid>/<key>` — one whole value of one span, on a page
   of its own: an llm call's `request` (every message it was sent, system
   prompt included, one labelled box per message) or its `response`, rendered
   as markdown, with `?raw=1` for the characters underneath. Every label and
@@ -268,7 +268,7 @@ uv run pytest
   contract, [docs/extending/plugins-and-urls.md](docs/extending/plugins-and-urls.md) for how
   plugins reach each other (by link or published accessor, never by opening
   another's data source — ADR 4).
-- `plugins/prompts/` — a package holding the full ATOF reader (ADR 2):
+- `plugins/turns/` — a package holding the full ATOF reader (ADR 2):
   `tailer.py` (incremental read), `atof_reader.py` (JSONL line → typed event,
   fail-soft) and `assembler.py` (events → sessions → turns → waterfall, with
   overhead as the residual of turn duration minus llm and tool time). See

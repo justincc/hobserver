@@ -1,9 +1,9 @@
 # Writing a scope spec
 
-How to make the Prompts tab display a hermes tool it has never heard of.
+How to make the Turns tab display a hermes tool it has never heard of.
 
 A scope spec is a Python module holding a `SCOPES` dict. It can live in this
-repo (`plugins/prompts/scopes.py` is one) or in a package of your own
+repo (`plugins/turns/scopes.py` is one) or in a package of your own
 installed alongside — both load the same way, so displaying your own tools
 needs no fork and no patch carried on top of this tree.
 
@@ -25,7 +25,7 @@ Say hermes has been extended with a `deploy` tool whose payload is
 ```python
 """Scope specs for the acme hermes tools."""
 
-from plugins.prompts.scope_spec import Field, Row, Scope, payload
+from plugins.turns.scope_spec import Field, Row, Scope, payload
 
 DEPLOY = Scope(rows=[
     # The summary line: what was deployed, and where.
@@ -56,7 +56,7 @@ from my_observer_tab.scopes import SCOPES
 ```
 
 `scopes.py` beside your `__init__.py`, holding the table: the same shape as
-`plugins/mem0/` and `plugins/prompts/`, and named for the `SCOPES` it
+`plugins/mem0/` and `plugins/turns/`, and named for the `SCOPES` it
 exports.
 
 Nothing else to configure: enabling your tab brings its spans with it, and
@@ -64,11 +64,11 @@ disabling it takes them away again — which is what stops a span linking to a
 page nobody serves. `plugins/mem0/` is this shape.
 
 **If you have no tab**, just hermes tools to render, name the module in the
-Prompts tab's settings in `observer.toml`:
+Turns tab's settings in `observer.toml`:
 
 ```toml
 [[tabs]]
-module = "plugins.prompts"
+module = "plugins.turns"
 settings = { scope_specs = ["acme_hermes_specs"] }
 ```
 
@@ -92,7 +92,7 @@ of span and a name spec singles one out. Use a category only when the name
 does not identify the scope — an llm span is named for the provider that
 answered it (`anthropic`), which is why that one is a category spec.
 
-**A spec module imports `plugins.prompts.scope_spec`, and nothing else from
+**A spec module imports `plugins.turns.scope_spec`, and nothing else from
 hermes-observer.** That vocabulary is a published surface — one of the few,
 listed in [ADR 8](../design/adr/0008-plugins-may-import-published-host-vocabulary.md) —
 so importing it is the ordinary thing to do, and the names in it change with
@@ -106,13 +106,13 @@ promised to stay put, and reading another plugin's data has its own route:
 ## `render=`, and why it is not for you
 
 `Scope` takes either `rows` or `render`, never both. You will see the second
-in `plugins/prompts/scopes.py`:
+in `plugins/turns/scopes.py`:
 
 ```python
 LLM = Scope(render="llm")
 ```
 
-That names a macro in `plugins/prompts/templates/prompts/_scope_*.html` which renders the
+That names a macro in `plugins/turns/templates/turns/_scope_*.html` which renders the
 scope by hand. Exactly one scope uses it — an llm call, whose token tree runs
 a separator state machine that is not a shape the vocabulary should learn.
 `scope_spec.RENDER_MACROS` is the list of names that exist, and it has one
@@ -187,7 +187,7 @@ page of its own, reached by an open-in-a-new-tab icon at the end of the
 excerpt ([ADR 12](../design/adr/0012-open-a-whole-value-on-its-own-page.md)):
 
 ```python
-from plugins.prompts.scope_spec import Full, const
+from plugins.turns.scope_spec import Full, const
 
 SCOPES = {"deploy": Scope(
     rows=[Row([Field(payload("service")),
@@ -220,7 +220,7 @@ SCOPES = {"deploy": Scope(
   `note` to say where the value came from — required reading if your spec
   reshapes it on the way, since the page must not present a reconstruction as
   something the tool emitted.
-- **The URL is `/prompts/span/<span uuid>/<key>`.** Your key is a URL
+- **The URL is `/turns/span/<span uuid>/<key>`.** Your key is a URL
   segment: lower case, digits, `-` and `_`.
 
 ## Reading the payload, or a property
@@ -280,7 +280,7 @@ directory in your own package — so the tests travel with the thing they test.
 A spec is data, so it resolves without a Flask app or a rendered page:
 
 ```python
-from plugins.prompts.scope_spec import SpecTable, rows_for
+from plugins.turns.scope_spec import SpecTable, rows_for
 from acme_hermes_specs import SCOPES
 
 def test_deploy_leads_with_the_service(make_span):
@@ -291,7 +291,7 @@ def test_deploy_leads_with_the_service(make_span):
     assert rows[0]["cells"][0]["text"] == "api"
 ```
 
-`plugins/prompts/tests/test_scope_spec.py` is a worked set of these, including a
+`plugins/turns/tests/test_scope_spec.py` is a worked set of these, including a
 `make_span` helper you can copy.
 
 ## Checklist

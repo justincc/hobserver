@@ -32,7 +32,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Iterable, List, Optional
 
-from plugins.prompts.atof_reader import (AtofEvent, LineRef,
+from plugins.turns.atof_reader import (AtofEvent, LineRef,
                                          generic_payload_fields)
 
 TURN_START_MARK = "hermes.turn.start"

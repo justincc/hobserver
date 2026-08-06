@@ -5,10 +5,10 @@
    someone reading it would be worse than one that is a moment old.
 
    Nothing here is marked |safe except `rendered.html`, which is the markdown
-   renderer's output with raw HTML disabled — see plugins/prompts/fulltext.py
+   renderer's output with raw HTML disabled — see plugins/turns/fulltext.py
    for why that is the only trusted string on the page. #}
 {% extends "base.html" %}
-{% from "prompts/_macros.html" import copy_btn %}
+{% from "turns/_macros.html" import copy_btn %}
 {% block title %}{{ title }} · {{ span.name }} — hermes observer{% endblock %}
 {# No tab bar. This page is opened from a span, in its own tab, to read one
    thing; a row of tabs offering to navigate away from it is chrome for a
@@ -23,7 +23,7 @@
 <nav class="event-nav">
   <span>
     {%- if turn %}
-    <a href="{{ url_for('prompts.turn', session_id=turn.session_id, start_us=turn.start_us) }}">&larr; back to the turn</a>
+    <a href="{{ url_for('turns.turn', session_id=turn.session_id, start_us=turn.start_us) }}">&larr; back to the turn</a>
     {%- else %}
     <span class="disabled" title="This span landed in no turn — it is reachable by uuid and nowhere else.">&larr; no turn holds this span</span>
     {%- endif %}
@@ -39,9 +39,9 @@
          view: they are how the messages are told apart, not part of any. #}
       {%- if rendered.kind in ("markdown", "sections") %}
       {%- if raw %}
-      <a href="{{ url_for('prompts.span_full', span_uuid=span.uuid, key=full.key) }}" title="Back to the rendered markdown.">rendered</a>
+      <a href="{{ url_for('turns.span_full', span_uuid=span.uuid, key=full.key) }}" title="Back to the rendered markdown.">rendered</a>
       {%- else %}
-      <a href="{{ url_for('prompts.span_full', span_uuid=span.uuid, key=full.key, raw=1) }}" title="The characters underneath, unrendered — the only view whitespace survives.">raw</a>
+      <a href="{{ url_for('turns.span_full', span_uuid=span.uuid, key=full.key, raw=1) }}" title="The characters underneath, unrendered — the only view whitespace survives.">raw</a>
       {%- endif %}
       {%- endif %}
     </span>

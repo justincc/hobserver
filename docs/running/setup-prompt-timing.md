@@ -1,6 +1,6 @@
 # Setting up prompt timing
 
-The Prompts tab reads the ATOF JSONL stream that hermes-agent's bundled
+The Turns tab reads the ATOF JSONL stream that hermes-agent's bundled
 `observability/nemo_relay` plugin exports (see docs/adr/0001 and 0002).
 There are two halves: hermes-agent **produces** the log, hermes-observer
 **consumes** it.
@@ -88,7 +88,7 @@ ATOF_LOG=/home/<you>/.hermes/nemo-relay/atof/hermes-atof.jsonl \
 Startup prints both resolved paths, whether each exists, and which rule
 supplied it — check that first when a tab looks empty.
 
-The Prompts tab lists turns as they land; reload to pick up new
+The Turns tab lists turns as they land; reload to pick up new
 events (the tailer reads only what the exporter appended since the last
 request). The tab distinguishes three failure states loudly — no path
 configured, file missing (naming the path tried), and file present but

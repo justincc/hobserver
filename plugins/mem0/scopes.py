@@ -1,14 +1,14 @@
-"""How mem0's spans show on the Prompts tab (ADR 9, ADR 10).
+"""How mem0's spans show on the Turns tab (ADR 9, ADR 10).
 
 These render on somebody else's page — a turn waterfall — but they are this
 plugin's rendering of this plugin's data, so they live here rather than in
-the Prompts tab's own table. `__init__` exposes them as `SCOPES`, and the
+the Turns tab's own table. `__init__` exposes them as `SCOPES`, and the
 shell hands them to whichever tab paints spans; disable this tab in
 `observer.toml` and they go with it.
 
 Nothing here opens the mem0 store. A `Link` names a page this tab serves and
 `accessor()` calls the lookup this tab published — ADR 4's two shapes, which
-is all a spec is allowed. The vocabulary comes from the Prompts tab because
+is all a spec is allowed. The vocabulary comes from the Turns tab because
 that is what paints the rows (ADR 8: importing a published surface is
 ordinary).
 
@@ -16,7 +16,7 @@ ordinary).
 cross-plugin case.
 """
 
-from plugins.prompts.scope_spec import (Diff, Each, Field, Link, Row, Scope,
+from plugins.turns.scope_spec import (Diff, Each, Field, Link, Row, Scope,
                                         accessor, attr, const, item, payload)
 
 # What the search got back. Only the top hits: whole facts would swamp the

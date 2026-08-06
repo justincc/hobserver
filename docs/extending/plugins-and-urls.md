@@ -53,7 +53,7 @@ re-addressing the tabs cheap.
 
 ```toml
 [[tabs]]
-module = "plugins.prompts"
+module = "plugins.turns"
 settings = { atof_log = "$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl" }
 
 [[tabs]]
@@ -76,7 +76,7 @@ A tab that will not import, is missing part of the contract, declares a
 different `PLUGIN_API`, or reports an unusable **required** source is taken out
 of service: the shell serves a 503 page naming the problem, the tab bar marks
 it, and every other tab carries on. A tab whose source problem is *not* marked
-required stays in service and explains itself — that is how the Prompts tab
+required stays in service and explains itself — that is how the Turns tab
 handles a missing ATOF log.
 
 Two tabs claiming the same `URL_PREFIX` or blueprint name is fatal: the app
@@ -89,10 +89,10 @@ Only an empty tab bar — nothing loaded at all — exits.
 
 | tab | blueprint | URL | source |
 | --- | --- | --- | --- |
-| Prompts | `prompts` | `/prompts/` | NeMo Relay ATOF JSONL |
+| Turns | `turns` | `/turns/` | NeMo Relay ATOF JSONL |
 | Mem0 | `mem0` | `/memory/mem0/` | `jmem0_logged.db` |
 
-Prompts leads because a turn is the unit of activity — memory calls included —
+Turns leads because a turn is the unit of activity — memory calls included —
 where the mem0 log covers one tool.
 
 ## Naming URLs
@@ -101,9 +101,9 @@ Inside a tab, a page is named for the thing it shows:
 
 | URL | shows |
 | --- | --- |
-| `/prompts/` | every turn, newest first |
-| `/prompts/turn/<session>/<start µs>` | one turn's waterfall |
-| `/prompts/span/<span uuid>/<key>` | one whole value of one span — the `key` is a `Full` its scope declared ([ADR 12](../design/adr/0012-open-a-whole-value-on-its-own-page.md)) |
+| `/turns/` | every turn, newest first |
+| `/turns/turn/<session>/<start µs>` | one turn's waterfall |
+| `/turns/span/<span uuid>/<key>` | one whole value of one span — the `key` is a `Full` its scope declared ([ADR 12](../design/adr/0012-open-a-whole-value-on-its-own-page.md)) |
 | `/memory/mem0/search-event` | one logged mem0 search |
 
 A turn is addressed by the pair that identifies it in the assembly; a span by
@@ -122,15 +122,15 @@ a colon in the first segment of a *relative* URL parses as a scheme.
 
 Moving a URL is cheap and stays that way: no redirect from an old address is
 kept, and none should be added. This app has one user, who adapts, so
-compatibility routes are pure reading cost. (`/timing/` and `/memory/` were the
-earlier prefixes; both simply 404 now.)
+compatibility routes are pure reading cost. (`/timing/`, `/memory/` and
+`/prompts/` were all earlier prefixes; every one of them simply 404s now.)
 
 ## Crossing between plugins
 
 Per ADR 4, a plugin may link to another's page, or call an accessor the other
 publishes in `app.extensions`. It never opens another plugin's data source.
 
-Both directions are in use today, mem0 → prompts:
+Both directions are in use today, mem0 → turns:
 
 - `mem0_prior_text` (the accessor) — what a memory said before a change.
 - `/memory/mem0/search-event` (the link) — a mem0_search span to its logged

@@ -20,8 +20,8 @@
 ## Project
 
 hermes-observer (formerly jmem0-logged-browser): a Flask webapp for observing
-hermes-agent activity. Views are plugins shown as horizontal tabs — **Prompts**
-(`/prompts/`, per-turn waterfalls from the NeMo Relay ATOF JSONL) and **Mem0**
+hermes-agent activity. Views are plugins shown as horizontal tabs — **Turns**
+(`/turns/`, per-turn waterfalls from the NeMo Relay ATOF JSONL) and **Mem0**
 (`/memory/mem0/`, the mem0 event log in `jmem0_logged.db`).
 
 Every view is read-only over a log produced by another process. The browser
@@ -62,7 +62,7 @@ and scope-spec authors, and the record of what is published to them.
 - [writing-a-plugin.md](docs/extending/writing-a-plugin.md) — how to add a
   tab, with a whole worked plugin; the contract in full
 - [writing-a-scope-spec.md](docs/extending/writing-a-scope-spec.md) — how to
-  make the Prompts tab display your own hermes tool
+  make the Turns tab display your own hermes tool
 - [plugins-and-urls.md](docs/extending/plugins-and-urls.md) — the plugin
   contract, the config file, what happens when a tab cannot load, URL naming,
   crossing between plugins

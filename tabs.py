@@ -1,11 +1,11 @@
 """Reading the tab configuration and loading the plugins it names.
 
 Per ADR 5: tabs are declared in a TOML file, in tab order, and loaded by
-module path — `plugins.prompts` from this tree and `hermes_observer_zep` from
+module path — `plugins.turns` from this tree and `hermes_observer_zep` from
 site-packages arrive the same way, so a tab needs no fork to be added.
 
     [[tabs]]
-    module = "plugins.prompts"
+    module = "plugins.turns"
     settings = { atof_log = "…" }
 
     [[tabs]]
@@ -37,7 +37,7 @@ DEFAULT_CONFIG_FILE = "observer.toml"
 
 # Used when no config file is found at all, so a fresh checkout runs with no
 # setup. Same two tabs, same order, as the shipped observer.toml.
-BUILTIN_TABS = ({"module": "plugins.prompts"}, {"module": "plugins.mem0"})
+BUILTIN_TABS = ({"module": "plugins.turns"}, {"module": "plugins.mem0"})
 
 # What a module must expose to be a tab: `bp` the Flask blueprint (its name
 # keys the template directory and every url_for), `TAB_LABEL` the text in the

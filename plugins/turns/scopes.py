@@ -18,7 +18,7 @@ alphabet and the exception is marked.
 `docs/design/span-rendering.md` narrates what each of these shows and why.
 """
 
-from plugins.prompts.scope_spec import (Alt, Diff, Each, Field, Full, Items,
+from plugins.turns.scope_spec import (Alt, Diff, Each, Field, Full, Items,
                                         Row, Scope, const, first, item, joined,
                                         mapped)
 
@@ -147,7 +147,7 @@ WEB_SEARCH = Scope(rows=[
 # --- the one that keeps hand-written Jinja ---------------------------
 #
 # `render=` is the escape hatch: instead of declaring rows, the scope names a
-# macro in one of templates/prompts/_scope_*.html that renders it by hand,
+# macro in one of templates/turns/_scope_*.html that renders it by hand,
 # which the turn page dispatches to. Set render or rows, never both. The only names
 # that work are the ones that file defines, listed in
 # scope_spec.RENDER_MACROS — anything else is rejected at load rather than

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% from "_item_nav.html" import item_nav %}
 {% block title %}turn {{ turn.turn_id or turn.start_us }} — hermes observer{% endblock %}
-{% from "prompts/_macros.html" import copy_btn, item_list, diff_rows,
+{% from "turns/_macros.html" import copy_btn, item_list, diff_rows,
      payload_rows, spec_rows %}
-{% from "prompts/_scope_llm.html" import llm_rows %}
+{% from "turns/_scope_llm.html" import llm_rows %}
 {% block content %}
 {# data-live-tail: the waterfall runs in time order, so new spans land at the
    bottom — a reader who is already there is watching the newest work, and the
@@ -16,15 +16,15 @@
    automatic. Inside the live region, so base.html re-resolves it after each
    swap. #}
 {% call item_nav(
-     url_for('prompts.index'), 'all turns',
-     prev_url=url_for('prompts.turn', session_id=older.session_id, start_us=older.start_us) if older else None,
-     next_url=url_for('prompts.turn', session_id=newer.session_id, start_us=newer.start_us) if newer else None,
+     url_for('turns.index'), 'all turns',
+     prev_url=url_for('turns.turn', session_id=older.session_id, start_us=older.start_us) if older else None,
+     next_url=url_for('turns.turn', session_id=newer.session_id, start_us=newer.start_us) if newer else None,
      prev_title=("previous (older) turn" + (" — " + older.user_message | truncate(120) if older.user_message else "")) if older else "no older turn",
      next_title=("next (newer) turn" + (" — " + newer.user_message | truncate(120) if newer.user_message else "")) if newer else "no newer turn") %}
-  {% include "prompts/_follow.html" %}
+  {% include "turns/_follow.html" %}
 {%- endcall %}
 
-{% include "prompts/_inflight.html" %}
+{% include "turns/_inflight.html" %}
 
 <h2>Turn {{ turn.turn_id or '(no id)' }}{% if turn.turn_id %}{{ copy_btn(turn.turn_id, "copy turn id") }}{% endif %} · session {{ turn.session_id }}</h2>
 <p class="meta">started {{ turn.start_us | us_time }} UTC
@@ -117,7 +117,7 @@
         <span class="span-uuid">· {{ s.uuid }}{{ copy_btn(s.uuid, "copy span uuid") }}</span>
         {%- if s.is_open %} · <span class="badge-inflight">open</span>{% endif %}
         {%- if s.failed %} · <span class="badge-error" title="The tool reported an error; its message is below.">failed</span>{% endif %}
-        {# What this scope shows is declared in plugins/prompts/scopes.py and
+        {# What this scope shows is declared in plugins/turns/scopes.py and
            looked up by name (ADR 7). One scope, llm, keeps hand-written Jinja
            and is reached through `render=`; everything else paints its
            declared rows, and anything with no spec — a tool this app has

@@ -5,8 +5,8 @@ prettiness of the output: that markup inside it is never run, and that a
 renderer which is not there degrades the page rather than breaking it.
 """
 
-import plugins.prompts.fulltext as fulltext
-from plugins.prompts.fulltext import render
+import plugins.turns.fulltext as fulltext
+from plugins.turns.fulltext import render
 
 
 def test_markdown_becomes_html():

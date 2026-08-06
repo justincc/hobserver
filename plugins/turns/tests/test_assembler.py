@@ -7,8 +7,8 @@ correlation metadata.
 
 import json
 
-from plugins.prompts.assembler import UNKNOWN_SESSION, assemble
-from plugins.prompts.atof_reader import parse_lines
+from plugins.turns.assembler import UNKNOWN_SESSION, assemble
+from plugins.turns.atof_reader import parse_lines
 
 SESSION_SCOPE_UUID = "scope-s1"
 

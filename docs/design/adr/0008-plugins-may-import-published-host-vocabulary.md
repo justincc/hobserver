@@ -33,7 +33,7 @@ rest rather than removing them.
 
 **And [ADR 7](0007-declare-scope-rendering-as-row-specs.md) needs one.** A
 scope spec is written in a vocabulary — `Field`, `Row`, `Scope`,
-`payload()` — and must import it from `plugins.prompts.scope_spec`. The only
+`payload()` — and must import it from `plugins.turns.scope_spec`. The only
 way to honour ADR 5 literally would be a mini-language of plain dicts: a
 parser to write, a worse thing to read, and no less version-coupled for
 having no import statement in it.
@@ -53,7 +53,7 @@ Published surfaces, changed with the same care as a URL:
 | surface | for |
 | --- | --- |
 | `templates/base.html` — classes, the tab bar, `data-live-poll` | any tab that renders a page |
-| `plugins.prompts.scope_spec` — the spec vocabulary | anyone declaring a scope ([ADR 7](0007-declare-scope-rendering-as-row-specs.md)) |
+| `plugins.turns.scope_spec` — the spec vocabulary | anyone declaring a scope ([ADR 7](0007-declare-scope-rendering-as-row-specs.md)) |
 | the tab contract attributes and hooks | any tab |
 
 Not published, and not to be imported: everything else — `assembler`

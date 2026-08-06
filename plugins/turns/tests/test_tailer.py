@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from plugins.prompts.tailer import (file_size, read_at, read_bytes_at,
+from plugins.turns.tailer import (file_size, read_at, read_bytes_at,
                                     read_lines)
 
 

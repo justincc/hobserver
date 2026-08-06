@@ -65,7 +65,7 @@ def test_event_detail_prev_next_links(client):
 
 
 def test_event_detail_nav_uses_shared_item_nav_layout(client):
-    # Same shape as the prompts turn page: back-to-list and the muted steppers
+    # Same shape as the turns turn page: back-to-list and the muted steppers
     # grouped together on one row (see templates/_item_nav.html).
     page = client.get("/memory/mem0/event/2").get_data(as_text=True)
     nav = page[page.index('<nav class="event-nav">'):]
@@ -197,13 +197,13 @@ def test_gap_text_reads_in_the_right_unit():
 
 
 def test_prior_text_lookup_is_published_for_other_plugins(memory_change_db):
-    # ADR 4: the Prompts tab calls this rather than opening the event log
+    # ADR 4: the Turns tab calls this rather than opening the event log
     app = make_app(db=memory_change_db)
     assert app.extensions["mem0_prior_text"] is mem0.prior_memory_text
 
 
 def test_search_event_redirects_to_the_matching_event(client):
-    # the Prompts tab's mem0_search spans carry no event id, so they are
+    # the Turns tab's mem0_search spans carry no event id, so they are
     # matched back to the log on (session_id, query) — event 4 in the fixture
     resp = client.get("/memory/mem0/search-event?session=sessionabc"
                       "&query=tool+search+terms")

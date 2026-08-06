@@ -79,7 +79,7 @@ def test_settings_reach_the_plugin_untouched(tmp_path):
 def test_settings_expand_user_and_env(tmp_path, monkeypatch):
     monkeypatch.setenv("SOME_DIR", "/srv/data")
     specs = tabs_module.parse_config({"tabs": [
-        {"module": "plugins.prompts", "settings": {"atof_log": "$SOME_DIR/a.jsonl"}}]})
+        {"module": "plugins.turns", "settings": {"atof_log": "$SOME_DIR/a.jsonl"}}]})
     assert specs[0].settings["atof_log"] == "/srv/data/a.jsonl"
 
 
@@ -91,10 +91,10 @@ def test_disabled_tab_is_not_loaded(tmp_path):
 def test_config_order_is_tab_order(memory_db):
     app = make_app(entries=[
         {"module": "plugins.mem0", "settings": {"db": memory_db}},
-        {"module": "plugins.prompts", "settings": {"atof_log": "/nope.jsonl"}},
+        {"module": "plugins.turns", "settings": {"atof_log": "/nope.jsonl"}},
     ])
     page = app.test_client().get("/memory/mem0/").get_data(as_text=True)
-    assert page.index("Mem0") < page.index("Prompts")
+    assert page.index("Mem0") < page.index("Turns")
     # and the first tab is what / lands on
     assert app.test_client().get("/").headers["Location"].endswith("/memory/mem0/")
 
@@ -146,7 +146,7 @@ def test_an_unusable_required_source_takes_the_tab_out_of_service(tmp_path):
 
 
 def test_an_optional_source_problem_leaves_the_tab_serving(tmp_path):
-    # the Prompts tab's case: a missing log is the tab's own story to tell
+    # the Turns tab's case: a missing log is the tab's own story to tell
     name = write_plugin(tmp_path, "relaxed_tab", required="False")
     tab = load([{"module": name, "settings": {"problem": "no such file"}}])[0]
     assert tab.bp is not None
@@ -156,11 +156,11 @@ def test_an_optional_source_problem_leaves_the_tab_serving(tmp_path):
 def test_the_mem0_tab_survives_an_unusable_database(tmp_path):
     # was a process exit before ADR 5; now one tab's problem, not the app's
     app = make_app(entries=[
-        {"module": "plugins.prompts", "settings": {"atof_log": "/nope.jsonl"}},
+        {"module": "plugins.turns", "settings": {"atof_log": "/nope.jsonl"}},
         {"module": "plugins.mem0", "settings": {"db": str(tmp_path)}},
     ])
     client = app.test_client()
-    assert client.get("/prompts/").status_code == 200
+    assert client.get("/turns/").status_code == 200
     unavailable = client.get("/memory/mem0/")
     assert unavailable.status_code == 503
     assert "not a regular file" in unavailable.get_data(as_text=True)
@@ -205,7 +205,7 @@ def test_config_errors_name_the_entry(tmp_path):
 def test_a_missing_config_file_falls_back_to_the_built_in_tabs(tmp_path):
     specs, origin = tabs_module.read_config(str(tmp_path / "absent.toml"))
     assert origin == "built-in defaults"
-    assert [s.module for s in specs] == ["plugins.prompts", "plugins.mem0"]
+    assert [s.module for s in specs] == ["plugins.turns", "plugins.mem0"]
 
 
 def test_a_config_file_is_read_in_order(tmp_path):
@@ -216,13 +216,13 @@ def test_a_config_file_is_read_in_order(tmp_path):
         settings = { db = "/tmp/x.db" }
 
         [[tabs]]
-        module = "plugins.prompts"
+        module = "plugins.turns"
         enabled = false
     """))
     specs, origin = tabs_module.read_config(str(path))
     assert origin == str(path)
     assert [(s.module, s.enabled) for s in specs] == [
-        ("plugins.mem0", True), ("plugins.prompts", False)]
+        ("plugins.mem0", True), ("plugins.turns", False)]
     assert specs[0].settings == {"db": "/tmp/x.db"}
 
 

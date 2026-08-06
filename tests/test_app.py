@@ -3,7 +3,7 @@
 import app as app_module
 import hermes_paths
 import tabs as tabs_module
-from plugins import mem0, prompts
+from plugins import mem0, turns
 
 
 def load(entries):
@@ -15,26 +15,26 @@ def test_root_redirects_to_the_first_tab(client):
     # the leftmost tab is the landing page, so tab order decides this
     resp = client.get("/")
     assert resp.status_code == 302
-    assert resp.headers["Location"].endswith("/prompts/")
+    assert resp.headers["Location"].endswith("/turns/")
 
 
 def test_tab_bar_lists_all_plugins_in_order(client):
     page = client.get("/memory/mem0/").get_data(as_text=True)
-    assert "/prompts/" in page
-    assert page.index("Prompts") < page.index("Mem0")
+    assert "/turns/" in page
+    assert page.index("Turns") < page.index("Mem0")
 
 
 def test_tab_bar_marks_active_tab(client):
     memory_page = client.get("/memory/mem0/").get_data(as_text=True)
     assert '/memory/mem0/" class="active"' in memory_page
-    prompts_page = client.get("/prompts/").get_data(as_text=True)
-    assert '/prompts/" class="active"' in prompts_page
+    turns_page = client.get("/turns/").get_data(as_text=True)
+    assert '/turns/" class="active"' in turns_page
 
 
 def test_a_plugin_is_served_under_its_own_url_prefix(client):
     # URL_PREFIX is independent of the blueprint name, and may be a path
     assert client.get("/memory/mem0/event/1").status_code == 200
-    assert client.get("/prompts/").status_code == 200
+    assert client.get("/turns/").status_code == 200
 
 
 def test_templates_reload_without_restart(client):
@@ -52,7 +52,7 @@ def test_sources_derive_from_hermes_home(monkeypatch):
     monkeypatch.delenv("ATOF_LOG", raising=False)
     assert hermes_paths.hermes_config_dir() == "/srv/hermes/config"
     assert mem0.db_path({})[0] == "/srv/hermes/config/jmem0_logged.db"
-    assert prompts.atof_path({})[0] == \
+    assert turns.atof_path({})[0] == \
         "/srv/hermes/config/nemo-relay/atof/hermes-atof.jsonl"
 
 
@@ -75,27 +75,27 @@ def test_env_vars_override_the_defaults(monkeypatch):
     monkeypatch.setenv("JMEM0_DB", "/tmp/other.db")
     monkeypatch.setenv("ATOF_LOG", "/tmp/other.jsonl")
     assert mem0.db_path({}) == ("/tmp/other.db", "JMEM0_DB")
-    assert prompts.atof_path({}) == ("/tmp/other.jsonl", "ATOF_LOG")
+    assert turns.atof_path({}) == ("/tmp/other.jsonl", "ATOF_LOG")
 
 
 def test_settings_win_over_the_environment(monkeypatch):
     monkeypatch.setenv("JMEM0_DB", "/tmp/env.db")
     monkeypatch.setenv("ATOF_LOG", "/tmp/env.jsonl")
     assert mem0.db_path({"db": "/tmp/set.db"}) == ("/tmp/set.db", "settings")
-    assert prompts.atof_path({"atof_log": "/tmp/set.jsonl"}) == \
+    assert turns.atof_path({"atof_log": "/tmp/set.jsonl"}) == \
         ("/tmp/set.jsonl", "settings")
 
 
 def test_banner_reports_each_tabs_sources(memory_db, tmp_path, monkeypatch):
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
     tabs = load([
-        {"module": "plugins.prompts", "settings": {"atof_log": "/nope/absent.jsonl"}},
+        {"module": "plugins.turns", "settings": {"atof_log": "/nope/absent.jsonl"}},
         {"module": "plugins.mem0", "settings": {"db": memory_db}},
     ])
     banner = app_module.startup_banner(tabs, 5090, "observer.toml")
     assert f"{memory_db}  [ok]" in banner
     assert "/nope/absent.jsonl  [MISSING" in banner   # allowed to be absent
-    assert "Prompts  [ok]" in banner and "Mem0  [ok]" in banner
+    assert "Turns  [ok]" in banner and "Mem0  [ok]" in banner
     assert "/srv/hermes/config" in banner
     assert "observer.toml" in banner
     assert "http://0.0.0.0:5090/" in banner
@@ -126,9 +126,9 @@ def test_banner_does_not_claim_to_listen_when_nothing_loaded():
 
 def test_status_endpoint_reports_traffic(client):
     client.get("/memory/mem0/")
-    client.get("/prompts/")
+    client.get("/turns/")
     body = client.get("/_status").get_data(as_text=True)
-    assert "/memory/mem0/" in body and "/prompts/" in body
+    assert "/memory/mem0/" in body and "/turns/" in body
     assert "200x1" in body
 
 
@@ -168,5 +168,5 @@ def test_status_link_in_the_tab_bar_opens_a_new_tab(client):
 
 
 def test_status_link_is_on_every_page(client):
-    for url in ("/memory/mem0/", "/prompts/"):
+    for url in ("/memory/mem0/", "/turns/"):
         assert 'href="/_status"' in client.get(url).get_data(as_text=True)

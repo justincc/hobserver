@@ -15,7 +15,7 @@ plugin contract. Completes
 [ADR 9](0009-scope-specs-may-link-and-read-published-data.md) made mem0's span
 rendering declarable, so it stopped needing a hand-written macro. It left the
 declarations where the macros had been: in the Prompts tab's own table,
-`plugins/prompts/scopes.py`.
+`plugins/turns/scopes.py`.
 
 That is still the wrong owner. The specs describe mem0's spans, link to mem0's
 pages and call mem0's accessor; the only thing tying them to the Prompts tab
@@ -84,7 +84,7 @@ for the ordinary typo.
 ## Consequences
 
 - **mem0 becomes a package**, `plugins/mem0/__init__.py` plus
-  `plugins/mem0/scopes.py`, matching `plugins/prompts/` file for file. Its rendering now
+  `plugins/mem0/scopes.py`, matching `plugins/turns/` file for file. Its rendering now
   travels with it: lifting the directory into an installed package takes the
   tab, its templates, its accessor and its span rendering together. (The
   templates were still in the app's `templates/mem0/` when this was written,

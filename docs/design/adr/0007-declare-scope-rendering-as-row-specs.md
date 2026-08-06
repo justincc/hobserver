@@ -25,9 +25,9 @@ The turn page renders one row per span. What a given scope shows — on the
 summary line and in the detail view — is currently spread across three
 places:
 
-- **65 `Span` properties** in `plugins/prompts/assembler.py` read the payload
+- **65 `Span` properties** in `plugins/turns/assembler.py` read the payload
   and return `None`/`[]` when a key is absent.
-- **A 278-line `{% if %}/{% elif %}` chain** in `templates/prompts/turn.html`
+- **A 278-line `{% if %}/{% elif %}` chain** in `templates/turns/turn.html`
   (`:175`–`:452`) dispatches on *which property is truthy* and writes the
   markup — 16 branches, ending in the generic payload fallback.
 - **CSS classes in `base.html`** decide which layout a row belongs to:
@@ -106,7 +106,7 @@ loop. Keep a named escape hatch for the branches that are not declarative.**
 Three parts:
 
 **1. The spec is Python data, not an external config file.** A module-level
-table (`plugins/prompts/scope_spec.py`) of dataclass literals, values being
+table (`plugins/turns/scope_spec.py`) of dataclass literals, values being
 property names or callables:
 
 ```python
@@ -183,13 +183,13 @@ ADR 5 already established rather than a new one:
 
 ```toml
 [[tabs]]
-module = "plugins.prompts"
+module = "plugins.turns"
 settings = { scope_specs = ["hermes_observer_acme.specs"] }
 ```
 
 The Prompts plugin imports each named module and merges its `SCOPES` table
 over its own. `settings` is opaque to the shell, the value is an importable
-module path, and `plugins.prompts.specs` and `hermes_observer_acme.specs`
+module path, and `plugins.turns.specs` and `hermes_observer_acme.specs`
 load identically — the same three properties ADR 5 gave `module`. No new
 config concept, and no entry points, for the reason ADR 5 gave: discovery
 would be a second place to look when something does not render.
@@ -265,7 +265,7 @@ comment beside it, and `docs/span-rendering.md` keeps narrating them.
   construction, which is a reason to prefer specs over telling people to
   write a tab.
 - **A spec module imports the vocabulary it is written in**
-  (`plugins.prompts.scope_spec`), where a tab imports nothing. This read as
+  (`plugins.turns.scope_spec`), where a tab imports nothing. This read as
   a break with ADR 5 and prompted
   [ADR 8](0008-plugins-may-import-published-host-vocabulary.md), which found
   the older rule drawn in the wrong place: `scope_spec` is a published

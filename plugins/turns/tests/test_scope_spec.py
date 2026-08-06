@@ -1,6 +1,6 @@
 """Scope specs — the vocabulary, the lookup, override and degradation (ADR 7).
 
-What each scope *shows* is covered by test_prompts.py, which asserts against
+What each scope *shows* is covered by test_turns.py, which asserts against
 the rendered page. These tests cover the machinery underneath it: that a spec
 can read a payload without a Span property, that a contributed table overrides
 this tree's, and that a bad spec degrades to the generic renderer rather than
@@ -12,8 +12,8 @@ import pathlib
 import pytest
 
 from conftest import REPO_ROOT
-from plugins.prompts.assembler import Span
-from plugins.prompts.scope_spec import (FULL_ENDPOINT, FULL_RENDERERS,
+from plugins.turns.assembler import Span
+from plugins.turns.scope_spec import (FULL_ENDPOINT, FULL_RENDERERS,
                                         RENDER_MACROS, Alt, Diff, Each, Field,
                                         Full, Items, Link, Row, Scope,
                                         SpecTable, accessor, attr, check_table,
@@ -21,7 +21,7 @@ from plugins.prompts.scope_spec import (FULL_ENDPOINT, FULL_RENDERERS,
                                         item, joined, mapped, payload,
                                         payload_end, profile, render_macro,
                                         resolve_full, resolve_source, rows_for)
-from plugins.prompts.scopes import SCOPES, SCOPES_BY_CATEGORY
+from plugins.turns.scopes import SCOPES, SCOPES_BY_CATEGORY
 
 
 def make_span(name="acme_widget", category="tool", start=None, end=None,
@@ -417,14 +417,14 @@ def test_a_render_scope_yields_no_rows_and_names_its_macro():
 # --- a tab contributes its own specs (ADR 10) ------------------------
 
 
-def build_app(mem0=True, prompts_settings=None):
+def build_app(mem0=True, turns_settings=None):
     """An app with the real tabs, so the contribution path is exercised end
     to end rather than mocked."""
     import app as app_module
     import tabs as tabs_module
 
-    specs = [tabs_module.TabSpec(module="plugins.prompts",
-                                 settings=prompts_settings or {})]
+    specs = [tabs_module.TabSpec(module="plugins.turns",
+                                 settings=turns_settings or {})]
     if mem0:
         specs.append(tabs_module.TabSpec(module="plugins.mem0"))
     return app_module.create_app(tabs_module.load_tabs(specs))
@@ -432,7 +432,7 @@ def build_app(mem0=True, prompts_settings=None):
 
 def test_the_mem0_tab_contributes_its_own_span_rendering():
     """The specs live in plugins/mem0/scopes.py and arrive because that tab
-    loaded, not because the Prompts tab knows about mem0."""
+    loaded, not because the Turns tab knows about mem0."""
     table = build_app(mem0=True).config["SCOPE_SPECS"]
     for name in ("mem0_search", "mem0_add", "mem0_update", "mem0_delete"):
         assert name in table.by_name, name
@@ -446,7 +446,7 @@ def test_disabling_the_tab_takes_its_specs_with_it():
     assert "terminal" in table.by_name          # the rest is unaffected
 
 
-def test_the_prompts_tab_depends_on_no_other_plugin():
+def test_the_turns_tab_depends_on_no_other_plugin():
     """It reads `app.extensions`; it never imports another plugin or names
     one in code. Prose may still discuss mem0 — the docstrings explain why
     the coupling went — so this looks at imports and at string literals that
@@ -454,7 +454,7 @@ def test_the_prompts_tab_depends_on_no_other_plugin():
     """
     import ast
 
-    source = (REPO_ROOT / "plugins" / "prompts" / "__init__.py").read_text()
+    source = (REPO_ROOT / "plugins" / "turns" / "__init__.py").read_text()
     tree = ast.parse(source)
 
     docstrings = set()
@@ -483,7 +483,7 @@ def test_contributed_specs_are_collected_before_any_tab_registers():
         import app as app_module
         import tabs as tabs_module
         specs = [tabs_module.TabSpec(module="plugins.mem0"),
-                 tabs_module.TabSpec(module="plugins.prompts")]
+                 tabs_module.TabSpec(module="plugins.turns")]
         if not mem0_first:
             specs.reverse()
         app = app_module.create_app(tabs_module.load_tabs(specs))
@@ -519,19 +519,19 @@ def test_every_render_macro_named_is_defined_and_dispatched():
     with no macro renders as a payload dump and says nothing about why; a
     macro with no dispatch arm never runs.
 
-    The macros live in `templates/prompts/_scope_*.html`, one file per
+    The macros live in `templates/turns/_scope_*.html`, one file per
     subject; the dispatch that picks between them is on the turn page. Found
     by glob rather than by filename, so splitting or merging those files is
     not something this test has an opinion about.
     """
-    # Found through the blueprint rather than by path: the Prompts tab carries
+    # Found through the blueprint rather than by path: the Turns tab carries
     # its own templates, and where a plugin keeps them is its business.
-    import plugins.prompts as prompts_tab
+    import plugins.turns as turns_tab
 
-    prompts = (pathlib.Path(prompts_tab.__file__).parent
-               / prompts_tab.bp.template_folder / "prompts")
-    macros = "\n".join(f.read_text() for f in prompts.glob("_scope_*.html"))
-    page = (prompts / "turn.html").read_text()
+    templates = (pathlib.Path(turns_tab.__file__).parent
+                 / turns_tab.bp.template_folder / "turns")
+    macros = "\n".join(f.read_text() for f in templates.glob("_scope_*.html"))
+    page = (templates / "turn.html").read_text()
     assert macros, "no _scope_*.html files found"
     for macro in RENDER_MACROS:
         assert f"macro {macro}_rows(" in macros, f"{macro}: no macro"
@@ -580,10 +580,10 @@ def test_this_trees_own_table_passes_its_own_check():
 
 
 def test_a_bad_render_name_reaches_the_banner(tmp_path, monkeypatch):
-    from plugins.prompts import spec_table
+    from plugins.turns import spec_table
 
     name = write_spec_module(tmp_path, monkeypatch, "badrender_specs", '''
-from plugins.prompts.scope_spec import Scope
+from plugins.turns.scope_spec import Scope
 SCOPES = {"deploy": Scope(render="my_own_macro")}
 ''')
     built, notes = spec_table({"scope_specs": [name]})
@@ -605,10 +605,10 @@ def test_a_contributed_module_extends_the_table_without_a_fork(tmp_path,
                                                                monkeypatch):
     """The whole point (ADR 7 / design-principles §1): a tool this tree has
     never heard of, displayed without editing this tree."""
-    from plugins.prompts import spec_table
+    from plugins.turns import spec_table
 
     name = write_spec_module(tmp_path, monkeypatch, "acme_specs", '''
-from plugins.prompts.scope_spec import Field, Row, Scope, payload
+from plugins.turns.scope_spec import Field, Row, Scope, payload
 SCOPES = {"acme_widget": Scope(rows=[Row([Field(payload("widget"))])])}
 ''')
     built, notes = spec_table({"scope_specs": [name]})
@@ -619,7 +619,7 @@ SCOPES = {"acme_widget": Scope(rows=[Row([Field(payload("widget"))])])}
 
 def test_a_bare_string_setting_is_accepted_as_one_module(tmp_path,
                                                          monkeypatch):
-    from plugins.prompts import spec_modules
+    from plugins.turns import spec_modules
 
     assert spec_modules({"scope_specs": "one.module"}) == ["one.module"]
     assert spec_modules({"scope_specs": ["a", "b"]}) == ["a", "b"]
@@ -627,10 +627,10 @@ def test_a_bare_string_setting_is_accepted_as_one_module(tmp_path,
 
 
 def test_a_contributed_override_is_reported_not_silent(tmp_path, monkeypatch):
-    from plugins.prompts import spec_table
+    from plugins.turns import spec_table
 
     name = write_spec_module(tmp_path, monkeypatch, "override_specs", '''
-from plugins.prompts.scope_spec import Field, Row, Scope, payload
+from plugins.turns.scope_spec import Field, Row, Scope, payload
 SCOPES = {"terminal": Scope(rows=[Row([Field(payload("cmdline"))])])}
 ''')
     built, notes = spec_table({"scope_specs": [name]})
@@ -643,7 +643,7 @@ SCOPES = {"terminal": Scope(rows=[Row([Field(payload("cmdline"))])])}
 def test_a_module_that_cannot_be_imported_is_reported_and_skipped():
     """The tab still serves, on this tree's own specs — a broken contribution
     is not a reason to lose the log (ADR 5's failure model)."""
-    from plugins.prompts import spec_table
+    from plugins.turns import spec_table
 
     built, notes = spec_table({"scope_specs": ["no_such_module_anywhere"]})
     assert notes[0]["problem"].startswith("ModuleNotFoundError")
@@ -651,7 +651,7 @@ def test_a_module_that_cannot_be_imported_is_reported_and_skipped():
 
 
 def test_a_module_with_no_specs_is_reported(tmp_path, monkeypatch):
-    from plugins.prompts import spec_table
+    from plugins.turns import spec_table
 
     name = write_spec_module(tmp_path, monkeypatch, "empty_specs", "X = 1\n")
     _, notes = spec_table({"scope_specs": [name]})
@@ -660,7 +660,7 @@ def test_a_module_with_no_specs_is_reported(tmp_path, monkeypatch):
 
 def test_a_module_whose_table_is_the_wrong_shape_is_reported(tmp_path,
                                                              monkeypatch):
-    from plugins.prompts import spec_table
+    from plugins.turns import spec_table
 
     name = write_spec_module(tmp_path, monkeypatch, "bad_specs",
                              "SCOPES = ['not', 'a', 'dict']\n")
@@ -672,7 +672,7 @@ def test_contributed_modules_appear_in_the_startup_sources(tmp_path,
                                                            monkeypatch):
     """Reported through the same hook as the log itself, so an override or a
     failed import is visible in the banner beside what it renders."""
-    from plugins.prompts import sources
+    from plugins.turns import sources
 
     entries = sources({"atof_log": str(tmp_path / "nope.jsonl"),
                        "index_db": str(tmp_path / "index.sqlite3"),
@@ -705,7 +705,7 @@ def test_every_row_parameter_is_documented_on_the_class():
 def test_the_field_docstring_names_every_value_the_code_accepts():
     """A value the code supports but the docstring omits is undiscoverable;
     one the docstring claims but the code drops silently misleads."""
-    from plugins.prompts.scope_spec import _CLIP_CLS, _DECO_CLS
+    from plugins.turns.scope_spec import _CLIP_CLS, _DECO_CLS
     doc = Field.__doc__
     for deco in _DECO_CLS:
         assert f'"{deco}"' in doc, f"deco {deco}"
@@ -733,7 +733,7 @@ def test_every_class_the_vocabulary_resolves_to_exists_in_base_html():
     """
     import re
 
-    from plugins.prompts.scope_spec import _CLIP_CLS, _DECO_CLS
+    from plugins.turns.scope_spec import _CLIP_CLS, _DECO_CLS
     css = (REPO_ROOT / "templates" / "base.html").read_text()
     css = re.sub(r"\{#.*?#\}", "", css, flags=re.S)     # drop Jinja comments
     named = set(list(_DECO_CLS.values()) + list(_CLIP_CLS.values()))

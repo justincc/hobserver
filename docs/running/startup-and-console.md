@@ -20,8 +20,8 @@ fallback). So nothing has to be configured when `HERMES_HOME` is exported.
 
 | tab | setting | env |
 | --- | --- | --- |
-| Prompts | `atof_log` | `ATOF_LOG` |
-| Prompts | `index_db` | — |
+| Turns | `atof_log` | `ATOF_LOG` |
+| Turns | `index_db` | — |
 | Mem0 | `db` | `JMEM0_DB` |
 
 A plugin reports what it resolved through its `sources` hook, which is what
@@ -29,7 +29,7 @@ the banner prints — the shell knows none of the above.
 
 ## The ATOF index, in the banner
 
-The Prompts tab prints a second line, `ATOF index (cache)`, naming the SQLite
+The Turns tab prints a second line, `ATOF index (cache)`, naming the SQLite
 file it keeps beside nothing —
 [ADR 11](../design/adr/0011-index-the-atof-log-rather-than-hold-it-in-memory.md).
 It is listed with the sources because that is where a reader looks for "which
@@ -60,7 +60,7 @@ request died with a bare `disk I/O error` (EISDIR) that reads like failing
 hardware rather than a wrong path.
 
 The ATOF log is not required in that sense: it is allowed to be missing, and
-the Prompts tab says so itself rather than going out of service.
+the Turns tab says so itself rather than going out of service.
 
 ## The startup banner
 

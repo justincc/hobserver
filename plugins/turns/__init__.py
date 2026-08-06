@@ -1,4 +1,4 @@
-"""The Prompts view (blueprint `prompts`) — per-turn waterfalls from the
+"""The Turns view (blueprint `turns`) — per-turn waterfalls from the
 NeMo Relay ATOF stream.
 
 Reader per docs/design/adr/0002: tailer (byte-offset incremental read) → parser
@@ -24,19 +24,19 @@ from flask import (Blueprint, abort, current_app, render_template, request,
 from werkzeug.routing import BuildError
 
 import hermes_paths
-from plugins.prompts import fulltext
-from plugins.prompts.assembler import assemble
-from plugins.prompts.atof_index import (AtofIndex, default_index_path,
+from plugins.turns import fulltext
+from plugins.turns.assembler import assemble
+from plugins.turns.atof_index import (AtofIndex, default_index_path,
                                         hydrate_span, hydrate_turn)
-from plugins.prompts.scope_spec import (SpecTable, check_table, full_for,
+from plugins.turns.scope_spec import (SpecTable, check_table, full_for,
                                         full_link, render_macro, resolve_full,
                                         resolve_source, rows_for)
-from plugins.prompts.scopes import SCOPES, SCOPES_BY_CATEGORY
+from plugins.turns.scopes import SCOPES, SCOPES_BY_CATEGORY
 
 PLUGIN_API = 1
-bp = Blueprint("prompts", __name__, template_folder="templates")
-TAB_LABEL = "Prompts"
-URL_PREFIX = "prompts"
+bp = Blueprint("turns", __name__, template_folder="templates")
+TAB_LABEL = "Turns"
+URL_PREFIX = "turns"
 
 # An in-flight turn silent this long is probably a lost end mark, not a
 # running prompt: still listed in the strip, but never auto-followed.
@@ -266,7 +266,7 @@ def _source_problem():
     """
     atof_path = current_app.config["ATOF_PATH"]
     if not os.path.exists(atof_path):
-        return render_template("prompts/index.html", state="missing",
+        return render_template("turns/index.html", state="missing",
                                atof_path=atof_path)
     return None
 
@@ -345,7 +345,7 @@ def index():
     last_us = max((s.last_us for s in assembly.sessions
                    if s.last_us is not None), default=None)
     return render_template(
-        "prompts/index.html",
+        "turns/index.html",
         state="ok",
         atof_path=current_app.config["ATOF_PATH"],
         turns=turns,
@@ -400,7 +400,7 @@ def turn(session_id, start_us):
     table = _spec_table()
     accessors = _accessors()
     return render_template(
-        "prompts/turn.html",
+        "turns/turn.html",
         turn=found,
         current=found,
         scale_us=scale_us,
@@ -473,7 +473,7 @@ def span_full(span_uuid, key):
     accessors = _accessors()
     rendered = fulltext.render(resolve_full(span, full, accessors), full.render)
     return render_template(
-        "prompts/full.html",
+        "turns/full.html",
         span=span,
         turn=turn,
         full=full,

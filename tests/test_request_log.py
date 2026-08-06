@@ -19,16 +19,16 @@ def access_record(path, code=200, method="GET"):
 def test_successful_responses_are_dropped():
     f = SuppressSuccessFilter()
     # every 2xx/3xx is silent, on any path — polled or not, first hit or not
-    for path in ("/prompts/", "/memory/mem0/", STATUS_PATH):
+    for path in ("/turns/", "/memory/mem0/", STATUS_PATH):
         assert all(f.filter(access_record(path)) is False for _ in range(5))
-    assert f.filter(access_record("/prompts/", code=302)) is False
+    assert f.filter(access_record("/turns/", code=302)) is False
 
 
 def test_errors_are_never_suppressed():
     f = SuppressSuccessFilter()
     # the failures a silenced log must never hide
-    assert f.filter(access_record("/prompts/", code=500)) is True
-    assert f.filter(access_record("/prompts/", code=404)) is True
+    assert f.filter(access_record("/turns/", code=500)) is True
+    assert f.filter(access_record("/turns/", code=404)) is True
 
 
 def test_non_access_records_pass_through():
@@ -41,13 +41,13 @@ def test_non_access_records_pass_through():
 def test_stats_count_paths_and_statuses():
     ticks = iter([100.0, 101.0, 102.0, 103.0, 110.0, 110.0, 110.0, 110.0])
     stats = RequestStats(clock=lambda: next(ticks))
-    stats.record("/prompts/", 200)
-    stats.record("/prompts/", 200)
-    stats.record("/prompts/", 500)
+    stats.record("/turns/", 200)
+    stats.record("/turns/", 200)
+    stats.record("/turns/", 500)
     snap = stats.snapshot()
     assert snap["total"] == 3
     entry = snap["paths"][0]
-    assert entry["path"] == "/prompts/"
+    assert entry["path"] == "/turns/"
     assert entry["count"] == 3
     assert entry["statuses"] == {200: 2, 500: 1}
 
@@ -55,9 +55,9 @@ def test_stats_count_paths_and_statuses():
 def test_status_text_reports_counts_and_staleness():
     ticks = iter([0.0, 1.0, 200.0, 200.0, 200.0])
     stats = RequestStats(clock=lambda: next(ticks))
-    stats.record("/prompts/", 200)
+    stats.record("/turns/", 200)
     text = format_status(stats.snapshot())
-    assert "/prompts/" in text and "200x1" in text
+    assert "/turns/" in text and "200x1" in text
     # a stale "last" is how a stopped browser shows up
     assert "ago" in text
     assert "uptime" in text

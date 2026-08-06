@@ -1,6 +1,6 @@
 # The ATOF reader
 
-Four layers in `plugins/prompts/`, per ADR 2 (the JSONL is the source of
+Four layers in `plugins/turns/`, per ADR 2 (the JSONL is the source of
 truth) and ADR 11 (a rebuildable index of it, so the log need not fit in
 memory).
 
@@ -56,7 +56,7 @@ milliseconds apart.
 **So the dial is read per event, never per file**, and neither exporter can
 be assumed absent because a sample window did not happen to contain it.
 
-What actually broke the Prompts tab on 2026-08-03 was not the marks
+What actually broke the Turns tab on 2026-08-03 was not the marks
 stopping — they never stopped. It was that **spans lost their
 `session_id`**: tool spans kept a `turn_id` that still matched the marks,
 but with no session to look it up in they fell to `(unknown session)`,

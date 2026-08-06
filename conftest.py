@@ -23,7 +23,7 @@ def make_app(db=None, atof=None, entries=None):
     # that does not care about a source would silently read live data.
     if entries is None:
         entries = [
-            {"module": "plugins.prompts",
+            {"module": "plugins.turns",
              "settings": {"atof_log": atof or "/nonexistent/atof.jsonl"}},
             {"module": "plugins.mem0",
              "settings": {"db": db or "/nonexistent/events.db"}},

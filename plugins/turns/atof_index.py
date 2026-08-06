@@ -35,15 +35,15 @@ import time
 from contextlib import contextmanager
 from typing import Any, Dict, List, Optional, Tuple
 
-from plugins.prompts import assembler as _assembler
-from plugins.prompts import atof_reader as _atof_reader
-from plugins.prompts.assembler import (AGENT_CATEGORY, LLM_CATEGORY,
+from plugins.turns import assembler as _assembler
+from plugins.turns import atof_reader as _atof_reader
+from plugins.turns.assembler import (AGENT_CATEGORY, LLM_CATEGORY,
                                        TURN_START_MARK,
                                        request_prompt_from_profile,
                                        user_message_from_data)
-from plugins.prompts.atof_reader import (AtofEvent, AtofParseError, LineRef,
+from plugins.turns.atof_reader import (AtofEvent, AtofParseError, LineRef,
                                          ParseError, parse_line)
-from plugins.prompts.tailer import (file_size, read_at, read_bytes_at,
+from plugins.turns.tailer import (file_size, read_at, read_bytes_at,
                                     read_lines)
 
 # Bump when the stored *shape* changes. The code fingerprint below catches
