@@ -245,9 +245,17 @@ class AtofIndex:
         self.db_path = db_path
         self.state = IndexState()
         self._lock = threading.Lock()
-        self._ensure_dir()
 
     def _ensure_dir(self) -> None:
+        """Make the cache directory, on every open rather than at startup.
+
+        Deleting the index is a supported thing to do — it is a cache, and
+        the documentation says so — and people delete the directory, not the
+        file. Doing this once in `__init__` meant a live app whose cache
+        directory had been removed under it raised `unable to open database
+        file` on every subsequent request, having told the reader deleting it
+        was safe.
+        """
         directory = os.path.dirname(self.db_path)
         if directory:
             os.makedirs(directory, exist_ok=True)
@@ -260,6 +268,7 @@ class AtofIndex:
         shareable across threads; opening one per operation is simpler than
         a pool and costs microseconds against work measured in seconds.
         """
+        self._ensure_dir()
         conn = sqlite3.connect(self.db_path)
         try:
             conn.row_factory = sqlite3.Row

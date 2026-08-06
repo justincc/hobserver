@@ -239,6 +239,22 @@ def test_deleting_the_index_costs_a_rebuild_and_nothing_else(tmp_path, log):
     assert [e.uuid for e in second.events()] == expected
 
 
+def test_deleting_the_cache_directory_under_a_live_index_is_survivable(
+        tmp_path, log):
+    """People delete the directory, not the file — the docs tell them it is
+    safe — and an app already running had made it once at startup."""
+    import shutil
+
+    cache = tmp_path / "cache"
+    index = AtofIndex(str(log), str(cache / "index.sqlite3"))
+    write(log, mark("a", 1), mark("b", 2))
+    index.refresh()
+
+    shutil.rmtree(cache)
+    assert index.refresh().action == "rebuilt"
+    assert [e.uuid for e in index.events()] == ["a", "b"]
+
+
 # --- what is stored, and what is left in the log --------------------------
 
 def test_a_small_payload_is_kept_whole(index, log):
