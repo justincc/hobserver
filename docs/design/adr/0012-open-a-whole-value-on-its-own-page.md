@@ -47,7 +47,7 @@ excerpt.**
 
     Scope(render="llm", fulls=[
         Full(key="request", source="llm_request_messages", render="sections",
-             title=const("Request"), note=const("…")),
+             title=const("Prompt"), note=const("…")),
         Full(key="response", source="llm_response_text", render="markdown",
              title=const("Response"), note=const("…")),
     ])

@@ -176,8 +176,13 @@ WEB_SEARCH = Scope(rows=[
 # since the turn header shows the turn's user message and an auxiliary call
 # does not have one.
 LLM = Scope(render="llm", fulls=[
+    # Titled "Prompt", not "Request", to match the row whose icon opens it —
+    # and because the whole of what a call was sent is what "prompt" means
+    # everywhere else in the payload (`prompt_tokens`, `prompt_cache_key`).
+    # The key stays `request`, since that is `annotated_request` and the URL
+    # segment; the title is what a reader sees.
     Full(key="request", source="llm_request_messages", render="sections",
-         title=const("Request"),
+         title=const("Prompt"),
          note=const("Every message of this call's annotated_request, in the "
                     "order sent. The labels are this app's; everything "
                     "inside a box is what went on the wire.")),

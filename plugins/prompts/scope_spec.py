@@ -246,9 +246,9 @@ class Full:
              the payload in the log, so it may be large; that is the point.
              For `render="sections"` it resolves to `[{"label", "text"}]`.
     render   "markdown", "text" or "sections" (see FULL_RENDERERS).
-    title    what this value is, as a heading — `const("Request")`. It is
+    title    what this value is, as a heading — `const("Prompt")`. It is
              the page's own heading and the start of the icon's tooltip
-             ("Request — open in a new tab"), so write it as a name, not as
+             ("Prompt — open in a new tab"), so write it as a name, not as
              a phrase: it has to read as a title above the value and as the
              subject of a sentence beside the icon. A source, like every
              other field here.

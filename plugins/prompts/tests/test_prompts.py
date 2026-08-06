@@ -2042,7 +2042,7 @@ def test_the_pages_own_words_are_boxed_apart_from_the_value(tmp_path):
     head = re.search(r'<header class="full-head">.*?</header>', page, re.S)
     assert head, "the header panel is missing"
     head = head.group(0)
-    assert "<h2>Request</h2>" in head            # the heading
+    assert "<h2>Prompt</h2>" in head             # the heading
     assert "openai-codex" in head                # the facts
     assert "annotated_request" in head           # the provenance
     # and nothing of ours loose between the panel and the first message box

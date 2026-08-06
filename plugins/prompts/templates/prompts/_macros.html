@@ -22,7 +22,7 @@
 {% macro open_btn(full) -%}
 {%- set href = spec_link(full.endpoint, full.params) %}
 {%- if href %}
-{#- "Request — open in a new tab", so the title reads as the name of the thing
+{#- "Prompt — open in a new tab", so the title reads as the name of the thing
     and the wording stays right whatever a scope called it. #}
 {%- set label = (full.title or "The whole value") + " — open in a new tab" %}
 <a class="open-btn" href="{{ href }}" target="_blank" rel="noopener" title="{{ label }}" aria-label="{{ label }}">{{ open_icon() }}</a>
