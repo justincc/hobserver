@@ -18,8 +18,9 @@ alphabet and the exception is marked.
 `docs/design/span-rendering.md` narrates what each of these shows and why.
 """
 
-from plugins.prompts.scope_spec import (Alt, Diff, Each, Field, Items, Row,
-                                        Scope, first, item, joined, mapped)
+from plugins.prompts.scope_spec import (Alt, Diff, Each, Field, Full, Items,
+                                        Row, Scope, const, first, item, joined,
+                                        mapped)
 
 
 def tilde(path):
@@ -164,7 +165,27 @@ WEB_SEARCH = Scope(rows=[
 # exception now would mean the same question is worth asking again; a test
 # fails when this set changes, so it cannot drift by accident.
 
-LLM = Scope(render="llm")
+# The two full values (ADR 12) are declared here rather than in the macro
+# that draws their icons: the route serving the page reads this list, so a
+# key exists in both places or in neither.
+#
+# Both are on the llm scope by *category*, so every model call has them
+# whatever it was for — a turn's own prompt, a compaction, a subagent's
+# delegated call. That is the point of them: before this, hermes' background
+# work was the one kind of call whose prompt appeared nowhere on the page,
+# since the turn header shows the turn's user message and an auxiliary call
+# does not have one.
+LLM = Scope(render="llm", fulls=[
+    Full(key="request", source="llm_request_messages", render="sections",
+         title=const("Request"),
+         note=const("Every message of this call's annotated_request, in the "
+                    "order sent. The labels are this app's; everything "
+                    "inside a box is what went on the wire.")),
+    Full(key="response", source="llm_response_text", render="markdown",
+         title=const("Response"),
+         note=const("The assistant message from this call's end payload, "
+                    "verbatim.")),
+])
 
 
 # An llm span is named for the provider that answered it ("anthropic"), not

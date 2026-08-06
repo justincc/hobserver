@@ -1526,3 +1526,168 @@ def test_a_retried_call_says_which_attempt_answered():
 def test_retry_count_type_guards_an_odd_payload():
     assert span_with({"retry_count": "2"}).retry_count is None
     assert span_with({"retry_count": True}).retry_count is None
+
+
+# --- a whole request and a whole response (ADR 12) ------------------------
+#
+# The five kinds of message in `annotated_request` come from the relay's
+# annotator, not from hermes, so there is no tool signature to check them
+# against (design principle 3) — these fixtures are the shapes the log
+# holds, and everything here is written to survive shapes it does not.
+
+def llm_span(profile=None, end_data=None):
+    """One llm span, straight from a scope pair, for the payload readers."""
+    lines = scope_lines("L1", "llm", 1_000, 2_000, name="openai-codex",
+                        session="s1", turn="t1", profile=profile,
+                        end_data=end_data)
+    assembly = assemble_lines([
+        mark_line("hermes.turn.start", 500, session="s1", turn="t1"),
+        *lines,
+        mark_line("hermes.turn.end", 3_000, session="s1", turn="t1")])
+    span, = assembly.sessions[0].turns[0].spans
+    return span
+
+
+def labels(span):
+    return [s["label"] for s in span.llm_request_messages]
+
+
+def bodies(span):
+    return [s["text"] for s in span.llm_request_messages]
+
+
+def test_a_whole_request_keeps_every_message_in_the_order_sent():
+    span = llm_span(profile={"annotated_request": {"messages": [
+        {"role": "user", "content": "first"},
+        {"role": "assistant", "content": "second"},
+        {"role": "user", "content": "third"}]}})
+    assert labels(span) == ["user", "assistant", "user"]
+    assert bodies(span) == ["first", "second", "third"]
+
+
+def test_a_whole_request_leads_with_the_system_instructions():
+    """`instructions` is the system prompt on the openai_responses path and
+    sits beside `messages` rather than inside it, so a reader who only knew
+    about `messages` would never see it."""
+    span = llm_span(profile={"annotated_request": {
+        "instructions": "You are Hermes Agent.",
+        "messages": [{"role": "user", "content": "hello"}]}})
+    assert labels(span) == ["instructions", "user"]
+    assert bodies(span) == ["You are Hermes Agent.", "hello"]
+
+
+def test_a_label_is_never_written_into_the_message_it_labels():
+    """The whole reason this is a list of sections: a `## user` written into
+    the markdown is one more heading among the model's own — a system prompt
+    has a dozen — and a reader cannot tell whose words are whose."""
+    span = llm_span(profile={"annotated_request": {"messages": [
+        {"role": "user", "content": "## My own heading\n\ntext"}]}})
+    section, = span.llm_request_messages
+    assert section["label"] == "user"
+    assert section["text"] == "## My own heading\n\ntext"   # untouched
+
+
+def test_a_tool_call_names_the_tool_in_its_label():
+    """A call and its result are otherwise two identical labels with the
+    interesting part inside the fence."""
+    span = llm_span(profile={"annotated_request": {"messages": [
+        {"role": "tool_call", "name": "read_file", "call_id": "c1",
+         "arguments": '{"path": "/tmp/x"}'},
+        {"role": "tool_result", "call_id": "c1", "output": "file contents"}]}})
+    assert labels(span) == ["tool_call · read_file", "tool_result"]
+    assert '{"path": "/tmp/x"}' in bodies(span)[0]
+    assert bodies(span)[1] == "file contents"
+
+
+def test_a_provider_native_message_is_named_by_its_kind():
+    span = llm_span(profile={"annotated_request": {"messages": [
+        {"role": "provider_native", "kind": "reasoning", "provider": "openai",
+         "value": {"summary": []}}]}})
+    assert labels(span) == ["provider_native · reasoning"]
+
+
+def test_a_structured_message_body_is_fenced_json_not_a_python_repr():
+    span = llm_span(profile={"annotated_request": {"messages": [
+        {"role": "provider_native", "value": {"a": 1}}]}})
+    body, = bodies(span)
+    assert '"a": 1' in body and "'a'" not in body
+    assert "```json" in body
+
+
+def test_a_fence_survives_a_body_that_contains_one():
+    """Tool results are routinely markdown with their own fences; a
+    three-backtick fence around one ends at the first of them."""
+    span = llm_span(profile={"annotated_request": {"messages": [
+        {"role": "provider_native", "value": {"md": "```\ncode\n```"}}]}})
+    assert "````json" in bodies(span)[0]      # longer than anything inside it
+
+
+def test_a_message_shape_this_app_has_never_seen_is_kept_whole():
+    """Nothing is dropped for being unrecognized: the point of the page this
+    feeds is that it holds everything."""
+    span = llm_span(profile={"annotated_request": {"messages": [
+        {"role": "future_thing", "surprising_key": {"deep": "value"}}]}})
+    assert labels(span) == ["future_thing"]
+    assert "surprising_key" in bodies(span)[0] and "deep" in bodies(span)[0]
+
+
+def test_a_message_that_is_not_a_dict_keeps_a_section_of_its_own():
+    span = llm_span(profile={"annotated_request": {
+        "messages": ["just a string", 42]}})
+    assert labels(span) == ["(unreadable)", "(unreadable)"]
+    assert "just a string" in bodies(span)[0]
+    assert "42" in bodies(span)[1]
+
+
+def test_a_request_that_is_not_there_reads_as_nothing():
+    for profile in (None, {}, {"annotated_request": "not a dict"},
+                    {"annotated_request": {"messages": "not a list"}}):
+        assert llm_span(profile=profile).llm_request_messages is None
+
+
+def test_a_whole_response_is_the_string_the_excerpt_started():
+    """An excerpt that is not a prefix of what its link opens would be a
+    quiet lie, so both read the same key of the same payload."""
+    text = "The answer is 42. " * 40
+    span = llm_span(end_data={"assistant_message": {"role": "assistant",
+                                                    "content": text}})
+    assert span.llm_response_text == text
+    assert span.llm_text["text"] == text[:400]
+    assert span.llm_response_text.startswith(span.llm_text["text"])
+
+
+def test_a_response_with_no_text_reads_as_nothing():
+    """A call that only asked for tools said nothing, so there is no whole
+    response to open — and no icon offering one."""
+    for end in (None, {}, {"assistant_message": {"content": ""}},
+                {"assistant_message": {"content": ["not", "a", "string"]}}):
+        assert llm_span(end_data=end).llm_response_text is None
+
+
+def test_the_asked_excerpt_never_carries_the_whole_prompt():
+    """A compaction's instruction is 26 KB. None of it belongs on a row —
+    not in the text and not in a title attribute, which would ride every
+    2 s poll of a live turn."""
+    prompt = "summarise this. " * 4000
+    span = llm_span(profile={"annotated_request": {
+        "messages": [{"role": "user", "content": prompt}]}})
+    excerpt = span.request_prompt_excerpt
+    assert len(excerpt["text"]) == 400
+    assert excerpt["truncated"] is True
+    assert prompt.strip() not in str(excerpt)      # none of the rest of it
+
+
+def test_the_two_excerpts_on_a_span_row_cut_at_the_same_place():
+    """They sit on adjacent rows; two different cuts would read as a
+    difference in the values rather than in the code."""
+    long = "x" * 5000
+    span = llm_span(
+        profile={"annotated_request": {
+            "messages": [{"role": "user", "content": long}]}},
+        end_data={"assistant_message": {"content": long}})
+    assert (len(span.request_prompt_excerpt["text"])
+            == len(span.llm_text["text"]))
+
+
+def test_a_call_with_no_request_has_no_asked_excerpt():
+    assert llm_span(profile={}).request_prompt_excerpt is None

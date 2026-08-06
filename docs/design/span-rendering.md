@@ -125,11 +125,66 @@ grow to absorb.
   when there are calls but no reason, so those are never lost. A call with
   no matching span below is still possible; it is treated as an error, not a
   case this page detects.
-- **What the model said** — `assistant_message.content`, detail-only. Empty
-  whenever the model was calling tools rather than talking, and long enough
-  otherwise that the row shows the first 400 characters
-  (`LLM_TEXT_PREVIEW_CHARS`) and then says how many there were —
-  `start of 2,579 chars`.
+- **What the call was asked** — `prompt`, detail-only, the first 400
+  characters of `request_prompt`: the last user message of *this call's own*
+  request, with hermes' wrappers off. `prompt` is this app's word — no
+  payload key names this value, and the value is a reconstruction rather
+  than the wire text, so the label is ours for the same reason the value is
+  (the tooltip says as much). `response` below takes the log's own word
+  because that one is verbatim.
+
+  The token tree further down carries a `prompt` row as well, counting the
+  whole request where this one shows its last message. The word means the
+  same thing in both — what the model was sent — and the rows are different
+  kinds: the token one is a `.mode-tag` indented under `tokens`, and always
+  has a figure on it. For a turn's ordinary call that is the
+  prompt already at the top of the page; for every other kind it is the only
+  place the instruction appears at all. A compaction's is hermes talking to
+  itself (*"You are a summarization agent creating a context
+  checkpoint…"*), and before this row there was nowhere on the site to read
+  it.
+- **What the model said** — `response`, detail-only, from
+  `assistant_message.content`. Empty whenever the model was calling tools
+  rather than talking, and long enough otherwise that the row shows the
+  first 400 characters (`LLM_TEXT_PREVIEW_CHARS`) and an ellipsis. There
+  used to be a `start of 2,579 chars` note under it, from when the rest of
+  the message lived in the log and nowhere else; the ellipsis says there is
+  more and the text itself opens it, so the figure was one nobody acted on.
+
+  It carries a key for the same reason `prompt` and `tokens` do: prose
+  starting mid-row with nothing in front of it has to be identified before
+  it can be read. `response` is the log's own word — `annotated_response` on
+  the end event, whose `message` is this same text — and the name of the
+  page its icon opens.
+
+  Both keys carry `.key-col`, which reserves one column so the two
+  paragraphs start at the same edge — they are read side by side, and a
+  ragged left edge is what makes that hard. The width is in `ch` and the key
+  is monospace, so it is exactly the longer label plus a space. It is not
+  part of the spec vocabulary: a declared `Field` cannot ask for it, and the
+  hand-written macro is its only user.
+- **The whole of either** — an open-in-a-new-tab icon at the end of both
+  rows, leading to `/prompts/span/<uuid>/request` and `…/response`
+  ([ADR 12](adr/0012-open-a-whole-value-on-its-own-page.md)). The request
+  page is every message of `annotated_request` — system instructions, the
+  conversation, each tool call and its result — one labelled box per message,
+  where the label is this app's and the box holds nothing but what went on
+  the wire; the response page is the assistant message whole. Both are declared as
+  `Full`s on the llm scope, which is keyed by *category*, so a compaction, a
+  delegated subagent call and a fallback retry each carry the same pair.
+
+  The icon does not wait for a value to be truncated: a reader cannot see
+  that a value fits, only that it ends. The response icon is absent only
+  when the model said nothing at all, since then there is nothing behind it.
+
+  On these two rows the **whole excerpt is the link**, not just the glyph —
+  clicking anywhere on the text opens it. The key beside it stays outside
+  the anchor: it names the row, it is not a way into it. The text keeps the
+  row's own colour rather than a link's, since a paragraph of someone's
+  prompt in link blue would read as something quoted from elsewhere; the
+  hover shade and the glyph are what say it is a link. A declared `Field`
+  with `full=` still gets the glyph alone, because its value may carry a
+  copy button and an anchor holding a button is not markup worth writing.
 - **Tokens** — `usage`, as a tree (`TOKEN_TREE`), one row per count. In the
   detail layout:
 
@@ -304,7 +359,11 @@ The rules (`generic_payload_fields` in `plugins/prompts/atof_reader.py`):
 - A value over 2 KB is named and measured — `conversation_history: list, 412
   items (7.3 MB)` — never printed. Payloads reach megabytes (a turn mark
   carries the whole conversation history), and a live turn page refetches
-  itself every 2 s.
+  itself every 2 s. A scope with a spec can put such a value behind a `Full`
+  instead (below); the generic fallback deliberately does not, since that
+  would mean addressing a value by payload key rather than by a name its
+  scope declared — see
+  [ADR 12](adr/0012-open-a-whole-value-on-its-own-page.md).
 - Correlation plumbing is skipped (`session_id`, `turn_id`, `tool_call_id`,
   `telemetry_schema_version`, …): it is already on the row or of no interest.
 - So is anything whose key looks like a credential (`headers`,
@@ -347,6 +406,22 @@ Row kinds: `Row` (fields on a line), `Diff` (a − / + pair), `Items` (a list as
 first-plus-count then one row each), `Each` (rows repeated per list entry,
 with `item("key")` reading the entry and `Row(when_many=True)` holding back a
 label a lone entry does not need). `Alt` picks the first field that resolves.
+
+A scope may also declare the **complete values** behind its excerpts, each of
+which becomes a page of its own
+([ADR 12](adr/0012-open-a-whole-value-on-its-own-page.md)):
+
+```python
+Scope(rows=[Row([Field(payload("output"), full="output")])],
+      fulls=[Full(key="output", source=payload("output"), render="markdown",
+                  title=const("the whole output"))])
+```
+
+`fulls` is declared on the `Scope` and named by key from wherever the excerpt
+appears — a `Field(full=…)`, or by hand from a `render=` macro. One
+declaration, because the icon and the route that serves it have to agree; a
+`Field` naming a key that is not declared is reported at load. The icon is
+drawn whether or not the excerpt was cut short.
 
 Two rules the machinery enforces so a spec cannot get them wrong:
 

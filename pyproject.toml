@@ -5,7 +5,16 @@ description = "Web UI for observing hermes-agent: mem0 event logs and prompt tim
 # 3.11 for tomllib: the tab configuration is TOML (ADR 5) and reading it
 # should not need a dependency.
 requires-python = ">=3.11"
-dependencies = ["flask>=3.0"]
+dependencies = [
+    "flask>=3.0",
+    # The full-value page renders a prompt or an answer as the markdown it is
+    # (ADR 12). Pure Python, no dependencies of its own, and used with raw
+    # HTML disabled — see plugins/prompts/fulltext.py, which also degrades to
+    # plain text if it is not importable. The bar for a third dependency is
+    # this one: something this tree should not hand-roll, behind a
+    # degradation path.
+    "markdown-it-py>=3",
+]
 
 [dependency-groups]
 dev = ["pytest>=8"]

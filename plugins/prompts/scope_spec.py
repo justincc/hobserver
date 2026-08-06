@@ -41,6 +41,18 @@ def payload_end(key: str):
     return ("payload_end", key)
 
 
+def profile(key: str):
+    """A key in the span's category profile.
+
+    Where an llm span keeps its request and its response — the two biggest
+    values in the log, and the ones a `Full` is usually opened to see. They
+    are in neither payload, so without this a scope from outside this tree
+    could declare a full view of them only by going through a `Span`
+    property it cannot add (the fork test, design principle 1).
+    """
+    return ("profile", key)
+
+
 def item(key: Optional[str] = None):
     """A key of the current item inside an `Each`; the item itself if None."""
     return ("item", key)
@@ -105,6 +117,10 @@ def _resolve(source, span, ctx):
             return _payload_key(span, "start_data", source[1])
         if kind == "payload_end":
             return _payload_key(span, "end_data", source[1])
+        if kind == "profile":
+            profile_data = getattr(span, "category_profile", None)
+            return (profile_data.get(source[1])
+                    if isinstance(profile_data, dict) else None)
         if kind == "item":
             current = ctx.get("item")
             if source[1] is None:
@@ -186,6 +202,87 @@ def _payload_key(span, which: str, key: str):
     return data.get(key)
 
 
+# --- the whole value, on its own page --------------------------------
+#
+# A row shows an excerpt; a `Full` says where the rest of it is. ADR 12.
+
+# How a full value is rendered on its own page. "markdown" for prose a model
+# wrote or was sent — the case this exists for — and "text" for anything
+# whose line breaks matter more than its punctuation. A value that resolves
+# to a dict or a list is JSON either way: rendering a structure as markdown
+# would be rendering its punctuation.
+#
+# "sections" is for a value that is several labelled parts — the messages of
+# a request. Its source resolves to `[{"label": …, "text": …}]`, each text
+# rendered as markdown under its own label, drawn as page furniture. That
+# separation is the point: a label written *into* the markdown is one more
+# heading among the model's own, and a reader cannot tell whose words are
+# whose. Anything that is not that shape falls back to being rendered whole.
+FULL_RENDERERS = frozenset({"text", "markdown", "sections"})
+
+# The endpoint serving that page. Named here rather than in the template so
+# a spec's cell can carry the same (endpoint, params) pair a `Link` does,
+# and `url_for` stays the template's call (see `Link`).
+FULL_ENDPOINT = "prompts.span_full"
+
+# What a key may look like. It is a URL segment and it is what a `Field`
+# names, so: lower case, no slashes, no surprises.
+_FULL_KEY_CHARS = set("abcdefghijklmnopqrstuvwxyz0123456789-_")
+
+
+@dataclass(frozen=True)
+class Full:
+    """A complete value behind an excerpt, opened on a page of its own.
+
+    Declared on the `Scope`, once, and referred to by key from wherever the
+    excerpt appears — `Field(full="response")`, or by name from a
+    hand-written macro. One declaration, because the row that offers the
+    link and the route that serves it have to agree about what is behind it,
+    and two copies of that would eventually not.
+
+    key      addresses this value in the URL and from a `Field`. Unique
+             within the scope; lower case, digits, `-` and `_`.
+    source   where the whole value is — any source helper. It is read from
+             the payload in the log, so it may be large; that is the point.
+             For `render="sections"` it resolves to `[{"label", "text"}]`.
+    render   "markdown", "text" or "sections" (see FULL_RENDERERS).
+    title    what this value is, as a heading — `const("Request")`. It is
+             the page's own heading and the start of the icon's tooltip
+             ("Request — open in a new tab"), so write it as a name, not as
+             a phrase: it has to read as a title above the value and as the
+             subject of a sentence beside the icon. A source, like every
+             other field here.
+    note     a source for one line of provenance under the heading — where
+             the value came from, and whether this app reshaped it on the
+             way. Required reading for anything reconstructed rather than
+             quoted (design principle 2).
+    """
+
+    key: str = ""
+    source: Any = None
+    render: str = "text"
+    title: Any = None
+    note: Any = None
+
+    def link(self, span, ctx) -> Optional[dict]:
+        """The (endpoint, params) pair a template turns into an href.
+
+        Unconditional: it does not resolve the value to decide whether to
+        offer it. The value is in the log rather than in memory, and reading
+        a megabyte to find out whether to draw a 13-pixel icon — on every
+        span of the scope, on a page that polls every 2 s — is the whole
+        cost the index exists to avoid (ADR 11). A key that turns out to
+        hold nothing says so on the page it opens.
+        """
+        uuid = getattr(span, "uuid", None)
+        if not uuid or not self.key:
+            return None
+        title = _resolve(self.title, span, ctx)
+        return {"endpoint": FULL_ENDPOINT,
+                "params": {"span_uuid": uuid, "key": self.key},
+                "title": str(title) if title else None}
+
+
 # --- the four axes ---------------------------------------------------
 
 _DECO_CLS = {"tag": "mode-tag", "key": "gen-key", "id": "mem-id",
@@ -231,6 +328,11 @@ class Field:
     more       a list source; renders "+N more" after the element when that
                list holds more than one entry.
     copy       the tooltip for a copy button, which appears when this is set.
+    full       the key of one of the scope's `Full`s, which puts an
+               open-in-a-new-tab icon after this value. The icon is drawn
+               whether or not what is on the row was cut short: a reader
+               cannot see that a value fits, only that it ends, and an
+               affordance that appears only sometimes has to be hunted for.
     sep_if     a source; when it resolves, a "·" separates this field from
                what precedes it. For a divider that depends on a *particular*
                neighbour being present rather than on any at all.
@@ -246,6 +348,7 @@ class Field:
     title: Any = None
     more: Any = None
     copy: Optional[str] = None
+    full: Optional[str] = None
     sep_if: Any = None
 
     def cell(self, span, ctx) -> Optional[dict]:
@@ -266,6 +369,11 @@ class Field:
 
         more = _resolve(self.more, span, ctx)
         more_count = len(more) - 1 if isinstance(more, (list, tuple)) else 0
+
+        # A key naming a Full the scope does not declare resolves to nothing
+        # rather than to a broken link; `check_table` reports it at load,
+        # which is where a spec's mistakes belong.
+        full = (ctx.get("fulls") or {}).get(self.full) if self.full else None
 
         classes = []
         if self.deco:
@@ -288,6 +396,7 @@ class Field:
             "more": more_count if more_count > 0 else 0,
             "copy_text": raw if self.copy else None,
             "copy_title": self.copy,
+            "full": full.link(span, ctx) if full is not None else None,
             "sep": bool(self.sep_if is not None
                         and _resolve(self.sep_if, span, ctx)),
         }
@@ -541,13 +650,23 @@ class Scope:
     keys, and the markup stays the template's. If a scope of yours seems to
     need it, that is the signal the vocabulary is missing something, which is
     a conversation to have upstream (ADR 7).
+
+    `fulls` is independent of that choice: rows and `render=` scopes alike
+    declare the complete values they can open on a page of their own (ADR
+    12), and the route that serves one reads this same list. A `render=`
+    scope's macro names a key by hand where a `Field` would carry `full=`.
     """
 
     rows: Sequence[Any] = ()
     render: Optional[str] = None
+    fulls: Sequence[Full] = ()
+
+    def full_named(self, key: str) -> Optional[Full]:
+        return next((f for f in self.fulls if f.key == key), None)
 
     def resolve(self, span, accessors=None) -> list:
-        ctx = {"accessors": accessors or {}}
+        ctx = {"accessors": accessors or {},
+               "fulls": {f.key: f for f in self.fulls}}
         out = []
         for spec in self.rows:
             out.extend(spec.rows(span, ctx))
@@ -613,6 +732,54 @@ def render_macro(span, table: SpecTable) -> Optional[str]:
     return spec.render if spec is not None else None
 
 
+def full_for(span, table: SpecTable, key: str) -> Optional[Full]:
+    """The `Full` this span's scope declares under `key`, or None.
+
+    The route serving the full page and the row offering the link both come
+    through here, so a key that has been renamed or withdrawn stops working
+    in both places at once rather than leaving a live link to a 404.
+    """
+    spec = table.lookup(span)
+    return spec.full_named(key) if spec is not None else None
+
+
+def full_link(span, table: SpecTable, key: str, accessors=None) -> Optional[dict]:
+    """The link to one of this span's full values, for a hand-written macro.
+
+    A declarative row gets this through `Field(full=…)`; a `render=` scope
+    has no Field to carry it, so its macro asks for the link by the same key
+    the scope declared.
+    """
+    full = full_for(span, table, key)
+    if full is None:
+        return None
+    return full.link(span, {"accessors": accessors or {}})
+
+
+def resolve_source(source, span, accessors=None):
+    """One source resolved outside any row — a `Full`'s title and note.
+
+    Those two are sources like everything else, so a scope can take its
+    heading from the payload it is showing; they are just not attached to a
+    `Field`. A source that raises costs its line rather than the page, as
+    everywhere else a spec is read.
+    """
+    try:
+        return _resolve(source, span, {"accessors": accessors or {}})
+    except Exception:  # noqa: BLE001 - a spec may come from outside this tree
+        return None
+
+
+def resolve_full(span, full: Full, accessors=None):
+    """The value behind a `Full`, whatever type its source resolves to.
+
+    Left as it came: a string stays a string, a structure stays a structure,
+    and what to do about that is the renderer's business, not the
+    vocabulary's.
+    """
+    return _resolve(full.source, span, {"accessors": accessors or {}})
+
+
 def check_table(by_name: dict, by_category: dict) -> list:
     """What is wrong with a contributed spec table, as a list of messages.
 
@@ -640,4 +807,66 @@ def check_table(by_name: dict, by_category: dict) -> list:
                 problems.append(f"{where} sets both rows and render")
             if not spec.render and not spec.rows:
                 problems.append(f"{where} sets neither rows nor render")
+            problems.extend(_full_problems(where, spec))
     return problems
+
+
+def _full_problems(where: str, spec: "Scope") -> list:
+    """What is wrong with a scope's `Full`s and the fields naming them.
+
+    Checked at load for the same reason the rest is: every one of these
+    mistakes otherwise shows up as an icon that opens a page saying the key
+    is unknown — a link the reader has to click to discover is broken, on a
+    page they opened precisely because they could not see the value.
+    """
+    problems = []
+    seen = set()
+    for full in spec.fulls:
+        if not isinstance(full, Full):
+            problems.append(f"{where} has a {type(full).__name__} in fulls, "
+                            f"not a Full")
+            continue
+        label = f"{where} full {full.key!r}"
+        if not full.key:
+            problems.append(f"{where} has a Full with no key")
+        elif set(full.key) - _FULL_KEY_CHARS:
+            problems.append(f"{label} is not a URL segment: use lower case, "
+                            f"digits, '-' and '_'")
+        elif full.key in seen:
+            problems.append(f"{label} is declared twice")
+        seen.add(full.key)
+        if full.render not in FULL_RENDERERS:
+            known = ", ".join(sorted(FULL_RENDERERS))
+            problems.append(f"{label} names render={full.render!r} "
+                            f"(have: {known})")
+        if full.source is None:
+            problems.append(f"{label} has no source, so there is nothing to "
+                            f"open")
+    for field_spec in _fields_of(spec.rows):
+        if field_spec.full and field_spec.full not in seen:
+            problems.append(
+                f"{where} has a Field(full={field_spec.full!r}) but the scope "
+                f"declares no Full with that key"
+                + (f" (have: {', '.join(sorted(seen))})" if seen else ""))
+    return problems
+
+
+def _fields_of(rows) -> list:
+    """Every Field in a row list, including inside Alt and Each.
+
+    A spec is data, and data from outside this tree at that, so this walks
+    what it finds rather than what it expects: anything without the
+    attributes it is looking for is simply not a Field.
+    """
+    out = []
+    for row in rows or ():
+        for cell in getattr(row, "cells", ()) or ():
+            if isinstance(cell, Field):
+                out.append(cell)
+            elif isinstance(cell, Alt):
+                out.extend(f for f in cell.fields if isinstance(f, Field))
+        for side in ("before", "after"):
+            out.extend(f for f in (getattr(row, side, ()) or ())
+                       if isinstance(f, Field))
+        out.extend(_fields_of(getattr(row, "rows_spec", ()) or ()))
+    return out

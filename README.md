@@ -190,6 +190,16 @@ result), then the query, the result and the context messages as plaintext.
   shown above the table, folded closed and on this page only — never dropped.
   Updates itself every 3 s.
 - `/prompts/turn/<session>/<start_us>` — one turn, described below.
+- `/prompts/span/<span uuid>/<key>` — one whole value of one span, on a page
+  of its own: an llm call's `request` (every message it was sent, system
+  prompt included, one labelled box per message) or its `response`, rendered
+  as markdown, with `?raw=1` for the characters underneath. Every label and
+  heading the app writes is boxed chrome; anything inside a box went on the
+  wire. Reached by the open-in-a-new-tab icon at the end
+  of an excerpt, never navigated to by hand — so it carries no tab bar, just
+  a nav row back to the turn the span ran in and to the raw text. Which values
+  a scope offers is declared with it — see
+  [ADR 12](docs/design/adr/0012-open-a-whole-value-on-its-own-page.md).
 
 The turn page runs top to bottom:
 
@@ -214,6 +224,12 @@ Each span row also shows what the call was *for*, drawn from its payload and
 rendered per tool scope: the command a terminal call ran, the path a file tool
 touched, a mem0_search's top hits, and so on. That is a subject of its own —
 see [docs/design/span-rendering.md](docs/design/span-rendering.md).
+
+Where a row can only show an excerpt — what a model was asked, what it said —
+a small icon at the end of it opens the whole thing in a new tab. That works
+for every model call, including hermes' own background ones: a context
+compaction's instruction and summary are readable there and nowhere else on
+the site.
 
 While the turn is in flight the page updates itself every 2 s; once it ends
 the page is static.

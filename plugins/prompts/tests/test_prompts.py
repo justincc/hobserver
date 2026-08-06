@@ -6,7 +6,7 @@ import time
 
 from markupsafe import escape
 
-from conftest import make_app
+from conftest import REPO_ROOT, make_app
 from conftest import make_memory_change_db, make_memory_db
 from test_assembler import (mark_line, scope_lines, session_scope_lines,
                                   two_turn_stream)
@@ -1522,14 +1522,15 @@ def test_llm_span_shows_the_start_of_what_the_model_said(tmp_path):
     page = _llm_turn(tmp_path, {**_assistant(text), "finish_reason": "stop"})
     assert "The answer is 42." in page
     assert text not in page                  # only the start of it
-    assert "start of 720 chars" in page
+    assert "&hellip;" in page or "…" in page  # …and an ellipsis saying so
 
 
-def test_llm_span_shows_short_text_whole_without_a_size_note(tmp_path):
+def test_llm_span_shows_short_text_whole_without_an_ellipsis(tmp_path):
     page = _llm_turn(tmp_path, {**_assistant("Short reply."),
                                 "finish_reason": "stop"})
     assert "Short reply." in page
-    assert "start of" not in page
+    assert "Short reply.…" not in page
+    assert "start of" not in page            # no size note anywhere any more
 
 
 def test_llm_span_reports_tokens_including_cache_reads(tmp_path):
@@ -1725,3 +1726,369 @@ def test_tailing_is_conditioned_on_being_at_the_bottom(tmp_path):
     # measured before the swap, applied after it
     assert page.index("const tailing =") < page.index("region.replaceWith(fresh)")
     assert page.index("region.replaceWith(fresh)") < page.index("if (tailing) window.scrollTo")
+
+
+# --- the whole value, on its own page (ADR 12) ---------------------------
+#
+# The turn page shows excerpts. These cover the icon that leads out of one
+# and the page it leads to — for llm spans of every call_role, which is the
+# point: before this, an auxiliary call's prompt appeared nowhere, since the
+# turn header shows the turn's user message and a compaction has none.
+
+REQUEST = {"annotated_request": {
+    "instructions": "You are Hermes Agent.",
+    "messages": [{"role": "user", "content": "## Ask\n\nsummarise the turns"}]}}
+
+
+def _llm_client(tmp_path, *, profile=REQUEST, end_data=None, metadata_role=None,
+                uuid="L1"):
+    """A client over one turn holding one llm span."""
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines(uuid, "llm", 1_100_000, 1_600_000, name="openai-codex",
+                     session="s1", turn="t1", profile=profile,
+                     start_data={"headers": {}},
+                     end_data=end_data or _assistant("## Done\n\nall of it")),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    return make_client(tmp_path, str(write_atof(tmp_path, lines)))
+
+
+def test_an_llm_span_offers_its_request_and_its_response(tmp_path):
+    page = _llm_client(tmp_path).get(
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
+    links = re.findall(r'class="[^"]*open-text" href="([^"]+)"', page)
+    assert "/prompts/span/L1/request" in links
+    assert "/prompts/span/L1/response" in links
+
+
+def test_the_open_link_opens_a_new_tab(tmp_path):
+    page = _llm_client(tmp_path).get(
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
+    link = re.search(r'<a class="[^"]*open-text"[^>]*>', page).group(0)
+    assert 'target="_blank"' in link
+    assert 'rel="noopener"' in link         # every target=_blank carries it
+    assert "new tab" in link                # and says so on hover
+
+
+def test_the_whole_excerpt_is_the_link_not_just_the_glyph(tmp_path):
+    """Clicking anywhere on the text opens it. The key beside it stays
+    outside the anchor — it names the row, it is not a way into it."""
+    page = _llm_client(tmp_path).get(
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
+    row = re.search(r'<div class="span-detail list-item">\s*'
+                    r'<span class="gen-key key-col"[^>]*>response</span>.*?</div>',
+                    page, re.S).group(0)
+    link = re.search(r'<a class="[^"]*open-text".*?</a>', row, re.S).group(0)
+    assert "## Done" in link or "Done" in link      # the text is inside it
+    assert "ic-open" in link                        # …and so is the glyph
+    assert "<a " not in link[3:]                    # one anchor, not two
+    assert '>response</span>' not in link           # the key is not in it
+
+
+def test_an_excerpt_with_no_page_behind_it_is_not_a_link(tmp_path):
+    """A dead link is worse than no link, so the value falls back to a plain
+    span — the same rule the icon has always followed."""
+    app = make_app(db="/nonexistent/events.db", atof="/nonexistent/atof.jsonl")
+    with app.app_context():
+        macros = app.jinja_env.get_template("prompts/_macros.html").module
+        out = str(macros.open_text(None, "just the text", False))
+    assert "just the text" in out
+    assert "<a " not in out and "ic-open" not in out
+
+
+def test_the_open_icon_is_there_when_the_excerpt_was_not_cut_short(tmp_path):
+    """A reader cannot see that a value fits, only that it ends."""
+    page = _llm_client(tmp_path, end_data=_assistant("brief.")).get(
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
+    assert "/prompts/span/L1/response" in page
+
+
+def test_a_turn_page_shows_what_each_call_was_asked(tmp_path):
+    """The excerpt the request icon hangs off: the last user message of this
+    call's own request, which for an auxiliary call is the only place its
+    instruction appears at all."""
+    page = _llm_client(tmp_path).get(
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
+    assert "summarise the turns" in page
+    assert ">prompt<" in page
+
+
+def test_a_call_that_said_nothing_offers_no_response_to_open(tmp_path):
+    """It only asked for tools; there is no whole response behind the icon,
+    so there is no icon."""
+    page = _llm_client(tmp_path, end_data=_assistant("", "terminal")).get(
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
+    assert "/prompts/span/L1/request" in page
+    assert "/prompts/span/L1/response" not in page
+
+
+def test_the_full_page_renders_the_response_as_markdown(tmp_path):
+    page = _llm_client(tmp_path).get(
+        "/prompts/span/L1/response").get_data(as_text=True)
+    assert '<div class="md-body">' in page
+    assert "<h2>Done</h2>" in page          # rendered, not the literal ##
+    assert "<h2>Response</h2>" in page      # …and the page's own heading
+
+
+def test_the_full_page_renders_the_whole_request(tmp_path):
+    page = _llm_client(tmp_path).get(
+        "/prompts/span/L1/request").get_data(as_text=True)
+    assert "You are Hermes Agent." in page  # the system prompt, not just the ask
+    assert "summarise the turns" in page
+    assert "<h2>Ask</h2>" in page           # the content's own heading, rendered
+
+
+def test_each_message_is_boxed_under_a_label_of_its_own(tmp_path):
+    """The labels are this app's and the boxes hold wire content, so they are
+    two different kinds of thing on the page rather than two heading levels
+    in one document."""
+    page = _llm_client(tmp_path).get(
+        "/prompts/span/L1/request").get_data(as_text=True)
+    boxes = re.findall(r'<section class="msg">.*?</section>', page, re.S)
+    assert len(boxes) == 2, "instructions and the user message"
+    assert '<div class="msg-label">instructions</div>' in boxes[0]
+    assert "You are Hermes Agent." in boxes[0]
+    assert '<div class="msg-label">user</div>' in boxes[1]
+    assert "summarise the turns" in boxes[1]
+    # the label is beside the message, never inside its markdown
+    body = re.search(r'<div class="md-body">.*?</div>', boxes[1], re.S).group(0)
+    assert "user" not in body
+    assert page.count("2 message") == 1     # and the header counts them
+
+
+def test_the_full_page_says_where_the_value_came_from(tmp_path):
+    """Anything reconstructed names its source and is never presented as
+    something the origin vouched for (design principle 2)."""
+    page = _llm_client(tmp_path).get(
+        "/prompts/span/L1/request").get_data(as_text=True)
+    assert "annotated_request" in page
+    assert "The labels are this app&#39;s" in page
+
+
+def test_the_full_page_names_the_span_it_came_from(tmp_path):
+    page = _llm_client(tmp_path).get(
+        "/prompts/span/L1/response").get_data(as_text=True)
+    assert "openai-codex" in page
+    assert "L1" in page
+    assert 'href="/prompts/turn/s1/1000000"' in page       # back to the turn
+
+
+def test_the_full_page_offers_the_raw_text_of_what_it_rendered(tmp_path):
+    """Markdown is a reading of the text; a reader who suspects the reading
+    needs somewhere to check, and whitespace survives nowhere else."""
+    client = _llm_client(tmp_path)
+    rendered = client.get("/prompts/span/L1/response").get_data(as_text=True)
+    assert 'href="/prompts/span/L1/response?raw=1"' in rendered
+    raw = client.get("/prompts/span/L1/response?raw=1").get_data(as_text=True)
+    assert "full-blob" in raw
+    assert escape("## Done") in raw         # the characters, not a heading
+    assert '<div class="md-body">' not in raw
+
+
+def test_the_full_page_states_a_value_that_is_not_there(tmp_path):
+    """An in-flight call has no end payload yet. The page says so rather than
+    rendering blank (ADR 2)."""
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L1", "llm", 1_100_000, None, name="openai-codex",
+                     session="s1", turn="t1", profile=REQUEST,
+                     start_data={"headers": {}}),
+    ]
+    client = make_client(tmp_path, str(write_atof(tmp_path, lines)))
+    page = client.get("/prompts/span/L1/response").get_data(as_text=True)
+    assert "Nothing under this key" in page
+
+
+def test_an_unknown_span_or_key_is_a_404(tmp_path):
+    client = _llm_client(tmp_path)
+    assert client.get("/prompts/span/L1/nosuch").status_code == 404
+    assert client.get("/prompts/span/nosuch/response").status_code == 404
+
+
+def test_a_scope_with_no_full_declared_serves_none(tmp_path):
+    """A tool span has no full values, so its uuid addresses nothing — the
+    route reads the same declaration the icon does."""
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("T1", "tool", 1_100_000, 1_600_000, name="terminal",
+                     session="s1", turn="t1", start_data={"command": "ls"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    client = make_client(tmp_path, str(write_atof(tmp_path, lines)))
+    assert client.get("/prompts/span/T1/request").status_code == 404
+
+
+def test_a_full_page_carries_no_live_poll(tmp_path):
+    """A span whose value can still change is one still being written; a page
+    that reflowed a prompt under someone reading it would be worse than one a
+    moment old."""
+    page = _llm_client(tmp_path).get(
+        "/prompts/span/L1/response").get_data(as_text=True)
+    # in a tag, not in base.html's script explaining the attribute
+    assert not re.search(r"<[a-z][^>]*\sdata-live-poll=", page)
+
+
+def test_a_span_no_turn_claimed_is_still_readable(tmp_path):
+    """An llm call parented to the session rather than to a turn appears on
+    no turn page — addressing it by uuid is what makes its prompt readable
+    at all."""
+    lines = [
+        *session_scope_lines("s1", start_us=500_000),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+        # after the turn closed, hung off the session scope
+        *scope_lines("L9", "llm", 2_500_000, 2_900_000, name="openai-codex",
+                     session="s1", profile=REQUEST, start_data={"headers": {}},
+                     end_data=_assistant("late work")),
+    ]
+    client = make_client(tmp_path, str(write_atof(tmp_path, lines)))
+    page = client.get("/prompts/span/L9/response")
+    assert page.status_code == 200
+    body = page.get_data(as_text=True)
+    assert "late work" in body
+    assert "no turn holds this span" in body
+
+
+def test_html_in_a_prompt_is_shown_not_run(tmp_path):
+    """The page renders someone else's log text. Nothing in it is markup."""
+    end = _assistant("here is a tag: <script>alert(1)</script>")
+    page = _llm_client(tmp_path, end_data=end).get(
+        "/prompts/span/L1/response").get_data(as_text=True)
+    assert "<script>alert(1)</script>" not in page
+    assert "&lt;script&gt;" in page
+
+
+def test_every_call_role_gets_the_same_facility(tmp_path):
+    """The declaration is on the llm *category*, so a compaction is not a
+    special case — it is the same two links every model call has."""
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L1", "llm", 1_100_000, 1_600_000, name="auto",
+                     session="s1", turn="t1", profile=REQUEST,
+                     start_data={"headers": {}},
+                     end_data=_assistant("## Historical Task Snapshot\n\nx")),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    lines[1] = lines[1].replace(
+        '"metadata": {', '"metadata": {"call_role": "auxiliary:compression", ')
+    client = make_client(tmp_path, str(write_atof(tmp_path, lines)))
+    turn = client.get("/prompts/turn/s1/1000000").get_data(as_text=True)
+    assert "auxiliary:compression" in turn
+    assert "/prompts/span/L1/request" in turn
+    page = client.get("/prompts/span/L1/response").get_data(as_text=True)
+    assert "auxiliary:compression" in page          # the page names the role
+    assert "<h2>Historical Task Snapshot</h2>" in page
+
+
+def test_a_full_page_leaves_the_tab_bar_out(tmp_path):
+    """It is opened from a span, in its own tab, to read one thing. A row of
+    tabs offering to navigate away is chrome for a place the reader did not
+    come from."""
+    page = _llm_client(tmp_path).get(
+        "/prompts/span/L1/response").get_data(as_text=True)
+    assert 'nav class="tabs"' not in page
+    assert "observer status" not in page
+    assert "hermes observer" in page        # …but the way home stays
+
+
+def test_a_page_reached_by_navigating_keeps_the_tab_bar(tmp_path):
+    """The override is for the full page alone; losing the bar anywhere else
+    would lose the reader's place in the app."""
+    page = _llm_client(tmp_path).get(
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
+    assert 'nav class="tabs"' in page
+
+
+def test_a_full_pages_links_are_grouped_left_like_the_turn_pages(tmp_path):
+    """Same row, same classes as _item_nav.html: the way back first, the
+    incidental link muted a shade beside it, nothing pushed right."""
+    client = _llm_client(tmp_path)
+    nav = re.search(r'<nav class="event-nav">.*?</nav>',
+                    client.get("/prompts/span/L1/response").get_data(as_text=True),
+                    re.S).group(0)
+    assert nav.index("back to the turn") < nav.index(">raw<")
+    # both inside the one left-hand span, as the turn page groups them
+    left = nav[nav.index("<span>"):nav.index("</nav>")]
+    for label in ("back to the turn", ">raw<"):
+        assert label in left, label
+    assert nav.count("<nav") == 1
+
+
+def test_a_full_page_does_not_offer_the_turn_list(tmp_path):
+    """It was opened in its own tab from one span. The places it owes a
+    reader are where that span was and what its value looks like unrendered
+    — a jump to every turn strands them, like the tab bar would."""
+    page = _llm_client(tmp_path).get(
+        "/prompts/span/L1/response").get_data(as_text=True)
+    assert "all turns" not in page
+    assert 'href="/prompts/"' not in page
+    assert "back to the turn" in page
+
+
+def test_the_raw_link_leads_back_to_the_rendered_view(tmp_path):
+    client = _llm_client(tmp_path)
+    raw = client.get("/prompts/span/L1/response?raw=1").get_data(as_text=True)
+    assert ">rendered<" in raw
+    assert 'href="/prompts/span/L1/response"' in raw
+
+
+def test_the_pages_own_words_are_boxed_apart_from_the_value(tmp_path):
+    """The value opens on a heading the model wrote. Everything this app says
+    — the title, the facts, the provenance — sits in a panel above it, so
+    none of it can be read as the value's own first lines."""
+    page = _llm_client(tmp_path).get(
+        "/prompts/span/L1/request").get_data(as_text=True)
+    head = re.search(r'<header class="full-head">.*?</header>', page, re.S)
+    assert head, "the header panel is missing"
+    head = head.group(0)
+    assert "<h2>Request</h2>" in head            # the heading
+    assert "openai-codex" in head                # the facts
+    assert "annotated_request" in head           # the provenance
+    # and nothing of ours loose between the panel and the first message box
+    between = page[page.index("</header>"):page.index('<section class="msg">')]
+    assert re.sub(r"<[^>]+>|\s", "", between) == ""
+
+
+def test_the_header_panel_is_styled_apart_from_the_rendered_markdown(tmp_path):
+    """Class names carry the distinction, so a rename that lost it would
+    leave the page looking like the value titled itself."""
+    css = (REPO_ROOT / "templates" / "base.html").read_text()
+    css = re.sub(r"\{#.*?#\}", "", css, flags=re.S)     # drop Jinja comments
+    for selector in (r"\.full-head\b", r"\.full-head h2\b", r"\.md-body\b"):
+        assert re.search(rf"{selector}[^{{}}\n]*\{{", css), selector
+
+
+
+def test_the_response_row_is_labelled_like_every_other_row(tmp_path):
+    """Prose starting mid-row with no key in front of it is prose a reader
+    has to identify before they can read it — which is what `prompt` and
+    `tokens` already spare them."""
+    page = _llm_turn(tmp_path, {**_assistant("Here is the answer."),
+                                "finish_reason": "stop"})
+    row = re.search(r'<div class="span-detail list-item">\s*'
+                    r'<span class="gen-key key-col"[^>]*>response</span>.*?</div>',
+                    page, re.S)
+    assert row, "the response row has no key"
+    assert "Here is the answer." in row.group(0)
+
+
+def test_a_call_that_said_nothing_has_no_response_row(tmp_path):
+    """The label follows the value: a call that only asked for tools said
+    nothing, so there is no row to label."""
+    page = _llm_turn(tmp_path, {**_assistant("", "terminal"),
+                                "finish_reason": "tool_calls"})
+    assert ">response<" not in page
+
+
+def test_the_prompt_and_response_values_start_at_one_edge(tmp_path):
+    """Two paragraphs a reader compares side by side, so their left edges
+    line up: the keys reserve one column rather than each taking its own
+    width."""
+    page = _llm_client(tmp_path).get(
+        "/prompts/turn/s1/1000000").get_data(as_text=True)
+    for label in ("prompt", "response"):
+        assert re.search(rf'class="gen-key key-col"[^>]*>{label}</span>', page), label
+    css = re.sub(r"\{#.*?#\}", "",
+                 (REPO_ROOT / "templates" / "base.html").read_text(), flags=re.S)
+    assert re.search(r"\.gen-key\.key-col[^{}\n]*\{[^}]*min-width", css)

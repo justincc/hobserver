@@ -1,0 +1,116 @@
+{# One whole value of one span (ADR 12): what a row could only excerpt.
+
+   Deliberately still: no live poll, no follow. A span whose value can still
+   change is one still being written, and a page that reflowed a prompt under
+   someone reading it would be worse than one that is a moment old.
+
+   Nothing here is marked |safe except `rendered.html`, which is the markdown
+   renderer's output with raw HTML disabled — see plugins/prompts/fulltext.py
+   for why that is the only trusted string on the page. #}
+{% extends "base.html" %}
+{% from "prompts/_macros.html" import copy_btn %}
+{% block title %}{{ title }} · {{ span.name }} — hermes observer{% endblock %}
+{# No tab bar. This page is opened from a span, in its own tab, to read one
+   thing; a row of tabs offering to navigate away from it is chrome for a
+   place the reader did not come from. The heading above it still goes home. #}
+{% block tabbar %}{% endblock %}
+{% block content %}
+
+{# The same row and the same classes as the turn page's stepping links (see
+   _item_nav.html): the way back first, then the incidental links muted a
+   shade, all grouped left. Not the `item_nav` macro itself — its labels are
+   fixed at prev/next, which this page has neither of. #}
+<nav class="event-nav">
+  <span>
+    {%- if turn %}
+    <a href="{{ url_for('prompts.turn', session_id=turn.session_id, start_us=turn.start_us) }}">&larr; back to the turn</a>
+    {%- else %}
+    <span class="disabled" title="This span landed in no turn — it is reachable by uuid and nowhere else.">&larr; no turn holds this span</span>
+    {%- endif %}
+    <span class="nav-steps">
+      {# No "all turns". This page is opened in its own tab from one span, so
+         the only two places it owes a reader are where that span was and
+         what its value looks like unrendered. A jump to the turn list would
+         leave them in a tab they opened to read a prompt, on a page about
+         everything else — the same reason the tab bar is gone. #}
+      {# The same value as characters. Markdown is a reading of the text, so
+         the text itself stays one click away — and it is the only view in
+         which whitespace survives. Sections keep their labels in the raw
+         view: they are how the messages are told apart, not part of any. #}
+      {%- if rendered.kind in ("markdown", "sections") %}
+      {%- if raw %}
+      <a href="{{ url_for('prompts.span_full', span_uuid=span.uuid, key=full.key) }}" title="Back to the rendered markdown.">rendered</a>
+      {%- else %}
+      <a href="{{ url_for('prompts.span_full', span_uuid=span.uuid, key=full.key, raw=1) }}" title="The characters underneath, unrendered — the only view whitespace survives.">raw</a>
+      {%- endif %}
+      {%- endif %}
+    </span>
+  </span>
+</nav>
+
+{# Boxed, so none of it can be mistaken for the value below — which opens on
+   a heading of its own, written by the model. The heading, the facts and the
+   provenance are all this app talking, and they say so by sitting in a panel
+   the rendered markdown never uses. #}
+<header class="full-head">
+  <h2>{{ title }}</h2>
+  <p class="meta">
+    {{ span.name }}{% if span.model_name %} · {{ span.model_name }}{% endif %}
+    {%- if span.call_role %} · <span class="mode-tag" title="What this call was for, when it was not the ordinary one.">{{ span.call_role }}</span>{% endif %}
+    · {{ span.start_us | us_time }} UTC
+    {%- if rendered.chars %} · {{ '{:,}'.format(rendered.chars) }} chars{% endif %}
+    {#- "messages" rather than a neutral word for a section: the one sections
+        value this tab has is a request, and its parts are messages. A scope
+        of someone else's whose sections are something else reads slightly
+        oddly here — the labels on the boxes say what they really are. #}
+    {%- if rendered.sections %} · {{ rendered.sections | length }} message{{ "" if rendered.sections | length == 1 else "s" }}{% endif %}
+    {%- if rendered.kind in ("json", "text") and rendered.text is not none %} · shown as {{ rendered.kind }}{% endif %}
+    <span class="span-uuid">· {{ span.uuid }}{{ copy_btn(span.uuid, "copy span uuid") }}</span>
+  </p>
+  {# Where this came from and whether this app reshaped it on the way (design
+     principle 2). It is one line and it is always shown: a page of prose with
+     no provenance reads as something hermes wrote, which for a
+     reconstruction would be untrue. #}
+  {% if note %}<p class="meta prov">{{ note }}</p>{% endif %}
+</header>
+
+{# The payload lives in the log and was read back for this one span (ADR 11).
+   A read that failed leaves the value below showing only what the index kept,
+   which is not the whole of it — say so rather than let it pass for complete. #}
+{% if span.payload_problem %}
+<p class="notice warn">The payload could not be re-read from the log, so this
+  may be only the part the index kept — {{ span.payload_problem }}</p>
+{% endif %}
+
+{% if rendered.problem %}
+<p class="notice warn">{{ rendered.problem }}</p>
+{% endif %}
+
+{# A value made of labelled parts — the messages of a request. Each label is
+   this app's and each body is not, so the label is drawn as chrome above a
+   box and the box holds nothing but wire content. That is the whole reason
+   this is a section list rather than one document with headings written into
+   it: written in, a label was one more `##` among the model's own. #}
+{% if rendered.sections %}
+{% for part in rendered.sections %}
+<section class="msg">
+  <div class="msg-label">{{ part.label }}</div>
+  {%- if raw or part.html is none %}
+  <pre class="blob full-blob">{{ part.text }}</pre>
+  {%- elif part.text %}
+  <div class="md-body">{{ part.html | safe }}</div>
+  {%- else %}
+  <p class="meta msg-empty">(no content on this message)</p>
+  {%- endif %}
+</section>
+{% endfor %}
+{% elif rendered.text is none %}
+<p class="notice warn">Nothing under this key in the payload. The span carried
+  no <code>{{ full.key }}</code> — an in-flight call whose end has not arrived
+  yet, or a payload that never held one.</p>
+{% elif raw or rendered.kind != "markdown" %}
+<pre class="blob full-blob">{{ rendered.text }}</pre>
+{% else %}
+<div class="md-body">{{ rendered.html | safe }}</div>
+{% endif %}
+{% endblock %}

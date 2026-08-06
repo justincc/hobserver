@@ -12,7 +12,13 @@
    arguments. Not declarative because the token tree runs a separator state
    machine (`ns.prior`) so a row with nothing to its left never takes a
    leading dot. #}
-{% macro llm_rows(s) -%}
+{# `full` is the caller's `scope_full(span, key)` — the link to one of the
+   scope's declared full values (ADR 12). A hand-written macro has no Field
+   to carry `full=`, so it asks by the key `scopes.py` declared: "request"
+   and "response". Passed in rather than imported so this file stays a
+   template that reads no context, like every other macro here. #}
+{% from "prompts/_macros.html" import open_text %}
+{% macro llm_rows(s, full=none) -%}
 {# The calls ride the finish reason that names them — `tool_calls` and then
    what was called — rather than repeating the subject on a row of their own.
    Names only: the spans below carry the arguments, each rendered by its own
@@ -37,15 +43,51 @@
   {%- if s.llm_tool_calls %}<span class="call-list list-item" title="The tools this call asked for, in the order it asked. Their arguments are on the spans below, one per call; what this adds is that they were decided together.">{% for name in s.llm_tool_calls %}{% if not loop.first %} <span class="gen-key">·</span> {% endif %}{{ name }}{% endfor %}</span>{% endif %}
 </div>
 {% endif %}
-{% if s.llm_text %}
+{# What this call was asked. Detail-only and one line of it, because the
+   whole of it is a tab away: `request_prompt` is the last user message of
+   the request, which for a turn's own call is the reader's prompt and for a
+   compaction or any other auxiliary call is hermes' instruction to itself —
+   the thing that appeared nowhere on this page before. The icon opens the
+   whole request, all its messages, not just this one. #}
+{% set request_link = full(s, "request") if full else none %}
+{% set response_link = full(s, "response") if full else none %}
+{# No title attribute and no size note. The whole prompt in a title would put
+   26 KB on the row and repeat it on every 2 s poll, and a size note here
+   would count this excerpt's source while the icon beside it opens something
+   larger — the whole request, not just its last message. #}
+{% if s.request_prompt_excerpt %}
 <div class="span-detail list-item">
-  <span class="path wide wrap-detail">{{ s.llm_text.text }}{% if s.llm_text.truncated %}…{% endif %}</span>
-</div>
-{% if s.llm_text.truncated %}
-<div class="span-detail list-item">
-  <span class="gen-omitted" title="Only the start is shown here; the whole message is in the ATOF log, and its last word is the turn's own response.">start of {{ '{:,}'.format(s.llm_text.chars) }} chars</span>
+  {#- `prompt` is this app's word, not a key: nothing in the payload names
+      this value, and the value is not the payload's either — it is the last
+      `role: "user"` message of `annotated_request` with hermes' own wrappers
+      taken off. `response` beside it takes the log's word because that one
+      is verbatim. The tooltip says so, since a reshaped value that does not
+      admit it is the thing design principle 2 forbids.
+
+      The token tree below has a `prompt` row too, counting the whole
+      request where this shows its last message. They are told apart by
+      being different kinds of row — that one is a `.mode-tag` under
+      `tokens`, indented, and always carries a figure — and the word means
+      the same thing in both: what the model was sent. #}
+  <span class="gen-key key-col" title="The last user message of this call's request, with hermes' own wrappers taken off — this app's reading, not the wire text. The icon opens the request as sent, every message of it. (The `prompt` row under `tokens` counts the whole request, not just this message.)">prompt</span>
+  {{ open_text(request_link, s.request_prompt_excerpt.text,
+               s.request_prompt_excerpt.truncated) }}
 </div>
 {% endif %}
+{# `response` labels this row for the reason `prompt` labels the one above:
+   a paragraph of prose starting mid-row, with no key in front of it, is a
+   paragraph a reader has to identify before they can read it. The word is
+   the log's own — `annotated_response` on the end event, whose `message` is
+   this text — and it is what the page behind the icon is called. #}
+{% if s.llm_text %}
+<div class="span-detail list-item">
+  <span class="gen-key key-col" title="What the model said back — `annotated_response.message`, and `assistant_message.content` in the end payload, which are the same text. The icon opens all of it.">response</span>
+  {{ open_text(response_link, s.llm_text.text, s.llm_text.truncated) }}
+</div>
+{#- No size note under it. `start of 2,579 chars` was the whole message's
+    only trace back when the rest of it lived in the log and nowhere else;
+    now the ellipsis says there is more and the text itself opens it, and a
+    figure nobody acts on is a row that costs a line and returns nothing. #}
 {% endif %}
 {# Tokens as the tree they form, not the flat line they were: the rows under
    `prompt` and `out` sum to them, so the indent is the arithmetic. The two

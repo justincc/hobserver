@@ -107,7 +107,9 @@ Decided in full in their ADRs; listed here so a design review meets them.
   [ADR 4](adr/0004-cross-plugin-access-by-link-or-published-accessor.md).
 - **Derived data says where it came from.** Anything reconstructed across
   sources names its source and its age on screen, and is never presented as
-  something the origin vouched for — ADR 4.
+  something the origin vouched for — ADR 4, and
+  [ADR 12](adr/0012-open-a-whole-value-on-its-own-page.md)'s `Full.note`,
+  which carries the same rule onto a page that is nothing but one value.
 
 ## 3. Reading hermes' payloads
 

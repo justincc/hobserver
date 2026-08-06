@@ -161,6 +161,23 @@ class Anomaly:
     line_no: Optional[int] = None
 
 
+def _preview(text: str) -> dict:
+    """A long string as much of it as a row can hold: {text, truncated}.
+
+    One cut for every excerpt on a span row, so two of them side by side end
+    at the same place. The whole string never reaches the page — not even in
+    a title attribute, where a 26 KB prompt would ride every poll of a live
+    turn — it is a click away instead (ADR 12).
+
+    `truncated` drives an ellipsis and nothing else. There was a `chars`
+    beside it, for a row reading `start of 2,579 chars`; the row went when
+    the text became clickable, and the count went with it rather than
+    staying as a value nothing reads.
+    """
+    return {"text": text[:LLM_TEXT_PREVIEW_CHARS],
+            "truncated": len(text) > LLM_TEXT_PREVIEW_CHARS}
+
+
 def _as_dict(data: Any) -> Optional[dict]:
     """Payload as a dict when it is one — directly or as a JSON string.
     Data is opaque per the ATOF spec, so never assume shape."""
@@ -391,11 +408,11 @@ class Span:
 
     @property
     def llm_text(self) -> Optional[dict]:
-        """The assistant's own words, as {text, truncated, chars}.
+        """The assistant's own words, as {text, truncated}.
 
         Empty whenever the model was calling tools rather than talking, and
-        long enough otherwise that what shows is the start of it and how much
-        there was.
+        long enough otherwise that what shows is the start of it, with the
+        whole a click away (ADR 12).
         """
         message = self._assistant_message
         if message is None:
@@ -403,9 +420,46 @@ class Span:
         text = message.get("content")
         if not isinstance(text, str) or not text:
             return None
-        return {"text": text[:LLM_TEXT_PREVIEW_CHARS],
-                "truncated": len(text) > LLM_TEXT_PREVIEW_CHARS,
-                "chars": len(text)}
+        return _preview(text)
+
+    @property
+    def request_prompt_excerpt(self) -> Optional[dict]:
+        """What this call was asked, as much of it as a row can hold.
+
+        The same shape and the same cut as `llm_text`, because they are the
+        same kind of thing on adjacent rows.
+        """
+        prompt = self.request_prompt
+        return _preview(prompt) if prompt else None
+
+    # The two values the excerpts above are excerpts *of*, whole and
+    # untruncated, for the page that shows one on its own (ADR 12). Both are
+    # in the payloads the index leaves in the log, so both read as nothing
+    # until the span is hydrated — which the full page does for the one span
+    # it is showing.
+    @property
+    def llm_response_text(self) -> Optional[str]:
+        """Everything the model said, of which `llm_text` shows the start.
+
+        The same string, from the same key: an excerpt that is not a prefix
+        of what its link opens would be a quiet lie.
+        """
+        message = self._assistant_message
+        if message is None:
+            return None
+        text = message.get("content")
+        return text if isinstance(text, str) and text else None
+
+    @property
+    def llm_request_messages(self) -> Optional[list]:
+        """The whole request this call was sent, one labelled section per
+        message — see `request_sections_from_profile`.
+
+        Not an excerpt of anything. `request_prompt` beside it is the *last
+        user message* of this same request, which is the excerpt the turn
+        page shows; this is the conversation it sat at the end of.
+        """
+        return request_sections_from_profile(self.category_profile)
 
     @property
     def token_rows(self) -> List[dict]:
@@ -1019,6 +1073,114 @@ def _unwrap_prompt(content: str) -> Optional[str]:
     text = MEMORY_CONTEXT.sub("", text)
     text = text.strip()
     return text or None
+
+
+def _fence(text: str, lang: str = "") -> str:
+    """`text` in a code fence long enough to survive whatever is inside it.
+
+    Tool arguments are JSON and tool results are whatever a tool printed —
+    including, routinely, markdown with its own fences. CommonMark closes a
+    fence only on a run of backticks at least as long as the opening one, so
+    counting the longest run inside and going one better is what keeps a
+    result from ending the block that holds it.
+    """
+    longest = 0
+    run = 0
+    for char in text:
+        run = run + 1 if char == "`" else 0
+        longest = max(longest, run)
+    ticks = "`" * max(3, longest + 1)
+    return f"{ticks}{lang}\n{text}\n{ticks}"
+
+
+def _message_body(message: dict) -> str:
+    """One request message as text, whatever kind of message it is.
+
+    The relay's annotator — not hermes, so there is no tool signature to
+    check this against (design principle 3) — writes five kinds of message
+    into one list, and only two of them use `content`:
+
+        user / assistant   content: str
+        tool_call          name, arguments, call_id  (content: None)
+        tool_result        output, call_id           (content: None)
+        provider_native    kind, provider, value     (content: None)
+
+    So this reads the shape in front of it rather than one key: a string
+    body where there is one, a fenced dump where the body is structured, and
+    a fenced dump of the whole message where it is something this has never
+    seen. Nothing is dropped for being unrecognized — the point of the page
+    it feeds is that it holds everything.
+    """
+    for key in ("content", "output", "text", "value"):
+        value = message.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    if isinstance(message.get("arguments"), str):
+        return _fence(message["arguments"], "json")
+    rest = {k: v for k, v in message.items() if k != "role"}
+    if not rest:
+        return ""
+    if len(rest) == 1:
+        only = next(iter(rest.values()))
+        if isinstance(only, str):
+            return only
+    return _fence(json.dumps(rest, indent=2, default=str), "json")
+
+
+def _message_label(message: dict) -> str:
+    """`tool_call · read_file` — the role, and what names the message within
+    it. A call and its result are otherwise two identical labels with the
+    interesting part inside the fence.
+
+    A label, not a heading: it is rendered as page furniture beside the
+    message rather than written into the message's own markdown. Written in,
+    it was one more `##` among the dozen a system prompt already has, and a
+    reader had no way to tell this app's words from the model's.
+    """
+    role = message.get("role")
+    role = role if isinstance(role, str) and role else "(no role)"
+    for key in ("name", "kind"):
+        value = message.get(key)
+        if isinstance(value, str) and value:
+            return f"{role} · {value}"
+    return role
+
+
+def request_sections_from_profile(category_profile: Any) -> Optional[list]:
+    """A whole llm request as `[{label, text}]` — one entry per message, in
+    the order sent.
+
+    The *split* is this app's (design principle 2, derived data says so on
+    screen); every `text` is the wire content untouched. Keeping them apart
+    is the whole point of the shape: the page draws each label as its own
+    chrome, so nothing this app wrote can be mistaken for something the model
+    was sent.
+
+    `instructions` leads when the request carries one — it is the system
+    prompt on the openai_responses path, and sits beside `messages` rather
+    than inside it.
+    """
+    if not isinstance(category_profile, dict):
+        return None
+    request = category_profile.get("annotated_request")
+    if not isinstance(request, dict):
+        return None
+    sections = []
+    instructions = request.get("instructions")
+    if isinstance(instructions, str) and instructions.strip():
+        sections.append({"label": "instructions", "text": instructions})
+    messages = request.get("messages")
+    if isinstance(messages, list):
+        for message in messages:
+            if not isinstance(message, dict):
+                sections.append({
+                    "label": "(unreadable)",
+                    "text": _fence(json.dumps(message, indent=2, default=str),
+                                   "json")})
+                continue
+            sections.append({"label": _message_label(message),
+                             "text": _message_body(message)})
+    return sections or None
 
 
 def request_prompt_from_profile(category_profile: Any) -> Optional[str]:

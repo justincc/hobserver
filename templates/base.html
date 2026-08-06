@@ -4,15 +4,18 @@
 
    - **Tab authors** extend it for the tab bar, the copy button, the live
      poll and the shared chrome. What is promised to them is the table in
-     docs/extending/writing-a-plugin.md: the `title`/`content` blocks, `data-live-poll`
-     / `data-live-tail`, `_item_nav.html`, and `.notice`.
+     docs/extending/writing-a-plugin.md: the `title`/`content`/`tabbar`
+     blocks, `data-live-poll` / `data-live-tail`, `_item_nav.html`, and
+     `.notice`.
    - **Scope-spec authors** never touch this file, but every class the spec
      vocabulary resolves to is defined here — `.mode-tag`, `.mem-id`,
      `.gen-key`, `.skill-action`, `.skill-cat`, `.gen-omitted`, `.tail`,
      `.wide`, `.wrap-detail`, and the `.list-item` / `.list-compact` split
      that is the whole of summary-vs-detail. A test asserts these still
      exist, because a spec naming one that has been renamed renders unstyled
-     and says nothing about why.
+     and says nothing about why. `.open-btn` and `.md-body` belong to the
+     same promise from the other end: a scope's `Full` (ADR 12) is what puts
+     them on a page, without ever naming them.
 
    Rename one of those and someone else's tab breaks with no error. Treat
    them the way ADR 5 treats a URL. #}
@@ -93,6 +96,72 @@
     .copy-btn .ic-check { display: none; }
     .copy-btn.copied .ic-copy { display: none; }
     .copy-btn.copied .ic-check { display: inline; color: #2e9e44; }
+    /* The whole-value link (ADR 12), styled as the copy button's sibling
+       because it is the same kind of thing: a faint affordance at the end of
+       a value, not part of the value. It is an <a>, so the link colour and
+       underline are turned off deliberately — inheriting them would make
+       every excerpt on the page look half-linked. */
+    .open-btn { color: #bbb; margin-left: 0.35rem; vertical-align: -0.08em; display: inline-block; }
+    .open-btn:hover { color: #555; text-decoration: none; }
+    /* An excerpt that is its own link to the whole of it. It keeps the row's
+       text colour rather than a link's: a paragraph of someone's prompt in
+       link blue would read as something quoted from elsewhere. The hover
+       shade and the glyph are what say it is a link, and the glyph darkens
+       with the text so the two read as one target. */
+    .span-detail a.open-text { color: inherit; }
+    .span-detail a.open-text:hover { color: #1a1a2e; background: #f1f3f7; text-decoration: none; }
+    .span-detail a.open-text .ic-open { color: #bbb; margin-left: 0.35rem; vertical-align: -0.08em; }
+    .span-detail a.open-text:hover .ic-open { color: #555; }
+    /* Rendered markdown on the full-value page. Sized against the shell's
+       prose, and every block that can run wide scrolls inside itself rather
+       than widening the page. */
+    .md-body { font-size: 0.95rem; line-height: 1.55; max-width: 62rem; }
+    .md-body h1, .md-body h2, .md-body h3, .md-body h4 { line-height: 1.3; margin: 1.6rem 0 0.6rem; }
+    .md-body h1 { font-size: 1.25rem; }
+    .md-body h2 { font-size: 1.1rem; }
+    .md-body h3, .md-body h4 { font-size: 1rem; }
+    .md-body p, .md-body ul, .md-body ol, .md-body blockquote { margin: 0.6rem 0; }
+    .md-body li { margin: 0.2rem 0; }
+    .md-body code { font-family: ui-monospace, monospace; font-size: 0.9em; background: #f4f5f8; padding: 0.05rem 0.25rem; border-radius: 3px; }
+    /* A heading that is entirely code is one this app wrote — a message's
+       role in a flattened request. The content's own headings are prose, so
+       the two never have to be told apart by reading them. */
+    .md-body h2 code { background: #eceff5; color: #33406b; font-size: 0.85em; letter-spacing: 0.02em; }
+    .md-body pre { background: #f4f5f8; padding: 0.8rem; border-radius: 6px; overflow-x: auto; }
+    .md-body pre code { background: none; padding: 0; }
+    .md-body blockquote { border-left: 3px solid #ddd; margin-left: 0; padding-left: 0.8rem; color: #555; }
+    .md-body hr { border: 0; border-top: 1px solid #ddd; margin: 1.6rem 0; }
+    .md-body table { font-size: 0.9rem; margin: 0.8rem 0; }
+    .md-body img { max-width: 100%; }
+    /* The raw view of the same value: pre.blob already wraps, and this keeps
+       a 250 KB request from running the page off the bottom in one block. */
+    .full-blob { max-height: 80vh; overflow-y: auto; }
+    /* Everything this app says about a full value, boxed together and
+       accented. The value below is prose a model wrote, with a heading of
+       its own on its first line, so a bare `<h2>` above it would read as
+       that prose's title. This must be unmistakably the page talking, not
+       the value — hence a panel, an accent rule and a colour, none of which
+       the rendered markdown ever uses. Same shade as `p.prompt`, which is
+       the app's existing way of saying "quoted text lives here". */
+    .full-head { background: #f4f5f8; border-left: 3px solid #2456c4; border-radius: 6px; padding: 0.7rem 1rem; margin: 0 0 1.75rem; max-width: 62rem; }
+    .full-head h2 { margin: 0; font-size: 1.15rem; color: #33406b; }
+    .full-head p.meta { margin: 0.35rem 0 0; }
+    /* Provenance under a full value's heading — quieter than the metadata
+       line above it, because it is a sentence rather than a set of facts. */
+    .meta.prov { font-style: italic; max-width: 62rem; }
+    /* The value's own first heading sits right under the panel; its usual
+       top margin would leave the two looking unrelated. */
+    .md-body > :first-child { margin-top: 0; }
+    /* One message of a request. The label is this app's and the box holds
+       nothing but wire content, so they are drawn as two different kinds of
+       thing: the label in the header panel's colours — the app's voice,
+       established at the top of the page — and the content plainly on the
+       page background inside a hairline border that shows where it ends. */
+    .msg { border: 1px solid #e2e5ec; border-radius: 6px; margin: 0 0 1rem; max-width: 62rem; overflow: hidden; }
+    .msg-label { background: #eceff5; border-left: 3px solid #2456c4; color: #33406b; font-family: ui-monospace, monospace; font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.4rem 0.7rem; }
+    .msg .md-body { padding: 0.7rem 0.9rem; max-width: none; }
+    .msg pre.blob { margin: 0; border-radius: 0; background: none; }
+    .msg .msg-empty { padding: 0.5rem 0.9rem; margin: 0; font-style: italic; }
     /* fixed layout so columns don't shift when the details switch hides
        or reveals content — widths come from the header row */
     table.waterfall { table-layout: fixed; }
@@ -145,6 +214,13 @@
     /* fallback rendering for a scope with no branch of its own: the payload
        key stays quiet beside its value, like a label */
     .span-detail .gen-key { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; color: #8a8a8a; }
+    /* A key that reserves a column, so the values under it start at one
+       edge — the llm scope's `prompt` and `response`, which are two
+       paragraphs a reader compares. In ch units because the key is
+       monospace, so the width is exactly the longest label plus a space.
+       Not part of the spec vocabulary: a declared Field cannot ask for it,
+       and the hand-written macro that can is the only user. */
+    .span-detail .gen-key.key-col { min-width: 9ch; }
     /* the tool names beside a finish reason. Detail-only (.list-item), so it
        needs no collapsed-line ellipsis — and deliberately not .path, whose
        collapsed rule outranks the one that hides .list-item and would put
@@ -260,6 +336,13 @@
 </head>
 <body>
   <h1><a href="{{ url_for('root') }}">hermes observer</a></h1>
+  {# A block so a page that is one thing to read — a whole prompt, opened in
+     its own tab from a span — can leave the tab bar out. Overriding it is
+     for that case only: a page reached by navigating always keeps the bar,
+     or the reader loses their place in the app. The `hermes observer`
+     heading above is outside it deliberately, so a page with no tab bar
+     still has a way home. #}
+  {% block tabbar %}
   <nav class="tabs">
     {# A tab that could not load keeps its place, marked: one that vanished
        would read as a missing feature rather than a fixable problem. #}
@@ -273,6 +356,7 @@
        target="_blank" rel="noopener"
        title="Health of this web app itself — HTTP requests reaching the observer. Not agent activity.">observer status</a>
   </nav>
+  {% endblock %}
   {% block content %}{% endblock %}
   <script>
     // Live regions: an element with data-live-poll="<ms>" is refetched from

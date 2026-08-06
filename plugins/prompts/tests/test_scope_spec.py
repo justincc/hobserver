@@ -13,21 +13,24 @@ import pytest
 
 from conftest import REPO_ROOT
 from plugins.prompts.assembler import Span
-from plugins.prompts.scope_spec import (RENDER_MACROS, Alt, Diff, Each, Field,
-                                        Items, Link, Row, Scope, SpecTable,
-                                        accessor, attr, check_table, const,
-                                        first, item,
-                                        joined, mapped, payload, payload_end,
-                                        render_macro, rows_for)
+from plugins.prompts.scope_spec import (FULL_ENDPOINT, FULL_RENDERERS,
+                                        RENDER_MACROS, Alt, Diff, Each, Field,
+                                        Full, Items, Link, Row, Scope,
+                                        SpecTable, accessor, attr, check_table,
+                                        const, first, full_for, full_link,
+                                        item, joined, mapped, payload,
+                                        payload_end, profile, render_macro,
+                                        resolve_full, resolve_source, rows_for)
 from plugins.prompts.scopes import SCOPES, SCOPES_BY_CATEGORY
 
 
-def make_span(name="acme_widget", category="tool", start=None, end=None):
+def make_span(name="acme_widget", category="tool", start=None, end=None,
+              profile_data=None):
     return Span(uuid="u1", name=name, category=category, session_id="s1",
                 parent_uuid=None, start_us=0, end_us=1_000, metadata={},
-                category_profile={}, start_data=start, end_data=end,
-                model_name=None, tool_call_id=None, api_request_id=None,
-                turn_id="t1", line_no=1)
+                category_profile=profile_data or {}, start_data=start,
+                end_data=end, model_name=None, tool_call_id=None,
+                api_request_id=None, turn_id="t1", line_no=1)
 
 
 def table(by_name=None, by_category=None):
@@ -752,3 +755,187 @@ def test_cell_keys_avoid_dicts_own_attributes():
         make_span(start={"urls": ["a"]}))
     for key in rows[0]:
         assert not hasattr({}, key), key
+
+
+# --- the whole value, on its own page (ADR 12) ------------------------
+
+
+def full_scope(**kwargs):
+    """A scope with one Full and one Field pointing at it."""
+    return Scope(
+        rows=[Row([Field(payload("note"), full="whole")])],
+        fulls=[Full(key="whole", source=payload("note"),
+                    title=const("the note"), **kwargs)])
+
+
+def test_a_field_carries_a_link_to_the_scopes_full_value():
+    cell = only_cell(full_scope().resolve(make_span(start={"note": "hi"})))
+    assert cell["full"] == {"endpoint": FULL_ENDPOINT,
+                            "params": {"span_uuid": "u1", "key": "whole"},
+                            "title": "the note"}
+
+
+def test_the_link_is_offered_even_when_the_value_fits_on_the_row():
+    """Unconditional by design: a reader cannot see that a value fits, only
+    that it ends, so an icon that came and went would have to be hunted for.
+    It also costs a payload read to decide, which ADR 11 exists to avoid."""
+    short = only_cell(full_scope().resolve(make_span(start={"note": "hi"})))
+    long = only_cell(full_scope().resolve(make_span(start={"note": "x" * 9000})))
+    assert short["full"] == long["full"]
+
+
+def test_a_field_naming_no_full_carries_no_link():
+    span = make_span(start={"note": "hi"})
+    spec = Scope(rows=[Row([Field(payload("note"))])])
+    assert only_cell(spec.resolve(span))["full"] is None
+
+
+def test_a_field_naming_a_full_the_scope_does_not_declare_drops_the_link():
+    """It is reported at load by check_table; at render it must not become a
+    link to a page that 404s."""
+    span = make_span(start={"note": "hi"})
+    spec = Scope(rows=[Row([Field(payload("note"), full="typo")])],
+                 fulls=[Full(key="whole", source=payload("note"))])
+    assert only_cell(spec.resolve(span))["full"] is None
+
+
+def test_a_full_is_reachable_by_key_for_a_hand_written_scope():
+    """A render= scope has no Field to carry `full=`, so its macro asks by
+    the key the scope declared — the same key the route resolves."""
+    span = make_span(name="anthropic", category="llm")
+    spec = Scope(render="llm", fulls=[Full(key="response", source="llm_text",
+                                           title=const("the whole response"))])
+    tab = table(by_category={"llm": spec})
+    assert full_for(span, tab, "response").key == "response"
+    assert full_link(span, tab, "response")["params"]["key"] == "response"
+    assert full_for(span, tab, "nosuch") is None
+    assert full_link(span, tab, "nosuch") is None
+
+
+def test_a_full_source_reads_the_category_profile():
+    """Where an llm span keeps its request. Neither payload holds it, so
+    without this source a contributed spec could not declare a full view of
+    the biggest value in the log."""
+    span = make_span(profile_data={"annotated_request": {"messages": []}})
+    full = Full(key="request", source=profile("annotated_request"))
+    assert resolve_full(span, full) == {"messages": []}
+
+
+def test_a_full_source_that_is_not_there_resolves_to_nothing():
+    span = make_span(start={})
+    assert resolve_full(span, Full(key="w", source=payload("note"))) is None
+
+
+def test_a_full_value_keeps_the_type_it_had():
+    """The renderer decides what to do about a structure; the vocabulary
+    hands it over as it found it."""
+    span = make_span(start={"note": {"a": 1}})
+    assert resolve_full(span, Full(key="w", source=payload("note"))) == {"a": 1}
+
+
+def test_a_fulls_title_is_a_source_like_any_other():
+    span = make_span(start={"note": "hi", "label": "the note"})
+    assert resolve_source(payload("label"), span) == "the note"
+    assert resolve_source(const("literal"), span) == "literal"
+
+
+def test_a_raising_title_source_costs_its_line_not_the_page():
+    class Boom:
+        def __getitem__(self, key):
+            raise RuntimeError("boom")
+
+    span = make_span(start={"note": "hi"})
+    assert resolve_source(("attr", ("const", Boom()), "x"), span) is None
+
+
+def test_a_full_with_no_span_uuid_offers_no_link():
+    span = make_span(start={"note": "hi"})
+    span.uuid = ""
+    assert Full(key="w", source=payload("note")).link(span, {}) is None
+
+
+# --- what check_table catches at load ---------------------------------
+
+
+def problems(spec):
+    return check_table({"acme_widget": spec}, {})
+
+
+def test_a_field_naming_an_undeclared_full_is_reported_at_load():
+    """Otherwise the mistake is an icon that opens a page saying the key is
+    unknown — a broken link the reader has to click to discover, on a page
+    they opened because they could not see the value."""
+    found = problems(Scope(rows=[Row([Field(payload("n"), full="typo")])],
+                           fulls=[Full(key="whole", source=payload("n"))]))
+    assert any("full='typo'" in p and "whole" in p for p in found), found
+
+
+def test_a_full_naming_an_unknown_renderer_is_reported_at_load():
+    found = problems(Scope(rows=[Row([Field(payload("n"))])],
+                           fulls=[Full(key="w", source=payload("n"),
+                                       render="rst")]))
+    assert any("render='rst'" in p for p in found), found
+    for known in FULL_RENDERERS:
+        assert any(known in p for p in found), known
+
+
+def test_a_full_with_no_source_is_reported_at_load():
+    found = problems(Scope(rows=[Row([Field(payload("n"))])],
+                           fulls=[Full(key="w")]))
+    assert any("no source" in p for p in found), found
+
+
+def test_a_full_key_that_is_not_a_url_segment_is_reported_at_load():
+    found = problems(Scope(rows=[Row([Field(payload("n"))])],
+                           fulls=[Full(key="the whole/thing",
+                                       source=payload("n"))]))
+    assert any("URL segment" in p for p in found), found
+
+
+def test_two_fulls_with_one_key_are_reported_at_load():
+    found = problems(Scope(rows=[Row([Field(payload("n"))])],
+                           fulls=[Full(key="w", source=payload("n")),
+                                  Full(key="w", source=payload("m"))]))
+    assert any("declared twice" in p for p in found), found
+
+
+def test_a_full_inside_a_nested_row_is_found_by_the_load_check():
+    """Fields hide inside Alt, Each and a Link's before/after — a check that
+    only walked top-level cells would pass a spec that then rendered a dead
+    icon."""
+    for rows in (
+        [Row([Alt([Field(payload("n"), full="typo")])])],
+        [Each(payload("items"), rows_spec=[Row([Field(item(), full="typo")])])],
+        [Link(endpoint="x", text=const("t"),
+              after=[Field(payload("n"), full="typo")])],
+    ):
+        found = problems(Scope(rows=rows,
+                               fulls=[Full(key="w", source=payload("n"))]))
+        assert any("full='typo'" in p for p in found), rows
+
+
+def test_a_good_full_declaration_reports_nothing():
+    assert problems(full_scope()) == []
+
+
+def test_the_in_tree_table_declares_its_fulls_correctly():
+    """The shipped specs go through the same check a contributed one does."""
+    assert check_table(SCOPES, SCOPES_BY_CATEGORY) == []
+
+
+def test_the_llm_scope_offers_its_request_and_its_response():
+    """Both, by category, so every model call has them whatever it was for —
+    a turn's own prompt, a compaction, a subagent's delegated call."""
+    fulls = {f.key: f for f in SCOPES_BY_CATEGORY["llm"].fulls}
+    assert set(fulls) == {"request", "response"}
+    # a request is several messages, each labelled by this app; a response is
+    # one string the model wrote, and nothing of ours goes near it
+    assert fulls["request"].render == "sections"
+    assert fulls["response"].render == "markdown"
+    for full in fulls.values():
+        assert full.note is not None, f"{full.key} says nothing about where it came from"
+
+
+def test_the_full_docstring_names_every_renderer_the_code_accepts():
+    for renderer in FULL_RENDERERS:
+        assert f'"{renderer}"' in Full.__doc__, renderer

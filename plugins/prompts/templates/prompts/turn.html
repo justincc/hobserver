@@ -136,7 +136,7 @@
         </div>
         {%- endif %}
         {%- set spec_render = scope_render(s) %}
-        {%- if spec_render == "llm" %}{{ llm_rows(s) }}
+        {%- if spec_render == "llm" %}{{ llm_rows(s, scope_full) }}
         {%- else %}
         {%- set rows = scope_rows(s) %}
         {%- if rows %}{{ spec_rows(rows) }}

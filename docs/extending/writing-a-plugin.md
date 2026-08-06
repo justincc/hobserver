@@ -124,6 +124,14 @@ live-poll script and the shared CSS. These are the public surface:
 | self-updating region | wrap content in an element with `data-live-poll="<ms>"`; `"0"` means static |
 | item navigation | `{% from "_item_nav.html" import item_nav %}` for "← all X" plus prev/next |
 | notices | `<p class="notice warn">` for a problem the reader must see |
+| no tab bar | `{% block tabbar %}{% endblock %}` — for a page opened in its own tab to read one thing, never for one reached by navigating |
+
+The empty `tabbar` is the one piece of chrome worth turning off, and only in
+the case it exists for: `/prompts/span/<uuid>/<key>` is opened from a span
+icon into a new tab, so a row of tabs there offers to navigate away from a
+place the reader never navigated to. Any page a reader *walks* to keeps the
+bar, or they lose their place in the app. The `hermes observer` heading is
+outside the block, so a page without the bar still has a way home.
 
 Keep your templates in your own package —
 `Blueprint("tail", __name__, template_folder="templates")`, with the files

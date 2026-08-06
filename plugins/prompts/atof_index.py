@@ -597,6 +597,17 @@ def hydrate_turn(turn, log_path: str) -> None:
     turn.marks[:] = [_hydrated_mark(mark, log_path) for mark in turn.marks]
 
 
+def hydrate_span(span, log_path: str) -> None:
+    """Read one span's payloads back, for a page showing that span alone.
+
+    `hydrate_turn` is the usual door in; this is the one the full-value page
+    (ADR 12) uses, where the whole page is one value of one span and reading
+    its forty siblings would be reading a megabyte to render a page that
+    does not show them.
+    """
+    _hydrate_span(span, log_path)
+
+
 def _hydrate_span(span, log_path: str) -> None:
     if not span.payload_elided:
         return

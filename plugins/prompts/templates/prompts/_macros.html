@@ -10,6 +10,45 @@
 {% macro copy_btn(text, label) -%}
 <button class="copy-btn" data-copy="{{ text }}" title="{{ label }}" aria-label="{{ label }}"><svg class="ic-copy" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="ic-check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
 {%- endmacro %}
+{# The whole of a value, in a new tab (ADR 12). Drawn whether or not what is
+   on the row was cut short: a reader cannot see that a value fits, only that
+   it ends, and an icon that comes and goes is one to hunt for rather than
+   reach for.
+
+   spec_link, not url_for, for the reason it exists on a spec's Link: a spec
+   naming an endpoint nothing serves drops its icon instead of taking the
+   page down with a BuildError. target=_blank because the ask is a new tab;
+   rel=noopener because every target=_blank should carry it. #}
+{% macro open_btn(full) -%}
+{%- set href = spec_link(full.endpoint, full.params) %}
+{%- if href %}
+{#- "Request — open in a new tab", so the title reads as the name of the thing
+    and the wording stays right whatever a scope called it. #}
+{%- set label = (full.title or "The whole value") + " — open in a new tab" %}
+<a class="open-btn" href="{{ href }}" target="_blank" rel="noopener" title="{{ label }}" aria-label="{{ label }}">{{ open_icon() }}</a>
+{%- endif %}
+{%- endmacro %}
+{# The glyph alone, for where the link is the element *around* it: an anchor
+   inside an anchor is not markup a browser keeps. #}
+{% macro open_icon() -%}
+<svg class="ic-open" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+{%- endmacro %}
+{# A value that is itself the link to its full page: the whole excerpt is the
+   anchor, with the glyph riding at its end rather than being the only target.
+   The key beside it stays outside, so clicking the label does nothing — it
+   names the row, it is not a way into it.
+
+   Falls back to a plain span when nothing serves the endpoint, for the reason
+   `open_btn` does: a dead link is worse than no link. #}
+{% macro open_text(full, text, ellipsis=false) -%}
+{%- set href = spec_link(full.endpoint, full.params) if full else none %}
+{%- if href %}
+{%- set label = (full.title or "The whole value") + " — open in a new tab" %}
+<a class="path wide wrap-detail open-text" href="{{ href }}" target="_blank" rel="noopener" title="{{ label }}">{{ text }}{% if ellipsis %}…{% endif %}{{ open_icon() }}</a>
+{%- else %}
+<span class="path wide wrap-detail">{{ text }}{% if ellipsis %}…{% endif %}</span>
+{%- endif %}
+{%- endmacro %}
 {% macro item_list(items) -%}
 <div class="span-detail list-compact">
   <span class="path wide" title="{{ items | join('\n') }}">{{ items[0] }}</span>
@@ -72,7 +111,7 @@
 {% macro spec_cell(c) -%}
 {%- if c.sep %}<span class="skill-cat">·</span> {% endif -%}
 {%- if c.label %}<span>{{ c.label }}</span> {% endif -%}
-<{{ c.el }}{% if c.cls %} class="{{ c.cls }}"{% endif %}{% if c.title is not none %} title="{{ c.title }}"{% endif %}>{% if c.lrm %}&lrm;{% endif %}{{ c.text }}{% if c.lrm %}&lrm;{% endif %}{% if c.copy_text %}{{ copy_btn(c.copy_text, c.copy_title) }}{% endif %}</{{ c.el }}>
+<{{ c.el }}{% if c.cls %} class="{{ c.cls }}"{% endif %}{% if c.title is not none %} title="{{ c.title }}"{% endif %}>{% if c.lrm %}&lrm;{% endif %}{{ c.text }}{% if c.lrm %}&lrm;{% endif %}{% if c.copy_text %}{{ copy_btn(c.copy_text, c.copy_title) }}{% endif %}{% if c.full %}{{ open_btn(c.full) }}{% endif %}</{{ c.el }}>
 {%- if c.more %} <span>+{{ c.more }} more</span>{% endif -%}
 {%- endmacro %}
 {# A declared scope's rows. Every key here is named to miss dict's own

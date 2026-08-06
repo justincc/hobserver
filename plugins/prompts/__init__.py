@@ -19,15 +19,18 @@ import os
 import time
 from datetime import datetime, timezone
 
-from flask import (Blueprint, abort, current_app, render_template,
+from flask import (Blueprint, abort, current_app, render_template, request,
                    url_for)
 from werkzeug.routing import BuildError
 
 import hermes_paths
+from plugins.prompts import fulltext
 from plugins.prompts.assembler import assemble
-from plugins.prompts.atof_index import AtofIndex, default_index_path, hydrate_turn
-from plugins.prompts.scope_spec import (SpecTable, check_table, render_macro,
-                                        rows_for)
+from plugins.prompts.atof_index import (AtofIndex, default_index_path,
+                                        hydrate_span, hydrate_turn)
+from plugins.prompts.scope_spec import (SpecTable, check_table, full_for,
+                                        full_link, render_macro, resolve_full,
+                                        resolve_source, rows_for)
 from plugins.prompts.scopes import SCOPES, SCOPES_BY_CATEGORY
 
 PLUGIN_API = 1
@@ -366,17 +369,22 @@ def _accessors():
     return current_app.extensions
 
 
+def _find_turn(assembly, session_id, start_us):
+    """The turn a URL names, or None. The pair is what identifies one."""
+    return next(
+        (t for s in assembly.sessions if s.session_id == session_id
+         for t in s.turns if t.start_us == start_us),
+        None,
+    )
+
+
 @bp.route("/turn/<session_id>/<int:start_us>")
 def turn(session_id, start_us):
     problem = _source_problem()
     if problem is not None:
         return problem
     assembly, _ = _assembly()
-    found = next(
-        (t for s in assembly.sessions if s.session_id == session_id
-         for t in s.turns if t.start_us == start_us),
-        None,
-    )
+    found = _find_turn(assembly, session_id, start_us)
     if found is None:
         abort(404)
     # The payloads live in the log; read back the ones this turn needs and
@@ -389,10 +397,7 @@ def turn(session_id, start_us):
     scale_end = found.end_us or max(span_edges, default=found.start_us)
     scale_us = max(scale_end - found.start_us, 1)
     older, newer = _neighbours(assembly, found)
-    # The spec table resolved at registration; a page with no init_app behind
-    # it (a bare test app, say) still renders, on this tree's own specs.
-    table = current_app.config.get("SCOPE_SPECS") or SpecTable(
-        dict(SCOPES), dict(SCOPES_BY_CATEGORY))
+    table = _spec_table()
     accessors = _accessors()
     return render_template(
         "prompts/turn.html",
@@ -404,4 +409,76 @@ def turn(session_id, start_us):
         newer=newer,
         scope_rows=lambda span: rows_for(span, table, accessors),
         scope_render=lambda span: render_macro(span, table),
+        # For the hand-written macros, which have no Field to carry a
+        # `full=` and so ask for the link by the key their scope declared.
+        scope_full=lambda span, key: full_link(span, table, key, accessors),
+    )
+
+
+def _spec_table():
+    """The resolved spec table, or this tree's own when nothing resolved it.
+
+    Both the turn page and the full page need it, and a bare test app with
+    no `init_app` behind it still renders.
+    """
+    return current_app.config.get("SCOPE_SPECS") or SpecTable(
+        dict(SCOPES), dict(SCOPES_BY_CATEGORY))
+
+
+def _find_span(assembly, span_uuid):
+    """(turn, span) for a uuid, or (None, None).
+
+    Turns first, then the spans that landed in none — an llm call parented
+    to the session rather than to a turn is exactly the kind whose prompt is
+    otherwise nowhere on the site, so addressing it by uuid is what makes it
+    readable at all.
+    """
+    for session in assembly.sessions:
+        for turn in session.turns:
+            for span in turn.spans:
+                if span.uuid == span_uuid:
+                    return turn, span
+    for session in assembly.sessions:
+        for span in session.unassigned_spans:
+            if span.uuid == span_uuid:
+                return None, span
+    return None, None
+
+
+@bp.route("/span/<span_uuid>/<key>")
+def span_full(span_uuid, key):
+    """One whole value of one span, on a page of its own (ADR 12).
+
+    Addressed by span uuid rather than through its turn: the uuid is already
+    on the row and in the copy button beside it, it does not change when the
+    assembly does, and it reaches a span no turn claimed.
+
+    `raw` shows the same value as characters. Markdown is a reading of the
+    text, and a reader who suspects the reading needs somewhere to check —
+    which is also the only view a value's whitespace survives.
+    """
+    problem = _source_problem()
+    if problem is not None:
+        return problem
+    assembly, _ = _assembly()
+    turn, span = _find_span(assembly, span_uuid)
+    if span is None:
+        abort(404)
+    table = _spec_table()
+    full = full_for(span, table, key)
+    if full is None:
+        abort(404)
+    # One span's payloads, not its turn's: this page shows one value.
+    hydrate_span(span, current_app.config["ATOF_PATH"])
+    accessors = _accessors()
+    rendered = fulltext.render(resolve_full(span, full, accessors), full.render)
+    return render_template(
+        "prompts/full.html",
+        span=span,
+        turn=turn,
+        full=full,
+        title=resolve_source(full.title, span, accessors) or full.key,
+        note=resolve_source(full.note, span, accessors),
+        rendered=rendered,
+        raw=request.args.get("raw") is not None,
     )

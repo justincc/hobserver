@@ -179,12 +179,58 @@ Three rules worth knowing before you rely on it:
 - **Key on a payload field, not a `Span` property.** Properties are something
   only this tree can add, so keying on one puts you back where you started.
 
+## A value too big for a row
+
+Some values do not belong on a waterfall row at any length — a deploy log, a
+model's whole answer. Declare them on the scope as `Full`s and each becomes a
+page of its own, reached by an open-in-a-new-tab icon at the end of the
+excerpt ([ADR 12](../design/adr/0012-open-a-whole-value-on-its-own-page.md)):
+
+```python
+from plugins.prompts.scope_spec import Full, const
+
+SCOPES = {"deploy": Scope(
+    rows=[Row([Field(payload("service")),
+               Field(payload("log"), clip="wrap", full="log")])],
+    fulls=[Full(key="log", source=payload("log"), render="markdown",
+                title=const("Deploy log"),
+                note=const("stdout as the deploy tool reported it"))]),
+}
+```
+
+- **`fulls` goes on the `Scope`, and a `Field` names one by key.** The route
+  serving the page reads the same list, so a key exists in both places or in
+  neither. A `Field(full=…)` naming a key you did not declare is reported at
+  load, like any other spec fault.
+- **The icon is drawn whether or not the value was cut short.** That is
+  deliberate and not yours to condition: a reader cannot see that a value
+  fits, only that it ends.
+- **`render="markdown"`, `"text"` or `"sections"`.** A value that resolves to
+  a dict or a list is shown as indented JSON whichever you asked for. Every
+  page also offers `?raw=1`, so nothing you declare can hide the characters
+  underneath.
+- **`"sections"` is for a value that is several labelled parts** — the
+  messages of a request, the steps of a deploy. Its source resolves to
+  `[{"label": …, "text": …}]`, and each text is rendered under its label,
+  drawn as page furniture outside the markdown. Use it whenever the labels
+  are *yours* and the text is not: written into the markdown instead, a label
+  is one more heading among the content's own, and a reader cannot tell which
+  words came from where.
+- **`title` and `note` are sources**, so `const("…")` for a literal. Use
+  `note` to say where the value came from — required reading if your spec
+  reshapes it on the way, since the page must not present a reconstruction as
+  something the tool emitted.
+- **The URL is `/prompts/span/<span uuid>/<key>`.** Your key is a URL
+  segment: lower case, digits, `-` and `_`.
+
 ## Reading the payload, or a property
 
 `Field(payload("service"))` reads the span's start payload;
 `Field(payload_end("status"))` reads the end payload, which is the call's
-output. Both read defensively — a payload is opaque per the ATOF spec, may
-arrive as a JSON string, and may be missing the key entirely.
+output. `Field(profile("annotated_request"))` reads the span's category
+profile, which is where an llm span keeps its request and its response. All
+three read defensively — a payload is opaque per the ATOF spec, may arrive as
+a JSON string, and may be missing the key entirely.
 
 `Field("command")` names a `Span` property instead. Those exist for this
 tree's own scopes, where reading the payload is not enough — inferring a
@@ -251,8 +297,10 @@ def test_deploy_leads_with_the_service(make_span):
 ## Checklist
 
 - [ ] `SCOPES` keyed by the scope name exactly as it appears on the span
-- [ ] every value read with `payload()` / `payload_end()`, not a property you
-      would have to add to this tree
+- [ ] every value read with `payload()` / `payload_end()` / `profile()`, not
+      a property you would have to add to this tree
+- [ ] anything too big for a row declared as a `Full` rather than clipped and
+      lost, with a `note` saying where it came from
 - [ ] payload shapes checked against the tool's own signature in the hermes
       source, not against what your log happens to have shown so far
 - [ ] `layer` set deliberately on every row — what belongs on the summary
