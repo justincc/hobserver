@@ -91,8 +91,14 @@ Decided in full in their ADRs; listed here so a design review meets them.
 
 - **Read-only over someone else's log.** The browser never owns or mutates
   data, opens no authenticated network calls, and stores nothing derived —
-  [ADR 2](adr/0002-read-atof-jsonl-directly-no-etl.md), bent knowingly by
-  [ADR 6](adr/0006-parse-atof-by-declared-schema-era.md), which says where.
+  [ADR 2](adr/0002-read-atof-jsonl-directly-no-etl.md), bent knowingly twice:
+  by [ADR 6](adr/0006-parse-atof-by-declared-schema-era.md), which says where,
+  and by [ADR 11](adr/0011-index-the-atof-log-rather-than-hold-it-in-memory.md),
+  which does store something derived — an index of the log, rebuildable in
+  seconds from it, holding no fact the log does not, and never the thing a
+  reader is shown. Anything with the shape "a cache of a source we do not
+  own" belongs to that ADR and inherits its rule: **discard on any doubt,
+  never migrate.**
 - **Fail loudly, never quietly wrong.** An unreadable source, an unknown
   schema or an unresolvable link says so on screen; parse errors and
   anomalies are surfaced, never dropped — ADRs 2 and 5.

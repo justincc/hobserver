@@ -21,10 +21,30 @@ fallback). So nothing has to be configured when `HERMES_HOME` is exported.
 | tab | setting | env |
 | --- | --- | --- |
 | Prompts | `atof_log` | `ATOF_LOG` |
+| Prompts | `index_db` | — |
 | Mem0 | `db` | `JMEM0_DB` |
 
 A plugin reports what it resolved through its `sources` hook, which is what
 the banner prints — the shell knows none of the above.
+
+## The ATOF index, in the banner
+
+The Prompts tab prints a second line, `ATOF index (cache)`, naming the SQLite
+file it keeps beside nothing —
+[ADR 11](../design/adr/0011-index-the-atof-log-rather-than-hold-it-in-memory.md).
+It is listed with the sources because that is where a reader looks for "which
+files is this thing touching", but it is not one: it is derived entirely from
+the log and **safe to delete at any time**.
+
+Two things to expect from it while running:
+
+- **The first request after a fresh start builds it** — roughly ten seconds
+  per gigabyte of log, once. Later starts reuse it, which is the point of
+  persisting it.
+- **Editing `atof_reader.py`, `assembler.py` or `atof_index.py` forces a
+  rebuild** on the next request, because the stored fields mean whatever those
+  files meant when they wrote them. With `use_reloader=True` this happens
+  during ordinary development, and the pause is the rebuild, not a hang.
 
 ## Checking the db before serving
 

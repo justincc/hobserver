@@ -11,6 +11,11 @@
 module = "plugins.prompts"
 # settings = { atof_log = "$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl" }
 #
+# `index_db` moves this tab's index of that log, which defaults to a file in
+# your cache dir. It is a cache and not a source — delete it whenever you like
+# and the next request rebuilds it. See docs/design/adr/0011.
+# settings = { index_db = "/var/tmp/hermes-atof-index.sqlite3" }
+#
 # `scope_specs` names modules declaring how your own hermes tools should show
 # on a turn page — one entry per scope, no fork of this tree. A name already
 # in this app's table is overridden, and the banner says so at startup. See

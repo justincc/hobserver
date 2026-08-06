@@ -32,7 +32,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Iterable, List, Optional
 
-from plugins.prompts.atof_reader import AtofEvent, generic_payload_fields
+from plugins.prompts.atof_reader import (AtofEvent, LineRef,
+                                         generic_payload_fields)
 
 TURN_START_MARK = "hermes.turn.start"
 TURN_END_MARK = "hermes.turn.end"
@@ -195,6 +196,28 @@ class Span:
     turn_id: Optional[str]
     line_no: int                    # of the start event
 
+    # --- ADR 11 -----------------------------------------------------------
+    # Where each of this span's two lines is in the log, so `hydrate_turn`
+    # can read the payloads back for the one turn being viewed; what the
+    # index kept when it left them there; and whether they are still out
+    # there. A span assembled straight from parsed lines leaves all of these
+    # at their defaults and behaves exactly as before.
+    start_ref: Optional[LineRef] = None
+    end_ref: Optional[LineRef] = None
+    projection: dict = field(default_factory=dict)
+    payload_elided: bool = False
+    payload_problem: Optional[str] = None
+    # Last `llm.chunk` seen under this span. Chunks are 94% of the log's
+    # lines and reach no template, so the index folds them into this one
+    # number rather than carrying them as events (ADR 11).
+    stream_last_us: Optional[int] = None
+
+    @property
+    def last_activity_us(self) -> int:
+        """The last moment anything was seen of this span."""
+        return max(x for x in (self.start_us, self.end_us, self.stream_last_us)
+                   if x is not None)
+
     @property
     def duration_us(self) -> Optional[int]:
         if self.end_us is None:
@@ -318,20 +341,17 @@ class Span:
         off. For an agent-initiated turn (a curator pass, say) that message
         is hermes' own instruction rather than a person's, which is correct
         — it is still the prompt the turn ran on.
+
+        Assembly needs this to name a turn the marks never described, and it
+        is buried in the largest payload in the log, so it is one of the two
+        strings the index projects (ADR 11). Read from there when it is
+        there; the reconstruction below is what put it there in the first
+        place, and still runs when the payload is at hand.
         """
-        request = self.category_profile.get("annotated_request")
-        if not isinstance(request, dict):
-            return None
-        messages = request.get("messages")
-        if not isinstance(messages, list):
-            return None
-        for message in reversed(messages):
-            if not isinstance(message, dict) or message.get("role") != "user":
-                continue
-            content = message.get("content")
-            if isinstance(content, str) and content:
-                return _unwrap_prompt(content)
-        return None
+        projected = self.projection.get("request_prompt")
+        if projected is not None:
+            return projected or None
+        return request_prompt_from_profile(self.category_profile)
 
     @property
     def _assistant_message(self) -> Optional[dict]:
@@ -1001,14 +1021,53 @@ def _unwrap_prompt(content: str) -> Optional[str]:
     return text or None
 
 
-def _user_message(data: Any) -> Optional[str]:
-    """The prompt from a turn-start mark's payload."""
+def request_prompt_from_profile(category_profile: Any) -> Optional[str]:
+    """Reconstruct a turn's prompt from an llm call's request payload.
+
+    See `Span.request_prompt`, whose docstring is the record of what this
+    reconstruction is and is not. Module-level because the index runs it at
+    index time, on a payload it then leaves in the log (ADR 11) — the value
+    has to be derived the same way from either side.
+    """
+    if not isinstance(category_profile, dict):
+        return None
+    request = category_profile.get("annotated_request")
+    if not isinstance(request, dict):
+        return None
+    messages = request.get("messages")
+    if not isinstance(messages, list):
+        return None
+    for message in reversed(messages):
+        if not isinstance(message, dict) or message.get("role") != "user":
+            continue
+        content = message.get("content")
+        if isinstance(content, str) and content:
+            return _unwrap_prompt(content)
+    return None
+
+
+def user_message_from_data(data: Any) -> Optional[str]:
+    """The prompt from a turn-start mark's payload.
+
+    Public because the index projects this value out of a payload it is
+    about to leave in the log, and must reach it the same way (ADR 11).
+    """
     data = _as_dict(data)
     if data is not None:
         value = data.get("user_message")
         if isinstance(value, str) and value:
             return value
     return None
+
+
+def _mark_user_message(mark: AtofEvent) -> Optional[str]:
+    """The prompt a turn-start mark named, from wherever it survives.
+
+    A turn mark's payload averages 570 KB — it repeats the conversation —
+    and this short field is all assembly wants from it, so the index keeps
+    the field and leaves the payload in the log (ADR 11).
+    """
+    return mark.projected("user_message") or user_message_from_data(mark.data)
 
 
 @dataclass
@@ -1102,8 +1161,9 @@ class Turn:
         edges = [self.start_us]
         if self.end_us is not None:
             edges.append(self.end_us)
-        edges.extend(s.start_us for s in self.spans)
-        edges.extend(s.end_us for s in self.spans if s.end_us is not None)
+        # Span.last_activity_us folds in the last streamed chunk, which is
+        # the only sign of life a long model call gives while it is open.
+        edges.extend(s.last_activity_us for s in self.spans)
         edges.extend(m.timestamp_us for m in self.marks)
         return max(edges)
 
@@ -1147,11 +1207,15 @@ class Assembly:
         return stopped
 
 
-def _pair_spans(events, anomalies):
+def _pair_spans(events, anomalies, stream_activity=None):
     """Match scope start/end events by uuid; also map session-scope uuids.
 
     Returns (spans by uuid in start order, {agent scope uuid: session_id}).
+
+    `stream_activity` maps a span's uuid to the timestamp of the last
+    `llm.chunk` seen beneath it — see `assemble`.
     """
+    stream_activity = stream_activity or {}
     spans: dict = {}
     scope_sessions: dict = {}
     for event in events:
@@ -1179,9 +1243,13 @@ def _pair_spans(events, anomalies):
                 api_request_id=event.api_request_id,
                 turn_id=event.turn_id,
                 line_no=event.line_no,
+                start_ref=event.payload_ref,
+                projection=dict(event.projection),
+                payload_elided=event.payload_elided,
+                stream_last_us=stream_activity.get(event.uuid),
             )
             if event.category == AGENT_CATEGORY:
-                session_id = event.session_id
+                session_id = event.session_id or event.projected("data_session_id")
                 if not session_id and isinstance(event.data, dict):
                     session_id = event.data.get("session_id")
                 if session_id:
@@ -1198,6 +1266,10 @@ def _pair_spans(events, anomalies):
                 continue
             span.end_us = event.timestamp_us
             span.end_data = event.data
+            span.end_ref = event.payload_ref
+            span.payload_elided = span.payload_elided or event.payload_elided
+            if event.projection:
+                span.projection = {**span.projection, **event.projection}
             # end events may carry metadata the start lacked
             span.metadata = {**event.metadata, **span.metadata}
     return spans, scope_sessions
@@ -1217,7 +1289,7 @@ def _build_turns(session: Session, boundary_marks, anomalies) -> None:
                 session_id=session.session_id,
                 turn_id=mark.turn_id,
                 start_us=mark.timestamp_us,
-                user_message=_user_message(mark.data),
+                user_message=_mark_user_message(mark),
             )
         else:  # TURN_END_MARK
             if current is None:
@@ -1402,14 +1474,21 @@ def _turn_for(session: Session, turn_id: Optional[str], timestamp_us: int) -> Op
     return _containing_turn(session, timestamp_us)
 
 
-def assemble(events: Iterable[AtofEvent]) -> Assembly:
-    """Build the session/turn/span waterfall model from parsed events."""
+def assemble(events: Iterable[AtofEvent],
+             stream_activity: Optional[dict] = None) -> Assembly:
+    """Build the session/turn/span waterfall model from parsed events.
+
+    `stream_activity` maps a span uuid to the timestamp of the last
+    `llm.chunk` emitted beneath it. The index passes it because it does not
+    carry chunks as events (ADR 11); a caller assembling parsed lines
+    directly passes nothing and the chunks are simply in `events`.
+    """
     anomalies: List[Anomaly] = []
     # Defensive sort: the exporter appends in near-real-time order, but the
     # model must not depend on it. line_no breaks timestamp ties.
     ordered = sorted(events, key=lambda e: (e.timestamp_us, e.line_no))
 
-    spans, scope_sessions = _pair_spans(ordered, anomalies)
+    spans, scope_sessions = _pair_spans(ordered, anomalies, stream_activity)
 
     # The core runtime's turn tree (see TURN_SCOPE). Both eras can appear in
     # one file, so these are simply empty when only the plugin wrote it.

@@ -672,10 +672,11 @@ def test_contributed_modules_appear_in_the_startup_sources(tmp_path,
     from plugins.prompts import sources
 
     entries = sources({"atof_log": str(tmp_path / "nope.jsonl"),
+                       "index_db": str(tmp_path / "index.sqlite3"),
                        "scope_specs": ["no_such_module_anywhere"]})
     labels = [e["label"] for e in entries]
-    assert labels == ["ATOF log", "scope spec"]
-    assert entries[1]["problem"].startswith("ModuleNotFoundError")
+    assert labels == ["ATOF log", "ATOF index (cache)", "scope spec"]
+    assert entries[-1]["problem"].startswith("ModuleNotFoundError")
 
 
 # --- the docstrings are the reference, so they have to stay true ------

@@ -123,6 +123,18 @@
            declared rows, and anything with no spec — a tool this app has
            never heard of — falls back to its payload, which is what the
            generic renderer is for. #}
+        {# The payload lives in the log and is read back for this turn alone
+           (ADR 11). When that read fails — the log rotated between assembly
+           and render — say so on the row: the rows below are then showing
+           only what the index kept, which is not the whole payload. #}
+        {%- if s.payload_problem %}
+        <div class="span-detail err">
+          <span class="err-mark">!</span>
+          <span class="path wide wrap-detail"
+                title="{{ s.payload_problem }}">payload no longer readable in the
+            log, showing what the index kept — {{ s.payload_problem }}</span>
+        </div>
+        {%- endif %}
         {%- set spec_render = scope_render(s) %}
         {%- if spec_render == "llm" %}{{ llm_rows(s) }}
         {%- else %}

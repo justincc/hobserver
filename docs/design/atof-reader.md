@@ -1,15 +1,31 @@
 # The ATOF reader
 
-Three layers in `plugins/prompts/`, per ADR 2 (direct JSONL reading, no ETL).
-Views run the tailer on each request and assemble in memory.
+Four layers in `plugins/prompts/`, per ADR 2 (the JSONL is the source of
+truth) and ADR 11 (a rebuildable index of it, so the log need not fit in
+memory).
 
-## tailer.py — incremental read
+| layer | file | what it does |
+|---|---|---|
+| line reader | `tailer.py` | byte offsets → complete lines |
+| parser | `atof_reader.py` | one line → one typed event |
+| index | `atof_index.py` | events → a cached spine; payloads stay in the log |
+| assembler | `assembler.py` | events → sessions → turns → waterfall |
 
-Byte-offset incremental read of the JSONL file, with an app-lifetime instance
-in `app.extensions` so a request only pays for what the exporter appended
-since the last one.
+Views refresh the index on each request and assemble in memory. The turn page
+reads back the payloads of the one turn it is showing, and no others.
 
-**Split the chunk on `"\n"` only — never `str.splitlines()`.** splitlines also
+## tailer.py — the line reader
+
+`read_lines(path, offset)` yields `(offset, length, text)` for each complete
+line from a byte offset, streaming, so a rebuild of a multi-gigabyte log never
+holds more than one read chunk. `read_at(path, offset, length)` is the other
+direction — the pair is what lets the index store a line's position instead of
+its contents.
+
+It parses nothing and remembers nothing: the index owns the cursor, because
+the cursor and the rows built from it have to advance together or not at all.
+
+**Split the chunk on `b"\n"` only — never `str.splitlines()`.** splitlines also
 breaks on U+0085, U+2028 and U+2029, which JSON does not require escaping and
 which hermes' assistant text contains verbatim. That shredded whole records
 into unparseable fragments; when the shredded record was a `hermes.turn.end`,
@@ -110,6 +126,102 @@ Three of these are traps worth keeping written down:
 Facts the new exporter never emits (subagent and approval marks) are absent,
 not renamed, and normalization does not invent them.
 
+## atof_index.py — the index
+
+A SQLite cache of the log's spine, so the log itself never has to fit in
+memory. Decided in
+[ADR 11](adr/0011-index-the-atof-log-rather-than-hold-it-in-memory.md), which
+carries the measurements; this is what it looks like in the code.
+
+### What is stored, and what is left in the log
+
+One row per event, minus `llm.chunk` (below): the line's **offset and
+length**, the **spine** (kind, uuid, parent_uuid, timestamp, name, category,
+schema era), the **correlation envelope** verbatim — `metadata` averages
+268 bytes — and the `category_profile` with its large values dropped.
+
+**The rule for dropping is size, not key name.** A payload value over
+`PAYLOAD_INLINE_MAX_BYTES` (4 KB) stays in the log; anything smaller is kept.
+This app is not the authority on which of hermes' payload keys are the big
+ones and the answer differs per tool, so nothing here names
+`annotated_request`. What that threshold buys, measured on the live log:
+
+| | kept in the index | left in the log |
+|---|---|---|
+| `category_profile` | 0.55 MB (`model_name`, `tool_call_id`) | 299 MB |
+| whole log | 29 MB of SQLite | 1.19 GB |
+
+A large *dict* payload is dropped down to whichever of its keys are small,
+which is what keeps short fields like `error` and `child_session_id`
+reachable from the turn **list** without a trip to the log.
+
+### The three projections
+
+Three facts are derived at index time out of payloads the index then leaves
+behind, because assembly cannot build turns without them:
+
+| projection | out of | needed for |
+|---|---|---|
+| `user_message` | a `hermes.turn.start` mark's data (570 KB average) | the prompt on every turn row |
+| `request_prompt` | the first llm call's `annotated_request` | naming a turn no mark described |
+| `data_session_id` | an agent scope naming its session in the payload | keeping its spans out of `(unknown session)` |
+
+Each is read back through one accessor that prefers the projection and falls
+back to the payload — `AtofEvent.projected`, `Span.request_prompt` — so the
+same code works either side of the index.
+
+**Keep this list short.** Every entry is a payload key this app knows about
+outside a scope spec, which is the coupling ADR 7 and the fork test exist to
+limit. A fact earns a place by blocking the assembly of turns, not by being
+interesting to display.
+
+### Staleness — four checks, all biased towards rebuilding
+
+Byte offsets are only valid while the bytes under them have not moved. Each
+check catches what the cheaper one before it cannot; all run on every refresh,
+and the whole set costs a `stat` and two small reads.
+
+1. **`st_dev`/`st_ino`, and size below the indexed extent** — rotation,
+   replacement, truncation.
+2. **sha256 of the first 64 KB** — an in-place rewrite that kept the inode,
+   which `>` on an open path does.
+3. **The seam**: the offset, length and hash of the *last indexed line*,
+   re-read and compared. This is the one that survives a rewrite preserving
+   both size and head, and past the first 64 KB it is the only one that can
+   see anything at all.
+4. **A hash of `atof_reader.py`, `assembler.py` and `atof_index.py`** — the
+   stored spine means whatever those meant when they wrote it, and they keep
+   changing while hermes' schema does. It over-invalidates (a docstring edit
+   rebuilds), which at seconds per rebuild is the right side to be wrong on.
+   **Expect a rebuild on the next request after any edit to those files.**
+
+A failing check deletes the rows and rebuilds. There is no migration path and
+no repair: deleting the SQLite file costs a rebuild and nothing else.
+
+### Chunks
+
+`llm.chunk` is 264,267 of the log's 281,490 lines — and reaches no template.
+Carrying them costs 3.32 s of every request's assembly against 0.14 s without,
+for byte-identical output.
+
+They carry neither `session_id` nor `turn_id`, only a `parent_uuid` pointing
+at their llm span, so under the mark-and-time attachment in `assemble` they
+land in `(unknown session)` and reach no turn at all. The index aggregates
+them to one row per span — `MAX(timestamp)` — which `Span.stream_last_us`
+folds into `last_activity_us`. That is a small *improvement*: a long streaming
+call now shows a sign of life where before it looked silent since it started.
+
+### Hydration
+
+`hydrate_turn(turn, log_path)` reads one turn's payloads back by offset. The
+turn view calls it after finding the turn and before rendering; nothing else
+calls it. On the live log this is ~3 ms for a 7-span turn.
+
+A payload that cannot be re-read — the log rotated between assembly and
+render — sets `Span.payload_problem`, which the turn page states on the row
+rather than rendering a blank field (ADR 2). What the index kept is still
+shown; the row says it is not the whole payload.
+
 ## assembler.py — events → turns
 
 - Spans are paired by uuid.
@@ -191,5 +303,6 @@ uncluttered.
 
 - What each span *shows* on the turn page: [span-rendering.md](span-rendering.md)
 - Liveness, polling and follow mode: [live-pages.md](live-pages.md)
-- Why the ATOF stream, and why no ETL: `docs/adr/0001`, `docs/adr/0002`
+- Why the ATOF stream, and why no ETL: `docs/design/adr/0001`,
+  `docs/design/adr/0002`; why an index of it all the same: `docs/design/adr/0011`
 - Producer-side setup: [setup-prompt-timing.md](../running/setup-prompt-timing.md)

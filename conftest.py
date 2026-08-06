@@ -128,6 +128,17 @@ def make_memory_change_db(path):
     db.close()
 
 
+@pytest.fixture(autouse=True)
+def isolated_cache(tmp_path, monkeypatch):
+    """Keep the ATOF index (ADR 11) out of the developer's real cache dir.
+
+    Its default path is derived from the log path, and tests point at a
+    different log each run, so without this a test session leaves a fresh
+    SQLite file in ~/.cache for every app it builds.
+    """
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+
 @pytest.fixture
 def memory_change_db(tmp_path):
     path = tmp_path / "changes.db"

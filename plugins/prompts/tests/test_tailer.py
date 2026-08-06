@@ -1,8 +1,11 @@
-"""Tailer tests — byte-offset cursor, partial lines, truncation, missing file."""
+"""Line reader tests — offsets, partial lines, missing file, re-reads."""
 
 import json
 
-from plugins.prompts.tailer import AtofTailer
+import pytest
+
+from plugins.prompts.tailer import (file_size, read_at, read_bytes_at,
+                                    read_lines)
 
 
 def event_line(uuid, us):
@@ -11,63 +14,64 @@ def event_line(uuid, us):
     })
 
 
-def test_reads_appended_lines_incrementally(tmp_path):
+def test_yields_offset_and_length_per_line(tmp_path):
+    path = tmp_path / "events.jsonl"
+    first, second = event_line("a", 1), event_line("b", 2)
+    path.write_text(first + "\n" + second + "\n")
+
+    lines = list(read_lines(str(path)))
+    assert [text for _, _, text in lines] == [first, second]
+    assert [offset for offset, _, _ in lines] == [0, len(first) + 1]
+    assert [length for _, length, _ in lines] == [len(first) + 1,
+                                                  len(second) + 1]
+
+
+def test_offsets_round_trip_through_read_at(tmp_path):
+    """The whole of ADR 11 rests on this: what the index records is enough
+    to get the line back without reading the file."""
     path = tmp_path / "events.jsonl"
     path.write_text(event_line("a", 1) + "\n" + event_line("b", 2) + "\n")
-    tailer = AtofTailer(str(path))
-    tailer.refresh()
-    assert [e.uuid for e in tailer.events] == ["a", "b"]
+    for offset, length, text in read_lines(str(path)):
+        assert read_at(str(path), offset, length) == text
+
+
+def test_reads_only_what_was_appended(tmp_path):
+    path = tmp_path / "events.jsonl"
+    path.write_text(event_line("a", 1) + "\n")
+    consumed = sum(length for _, length, _ in read_lines(str(path)))
     with open(path, "a") as handle:
-        handle.write(event_line("c", 3) + "\n")
-    tailer.refresh()
-    assert [e.uuid for e in tailer.events] == ["a", "b", "c"]
+        handle.write(event_line("b", 2) + "\n")
+    assert [json.loads(t)["uuid"]
+            for _, _, t in read_lines(str(path), consumed)] == ["b"]
 
 
-def test_partial_trailing_line_waits_for_newline(tmp_path):
+def test_partial_trailing_line_waits_for_its_newline(tmp_path):
     path = tmp_path / "events.jsonl"
     complete = event_line("a", 1) + "\n"
     partial = event_line("b", 2)
-    path.write_text(complete + partial[:20])     # exporter mid-write
-    tailer = AtofTailer(str(path))
-    tailer.refresh()
-    assert [e.uuid for e in tailer.events] == ["a"]
-    assert tailer.errors == []                   # the fragment is not "malformed"
+    path.write_text(complete + partial[:20])       # exporter mid-write
+    assert [t for _, _, t in read_lines(str(path))] == [complete[:-1]]
     path.write_text(complete + partial + "\n")
-    tailer.refresh()
-    assert [e.uuid for e in tailer.events] == ["a", "b"]
+    assert [json.loads(t)["uuid"]
+            for _, _, t in read_lines(str(path))] == ["a", "b"]
 
 
-def test_truncated_file_resets_and_rereads(tmp_path):
+def test_a_line_longer_than_one_read_chunk_is_still_one_line(tmp_path):
+    """Turn marks average 570 KB and llm requests 129 KB, so records
+    routinely straddle a read boundary."""
     path = tmp_path / "events.jsonl"
-    path.write_text(event_line("a", 1) + "\n" + event_line("b", 2) + "\n")
-    tailer = AtofTailer(str(path))
-    tailer.refresh()
-    assert len(tailer.events) == 2
-    path.write_text(event_line("z", 9) + "\n")   # overwrite mode / rotation
-    tailer.refresh()
-    assert [e.uuid for e in tailer.events] == ["z"]
+    big = json.dumps({"kind": "mark", "uuid": "a", "name": "m",
+                      "timestamp": 1, "data": {"text": "x" * 5000}})
+    path.write_text(big + "\n" + event_line("b", 2) + "\n")
+    lines = list(read_lines(str(path), 0, chunk_bytes=64))
+    assert [json.loads(t)["uuid"] for _, _, t in lines] == ["a", "b"]
+    assert lines[0][1] == len(big) + 1
 
 
-def test_missing_file_is_empty_then_reads_once_created(tmp_path):
+def test_missing_file_reads_as_empty(tmp_path):
     path = tmp_path / "events.jsonl"
-    tailer = AtofTailer(str(path))
-    tailer.refresh()
-    assert tailer.events == []
-    path.write_text(event_line("a", 1) + "\n")
-    tailer.refresh()
-    assert [e.uuid for e in tailer.events] == ["a"]
-
-
-def test_parse_errors_accumulate_with_line_numbers(tmp_path):
-    path = tmp_path / "events.jsonl"
-    path.write_text(event_line("a", 1) + "\nnot json\n")
-    tailer = AtofTailer(str(path))
-    tailer.refresh()
-    with open(path, "a") as handle:
-        handle.write("also not json\n")
-    tailer.refresh()
-    assert [e.line_no for e in tailer.errors] == [2, 3]
-    assert [e.uuid for e in tailer.events] == ["a"]
+    assert list(read_lines(str(path))) == []
+    assert file_size(str(path)) == 0
 
 
 def test_unicode_line_separators_inside_a_record_do_not_split_it(tmp_path):
@@ -83,8 +87,15 @@ def test_unicode_line_separators_inside_a_record_do_not_split_it(tmp_path):
     assert len(payload.splitlines()) == 4        # the trap this guards
     path.write_text(payload + "\n" + event_line("b", 2) + "\n",
                     encoding="utf-8")
-    tailer = AtofTailer(str(path))
-    tailer.refresh()
-    assert tailer.errors == []
-    assert [e.uuid for e in tailer.events] == ["a", "b"]
-    assert [e.line_no for e in tailer.events] == [1, 2]
+    lines = list(read_lines(str(path)))
+    assert [json.loads(t)["uuid"] for _, _, t in lines] == ["a", "b"]
+
+
+def test_read_bytes_at_refuses_a_short_read(tmp_path):
+    """A truncated log must raise rather than hand back a fragment — the
+    index treats it as "the bytes moved" and the page says so."""
+    path = tmp_path / "events.jsonl"
+    path.write_text("abcdef\n")
+    assert read_bytes_at(str(path), 0, 7) == b"abcdef\n"
+    with pytest.raises(OSError):
+        read_bytes_at(str(path), 0, 100)

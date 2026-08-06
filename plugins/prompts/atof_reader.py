@@ -28,7 +28,7 @@ below and docs/design/atof-reader.md for the mapping table.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, Optional
 
@@ -514,6 +514,20 @@ class ParseError:
 
 
 @dataclass(frozen=True)
+class LineRef:
+    """Where an event's line sits in the log — byte offset and length.
+
+    The whole of ADR 11 rests on this pair: the index stores it instead of
+    the payload, and a page that needs the payload seeks here and parses the
+    one line. Length includes the trailing newline, so the pair round-trips
+    through seek/read.
+    """
+
+    offset: int
+    length: int
+
+
+@dataclass(frozen=True)
 class AtofEvent:
     kind: str                       # "scope" | "mark"
     scope_category: Optional[str]   # "start" | "end" for scopes, None for marks
@@ -529,6 +543,27 @@ class AtofEvent:
     atof_version: Optional[str]
     line_no: int                    # provenance in the source JSONL
     schema: str                     # which exporter wrote it; see SCHEMA_KEY
+
+    # --- ADR 11: the payload may be back in the log rather than here ------
+    # An event parsed straight off a line carries its whole payload and
+    # leaves all three of these at their defaults. An event rebuilt from the
+    # index carries a `payload_ref` always, and — when the payload was too
+    # large to be worth storing — an empty `data`, a `category_profile`
+    # missing its large values, `payload_elided` True, and whatever facts
+    # assembly cannot proceed without in `projection`.
+    payload_ref: Optional[LineRef] = None
+    projection: dict = field(default_factory=dict)
+    payload_elided: bool = False
+
+    def projected(self, key: str):
+        """A payload fact the index kept when the payload itself was not.
+
+        Callers read this *before* the payload, so one accessor works either
+        side of the index: absent from the projection means either "the
+        payload is right here, read it" or "hermes did not say", and both
+        end in the same fallback.
+        """
+        return self.projection.get(key) if self.projection else None
 
     @property
     def schema_is_known(self) -> bool:

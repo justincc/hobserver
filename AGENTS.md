@@ -49,7 +49,8 @@ audience it serves, not the one whose subject it shares.
 - [design-principles.md](docs/design/design-principles.md) — standing
   commitments, extensibility above all; **read before designing a change**
 - [adr/](docs/design/adr/) — architecture decisions, sequentially numbered
-- [atof-reader.md](docs/design/atof-reader.md) — tailer → parser → assembler
+- [atof-reader.md](docs/design/atof-reader.md) — line reader → parser → index
+  → assembler; what the index stores, its staleness checks, and hydration
 - [span-rendering.md](docs/design/span-rendering.md) — what each tool scope
   shows on the turn page, scope by scope
 - [live-pages.md](docs/design/live-pages.md) — polling, liveness, follow mode,

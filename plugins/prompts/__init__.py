@@ -2,8 +2,10 @@
 NeMo Relay ATOF stream.
 
 Reader per docs/design/adr/0002: tailer (byte-offset incremental read) → parser
-(JSONL line → typed event) → assembler (events → sessions → turns →
-waterfall). Views run the tailer on each request and assemble in memory.
+(JSONL line → typed event) → index (spine cached in SQLite, payloads left in
+the log, docs/design/adr/0011) → assembler (events → sessions → turns →
+waterfall). Views refresh the index on each request and assemble in memory;
+the turn page reads back the payloads of the one turn it is showing.
 
 Per ADR 2's fail-open caveat, the page states loudly when the source is
 missing or silent instead of rendering an empty timeline,
@@ -23,10 +25,10 @@ from werkzeug.routing import BuildError
 
 import hermes_paths
 from plugins.prompts.assembler import assemble
+from plugins.prompts.atof_index import AtofIndex, default_index_path, hydrate_turn
 from plugins.prompts.scope_spec import (SpecTable, check_table, render_macro,
                                         rows_for)
 from plugins.prompts.scopes import SCOPES, SCOPES_BY_CATEGORY
-from plugins.prompts.tailer import AtofTailer
 
 PLUGIN_API = 1
 bp = Blueprint("prompts", __name__, template_folder="templates")
@@ -50,6 +52,18 @@ def atof_path(settings):
     return (os.path.join(hermes_paths.hermes_config_dir(), "nemo-relay",
                          "atof", "hermes-atof.jsonl"),
             f"default ({hermes_paths.config_dir_origin()})")
+
+
+def index_db_path(settings):
+    """Where this tab caches its index of the log (ADR 11).
+
+    The `index_db` setting, else a file of our own named after the log. Never
+    beside the log — that directory is hermes'. Deleting the file costs a
+    rebuild and nothing else; it holds no fact the log does not.
+    """
+    if settings.get("index_db"):
+        return settings["index_db"], "settings"
+    return default_index_path(atof_path(settings)[0]), "default (cache dir)"
 
 
 def spec_modules(settings):
@@ -159,6 +173,9 @@ def sources(settings):
     entries = [{"label": "ATOF log", "path": path, "from": origin,
                 "required": False,
                 "problem": None if os.path.exists(path) else "no such file"}]
+    db_path, db_origin = index_db_path(settings)
+    entries.append({"label": "ATOF index (cache)", "path": db_path,
+                    "from": db_origin, "required": False, "problem": None})
     entries.extend(spec_table(settings)[1])
     return entries
 
@@ -172,17 +189,19 @@ def init_app(app, settings):
     must not pay for it.
     """
     app.config["ATOF_PATH"] = atof_path(settings)[0]
+    app.config["ATOF_INDEX_DB"] = index_db_path(settings)[0]
     app.config["SCOPE_SPECS"] = spec_table(settings, app)[0]
 
 
-def get_tailer() -> AtofTailer:
-    """The app-lifetime tailer for the configured ATOF path."""
+def get_index() -> AtofIndex:
+    """The app-lifetime index for the configured ATOF path."""
     path = current_app.config["ATOF_PATH"]
-    tailer = current_app.extensions.get("atof_tailer")
-    if tailer is None or tailer.path != path:
-        tailer = AtofTailer(path)
-        current_app.extensions["atof_tailer"] = tailer
-    return tailer
+    db_path = current_app.config.get("ATOF_INDEX_DB") or default_index_path(path)
+    index = current_app.extensions.get("atof_index")
+    if index is None or index.log_path != path or index.db_path != db_path:
+        index = AtofIndex(path, db_path)
+        current_app.extensions["atof_index"] = index
+    return index
 
 
 @bp.app_template_filter("us_dur")
@@ -250,9 +269,23 @@ def _source_problem():
 
 
 def _assembly():
-    tailer = get_tailer()
-    tailer.refresh()
-    return assemble(tailer.events), tailer.errors
+    """The turn model, rebuilt only when the index has actually moved.
+
+    A live page polls every 2–3 s and assembly is the expensive step left
+    once payloads are out of the picture, so the result is kept until the
+    index reports a different extent or a rebuild. Both pages call this, so
+    the strip and the waterfall always describe the same moment.
+    """
+    index = get_index()
+    state = index.refresh()
+    key = (state.generation, state.indexed_bytes, state.indexed_lines)
+    cached = current_app.extensions.get("atof_assembly")
+    if cached is not None and cached[0] == key:
+        return cached[1], cached[2]
+    assembly = assemble(index.events(), index.stream_activity())
+    errors = index.parse_errors()
+    current_app.extensions["atof_assembly"] = (key, assembly, errors)
+    return assembly, errors
 
 
 def _inflight_entries(assembly):
@@ -346,6 +379,10 @@ def turn(session_id, start_us):
     )
     if found is None:
         abort(404)
+    # The payloads live in the log; read back the ones this turn needs and
+    # no others (ADR 11). Hydrating into the cached assembly means a reload
+    # of the same turn costs nothing, and the next append drops the lot.
+    hydrate_turn(found, current_app.config["ATOF_PATH"])
     # Scale for the bars: a turn still in flight is drawn against the last
     # thing we saw in it.
     span_edges = [s.end_us or s.start_us for s in found.spans]

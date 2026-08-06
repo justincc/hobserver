@@ -69,12 +69,21 @@ stands in.
 | tab | setting | env | default |
 | --- | --- | --- | --- |
 | Prompts | `atof_log` | `ATOF_LOG` | `$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl` |
+| Prompts | `index_db` | — | `$XDG_CACHE_HOME/hermes-observer/atof-index-<hash>.sqlite3` |
 | Mem0 | `db` | `JMEM0_DB` | `$HERMES_HOME/jmem0_logged.db` |
 
 The Prompts source is the events JSONL written by the nemo_relay plugin's ATOF
 exporter. It is allowed to be absent — hermes may simply not have run with the
 exporter on — and the tab says so, naming the path it tried, rather than
 showing an empty page.
+
+`index_db` is the one path here that is **not** a source. It is a cache of the
+log — the Prompts tab does not hold a multi-gigabyte log in memory, it indexes
+where each event sits and reads payloads back as pages need them
+([ADR 11](docs/design/adr/0011-index-the-atof-log-rather-than-hold-it-in-memory.md)).
+It holds no fact the log does not, so **deleting it is always safe**: the next
+request rebuilds it, about ten seconds per gigabyte. It is kept in a cache
+directory of the observer's own rather than beside the log, which is hermes'.
 
 The Mem0 source is checked before the tab is served: the path must exist, be a
 regular file, and yield a row from an `events` table when opened read-only.
