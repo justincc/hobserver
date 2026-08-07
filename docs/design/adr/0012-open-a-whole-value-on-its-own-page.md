@@ -125,6 +125,13 @@ result's label stay a bare `tool_result` — the card says which call it
 answers, so the label does not have to. An earlier draft numbered both
 labels instead, and the layout made the numbering redundant.
 
+A `sections` value also gets a **contents list** down the left, sticky, one
+entry per part, labelled with the parts' own labels and anchored by
+position. It follows from the same fact that made sections the right shape:
+the parts are separately addressable things, so they can be listed and
+jumped to. It is not shown for a single part, nor for a value that is not
+sections at all.
+
 That is a departure from the order sent, on the page whose subject is what
 was sent, so it is exactly the case `Full.note` exists for: the note names
 the regrouping in words and the indent shows it. Recorded as a standing rule

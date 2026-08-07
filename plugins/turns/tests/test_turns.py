@@ -1860,7 +1860,7 @@ def test_each_message_is_boxed_under_a_label_of_its_own(tmp_path):
     in one document."""
     page = _llm_client(tmp_path).get(
         "/turns/span/L1/prompt").get_data(as_text=True)
-    boxes = re.findall(r'<section class="msg">.*?</section>', page, re.S)
+    boxes = re.findall(r'<section id="m\d+" class="msg">.*?</section>', page, re.S)
     assert len(boxes) == 2, "instructions and the user message"
     assert '<div class="msg-label">instructions</div>' in boxes[0]
     assert "You are Hermes Agent." in boxes[0]
@@ -2019,7 +2019,7 @@ def test_a_full_pages_links_are_grouped_left_like_the_turn_pages(tmp_path):
     """Same row, same classes as _item_nav.html: the way back first, the
     incidental link muted a shade beside it, nothing pushed right."""
     client = _llm_client(tmp_path)
-    nav = re.search(r'<nav class="event-nav">.*?</nav>',
+    nav = re.search(r'<nav class="event-nav"[^>]*>.*?</nav>',
                     client.get("/turns/span/L1/response").get_data(as_text=True),
                     re.S).group(0)
     assert nav.index("back to the turn") < nav.index(">raw<")
@@ -2060,8 +2060,12 @@ def test_the_pages_own_words_are_boxed_apart_from_the_value(tmp_path):
     assert "<h2>Prompt</h2>" in head             # the heading
     assert "openai-codex" in head                # the facts
     assert "annotated_request" in head           # the provenance
-    # and nothing of ours loose between the panel and the first message box
-    between = page[page.index("</header>"):page.index('<section class="msg">')]
+    # and nothing of ours loose between the panel and the first message box.
+    # The contents list is allowed there: it is a <nav> of links, structured
+    # chrome rather than prose, and cannot be read as the value's own words.
+    between = page[page.index("</header>"):
+                   re.search(r'<section id="m\d+" class="msg">', page).start()]
+    between = re.sub(r'<nav class="msg-nav".*?</nav>', "", between, flags=re.S)
     assert re.sub(r"<[^>]+>|\s", "", between) == ""
 
 
@@ -2123,3 +2127,147 @@ def test_the_llm_value_rows_share_a_right_edge(tmp_path):
         m = re.search(rf'>{key}</span>\s*<[^>]*class="([^"]*)"', page)
         assert m, key
         assert "wide" in m.group(1).split(), (key, m.group(1))
+
+
+# --- the request page's contents list --------------------------------------
+
+TOOL_REQUEST = {"annotated_request": {
+    "instructions": "You are Hermes Agent.",
+    "messages": [
+        {"role": "user", "content": "go"},
+        {"role": "provider_native", "kind": "reasoning", "value": {"s": []}},
+        {"role": "tool_call", "name": "read_file", "call_id": "c1",
+         "arguments": "{}"},
+        {"role": "tool_call", "name": "read_file", "call_id": "c2",
+         "arguments": "{}"},
+        {"role": "tool_result", "call_id": "c1", "output": "one"},
+        {"role": "tool_result", "call_id": "c2", "output": "two"}]}}
+
+
+def _full_page(tmp_path, profile=TOOL_REQUEST):
+    return _llm_client(tmp_path, profile=profile).get(
+        "/turns/span/L1/prompt").get_data(as_text=True)
+
+
+def _nav_items(page):
+    nav = re.search(r'<nav class="msg-nav".*?</nav>', page, re.S)
+    if not nav:
+        return []
+    return re.findall(r'<li( class="nav-nested")?><a href="(#m\d+)">([^<]*)</a>',
+                      nav.group(0))
+
+
+def test_the_contents_list_has_one_entry_per_message_in_page_order(tmp_path):
+    items = _nav_items(_full_page(tmp_path))
+    assert [(bool(n), label) for n, _, label in items] == [
+        (False, "instructions"),
+        (False, "user"),
+        (False, "provider_native · reasoning"),
+        (False, "tool_call · read_file"),
+        (True, "tool_result"),          # indented, as it is on the page
+        (False, "tool_call · read_file"),
+        (True, "tool_result"),
+    ]
+
+
+def test_every_contents_link_lands_on_a_message(tmp_path):
+    """A nav entry pointing at no anchor is a dead link on a page whose
+    whole job is to be read through."""
+    page = _full_page(tmp_path)
+    targets = [href.lstrip("#") for _, href, _ in _nav_items(page)]
+    ids = re.findall(r'<section id="(m\d+)"', page)
+    assert targets == ids            # same set, same order, none missing
+
+
+def test_the_contents_labels_are_the_section_labels_themselves(tmp_path):
+    """Two vocabularies for one page is how a nav drifts from what it
+    names — the entry has to say what the band it lands on says."""
+    page = _full_page(tmp_path)
+    labels = re.findall(r'<div class="msg-label">([^<]*)</div>', page)
+    assert [label for _, _, label in _nav_items(page)] == labels
+
+
+def test_a_single_message_gets_no_contents_list(tmp_path):
+    """A list of one names the thing the reader is already looking at."""
+    page = _full_page(tmp_path, profile={"annotated_request": {
+        "messages": [{"role": "user", "content": "just the one"}]}})
+    assert _nav_items(page) == []
+    assert 'class="msg-nav"' not in page
+
+
+def test_a_value_that_is_not_sections_gets_no_contents_list(tmp_path):
+    """The response page is one document; there is nothing to list."""
+    page = _llm_client(tmp_path).get(
+        "/turns/span/L1/response").get_data(as_text=True)
+    assert 'class="msg-nav"' not in page
+
+
+def test_the_contents_list_survives_the_raw_view(tmp_path):
+    """`raw` changes how each message is rendered, not how many there are."""
+    page = _llm_client(tmp_path, profile=TOOL_REQUEST).get(
+        "/turns/span/L1/prompt?raw=1").get_data(as_text=True)
+    assert len(_nav_items(page)) == 7
+
+
+def test_the_contents_list_is_styled_as_a_column_beside_the_messages(tmp_path):
+    """Class names carry the layout, so a rename that lost them would leave
+    the list stacked on top of what it lists."""
+    css = re.sub(r"\{#.*?#\}", "",
+                 (REPO_ROOT / "templates" / "base.html").read_text(), flags=re.S)
+    for selector in (r"\.full-body\b", r"\.full-sections\b", r"\.msg-nav\b"):
+        assert re.search(rf"{selector}[^{{}}\n]*\{{", css), selector
+    # nothing marks which message was jumped to: it is at the top of the
+    # viewport, which says it already, and a ring would linger afterwards
+    assert ":target" not in css
+    # sticky, so it stays with the messages it lists rather than scrolling away
+    assert re.search(r"\.msg-nav[^{}]*\{[^}]*position:\s*sticky", css)
+    # and it yields the two-column layout when there is no room for it
+    assert re.search(r"@media[^{]*max-width[^{]*\{\s*\.full-body\s*\{[^}]*display:\s*block", css)
+
+
+def test_the_contents_list_offers_a_way_back_to_the_top(tmp_path):
+    """Reaching the top of a thousand-line request should not mean scrolling
+    there. Named for where it goes: the page's own title was tried and reads
+    as one more part, since every entry below it is part of the Prompt."""
+    page = _full_page(tmp_path)
+    nav = re.search(r'<nav class="msg-nav".*?</nav>', page, re.S).group(0)
+    top = re.search(r'<a class="nav-top" href="#top">([^<]*)</a>', nav)
+    assert top, "no way back to the top"
+    assert "top" in top.group(1)
+    # above the list, not one of the messages
+    assert nav.index('class="nav-top"') < nav.index("<ul>")
+    assert "nav-top" not in nav[nav.index("<ul>"):]
+
+
+def test_the_way_back_to_the_top_lands_at_the_actual_top(tmp_path):
+    """`#top` with nothing carrying that id is a link that silently does
+    nothing. Landing *nearly* at the top is the subtler bug: an anchor on
+    anything the page renders sits below the `hermes observer` heading, so
+    the jump stops short of it."""
+    page = _full_page(tmp_path)
+    assert 'id="top"' in page, "nothing carries the anchor"
+    # it is on the site heading, and nothing renders above that
+    assert re.search(r'<h1 id="top"><a[^>]*>hermes observer</a></h1>', page)
+    anchor = page.index('<h1 id="top"')
+    body = page.index("<body>")
+    between = page[body + len("<body>"):anchor]
+    assert re.sub(r"<[^>]+>|\s|\{#.*?#\}", "", between) == "", between
+    # …and the jump reaches scroll position 0 rather than pinning the
+    # heading to the viewport edge with the page's top margin scrolled off
+    # above it. A "top" you can still scroll up from is not the top.
+    css = re.sub(r"\{#.*?#\}", "",
+                 (REPO_ROOT / "templates" / "base.html").read_text(), flags=re.S)
+    margin = re.search(r"#top\s*\{[^}]*scroll-margin-top:\s*([\d.]+)rem", css)
+    assert margin, "nothing holds the page's own margin open above the heading"
+    # generously past the heading's real offset; overshoot clamps at zero
+    assert float(margin.group(1)) >= 3
+
+
+def test_anchor_jumps_animate_unless_motion_is_unwelcome(tmp_path):
+    """One click can move a reader thousands of lines; an instant cut leaves
+    them unsure whether the page moved or was replaced."""
+    css = re.sub(r"\{#.*?#\}", "",
+                 (REPO_ROOT / "templates" / "base.html").read_text(), flags=re.S)
+    assert re.search(r"html\s*\{[^}]*scroll-behavior:\s*smooth", css)
+    assert re.search(r"prefers-reduced-motion[^{]*\{\s*html\s*\{"
+                     r"[^}]*scroll-behavior:\s*auto", css)

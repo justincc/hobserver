@@ -26,6 +26,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}hermes observer{% endblock %}</title>
   <style>
+    /* Anchor jumps animate rather than teleport. On the request page the
+       contents list can move a reader thousands of lines in one click, and
+       an instant cut leaves them unsure whether the page moved or was
+       replaced — the scroll is what says which. Off for anyone who has
+       asked the system for less motion. */
+    html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    /* Jumping to `#top` should land at the top of the *document*, not with
+       the heading pinned to the viewport edge and the page's own margin
+       scrolled off above it — a "top" you can still scroll up from is not
+       the top. `scroll-margin-top` holds that much space open above the
+       heading, and overshooting is free: a scroll position cannot go below
+       zero, so any value past the heading's real offset clamps there. Hence
+       a generous one rather than one tuned to the body margin, which would
+       need re-tuning with it. */
+    #top { scroll-margin-top: 6rem; }
     body { font-family: system-ui, sans-serif; margin: 1.5rem 1cm; color: #1a1a2e; }
     a { color: #2456c4; text-decoration: none; }
     a:hover { text-decoration: underline; }
@@ -167,6 +183,55 @@
        band rather than disappearing into it. */
     .msg { border: 1px solid #e2e5ec; border-left: 3px solid #2456c4; border-radius: 6px; margin: 0 0 1rem; max-width: 62rem; overflow: hidden; }
     .msg-label { background: #33406b; color: #eceff5; font-family: ui-monospace, monospace; font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.4rem 0.7rem; }
+    /* The messages and their contents list, side by side. The list is
+       `sticky` rather than `fixed` so it scrolls out with the page it
+       belongs to instead of hanging over the header above it, and it holds
+       its own scrollbar once it outgrows the viewport — a request of forty
+       messages must not push the last of them out of reach. */
+    .full-body { display: flex; align-items: flex-start; gap: 1.75rem; }
+    .full-sections { flex: 1; min-width: 0; }
+    .msg-nav { flex: none; width: 15rem; position: sticky; top: 1rem;
+               max-height: calc(100vh - 2rem); overflow-y: auto;
+               border-left: 3px solid #e2e5ec; padding-left: 0.8rem; }
+    /* the document heading its own outline: stronger than the parts under
+       it, and ruled off so it does not read as the first of them */
+    .msg-nav .nav-top { color: #33406b; font-weight: 600;
+                        border-bottom: 1px solid #e2e5ec;
+                        border-radius: 4px 4px 0 0;
+                        margin-bottom: 0.4rem; padding-bottom: 0.35rem; }
+    .msg-nav ul { list-style: none; margin: 0; padding: 0; }
+    .msg-nav li { margin: 0 0 0.15rem; }
+    .msg-nav a { display: block; padding: 0.2rem 0.35rem; border-radius: 4px;
+                 font-family: ui-monospace, monospace; font-size: 0.72rem;
+                 letter-spacing: 0.03em; text-transform: uppercase;
+                 color: #4a5578; text-decoration: none;
+                 overflow-wrap: anywhere; }
+    .msg-nav a:hover { background: #eceff5; color: #1a1a2e; }
+    /* indented as the results are on the page, which is also what keeps a
+       column of identical `tool_result` entries readable — each sits under
+       the call that names it */
+    .msg-nav .nav-nested a { margin-left: 0.9rem; color: #6b7392; }
+    .msg-nav .nav-nested a::before { content: "↳"; margin-right: 0.3rem;
+                                     opacity: 0.7; }
+    /* Breathing room above a message a jump landed on, rather than sitting
+       flush against the viewport edge. The page has no sticky header, so
+       this is spacing and not a correction.
+
+       Nothing marks *which* message was jumped to. A ring was tried and is
+       clutter: the message is at the top of the viewport, which already
+       says it, and a highlight that repeats what the position says earns
+       nothing and stays on screen afterwards. */
+    .msg { scroll-margin-top: 1rem; }
+    /* Below this the two columns do not both fit, so the list goes back to
+       being a block above what it lists rather than a squeezed column
+       beside it. */
+    @media (max-width: 70rem) {
+      .full-body { display: block; }
+      .msg-nav { width: auto; position: static; max-height: none;
+                 margin: 0 0 1.25rem; }
+      .msg-nav ul { display: flex; flex-wrap: wrap; gap: 0.2rem 0.5rem; }
+      .msg-nav .nav-nested a { margin-left: 0; }
+    }
     .msg .md-body { padding: 0.7rem 0.9rem; max-width: none; }
     .msg pre.blob { margin: 0; border-radius: 0; background: none; }
     .msg .msg-empty { padding: 0.5rem 0.9rem; margin: 0; font-style: italic; }
@@ -402,7 +467,12 @@
   </style>
 </head>
 <body>
-  <h1><a href="{{ url_for('root') }}">hermes observer</a></h1>
+  {# `id="top"` is here rather than on anything a page renders below: this
+     heading is the first thing on every page, so an anchor anywhere else
+     means "top" lands slightly short of it. The full page's contents list
+     is the one thing using it today; being on the shell costs nothing and
+     is correct for any page that later wants the same. #}
+  <h1 id="top"><a href="{{ url_for('root') }}">hermes observer</a></h1>
   {# A block so a page that is one thing to read — a whole prompt, opened in
      its own tab from a span — can leave the tab bar out. Overriding it is
      for that case only: a page reached by navigating always keeps the bar,

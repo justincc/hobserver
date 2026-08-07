@@ -100,9 +100,45 @@
 
    Which is also why the result's label is bare: `tool_result` inside its
    call's card needs no name or number to say which call it answers. #}
+{# A request runs to a dozen messages and a system prompt alone can be
+   thousands of lines, so the way to the one a reader wants is a list of all
+   of them rather than the scrollbar. Only past a couple: a contents list of
+   one entry names the thing the reader is already looking at.
+
+   The labels are the section labels verbatim — the nav says exactly what
+   the band it lands on says, so the two cannot drift into two vocabularies
+   for one page. Nested results are indented here as they are there, which
+   is also what keeps five identical `tool_result` entries readable: each
+   one sits under the call that names it.
+
+   Anchors are positional (`m1`, `m2`), not slugs of the labels: labels
+   repeat — five `tool_result`s on the span this was built for — and a slug
+   would need disambiguating with the position anyway. #}
 {% if rendered.sections %}
+<div class="full-body">
+  {%- if rendered.sections | length > 1 %}
+  <nav class="msg-nav" aria-label="Messages">
+    {#- Named for where it goes, not for what is there. The page's title was
+        tried and is wrong: every entry below is a part of the Prompt, so a
+        "Prompt" entry among them reads as one more part rather than as the
+        whole. "top" names the destination, which is the one thing about it
+        a reader needs. Above the list rather than in it, because it is not
+        one of the messages.
+
+        `#top` is on the `hermes observer` heading in base.html — the first
+        thing on the page. An anchor on anything this template renders lands
+        below that heading, which is short of the top and reads as a bug. #}
+    <a class="nav-top" href="#top">&uarr; top</a>
+    <ul>
+      {%- for part in rendered.sections %}
+      <li{% if part.nested %} class="nav-nested"{% endif %}><a href="#m{{ loop.index }}">{{ part.label }}</a></li>
+      {%- endfor %}
+    </ul>
+  </nav>
+  {%- endif %}
+  <div class="full-sections">
 {% for part in rendered.sections %}
-<section class="msg{% if part.nests %} msg-nests{% endif %}{% if part.nested %} msg-nested{% endif %}">
+<section id="m{{ loop.index }}" class="msg{% if part.nests %} msg-nests{% endif %}{% if part.nested %} msg-nested{% endif %}">
   <div class="msg-label">{{ part.label }}</div>
   {%- if raw or part.html is none %}
   <pre class="blob full-blob">{{ part.text }}</pre>
@@ -113,6 +149,8 @@
   {%- endif %}
 </section>
 {% endfor %}
+  </div>
+</div>
 {% elif rendered.text is none %}
 <p class="notice warn">Nothing under this key in the payload. The span carried
   no <code>{{ full.key }}</code> — an in-flight call whose end has not arrived

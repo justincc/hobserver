@@ -266,6 +266,49 @@ grow to absorb.
   is the default, not a vow" in
   [design-principles.md](design-principles.md) and ADR 12's amendment.
 
+  **A contents list runs down the left**, one entry per message, sticky so
+  it stays with what it lists. A request is a dozen messages and a system
+  prompt alone can be thousands of lines, so the way to the one a reader
+  wants should not be the scrollbar.
+
+  - **The entries are the section labels verbatim.** Two vocabularies for
+    one page is how a nav drifts from what it names; a test asserts the
+    lists match.
+  - **Anchors are positional** (`m1`, `m2`), not slugs. Labels repeat —
+    five `tool_result`s on the span this was built for — so a slug would
+    need the position anyway.
+  - **Nested results are indented in the list too**, which is what keeps a
+    column of identical `tool_result` entries readable: each sits under the
+    call that names it.
+  - **Not shown for a single message**, which would name the thing the
+    reader is already looking at, nor on a value that is not sections —
+    the response page is one document.
+  - **`↑ top` heads the list**, ruled off from it because it is not one of
+    the messages. It is named for where it goes rather than for what is
+    there: the page's own title was tried and reads as one more part, since
+    every entry below it is a part of the Prompt.
+
+    The anchor is on the **`hermes observer` heading in `base.html`**, not
+    on anything this page renders. Everything the page renders is below
+    that heading, so an anchor on any of it lands short of the top — which
+    reads as a bug rather than as a choice. A test asserts nothing renders
+    between `<body>` and the anchor.
+
+    Being on the first element is still not the top: an anchor jump pins
+    that element to the viewport edge, scrolling the page's own top margin
+    off above it, and a "top" you can scroll up from is not the top. `#top`
+    therefore carries a `scroll-margin-top` larger than its real offset.
+    Overshooting is free — a scroll position cannot go below zero, so any
+    generous value clamps there, and a figure tuned to the body margin
+    would need re-tuning with it.
+  - Below 70rem the two columns do not fit, and the list becomes a wrapped
+    block above the messages rather than a squeezed column beside them.
+
+  Anchor jumps animate (`scroll-behavior: smooth`, off under
+  `prefers-reduced-motion`). One click here can move a reader thousands of
+  lines, and an instant cut leaves them unsure whether the page moved or was
+  replaced — the scroll is what says which.
+
   The response page is the assistant message whole. Both are declared as
   `Full`s on the llm scope, which is keyed by *category*, so a compaction, a
   delegated subagent call and a fallback retry each carry the same pair.
