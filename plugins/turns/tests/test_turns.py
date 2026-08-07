@@ -1475,8 +1475,8 @@ def test_llm_span_lists_the_tools_it_asked_for(tmp_path):
     page = _llm_turn(tmp_path, {
         **_assistant("", "mem0_search", "read_file", "read_file"),
         "finish_reason": "tool_calls"})
-    calls = re.search(r'<span class="call-list list-item"[^>]*>'
-                      r'(.*?)</span>\s*</div>', page, re.S)
+    calls = re.search(r'<span class="call-list[^"]*">(.*?)</span>\s*</div>',
+                      page, re.S)
     assert calls
     assert re.sub(r"<[^>]+>", "", calls.group(1)).split(" · ") == [
         "mem0_search", "read_file", "read_file"]     # repeats kept, order kept
@@ -1498,24 +1498,38 @@ def test_llm_span_counts_a_tool_call_it_cannot_read(tmp_path):
         "tool_calls": [{"name": "terminal", "id": "c1", "arguments": "{}"},
                        "not a dict",
                        {"id": "c3", "arguments": "{}"}]}})
-    calls = re.search(r'<span class="call-list list-item"[^>]*>'
-                      r'(.*?)</span>\s*</div>', page, re.S)
+    calls = re.search(r'<span class="call-list[^"]*">(.*?)</span>\s*</div>',
+                      page, re.S)
     assert re.sub(r"<[^>]+>", "", calls.group(1)).split(" · ") == [
         "terminal", "(unreadable)", "(unnamed)"]
 
 
-def test_llm_tool_call_names_stay_off_the_summary_line(tmp_path):
-    # they are detail-only, and the mechanism is load-bearing: a `.path` in
-    # the collapsed layout is forced to `display: inline` by a rule more
-    # specific than the one .list-item hides it with, so carrying both
-    # classes would put these names on the summary line
+def test_llm_tool_calls_take_their_own_labelled_row(tmp_path):
+    """Not riding the finish reason unlabelled. That worked while the reason
+    *was* the word `tool_calls`; the core runtime reports `complete`, so on
+    958 of the log's tool-calling spans the row read `complete  read_file`
+    and nothing said what the names were."""
     page = _llm_turn(tmp_path, {**_assistant("", "terminal", "read_file"),
-                                "finish_reason": "tool_calls"})
-    names = re.search(r'<span class="([^"]*)"[^>]*>terminal', page)
-    assert names, "the names span is missing"
-    classes = names.group(1).split()
-    assert "list-item" in classes            # hidden when the row is collapsed
-    assert "path" not in classes             # …and nothing outranks that
+                                "finish_reason": "complete"})
+    row = re.search(r'<div class="span-detail list-item">\s*'
+                    r'<span class="gen-key key-col"[^>]*>tool_calls</span>\s*'
+                    r'<span class="call-list[^"]*">(.*?)</span>\s*</div>', page, re.S)
+    assert row, "no labelled tool_calls row"
+    assert "terminal" in row.group(1) and "read_file" in row.group(1)
+    # the reason keeps its own row and says only what the provider said
+    assert re.search(r'<span class="mode-tag"[^>]*>complete</span>', page)
+
+
+def test_llm_tool_call_names_stay_off_the_summary_line(tmp_path):
+    # detail-only, and it is the row that carries .list-item — a hidden row
+    # hides its children whatever class they have, which is why the names
+    # span no longer has to avoid .path to stay off the summary line
+    page = _llm_turn(tmp_path, {**_assistant("", "terminal", "read_file"),
+                                "finish_reason": "complete"})
+    row = re.search(r'<div class="([^"]*)">\s*<span class="gen-key key-col"'
+                    r'[^>]*>tool_calls</span>', page)
+    assert row, "the tool_calls row is missing"
+    assert "list-item" in row.group(1).split()
 
 
 def test_llm_span_shows_the_start_of_what_the_model_said(tmp_path):
@@ -2082,14 +2096,30 @@ def test_a_call_that_said_nothing_has_no_response_row(tmp_path):
     assert ">response<" not in page
 
 
-def test_the_prompt_and_response_values_start_at_one_edge(tmp_path):
-    """Two paragraphs a reader compares side by side, so their left edges
-    line up: the keys reserve one column rather than each taking its own
-    width."""
-    page = _llm_client(tmp_path).get(
+def test_the_llm_value_rows_start_at_one_edge(tmp_path):
+    """Values a reader compares down the span, so their left edges line up:
+    the keys reserve one column rather than each taking its own width."""
+    page = _llm_client(tmp_path, end_data=_assistant(
+        "## Done\n\nall of it", "read_file")).get(
         "/turns/turn/s1/1000000").get_data(as_text=True)
-    for label in ("prompt", "response"):
-        assert re.search(rf'class="gen-key key-col"[^>]*>{label}</span>', page), label
+    labels = re.findall(r'class="gen-key key-col"[^>]*>([^<]+)</span>', page)
+    assert {"prompt", "response", "tool_calls"} <= set(labels), labels
     css = re.sub(r"\{#.*?#\}", "",
                  (REPO_ROOT / "templates" / "base.html").read_text(), flags=re.S)
-    assert re.search(r"\.gen-key\.key-col[^{}\n]*\{[^}]*min-width", css)
+    width = re.search(r"\.gen-key\.key-col[^{}\n]*\{[^}]*min-width:\s*(\d+)ch", css)
+    assert width, "key-col reserves no column"
+    # the column has to outlast the longest key that sits in it — a label
+    # that overflows is the one row whose value does not line up, and
+    # nothing else would catch it
+    assert int(width.group(1)) > max(len(x) for x in labels), labels
+
+
+def test_the_llm_value_rows_share_a_right_edge(tmp_path):
+    """`.wide` on all three, so the column has two edges and not one."""
+    page = _llm_client(tmp_path, end_data=_assistant(
+        "## Done\n\nall of it", "read_file")).get(
+        "/turns/turn/s1/1000000").get_data(as_text=True)
+    for key in ("prompt", "response", "tool_calls"):
+        m = re.search(rf'>{key}</span>\s*<[^>]*class="([^"]*)"', page)
+        assert m, key
+        assert "wide" in m.group(1).split(), (key, m.group(1))

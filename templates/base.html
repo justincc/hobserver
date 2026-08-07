@@ -215,16 +215,22 @@
        key stays quiet beside its value, like a label */
     .span-detail .gen-key { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; color: #8a8a8a; }
     /* A key that reserves a column, so the values under it start at one
-       edge — the llm scope's `prompt` and `response`, which are two
-       paragraphs a reader compares. In ch units because the key is
-       monospace, so the width is exactly the longest label plus a space.
+       edge — the llm scope's `prompt`, `response` and `tool_calls`, which
+       are read down as a group. In ch units because the key is monospace,
+       so the width is exactly the longest label plus a space: `tool_calls`
+       at 10, hence 11ch. Widening it moves all three together, which is the
+       point — a row that overflowed the column would be the only one whose
+       value did not line up.
        Not part of the spec vocabulary: a declared Field cannot ask for it,
        and the hand-written macro that can is the only user. */
-    .span-detail .gen-key.key-col { min-width: 9ch; }
-    /* the tool names beside a finish reason. Detail-only (.list-item), so it
-       needs no collapsed-line ellipsis — and deliberately not .path, whose
-       collapsed rule outranks the one that hides .list-item and would put
-       these names on the summary line */
+    .span-detail .gen-key.key-col { min-width: 11ch; }
+    /* the tool names on the `tool_calls` row. Not .path: this list wraps
+       rather than ellipsizing, because the row's point is how many calls
+       there were and a sixteen-call fan-out cut at one line does not say it.
+       (It also used to sit beside the finish reason carrying .list-item
+       itself, where .path's collapsed rule outranked the hiding rule and put
+       the names on the summary line. The row carries .list-item now, so that
+       fight is over — a hidden row hides its children whatever their class.) */
     .span-detail .call-list { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
     /* a value too large to print — its type and size instead, in words */
     .span-detail .gen-omitted { flex: none; color: #8a8a8a; font-style: italic; }

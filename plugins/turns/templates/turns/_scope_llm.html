@@ -19,14 +19,13 @@
    template that reads no context, like every other macro here. #}
 {% from "turns/_macros.html" import open_text %}
 {% macro llm_rows(s, full=none) -%}
-{# The calls ride the finish reason that names them — `tool_calls` and then
-   what was called — rather than repeating the subject on a row of their own.
-   Names only: the spans below carry the arguments, each rendered by its own
-   spec. What this says is that they were one decision; a sixteen-call fan-out
-   is one line here and sixteen rows down there. `.list-item` on the names
-   alone keeps them out of the summary line, where the reason still stands by
-   itself. #}
-{% if s.call_role or s.retry_count or s.finish_reason or s.llm_tool_calls %}
+{# The calls used to ride the finish reason, unlabelled, because that reason
+   was the word `tool_calls` and named them. It is not any more: the core
+   runtime reports `complete` where the plugin reported `tool_calls` (ADR 6
+   passes the reason through as the exporter gives it), so on 958 of the
+   log's tool-calling spans the row read `complete  read_file` and nothing
+   said what the names were. They take their own labelled row below. #}
+{% if s.call_role or s.retry_count or s.finish_reason %}
 <div class="span-detail">
   {#- the role leads: it says what the call was for, which qualifies
       everything after it. Absent on an ordinary call — see Span.call_role
@@ -35,12 +34,7 @@
       attribute, which browsers tolerate and nothing else does. #}
   {%- if s.call_role %}<span class="mode-tag" title="What this call was for, when it was not the ordinary one. `delegated` is a subagent's call; `fallback` means the configured model failed and a backup answered; an `auxiliary:` role names hermes' own background work, such as compressing the conversation to fit the context window.">{{ s.call_role }}</span>{% endif %}
   {%- if s.retry_count %}<span class="mode-tag" title="Which attempt this was, counting the first as 0 — so this call was retried, or walked its fallback chain, before it answered. Often the reason a span is slow.">retry {{ s.retry_count }}</span>{% endif %}
-  {%- if s.finish_reason %}<span class="mode-tag" title="Why the model stopped, as the provider reported it. `tool_calls` means the spans below are what it asked for; `length` would mean its answer was cut off.">{{ s.finish_reason }}</span>{% endif %}
-  {#- .call-list, not .path: a `.path` in the collapsed layout is forced back
-      to `display: inline` by a more specific rule than the one .list-item
-      hides it with, so these names would show on the summary line. Its own
-      class has no such fight. #}
-  {%- if s.llm_tool_calls %}<span class="call-list list-item" title="The tools this call asked for, in the order it asked. Their arguments are on the spans below, one per call; what this adds is that they were decided together.">{% for name in s.llm_tool_calls %}{% if not loop.first %} <span class="gen-key">·</span> {% endif %}{{ name }}{% endfor %}</span>{% endif %}
+  {%- if s.finish_reason %}<span class="mode-tag" title="Why the model stopped, as the provider reported it and not reworded — `complete` on the current exporter, whether or not it asked for tools; the older one said `tool_calls`. `length` would mean its answer was cut off.">{{ s.finish_reason }}</span>{% endif %}
 </div>
 {% endif %}
 {# What this call was asked. Detail-only and one line of it, because the
@@ -88,6 +82,34 @@
     only trace back when the rest of it lived in the log and nowhere else;
     now the ellipsis says there is more and the text itself opens it, and a
     figure nobody acts on is a row that costs a line and returns nothing. #}
+{% endif %}
+{# What the model asked to run, under `response` because both are what came
+   back — the words and the calls, in that order.
+
+   `tool_calls` is hermes' own key (`annotated_response.tool_calls`, and
+   `assistant_message.tool_calls` in the end payload), uniform across every
+   provider route: the providers each spell it differently on the wire —
+   `output[type=function_call]`, `choices[].message.tool_calls`,
+   `content[type=tool_use]` — and none of those names reaches this page.
+   So this takes the log's word, like `response` and unlike `prompt`.
+
+   Names only: the spans below carry the arguments, each rendered by its own
+   spec, and repeating them here would restate the waterfall. What the row
+   adds is that the calls were one decision — a sixteen-call fan-out is one
+   line here and sixteen rows down there. #}
+{% if s.llm_tool_calls %}
+<div class="span-detail list-item">
+  <span class="gen-key key-col" title="The tools this call asked for, in the order it asked — hermes' `tool_calls`, whatever the provider called them on the wire. Their arguments are on the spans below, one per call; what this row adds is that they were decided together.">tool_calls</span>
+  {#- .call-list, not .path: this list wraps rather than ellipsizing, since
+      the row's point is that the calls were one decision and a sixteen-call
+      fan-out cut off at one line does not say it. Hiding is the row's job —
+      `.list-item` on the div above — not this span's.
+
+      `.wide` is what `prompt` and `response` carry, and it is here for the
+      same reason `key-col` is on the label: the three values are read down
+      as a group, so they share a right edge as well as a left one. #}
+  <span class="call-list wide">{% for name in s.llm_tool_calls %}{% if not loop.first %} <span class="gen-key">·</span> {% endif %}{{ name }}{% endfor %}</span>
+</div>
 {% endif %}
 {# Tokens as the tree they form, not the flat line they were: the rows under
    `prompt` and `out` sum to them, so the indent is the arithmetic. The two

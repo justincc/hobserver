@@ -94,29 +94,50 @@ grow to absorb.
   Often the reason a span is slow. Zero is withheld for the reason a zero
   cache write is: it is every row, and says nothing.
 
-- **Finish reason, and the calls it names** — one row. The reason
-  (`.mode-tag`) is always visible; `tool_calls` means the spans below are
-  what it asked for, and `length` would mean the answer was cut off. The
-  calls themselves (`assistant_message.tool_calls`) sit beside it,
-  **detail-only and names only**:
+- **Finish reason** — `.mode-tag`, always visible, as the provider reported
+  it and not reworded. On the current exporter this is `complete` whether or
+  not the model asked for tools; `length` would mean the answer was cut off.
+
+- **`tool_calls`** — its own detail-only row, under `response`, because both
+  are what came back: the words, then the calls. Names only
+  (`assistant_message.tool_calls`):
 
   ```
-  tool_calls  skill_view · mem0_search · terminal · read_file · read_file · skill_view
+  tool_calls  skill_view · mem0_search · terminal · read_file · read_file
   ```
 
-  They ride the reason rather than taking a row of their own, which would
-  have needed a `calls` label restating the `tool_calls` next to it. Only
-  the names carry `.list-item`, so the summary line keeps the reason alone.
-  They are a `.call-list` span and deliberately not a `.path` one: the
-  collapsed layout forces `.path` back to `display: inline` with a more
-  specific selector than the one `.list-item` hides it with, so the pair
-  would have put the names on the summary line.
+  **The label is not decoration.** These names used to ride the finish
+  reason unlabelled, which worked while that reason *was* the word
+  `tool_calls` — it named the list, and a `calls` label would have restated
+  it. ADR 6's core runtime reports `complete` instead, so the row read
+  `complete  read_file` on 958 of the log's tool-calling spans and nothing
+  said what the names were. The old exporter's 1,008 tool-calling spans said
+  `tool_calls`; the split is exactly at the changeover. A rendering that
+  depended on a payload value outlived the value.
+
+  On those older spans the word now appears twice — once as the reason, once
+  as this row's key — which is the cost of a label that is reliable rather
+  than one that happens to be supplied by a neighbouring field. Accepted
+  knowingly: it affects only spans already written, and the two are different
+  rows, one of them collapsed away.
+
+  `tool_calls` is hermes' own key and uniform across every provider route,
+  so it takes the log's word (like `response`, unlike `prompt`). The wire
+  spellings — `output[type=function_call]` on Responses,
+  `choices[].message.tool_calls` on Chat Completions,
+  `content[type=tool_use]` on Anthropic Messages — are normalized in
+  `providers.py` (ADR 13) and none of them reaches this page.
+
+  The names are a `.call-list` span, which wraps rather than ellipsizing: the
+  row's point is that the calls were **one decision** — 441 assistant turns
+  in the log fan out to two or more, and one to sixteen — and a fan-out cut
+  off at one line does not say that. `.list-item` sits on the row, so the
+  names stay off the summary line; a hidden row hides its children whatever
+  class they carry, which is why the span no longer has to avoid `.path` to
+  stay hidden.
 
   The arguments stay on the spans below, each rendered by the spec written
-  for that tool; repeating them here would restate the waterfall, which is
-  why this was left out to begin with. What it adds is that the calls were
-  **one decision**: 441 assistant turns in the log fan out to two or more,
-  and one to sixteen — something a column of separate rows does not say.
+  for that tool; repeating them here would restate the waterfall.
   Repeats and order are kept, since both are the model's own.
 
   An entry that cannot be read keeps its slot (`(unreadable)` for a
@@ -157,12 +178,19 @@ grow to absorb.
   the end event, whose `message` is this same text — and the name of the
   page its icon opens.
 
-  Both keys carry `.key-col`, which reserves one column so the two
-  paragraphs start at the same edge — they are read side by side, and a
-  ragged left edge is what makes that hard. The width is in `ch` and the key
-  is monospace, so it is exactly the longer label plus a space. It is not
-  part of the spec vocabulary: a declared `Field` cannot ask for it, and the
-  hand-written macro is its only user.
+  These keys carry `.key-col`, which reserves one column so the values start
+  at the same edge — they are read down as a group, and a ragged left edge is
+  what makes that hard. `tool_calls` is in that column too, and its value
+  carries `.wide` as theirs do, so the three share a right edge as well.
+
+  The width is in `ch` and the key is monospace, so it is exactly the longest
+  label plus a space — `tool_calls` at 10, hence 11ch. **A key longer than
+  the column is the one row whose value does not line up**, and nothing but
+  the column width prevents it, so a test asserts the reserved width still
+  exceeds every label using it.
+
+  It is not part of the spec vocabulary: a declared `Field` cannot ask for
+  it, and the hand-written macro is its only user.
 - **The whole of either** — an open-in-a-new-tab icon at the end of both
   rows, leading to `/turns/span/<uuid>/prompt` and `…/response`
   ([ADR 12](adr/0012-open-a-whole-value-on-its-own-page.md)). The request
@@ -203,7 +231,7 @@ grow to absorb.
   is left from the finish reason:
 
   ```
-  tool_calls · prompt 20,193 (89% cached) · out 84
+  complete · prompt 20,193 (89% cached) · out 84
   ```
 
   `cache read` leads the prompt's rows: how much of it the provider already
