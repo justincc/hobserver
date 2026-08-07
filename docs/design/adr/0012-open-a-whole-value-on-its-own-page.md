@@ -111,6 +111,29 @@ verbatim, which is exactly the boundary the page now draws. `Full.note` still
 states the provenance (principle 2), but the layout no longer depends on
 anyone reading it.
 
+**Amended 2026-08-07: the sections may be regrouped, and one kind is.** A
+part may carry `"nested": True` and the part it belongs to `"nests": True`,
+and the request page uses the pair to move each `tool_result` into the
+`tool_call` it answers, matched by `call_id`. The wire sends every call and
+then every result, so five results otherwise arrived as five boxes with
+nothing tying them to the five calls above.
+
+The two flags exist because the pair is drawn as **one card** rather than as
+an indented box: the call has to know to run into what follows it, not only
+the result to know it is inside something. That is also what lets the
+result's label stay a bare `tool_result` — the card says which call it
+answers, so the label does not have to. An earlier draft numbered both
+labels instead, and the layout made the numbering redundant.
+
+That is a departure from the order sent, on the page whose subject is what
+was sent, so it is exactly the case `Full.note` exists for: the note names
+the regrouping in words and the indent shows it. Recorded as a standing rule
+under "the source's order is the default, not a vow" in
+[design-principles.md](../design-principles.md). A result whose `call_id`
+matches no call in the request stays where it arrived and keeps a bare
+label — never observed in the log (26,944 results, none orphaned), but a
+reader seeing an ungrouped result should be able to trust it was unpaired.
+
 ## Consequences
 
 - **The vocabulary grows by one concept, not by a fifth axis.** `Full` is a

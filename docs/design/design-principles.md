@@ -186,6 +186,36 @@ open.
 **Identity is never carried by colour alone.** A colour always has text
 beside it.
 
+**The source's order is the default, not a vow.** Show things in the order
+the log holds them, because that order is usually itself a fact — what the
+model was sent, when a span ran. Depart from it where grouping genuinely
+helps a reader, and when you do, **say so on the page**, not only in a
+comment. That is design principle 2's rule applied to arrangement: order is
+data like any other, and a rearranged one presented as the origin's is the
+thing that rule forbids.
+
+Two departures so far, both earning it:
+
+- the **token tree** turns a flat `usage` object into parents and parts, and
+  puts `cache read` before `in` because "how much did it already have" is
+  the question the rows are read to answer;
+- the **request page** draws each `tool_result` inside the `tool_call` it
+  answers, as one card (`Full.note` says so at the top). The wire sends
+  every call and then every result — 957 of 957 such requests in the log —
+  so five results otherwise arrive as five boxes with nothing tying them to
+  the five calls above.
+
+A corollary worth having: **when the layout carries the relation, the labels
+should stop carrying it.** The results were first labelled `tool_result 3 ·
+read_file` so a reader could pair them by eye; once the card did the
+pairing, the number and the name were two more things to read and to keep
+true, and went back to a bare `tool_result`.
+
+The test for a departure is whether the original order was carrying meaning
+a reader needs. Reordering *spans* on a waterfall would fail it — their
+order is their timing. Reordering messages a model received in one block
+does not: they were one block.
+
 **Metadata stays inline and faint**, not behind a disclosure and not
 right-floated; lookup ids are faint monospace. The detail view is the place
 for what a summary line cannot hold —

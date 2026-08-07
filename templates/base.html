@@ -154,14 +154,75 @@
     .md-body > :first-child { margin-top: 0; }
     /* One message of a request. The label is this app's and the box holds
        nothing but wire content, so they are drawn as two different kinds of
-       thing: the label in the header panel's colours — the app's voice,
-       established at the top of the page — and the content plainly on the
-       page background inside a hairline border that shows where it ends. */
-    .msg { border: 1px solid #e2e5ec; border-radius: 6px; margin: 0 0 1rem; max-width: 62rem; overflow: hidden; }
-    .msg-label { background: #eceff5; border-left: 3px solid #2456c4; color: #33406b; font-family: ui-monospace, monospace; font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.4rem 0.7rem; }
+       thing: the label as a solid band in the header panel's accent — the
+       app's voice, established at the top of the page — and the content
+       plainly on the page background inside a hairline border that shows
+       where it ends.
+
+       The band is the accent *filled in* rather than the header's tint
+       repeated: a label sits directly above content competing for the eye,
+       where the header sits alone at the top of the page, so it needs the
+       heavier register. The accent rule itself moves to the box, where it
+       runs the full height of the message and stays visible against the
+       band rather than disappearing into it. */
+    .msg { border: 1px solid #e2e5ec; border-left: 3px solid #2456c4; border-radius: 6px; margin: 0 0 1rem; max-width: 62rem; overflow: hidden; }
+    .msg-label { background: #33406b; color: #eceff5; font-family: ui-monospace, monospace; font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.4rem 0.7rem; }
     .msg .md-body { padding: 0.7rem 0.9rem; max-width: none; }
     .msg pre.blob { margin: 0; border-radius: 0; background: none; }
     .msg .msg-empty { padding: 0.5rem 0.9rem; margin: 0; font-style: italic; }
+    /* A tool call and the result it answers are drawn as ONE card: the
+       call's box runs into the result's with no gap and no border between
+       them, so the pair is a single object on the page rather than two
+       neighbours a reader has to infer a link between. That is why the
+       result's label can be a bare `tool_result` — the card it is inside
+       says which call it answers, so the label does not have to.
+
+       Three separations are doing the work, and they are three because they
+       answer three different questions:
+
+       - **which two boxes are a pair** — the accent rail is already on the
+         box, so joining the two boxes gives one unbroken SPINE down the
+         whole card for free.
+       - **which half is which** — both bands are solid, the result's a step
+         lighter (1.65:1 against the call's), with the `↳` and the indented
+         label text carrying most of the load.
+
+         Getting here took four cuts, and the measurements are the record:
+         a 3% lighter tint (1.06:1 band against band) and then violet at
+         matched luminance (1.01:1) both read as one surface — hue without a
+         luminance step does not separate two flat areas. Light-against-dark
+         fixed that at 8.74:1 but put the heavier register on the result,
+         where the CALL is the parent: the result sits inside its card, and
+         weight belongs to the thing that owns the other. So the call took
+         the solid band — which is why every message label is solid now,
+         a call being an ordinary label — and the result followed it dark.
+
+         Two dark bands are never adjacent (the call's body sits between
+         them), so they read as stripes rather than as two surfaces being
+         compared, and a modest step is enough. Pushing it further is not
+         free: the label text is light on both, and by `#6b7392` it fails
+         AA against the band.
+
+         Nothing here uses green or red: plenty of these results carry an
+         error this app has not inspected, and no colour should imply an
+         outcome it has not checked.
+       - **where one pair ends and the next begins** — proximity. Zero gap
+         inside a pair against a wide one after it; equal gaps everywhere
+         made five pairs read as ten boxes. */
+    .msg-nests { margin-bottom: 0; border-bottom: 0;
+                 border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+    .msg-nested { border-top: 0; border-top-left-radius: 0;
+                  border-top-right-radius: 0; margin-bottom: 2rem; }
+    /* sides only — a `border-color` shorthand here would take the accent
+       off the left with it */
+    .msg-nests, .msg-nested { background: #fcfcfe; border-top-color: #ccd3e2;
+                              border-right-color: #ccd3e2;
+                              border-bottom-color: #ccd3e2; }
+    /* `↳` says "answers the above" without a word, and survives greyscale
+       and a colourblind reader, where a hue difference would not */
+    .msg-nested > .msg-label { background: #55608c; padding-left: 1.7rem; }
+    .msg-nested > .msg-label::before { content: "↳"; margin-left: -1rem;
+                                       margin-right: 0.35rem; opacity: 0.8; }
     /* fixed layout so columns don't shift when the details switch hides
        or reveals content — widths come from the header row */
     table.waterfall { table-layout: fixed; }

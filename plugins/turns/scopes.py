@@ -184,9 +184,12 @@ LLM = Scope(render="llm", fulls=[
     # the relay called the thing it wrote.
     Full(key="prompt", source="llm_request_messages", render="sections",
          title=const("Prompt"),
-         note=const("Every message of this call's annotated_request, in the "
-                    "order sent. The labels are this app's; everything "
-                    "inside a box is what went on the wire.")),
+         note=const("Every message of this call's annotated_request. The "
+                    "labels are this app's, and so is one thing about the "
+                    "order: each tool result is shown under the call it "
+                    "answers, where the wire sends all the calls and then "
+                    "all the results. Everything inside a box is what went "
+                    "on the wire.")),
     Full(key="response", source="llm_response_text", render="markdown",
          title=const("Response"),
          note=const("The assistant message from this call's end payload, "

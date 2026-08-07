@@ -91,9 +91,18 @@
    box and the box holds nothing but wire content. That is the whole reason
    this is a section list rather than one document with headings written into
    it: written in, a label was one more `##` among the model's own. #}
+{# A tool result is shown under the call it answers rather than where the
+   wire put it (see `_message_sections`), and the two are drawn as one card:
+   `.msg-nests` on the call runs its box into the result's, `.msg-nested` on
+   the result closes it. That is what says they are a pair rather than two
+   neighbours, so it is load-bearing rather than decoration — the page's
+   `note` says the same thing in words, once, at the top.
+
+   Which is also why the result's label is bare: `tool_result` inside its
+   call's card needs no name or number to say which call it answers. #}
 {% if rendered.sections %}
 {% for part in rendered.sections %}
-<section class="msg">
+<section class="msg{% if part.nests %} msg-nests{% endif %}{% if part.nested %} msg-nested{% endif %}">
   <div class="msg-label">{{ part.label }}</div>
   {%- if raw or part.html is none %}
   <pre class="blob full-blob">{{ part.text }}</pre>

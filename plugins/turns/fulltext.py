@@ -47,11 +47,19 @@ class Section:
     The label is this app's; the text is not. They are kept in separate
     fields all the way to the template, which draws the label as its own
     chrome, so nothing this app wrote ends up inside what it is showing.
+
+    `nested` marks a part shown *under* the one before it, and `nests` the
+    part it belongs to — the request page uses the pair for a tool result
+    moved to sit with the call it answers, which are drawn as one card. Both
+    are the source's word, carried through rather than inferred here: this
+    module renders parts and does not know what any of them mean.
     """
 
     label: str
     text: str
     html: Optional[str] = None
+    nested: bool = False
+    nests: bool = False
 
 
 @dataclass(frozen=True)
@@ -122,7 +130,9 @@ def _sections(value: Any) -> Optional[Rendered]:
         html, fault = _markdown(entry["text"])
         problem = problem or fault
         parts.append(Section(label=str(label) if label else "(unlabelled)",
-                             text=entry["text"], html=html))
+                             text=entry["text"], html=html,
+                             nested=bool(entry.get("nested")),
+                             nests=bool(entry.get("nests"))))
     return Rendered(kind="sections", text=None, sections=tuple(parts),
                     chars=sum(len(p.text) for p in parts), problem=problem)
 

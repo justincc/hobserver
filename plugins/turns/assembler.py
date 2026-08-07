@@ -1174,15 +1174,85 @@ def _message_label(message: dict) -> str:
     return role
 
 
+def _tool_call_ids(messages: list) -> set:
+    """The `call_id` of every `tool_call` in a request.
+
+    Pairing only. The labels say nothing about which call a result answers —
+    `tool_result` is the whole label — because the layout says it: the
+    result is drawn inside its call's card. A label repeating what the box
+    around it already shows is one more thing to read and to keep true.
+    """
+    return {m.get("call_id") for m in messages
+            if isinstance(m, dict) and m.get("role") == "tool_call"
+            and isinstance(m.get("call_id"), str) and m.get("call_id")}
+
+
+def _message_sections(messages: list) -> list:
+    """A request's messages as sections, with each result under its call.
+
+    **This is not the wire order, and the page says so** (the `prompt`
+    Full's `note`, design principle 2). The wire sends every call of a turn
+    and then every result — 957 of 957 such requests in the log are blocked
+    that way, never interleaved — so five results arrive as five boxes with
+    nothing tying them to the five calls above them. `call_id` pairs them
+    exactly: 26,944 results in the log, none of them orphaned.
+
+    A result whose `call_id` matches no call in this request stays exactly
+    where it arrived. It has never happened here, but inventing a position
+    for one would be the reordering doing harm rather than good, and a
+    reader who sees an ungrouped result should be able to trust that it
+    really was unpaired.
+    """
+    calls = _tool_call_ids(messages)
+    results = {}
+    for message in messages:
+        if not isinstance(message, dict) or message.get("role") != "tool_result":
+            continue
+        call_id = message.get("call_id")
+        if call_id in calls:
+            results.setdefault(call_id, []).append(message)
+
+    def section(message, **flags):
+        if not isinstance(message, dict):
+            out = {"label": "(unreadable)",
+                   "text": _fence(json.dumps(message, indent=2, default=str),
+                                  "json")}
+        else:
+            out = {"label": _message_label(message),
+                   "text": _message_body(message)}
+        out.update(flags)
+        return out
+
+    sections = []
+    for message in messages:
+        if (isinstance(message, dict)
+                and message.get("role") == "tool_result"
+                and message.get("call_id") in calls):
+            continue            # emitted under its call, below
+        owned = (results.get(message.get("call_id"), ())
+                 if isinstance(message, dict)
+                 and message.get("role") == "tool_call" else ())
+        # `nests` and `nested` are two halves of one fact, and both are
+        # needed: the pair is drawn as a single card, so the call has to
+        # know to run into what follows it and not only the result to know
+        # it is inside something.
+        sections.append(section(message, **({"nests": True} if owned else {})))
+        for result in owned:
+            sections.append(section(result, nested=True))
+    return sections
+
+
 def request_sections_from_profile(category_profile: Any) -> Optional[list]:
-    """A whole llm request as `[{label, text}]` — one entry per message, in
-    the order sent.
+    """A whole llm request as `[{label, text}]` — one entry per message.
 
     The *split* is this app's (design principle 2, derived data says so on
     screen); every `text` is the wire content untouched. Keeping them apart
     is the whole point of the shape: the page draws each label as its own
     chrome, so nothing this app wrote can be mistaken for something the model
     was sent.
+
+    The *order* is this app's too, in one respect: a tool result is moved to
+    sit under the call it answers — see `_message_sections`.
 
     `instructions` leads when the request carries one — it is the system
     prompt on the openai_responses path, and sits beside `messages` rather
@@ -1199,15 +1269,7 @@ def request_sections_from_profile(category_profile: Any) -> Optional[list]:
         sections.append({"label": "instructions", "text": instructions})
     messages = request.get("messages")
     if isinstance(messages, list):
-        for message in messages:
-            if not isinstance(message, dict):
-                sections.append({
-                    "label": "(unreadable)",
-                    "text": _fence(json.dumps(message, indent=2, default=str),
-                                   "json")})
-                continue
-            sections.append({"label": _message_label(message),
-                             "text": _message_body(message)})
+        sections.extend(_message_sections(messages))
     return sections or None
 
 

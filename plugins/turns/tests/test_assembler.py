@@ -1677,6 +1677,80 @@ def test_a_tool_call_names_the_tool_in_its_label():
     assert bodies(span)[1] == "file contents"
 
 
+# --- results are regrouped under their calls ------------------------------
+# Not the wire order, and the page says so (the `prompt` Full's note). The
+# wire sends every call and then every result — 957 of 957 such requests in
+# the log — so the results arrive as a block with nothing tying them to the
+# calls above.
+
+def _blocked_request(*pairs):
+    """A request shaped the way the wire sends one: all calls, then all
+    results."""
+    calls = [{"role": "tool_call", "name": n, "call_id": c,
+              "arguments": "{}"} for c, n in pairs]
+    results = [{"role": "tool_result", "call_id": c, "output": f"out {c}"}
+               for c, _ in pairs]
+    return {"annotated_request": {"messages": [
+        {"role": "user", "content": "go"}, *calls, *results]}}
+
+
+def test_each_tool_result_is_moved_under_the_call_it_answers():
+    span = llm_span(profile=_blocked_request(
+        ("c1", "skill_view"), ("c2", "read_file"), ("c3", "read_file")))
+    assert labels(span) == [
+        "user",
+        "tool_call · skill_view", "tool_result",
+        "tool_call · read_file", "tool_result",
+        "tool_call · read_file", "tool_result",
+    ]
+
+
+def test_two_calls_of_one_tool_keep_their_own_results():
+    """The name does not identify a call — 878 of the 957 requests in the log
+    that carry results call some tool more than once — so the *position* has
+    to be right: nothing in the labels distinguishes these two."""
+    span = llm_span(profile=_blocked_request(("c1", "read_file"),
+                                             ("c2", "read_file")))
+    got = bodies(span)
+    assert [got[0], got[2], got[4]] == ["go", "out c1", "out c2"]
+    assert "{}" in got[1] and "{}" in got[3]      # the calls' arguments
+
+
+def test_both_halves_of_a_pair_are_marked_so_the_page_can_join_them():
+    """The card drawn around the two is the only thing on screen that says
+    they are a pair — the labels no longer say it."""
+    span = llm_span(profile=_blocked_request(("c1", "read_file")))
+    sections = span.llm_request_messages
+    # the call knows it runs into what follows; the result knows it is inside
+    assert [s.get("nests") for s in sections] == [None, True, None]
+    assert [s.get("nested") for s in sections] == [None, None, True]
+
+
+def test_a_result_matching_no_call_stays_where_it_arrived():
+    """Never seen in the log — 26,944 results, none orphaned — but inventing
+    a position for one would be the reordering doing harm. A reader seeing an
+    ungrouped result should be able to trust that it really was unpaired."""
+    span = llm_span(profile={"annotated_request": {"messages": [
+        {"role": "tool_call", "name": "read_file", "call_id": "c1",
+         "arguments": "{}"},
+        {"role": "tool_result", "call_id": "nothing-matches", "output": "?"},
+        {"role": "tool_result", "call_id": "c1", "output": "ok"}]}})
+    assert labels(span) == ["tool_call · read_file",
+                            "tool_result",     # regrouped, under its call
+                            "tool_result"]     # orphan, left where it was
+    assert [s.get("nested") for s in span.llm_request_messages] == [
+        None, True, None]                      # …and not drawn inside a card
+    assert bodies(span)[2] == "?"
+
+
+def test_messages_that_are_not_tool_traffic_keep_the_order_sent():
+    span = llm_span(profile={"annotated_request": {"messages": [
+        {"role": "user", "content": "first"},
+        {"role": "assistant", "content": "second"},
+        {"role": "user", "content": "third"}]}})
+    assert bodies(span) == ["first", "second", "third"]
+
+
 def test_a_provider_native_message_is_named_by_its_kind():
     span = llm_span(profile={"annotated_request": {"messages": [
         {"role": "provider_native", "kind": "reasoning", "provider": "openai",

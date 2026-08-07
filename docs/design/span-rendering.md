@@ -197,7 +197,76 @@ grow to absorb.
   page is every message of `annotated_request` — system instructions, the
   conversation, each tool call and its result — one labelled box per message,
   where the label is this app's and the box holds nothing but what went on
-  the wire; the response page is the assistant message whole. Both are declared as
+  the wire.
+
+  **Each `tool_result` is drawn inside its `tool_call`'s card**, which is not
+  the order the wire sent: that sends every call and then every result, so
+  the results arrived as a block with nothing tying them to the calls above.
+  They are paired by `call_id`.
+
+  The pair is one card, not two boxes: `.msg-nests` on the call drops its
+  bottom border and margin, `.msg-nested` on the result drops its top, and
+  both share a ground and a firmer border than a lone message's hairline.
+  **That is why the result's label is a bare `tool_result`** — no name, no
+  number. The card says which call it answers, and a label repeating what
+  the box around it already shows is one more thing to read and to keep
+  true. (Labels did carry an ordinal at first, which is what the layout
+  replaced.)
+
+  Three separations do the work, and they are three because they answer
+  three different questions:
+
+  | question | answer |
+  |---|---|
+  | which two boxes are a pair? | a continuous left **spine** down both halves — the accent rail sits on the box, so joining the boxes joins the rail |
+  | which half is which? | both bands solid, the result's a step lighter, plus the `↳` and its indented label text |
+  | where does one pair end? | **proximity** — no gap inside a pair, 2rem after it |
+
+  **Every message label is a solid band** (`#33406b`, light text). It got
+  there because the call had to be the heavier of the pair — the call is the
+  parent, the result sits inside its card, and weight belongs to the thing
+  that owns the other — and a call is an ordinary label, so making it solid
+  made them all solid.
+
+  ADR 12 put the labels "in the header panel's colours"; that still holds,
+  but as the accent *filled in* rather than the header's tint repeated. A
+  label sits directly above content competing for the eye, where the header
+  sits alone at the top of the page. The accent rule moved from the label to
+  the box, where it runs the message's full height and stays visible against
+  the band instead of disappearing into it — and where joining two boxes
+  joins their rails into the pair's spine for free.
+
+  **Four cuts, and the measurements are the record.** Band against band:
+
+  | | contrast | outcome |
+  |---|---|---|
+  | 3% lighter tint | 1.06 : 1 | one surface |
+  | violet at matched luminance | 1.01 : 1 | one surface |
+  | light band under a dark one | 8.74 : 1 | separated, but weight on the wrong half |
+  | solid band a step lighter | 1.65 : 1 | with `↳` and indent, enough |
+
+  The lesson in the first two: **hue without a luminance step does not
+  separate two large flat areas.** The second cut moved 35° of hue and
+  measured no better than the first, whose rails were the same colour at two
+  lightnesses.
+
+  The last row is lower than the third by choice. The two dark bands are
+  never adjacent — the call's body sits between them — so they read as
+  stripes rather than as two surfaces being compared, and a modest step does
+  the job the `↳` and the indent are mostly already doing. Pushing further
+  is not free: the label text is light on both bands, and by `#6b7392` it
+  fails AA against its own band.
+
+  Nothing here uses green or red: plenty of these results carry an error
+  this app has not inspected, and no colour should imply an outcome it has
+  not checked. The `↳` carries the relation in greyscale and for a
+  colourblind reader, where none of the above would.
+
+  The page's `note` states the regrouping in words; see "the source's order
+  is the default, not a vow" in
+  [design-principles.md](design-principles.md) and ADR 12's amendment.
+
+  The response page is the assistant message whole. Both are declared as
   `Full`s on the llm scope, which is keyed by *category*, so a compaction, a
   delegated subagent call and a fallback retry each carry the same pair.
 

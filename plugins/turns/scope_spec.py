@@ -245,6 +245,11 @@ class Full:
     source   where the whole value is — any source helper. It is read from
              the payload in the log, so it may be large; that is the point.
              For `render="sections"` it resolves to `[{"label", "text"}]`.
+             A part may also carry `"nests": True` and the one after it
+             `"nested": True`, and the two are then drawn as one card — for
+             a value whose parts are pairs rather than a flat run. The
+             nested part's label can be plain, since the card it sits in
+             says what it belongs to.
     render   "markdown", "text" or "sections" (see FULL_RENDERERS).
     title    what this value is, as a heading — `const("Prompt")`. It is
              the page's own heading and the start of the icon's tooltip
