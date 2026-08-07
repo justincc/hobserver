@@ -88,20 +88,9 @@ and the raw payloads are the fallback.
 | `assistant_message.content` | `annotated_response.message`; else `data.output[type=message].content[type=output_text].text` (responses) or `data.choices[].message.content` (chat) |
 | `assistant_message.tool_calls` | `annotated_response.tool_calls`; else `data.output[type=function_call]` (responses) or `data.choices[].message.tool_calls`, whose name and arguments nest under `function` (chat). Arguments arrive as a JSON *string* on both raw routes |
 | `finish_reason` | `annotated_response.finish_reason` |
-| `usage.prompt_tokens` | `usage.input_tokens`, else `annotated_response.usage.prompt_tokens` |
-| `usage.cache_read_tokens` | `usage.input_tokens_details.cached_tokens`, else `annotated_response.usage.cache_read_tokens` |
-| `usage.cache_write_tokens` | `usage.input_tokens_details.cache_write_tokens` |
-| `usage.output_tokens` | `usage.output_tokens`, else `annotated_response.usage.completion_tokens` |
-| `usage.reasoning_tokens` | `usage.output_tokens_details.reasoning_tokens` |
-| `usage.input_tokens` | **derived**: prompt − cache read − cache write, and only where the cache read was reported |
+| `usage.*` | see [the token counts](#the-token-counts) below |
 | `metadata.session_id` | the leading segment of the composite `turn_id`, else the llm request's `extra_headers.session_id` |
 | `metadata.status` | `"error"` when the end payload carries an error string |
-
-The raw payload wins wherever both report a count: on the responses route it
-is the more detailed of the two, carrying the cache write and the reasoning
-split that the annotation does not. The annotation only fills what the raw
-payload did not say — which on the chat route is nearly everything, since
-its `usage` reports a `total_tokens` and nothing else.
 
 Three of these are traps worth keeping written down:
 
@@ -113,11 +102,10 @@ Three of these are traps worth keeping written down:
 - **`otel.status_code` is not the old `status`.** It reports the span's
   transport and reads `OK` on every failing tool call in the log. The tool's
   own error string is what the outcome is taken from.
-- **A missing cache read is not a cache read of zero.** The `openai_chat`
-  route reports no cache figures at all; deriving fresh input there would
-  state that the whole prompt was new, which is a claim about caching from a
-  payload silent on it. So `input_tokens` is derived only where the cache
-  read was actually reported.
+- **A missing cache read is not a cache read of zero.** Deriving fresh input
+  from a payload that said nothing about caching would state that the whole
+  prompt was new — a claim about caching from a payload silent on it. So
+  `input_tokens` is derived only where the cache read was actually reported.
 - **`target` is not a renamed `file_glob`.** Both are still separate
   parameters of hermes' `search_files` (`tools/file_tools.py`); `file_glob`
   is simply absent when the call did not filter. Nothing to map.
@@ -125,6 +113,90 @@ Three of these are traps worth keeping written down:
 `request_count` has no counterpart and stays absent — absent is not zero.
 Facts the new exporter never emits (subagent and approval marks) are absent,
 not renamed, and normalization does not invent them.
+
+### The token counts
+
+> Lives in `plugins/turns/providers.py`, not `atof_reader.py` — everything
+> that depends on *which provider answered* is there, and its token shapes
+> are a published extension point
+> ([ADR 13](adr/0013-provider-payload-reading-is-its-own-module-and-token-shapes-are-published.md),
+> [writing-a-provider-spec.md](../extending/writing-a-provider-spec.md)).
+> Kept documented here because it is the same normalization story as the
+> section above, read in the same sitting.
+
+Several producers write token counts into this log and no two agree on the
+names. A `UsageShape` probes the payload's own keys — the route named in
+`metadata` is a label, not a schema declaration — and maps them onto the
+canonical names `assembler.TOKEN_TREE` renders.
+
+**Most counts mean the same thing wherever they appear**, so one list of
+sources per canonical name covers every producer; the first source that
+answers wins. That is `_COMMON_USAGE`:
+
+| canonical | sources, in order |
+|---|---|
+| `cache_read_tokens` | `input_tokens_details.cached_tokens`, `prompt_tokens_details.cached_tokens`, `cache_read_input_tokens`, `cache_read_tokens` |
+| `cache_write_tokens` | `input_tokens_details.cache_write_tokens`, `prompt_tokens_details.cache_write_tokens`, `cache_creation_input_tokens`, `cache_write_tokens` |
+| `output_tokens` | `output_tokens`, `completion_tokens` |
+| `reasoning_tokens` | `output_tokens_details.reasoning_tokens`, `completion_tokens_details.reasoning_tokens` |
+| `total_tokens` | `total_tokens` |
+
+#### One count does not: the provider's "input" figure
+
+Two mutually exclusive conventions are in the wild, and reading one as the
+other is a **wrong number rather than a missing one**:
+
+| convention | what the figure means | who | the app derives |
+|---|---|---|---|
+| **whole** | the entire prompt, cache included | OpenAI Chat Completions and Responses, and every OpenAI-compatible proxy — openai-codex, openrouter | `in` = prompt − cache read − cache write |
+| **parts** | only what was sent *fresh*, cache counted alongside | Anthropic Messages | `prompt` = in + cache read + cache write |
+
+hermes forks on the same distinction when it prices a call — the
+`anthropic_messages` arm of `agent/usage_pricing.py` adds where the others
+subtract — which is the corroboration for treating this as a real fork and
+not a quirk of one payload.
+
+The convention is not carried as a flag. It is **which canonical key the
+table maps the figure to**: `_WHOLE_PROMPT` maps it to `prompt_tokens`,
+`_FRESH_INPUT` maps it to `input_tokens`, and `_complete_the_prompt` fills
+in whichever of the two is still missing. So the relation `cache read + in +
+cache write == prompt` is the *definition* of the derived figure and cannot
+diverge, in either direction.
+
+Two traps in the probe, both load-bearing:
+
+- **Anthropic's cache key names do not imply Anthropic's input convention.**
+  OpenAI-compatible proxies routing Claude expose `cache_read_input_tokens`
+  beside an OpenAI-shaped `prompt_tokens` that is still the whole prompt
+  (hermes carries the same fallback, citing OpenRouter, the Vercel AI
+  Gateway and Cline). Summing there would double-count the cache. So the
+  `parts` convention needs both halves of its signature — a top-level
+  `input_tokens`, *and* Anthropic cache names, *and* no OpenAI-shaped
+  prompt key.
+- **A bare `input_tokens` with nothing said about caching is read as the
+  whole prompt.** The two conventions coincide when nothing was cached, and
+  this is the reading that invents no cache rows.
+
+Neither direction is derived from a payload silent on caching: subtracting
+nothing would claim the whole prompt was fresh, adding nothing would claim
+none of it was cached, and both are claims about caching from a payload that
+made none.
+
+Finally, hermes' own `annotated_response.usage` is the chat shape with the
+cache read flattened to the top level, and fills only what the raw payload
+did not say. The raw payload wins wherever both speak: on the responses
+route it is the more detailed of the two, carrying the cache write and the
+reasoning split the annotation does not.
+
+**Where the counts are is not the same question as what they are called.**
+On the chat-completions route the span's own end payload carries `usage:
+null` — the provider reports usage only on the *last chunk of the stream*,
+and hermes asks it to (`stream_options.include_usage`). Those chunks are
+`llm.chunk` marks, which the index folds away rather than carrying as
+events, so the counts reach a span through
+[the index's stream row](#what-is-stored-and-what-is-left-in-the-log) and
+`Span.usage` falls back to them. Without that fallback every openrouter call
+shows no token counts at all while the log holds every one of them.
 
 ## atof_index.py — the index
 
@@ -207,9 +279,24 @@ for byte-identical output.
 They carry neither `session_id` nor `turn_id`, only a `parent_uuid` pointing
 at their llm span, so under the mark-and-time attachment in `assemble` they
 land in `(unknown session)` and reach no turn at all. The index aggregates
-them to one row per span — `MAX(timestamp)` — which `Span.stream_last_us`
-folds into `last_activity_us`. That is a small *improvement*: a long streaming
-call now shows a sign of life where before it looked silent since it started.
+them to one row per span, holding the two things they can say:
+
+| column | from | read by |
+|---|---|---|
+| `last_us` | `MAX(timestamp)` | `Span.stream_last_us` → `last_activity_us` |
+| `usage` | the last chunk that carried any, mapped to canonical names | `Span.usage`, when the end payload reported none |
+
+The timestamp is a small *improvement*: a long streaming call shows a sign
+of life where before it looked silent since it started.
+
+The usage is **not optional**. On the chat-completions route the provider
+reports token counts only on the stream's final chunk and leaves the span's
+end payload with `usage: null` — so for every openrouter call, this row is
+the only place the counts exist. Dropping chunks wholesale would drop them.
+
+A refresh that extends the index can pick up a stream mid-flight, so the row
+accumulates rather than being replaced, and a batch that saw no usage must
+not erase one an earlier batch stored (`coalesce(excluded.usage, usage)`).
 
 ### Hydration
 

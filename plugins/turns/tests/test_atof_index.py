@@ -47,6 +47,12 @@ def scope(uuid, us, end=False, name="read_file", category="tool",
     return json.dumps(out)
 
 
+# The usage a chat-completions stream reports on its final chunk and
+# nowhere else — its span's end payload carries `usage: null`.
+CHUNK_USAGE = {"prompt_tokens": 18782, "cache_read_tokens": 1792,
+               "completion_tokens": 2248, "total_tokens": 21030}
+
+
 def write(path, *lines):
     path.write_text("".join(line + "\n" for line in lines), encoding="utf-8")
 
@@ -200,7 +206,7 @@ def test_a_changed_reader_invalidates_the_derived_fields(index, log,
     write(log, mark("a", 1))
     index.refresh()
     monkeypatch.setattr("plugins.turns.atof_index.code_fingerprint",
-                        lambda: "a-different-reader")
+                        lambda *_: "a-different-reader")
     state = index.refresh()
     assert state.action == "rebuilt"
     assert "reader" in state.reason
@@ -215,6 +221,26 @@ def test_a_changed_index_version_invalidates_it(index, log):
     state = index.refresh()
     assert state.action == "rebuilt"
     assert "index version" in state.reason
+
+
+def test_a_rebuild_replaces_the_stored_shape_not_just_the_rows(index, log):
+    """The version dial exists to catch a *column* change, which is the one
+    thing `CREATE TABLE IF NOT EXISTS` and `DELETE FROM` between them cannot
+    fix: the old table stands and the first insert fails on it. So a rebuild
+    drops its tables. Provoked with the real column that found this."""
+    write(log, scope("llm1", 100, name="openrouter", category="llm"),
+          mark("c1", 150, name="llm.chunk", parent="llm1",
+               data={"usage": CHUNK_USAGE}))
+    index.refresh()
+    with sqlite3.connect(index.db_path) as conn:
+        conn.execute("DROP TABLE stream_activity")
+        conn.execute("CREATE TABLE stream_activity (uuid TEXT PRIMARY KEY, "
+                     "last_us INTEGER NOT NULL, chunks INTEGER NOT NULL)")
+        conn.execute("UPDATE meta SET value = '0' WHERE key = 'index_version'")
+
+    state = index.refresh()
+    assert state.action == "rebuilt"
+    assert index.stream_usage()["llm1"]["prompt_tokens"] == 18782
 
 
 def test_a_vanished_log_leaves_no_stale_rows(index, log):
@@ -324,9 +350,9 @@ def test_an_agent_scope_naming_its_session_in_the_payload_is_projected(index, lo
 
 # --- chunks ---------------------------------------------------------------
 
-def test_chunks_become_one_timestamp_per_span(index, log):
-    """94% of the log's lines, reaching no template. They say one thing —
-    that a streaming call is still alive — and it is kept."""
+def test_chunks_become_one_row_per_span(index, log):
+    """94% of the log's lines, reaching no template. They say two things —
+    that a streaming call is still alive, and what it cost — and both kept."""
     write(log,
           scope("llm1", 100, name="gpt", category="llm",
                 metadata={"session_id": "s"}),
@@ -353,6 +379,56 @@ def test_chunk_activity_accumulates_across_an_extend(index, log):
     append(log, mark("c2", 800, name="llm.chunk", parent="llm1"))
     index.refresh()
     assert index.stream_activity() == {"llm1": 800}
+
+
+def test_the_final_chunks_token_counts_are_kept(index, log):
+    """The openrouter route reports usage here and nowhere else — its span's
+    end payload carries a null `usage`."""
+    write(log,
+          scope("llm1", 100, name="openrouter", category="llm",
+                metadata={"session_id": "s"}),
+          scope("llm1", 900, end=True, name="openrouter", category="llm",
+                metadata={"session_id": "s"}, data={"usage": None}),
+          mark("c1", 150, name="llm.chunk", parent="llm1",
+               data={"chunk_index": 0, "usage": None}),
+          mark("c2", 800, name="llm.chunk", parent="llm1",
+               data={"chunk_index": 1, "usage": CHUNK_USAGE}))
+    index.refresh()
+
+    assert index.stream_usage() == {"llm1": {
+        "prompt_tokens": 18782, "cache_read_tokens": 1792,
+        "output_tokens": 2248, "total_tokens": 21030,
+        "input_tokens": 18782 - 1792,
+    }}
+
+    assembly = assemble(index.events(), index.stream_activity(),
+                        index.stream_usage())
+    span = assembly.sessions[0].unassigned_spans[0]
+    assert span.usage["prompt_tokens"] == 18782
+    assert span.usage_summary == "prompt 18,782 / out 2,248 tokens"
+
+
+def test_an_extend_that_sees_no_usage_does_not_erase_it(index, log):
+    """Usage arrives once, on the last chunk. A later refresh reading only
+    the chunks after it must leave the stored counts alone."""
+    write(log, scope("llm1", 100, name="openrouter", category="llm"),
+          mark("c1", 150, name="llm.chunk", parent="llm1",
+               data={"usage": CHUNK_USAGE}))
+    index.refresh()
+    append(log, mark("c2", 800, name="llm.chunk", parent="llm1",
+                     data={"usage": None}))
+    index.refresh()
+    assert index.stream_usage()["llm1"]["prompt_tokens"] == 18782
+
+
+def test_spans_whose_stream_said_nothing_are_not_carried(index, log):
+    """Only a minority of spans have counts here; the rest cost no row."""
+    write(log, scope("llm1", 100, name="gpt", category="llm"),
+          mark("c1", 150, name="llm.chunk", parent="llm1",
+               data={"chunk_index": 0}))
+    index.refresh()
+    assert index.stream_usage() == {}
+    assert index.stream_activity() == {"llm1": 150}
 
 
 # --- hydration ------------------------------------------------------------
@@ -445,3 +521,86 @@ def test_two_logs_do_not_share_an_index(tmp_path):
 def test_the_same_log_resolves_to_the_same_index(tmp_path):
     assert (default_index_path(str(tmp_path / "a.jsonl"))
             == default_index_path(str(tmp_path / "sub" / ".." / "a.jsonl")))
+
+
+# --- contributed provider shapes (ADR 13) ---------------------------------
+
+def _acme_shape():
+    from plugins.turns.providers import COMMON_COUNTS, WHOLE, UsageShape
+    return UsageShape(
+        name="acme_router", convention=WHOLE,
+        counts=(("prompt_tokens", ("acme_prompt_total",)),
+                ("cache_read_tokens", ("acme_cached",)),
+                ("output_tokens", ("acme_generated",))) + COMMON_COUNTS,
+        matches=lambda usage: "acme_prompt_total" in usage)
+
+
+ACME_END_USAGE = {"acme_prompt_total": 4000, "acme_cached": 3200,
+                  "acme_generated": 120}
+
+
+def test_a_contributed_shape_reaches_the_stored_counts(tmp_path, log):
+    """The whole point: a router this tree has never heard of shows its
+    tokens without a fork."""
+    from plugins.turns.providers import USAGE_SHAPES
+    write(log,
+          scope("llm1", 100, name="acme", category="llm",
+                metadata={"session_id": "s"}),
+          scope("llm1", 900, end=True, name="acme", category="llm",
+                metadata={"session_id": "s"},
+                data={"choices": [], "usage": ACME_END_USAGE}))
+
+    plain = AtofIndex(str(log), str(tmp_path / "plain.sqlite3"))
+    plain.refresh()
+    span = assemble(plain.events()).sessions[0].unassigned_spans[0]
+    assert span.token_rows == []            # unrecognised without the shape
+
+    shaped = AtofIndex(str(log), str(tmp_path / "shaped.sqlite3"),
+                       (_acme_shape(),) + USAGE_SHAPES)
+    shaped.refresh()
+    span = assemble(shaped.events()).sessions[0].unassigned_spans[0]
+    assert span.usage["prompt_tokens"] == 4000
+    assert span.usage["input_tokens"] == 800
+    assert span.usage_summary == "prompt 4,000 / out 120 tokens"
+
+
+def test_changing_the_shape_table_invalidates_the_index(tmp_path, log):
+    """A contributed shape decides what the stored counts *mean*, so an
+    index built under one table must not be served under another — the
+    staleness rule ADR 11 applies to this tree's own code."""
+    from plugins.turns.providers import USAGE_SHAPES
+    write(log, scope("llm1", 100, name="acme", category="llm"),
+          scope("llm1", 900, end=True, name="acme", category="llm",
+                data={"choices": [], "usage": ACME_END_USAGE}))
+    db = str(tmp_path / "index.sqlite3")
+
+    AtofIndex(str(log), db, (_acme_shape(),) + USAGE_SHAPES).refresh()
+    state = AtofIndex(str(log), db, USAGE_SHAPES).refresh()
+    assert state.action == "rebuilt"
+    assert "reader" in state.reason
+
+
+def test_hydration_reads_a_payload_back_with_the_same_shapes(tmp_path, log):
+    """Re-reading an llm end payload re-derives its counts. A hydrated span
+    disagreeing with the indexed one would be this app contradicting itself
+    between two renders of the same span."""
+    from plugins.turns.atof_index import hydrate_turn as _hydrate
+    from plugins.turns.providers import USAGE_SHAPES
+    big = "x" * (PAYLOAD_INLINE_MAX_BYTES * 2)
+    shapes = (_acme_shape(),) + USAGE_SHAPES
+    write(log,
+          mark("m1", 50, name="hermes.turn.start",
+               metadata={"session_id": "s", "turn_id": "t1"},
+               data={"user_message": "hi"}),
+          scope("llm1", 100, name="acme", category="llm",
+                metadata={"session_id": "s", "turn_id": "t1"}),
+          scope("llm1", 900, end=True, name="acme", category="llm",
+                metadata={"session_id": "s", "turn_id": "t1"},
+                data={"choices": [], "usage": ACME_END_USAGE, "pad": big}))
+
+    index = AtofIndex(str(log), str(tmp_path / "index.sqlite3"), shapes)
+    index.refresh()
+    turn = assemble(index.events()).sessions[0].turns[0]
+    assert turn.spans[0].payload_elided          # the payload was too big
+    _hydrate(turn, str(log), shapes)
+    assert turn.spans[0].usage["prompt_tokens"] == 4000

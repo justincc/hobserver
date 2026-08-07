@@ -71,7 +71,10 @@ def two_turn_stream():
         *scope_lines("L1", "llm", 1_100_000, 3_100_000, name="anthropic",
                      session="s1", turn="t1",
                      profile={"model_name": "claude-sonnet-4-6"},
-                     end_data={"usage": {"input_tokens": 100, "output_tokens": 50},
+                     end_data={"usage": {"prompt_tokens": 120,
+                                         "cache_read_tokens": 20,
+                                         "input_tokens": 100,
+                                         "output_tokens": 50},
                                "finish_reason": "tool_calls"}),
         *scope_lines("T1", "tool", 3_200_000, 3_700_000, name="terminal",
                      session="s1", turn="t1",
@@ -119,7 +122,8 @@ def test_span_details_survive_assembly():
     assembly = assemble_lines(two_turn_stream())
     llm, tool = assembly.sessions[0].turns[0].spans[0:2]
     assert llm.model_name == "claude-sonnet-4-6"
-    assert llm.usage == {"input_tokens": 100, "output_tokens": 50}
+    assert llm.usage == {"prompt_tokens": 120, "cache_read_tokens": 20,
+                         "input_tokens": 100, "output_tokens": 50}
     assert llm.duration_us == 2_000_000
     assert tool.tool_call_id == "call-1"
     assert tool.end_data["duration_ms"] == 500
@@ -127,6 +131,80 @@ def test_span_details_survive_assembly():
     assert tool.command == "git status --short"
     assert tool.workdir == "/home/u/proj"
     assert llm.command is None and llm.workdir is None
+
+
+# --- token counts reported on the stream, not on the end event -----------
+# The openrouter route reports usage only on the last chunk of a stream and
+# leaves the span's own end payload with a null `usage`. Every count is in
+# the log; without the fallback none of them reaches the page.
+
+def _streamed_llm(end_usage, chunk_usage_data, *, chunks=2):
+    """One llm span whose stream carries counts its end event does not."""
+    lines = [
+        *session_scope_lines("s1", start_us=0),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L1", "llm", 1_100_000, 3_100_000, name="openrouter",
+                     session="s1", turn="t1",
+                     profile={"model_name": "moonshotai/kimi-k3"},
+                     end_data={"usage": end_usage}),
+    ]
+    # only the last chunk of a stream reports anything
+    for i in range(chunks - 1):
+        lines.append(mark_line("llm.chunk", 1_200_000 + i, parent="L1",
+                               data={"chunk_index": i, "usage": None}))
+    lines.append(mark_line("llm.chunk", 3_000_000, parent="L1",
+                           data={"chunk_index": chunks - 1,
+                                 "usage": chunk_usage_data}))
+    return lines
+
+
+CHUNK_USAGE = {"prompt_tokens": 18782, "cache_read_tokens": 1792,
+               "completion_tokens": 2248, "total_tokens": 21030}
+
+
+def test_a_span_falls_back_to_the_counts_its_stream_reported():
+    assembly = assemble_lines(_streamed_llm(None, CHUNK_USAGE))
+    (span,) = assembly.sessions[0].turns[0].spans
+    assert span.usage == {"prompt_tokens": 18782, "cache_read_tokens": 1792,
+                          "output_tokens": 2248, "total_tokens": 21030,
+                          "input_tokens": 18782 - 1792}
+
+
+def test_streamed_counts_reach_the_token_tree_and_the_tooltip():
+    assembly = assemble_lines(_streamed_llm(None, CHUNK_USAGE))
+    (span,) = assembly.sessions[0].turns[0].spans
+    assert [(r["label"], r["value"]) for r in span.token_rows] == [
+        ("prompt", "18,782"), ("cache read", "1,792"), ("in", "16,990"),
+        ("out", "2,248"),
+    ]
+    assert span.token_rows[0]["share"] == "10% cached"
+    assert span.usage_summary == "prompt 18,782 / out 2,248 tokens"
+
+
+def test_the_end_payload_wins_over_the_stream_when_both_report():
+    """Same call counted twice is still one call: the end event is the
+    provider's final word and the chunk is a running one."""
+    assembly = assemble_lines(_streamed_llm(
+        {"prompt_tokens": 999, "output_tokens": 9}, CHUNK_USAGE))
+    (span,) = assembly.sessions[0].turns[0].spans
+    assert span.usage == {"prompt_tokens": 999, "output_tokens": 9}
+
+
+def test_a_stream_that_reported_no_counts_leaves_usage_absent():
+    assembly = assemble_lines(_streamed_llm(None, None))
+    (span,) = assembly.sessions[0].turns[0].spans
+    assert span.usage is None
+    assert span.token_rows == []
+
+
+def test_a_span_with_nothing_to_count_has_no_tooltip_summary():
+    """It used to interpolate `?` for a missing figure, which read as a
+    count the provider had withheld rather than one this app never sought."""
+    assembly = assemble_lines(_streamed_llm({"total_tokens": 30251}, None))
+    (span,) = assembly.sessions[0].turns[0].spans
+    assert span.usage == {"total_tokens": 30251}   # nothing is lost
+    assert span.token_rows == []                   # but no row can be vouched for
+    assert span.usage_summary is None
 
 
 def test_command_and_workdir_type_guard_odd_start_data():

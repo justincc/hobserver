@@ -28,6 +28,7 @@ from plugins.turns import fulltext
 from plugins.turns.assembler import assemble
 from plugins.turns.atof_index import (AtofIndex, default_index_path,
                                         hydrate_span, hydrate_turn)
+from plugins.turns.providers import USAGE_SHAPES, check_shapes
 from plugins.turns.scope_spec import (SpecTable, check_table, full_for,
                                         full_link, render_macro, resolve_full,
                                         resolve_source, rows_for)
@@ -79,6 +80,58 @@ def spec_modules(settings):
     if isinstance(value, str):
         value = [value]
     return [str(v) for v in value] if isinstance(value, (list, tuple)) else []
+
+
+def provider_modules(settings):
+    """Modules contributing provider usage shapes, from `provider_specs`.
+
+    A string is accepted as well as a list, for the same reason `scope_specs`
+    accepts one: writing a single module path without brackets is the obvious
+    thing to try.
+    """
+    value = settings.get("provider_specs") or []
+    if isinstance(value, str):
+        value = [value]
+    return [str(v) for v in value] if isinstance(value, (list, tuple)) else []
+
+
+def usage_shape_table(settings):
+    """This tree's provider shapes with any contributed module in front (ADR 13).
+
+    Returns `(shapes, notes)`. Contributed shapes are tried **first**, not
+    merged: a shape is a probe, and the built-in `openai_compatible` claims
+    any payload carrying a recognisable OpenAI-ish key. Something more
+    specific can only win by being asked first, which is the same
+    "most explicit wins" rule `spec_table` applies by merging.
+
+    A module that cannot be imported, offers no shapes, or offers malformed
+    ones is reported and skipped — its provider's counts fall back to the
+    built-in reading, which is what they were before it was installed. It
+    never takes the tab down: the log still renders, minus one provider's
+    token rows.
+    """
+    shapes = list(USAGE_SHAPES)
+    notes = []
+    for path in provider_modules(settings):
+        note = {"label": "provider spec", "path": path, "from": "settings",
+                "required": False, "problem": None}
+        try:
+            module = importlib.import_module(path)
+            contributed = getattr(module, "USAGE_SHAPES", None)
+            if not contributed:
+                raise ValueError("no USAGE_SHAPES in module")
+            faults = check_shapes(contributed)
+            if faults:
+                raise ValueError("; ".join(faults))
+        except Exception as exc:  # noqa: BLE001 - third-party module
+            note["problem"] = f"{type(exc).__name__}: {exc}"
+            notes.append(note)
+            continue
+        named = ", ".join(s.name for s in contributed)
+        note["from"] = f"settings, tried before {USAGE_SHAPES[0].name} ({named})"
+        shapes = list(contributed) + shapes
+        notes.append(note)
+    return tuple(shapes), notes
 
 
 def tab_spec_tables(app):
@@ -180,6 +233,7 @@ def sources(settings):
     entries.append({"label": "ATOF index (cache)", "path": db_path,
                     "from": db_origin, "required": False, "problem": None})
     entries.extend(spec_table(settings)[1])
+    entries.extend(usage_shape_table(settings)[1])
     return entries
 
 
@@ -194,15 +248,18 @@ def init_app(app, settings):
     app.config["ATOF_PATH"] = atof_path(settings)[0]
     app.config["ATOF_INDEX_DB"] = index_db_path(settings)[0]
     app.config["SCOPE_SPECS"] = spec_table(settings, app)[0]
+    app.config["USAGE_SHAPES"] = usage_shape_table(settings)[0]
 
 
 def get_index() -> AtofIndex:
     """The app-lifetime index for the configured ATOF path."""
     path = current_app.config["ATOF_PATH"]
     db_path = current_app.config.get("ATOF_INDEX_DB") or default_index_path(path)
+    shapes = current_app.config.get("USAGE_SHAPES")
     index = current_app.extensions.get("atof_index")
-    if index is None or index.log_path != path or index.db_path != db_path:
-        index = AtofIndex(path, db_path)
+    if (index is None or index.log_path != path or index.db_path != db_path
+            or index.usage_shapes != (tuple(shapes) if shapes else None)):
+        index = AtofIndex(path, db_path, shapes)
         current_app.extensions["atof_index"] = index
     return index
 
@@ -285,7 +342,8 @@ def _assembly():
     cached = current_app.extensions.get("atof_assembly")
     if cached is not None and cached[0] == key:
         return cached[1], cached[2]
-    assembly = assemble(index.events(), index.stream_activity())
+    assembly = assemble(index.events(), index.stream_activity(),
+                        index.stream_usage())
     errors = index.parse_errors()
     current_app.extensions["atof_assembly"] = (key, assembly, errors)
     return assembly, errors
@@ -390,7 +448,8 @@ def turn(session_id, start_us):
     # The payloads live in the log; read back the ones this turn needs and
     # no others (ADR 11). Hydrating into the cached assembly means a reload
     # of the same turn costs nothing, and the next append drops the lot.
-    hydrate_turn(found, current_app.config["ATOF_PATH"])
+    hydrate_turn(found, current_app.config["ATOF_PATH"],
+                 current_app.config.get("USAGE_SHAPES"))
     # Scale for the bars: a turn still in flight is drawn against the last
     # thing we saw in it.
     span_edges = [s.end_us or s.start_us for s in found.spans]
@@ -469,7 +528,8 @@ def span_full(span_uuid, key):
     if full is None:
         abort(404)
     # One span's payloads, not its turn's: this page shows one value.
-    hydrate_span(span, current_app.config["ATOF_PATH"])
+    hydrate_span(span, current_app.config["ATOF_PATH"],
+                 current_app.config.get("USAGE_SHAPES"))
     accessors = _accessors()
     rendered = fulltext.render(resolve_full(span, full, accessors), full.render)
     return render_template(

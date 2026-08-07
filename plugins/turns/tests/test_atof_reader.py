@@ -409,6 +409,25 @@ def test_relay_usage_omits_fresh_input_when_the_parts_do_not_partition():
     assert "input_tokens" not in e.data["usage"]
 
 
+def test_chat_completions_usage_reaches_an_llm_end_payload():
+    """The whole point of the mapping: this route used to yield a usage with
+    nothing in it but a grand total, and so rendered no token rows at all.
+
+    The mapping itself is `providers`\' — tested there. This is the seam:
+    that a chat-shaped payload arriving through `parse_line` comes out with
+    the counts on it."""
+    data = {"choices": [], "model": "moonshotai/kimi-k3",
+            "usage": {"prompt_tokens": 29786,
+                      "prompt_tokens_details": {"cached_tokens": 29248},
+                      "completion_tokens": 465, "total_tokens": 30251}}
+    e = parse_line(relay_llm_end(data=data, profile={
+        "model_name": "moonshotai/kimi-k3",
+        "annotated_response": {"finish_reason": "complete"}}))
+    assert e.data["usage"]["prompt_tokens"] == 29786
+    assert e.data["usage"]["cache_read_tokens"] == 29248
+    assert e.data["usage"]["input_tokens"] == 29786 - 29248
+
+
 def test_relay_llm_end_keeps_the_provider_payload_beside_the_canonical_one():
     e = parse_line(relay_llm_end())
     assert e.data["id"] == "resp_1"          # nothing is dropped in mapping

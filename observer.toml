@@ -22,6 +22,14 @@ module = "plugins.turns"
 # docs/extending/writing-a-scope-spec.md, and span-rendering.md for the
 # vocabulary itself.
 # settings = { scope_specs = ["hermes_observer_acme.specs"] }
+#
+# `provider_specs` names modules declaring how your own router reports token
+# counts — one entry per provider payload shape, no fork of this tree. Yours
+# are tried before the built-in ones, and the banner names them at startup.
+# You need this only when a router names its counts something the built-in
+# OpenAI-compatible reading does not recognise. See
+# docs/extending/writing-a-provider-spec.md.
+# settings = { provider_specs = ["hermes_observer_acme.providers"] }
 
 [[tabs]]
 module = "plugins.mem0"

@@ -18,8 +18,12 @@ therefore biased towards rebuilding.
 
 `llm.chunk` marks are 94% of the log's lines and reach no template — they
 carry no session or turn id, so today they do not even reach a turn. They
-are folded into `stream_activity`, one timestamp per streaming llm span,
-which is the only thing they can say: that a long model call is still alive.
+are folded into one row per streaming llm span, holding the two things they
+can say: that a long model call is still alive, and what it cost in tokens.
+The second is not a nicety — providers on the chat-completions route report
+usage *only* on the stream's final chunk and leave the span's own end
+payload with a null `usage`, so without it those calls show no token counts
+at all.
 """
 
 from __future__ import annotations
@@ -37,19 +41,22 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from plugins.turns import assembler as _assembler
 from plugins.turns import atof_reader as _atof_reader
+from plugins.turns import providers as _providers
 from plugins.turns.assembler import (AGENT_CATEGORY, LLM_CATEGORY,
                                        TURN_START_MARK,
                                        request_prompt_from_profile,
                                        user_message_from_data)
-from plugins.turns.atof_reader import (AtofEvent, AtofParseError, LineRef,
-                                         ParseError, parse_line)
+from plugins.turns.atof_reader import (STREAM_MARK_NAMES, AtofEvent,
+                                         AtofParseError, LineRef, ParseError,
+                                         parse_line)
+from plugins.turns.providers import chunk_usage
 from plugins.turns.tailer import (file_size, read_at, read_bytes_at,
                                     read_lines)
 
 # Bump when the stored *shape* changes. The code fingerprint below catches
 # changes in what the stored values mean; this catches changes in which
 # columns exist, which no fingerprint would notice until a query failed.
-INDEX_VERSION = 1
+INDEX_VERSION = 2
 
 # Head of the log hashed as a fingerprint. An append-only file never changes
 # here, so a mismatch means the file was rewritten in place — which `>` on
@@ -61,11 +68,6 @@ HEAD_FINGERPRINT_BYTES = 64 * 1024
 # on size, not on key names: this app is not the authority on which of
 # hermes' payload keys are the big ones, and the answer changes per tool.
 PAYLOAD_INLINE_MAX_BYTES = 4096
-
-# Marks that only say a stream is still alive. Named rather than inferred —
-# nothing in an ATOF event declares "I am one of thousands" — and kept as a
-# set so a second such mark costs one entry rather than a branch.
-STREAM_MARK_NAMES = frozenset({"llm.chunk"})
 
 # Rows per executemany during a build.
 _BATCH = 2000
@@ -103,7 +105,8 @@ CREATE TABLE IF NOT EXISTS parse_errors (
 CREATE TABLE IF NOT EXISTS stream_activity (
     uuid TEXT PRIMARY KEY,
     last_us INTEGER NOT NULL,
-    chunks INTEGER NOT NULL
+    chunks INTEGER NOT NULL,
+    usage TEXT
 );
 """
 
@@ -123,18 +126,30 @@ def default_index_path(log_path: str) -> str:
     return os.path.join(base, "hermes-observer", f"atof-index-{digest}.sqlite3")
 
 
-def code_fingerprint() -> str:
+def code_fingerprint(usage_shapes=None) -> str:
     """Hash of every module whose code decides what the index *means*.
 
-    The stored spine is normalized by `atof_reader` and projected through
-    `assembler`; edit either and the stored values no longer mean what they
-    say. Hashing the source invalidates them automatically, rather than
-    relying on someone remembering to bump a constant while chasing a
-    hermes schema change. It over-invalidates — a docstring edit forces a
-    rebuild — which at seconds per rebuild is the right side to be wrong on.
+    The stored spine is normalized by `atof_reader`, read per provider by
+    `providers`, and projected through `assembler`; edit any of them and the
+    stored values no longer mean what they say. Hashing the source
+    invalidates them automatically, rather than relying on someone
+    remembering to bump a constant while chasing a hermes schema change. It
+    over-invalidates — a docstring edit forces a rebuild — which at seconds
+    per rebuild is the right side to be wrong on.
+
+    **Contributed provider modules are hashed too** (ADR 13). A third-party
+    `UsageShape` decides what the stored token counts mean just as much as
+    this tree does, so editing one has to invalidate an index built before
+    the edit. Without this the counts would be stale in exactly the way a
+    cache is never allowed to be (ADR 11).
     """
     digest = hashlib.sha256()
-    for module in (_atof_reader, _assembler, sys.modules[__name__]):
+    modules = [_atof_reader, _providers, _assembler, sys.modules[__name__]]
+    for name in _providers.shape_modules(usage_shapes or ()):
+        module = sys.modules.get(name)
+        if module is not None and module not in modules:
+            modules.append(module)
+    for module in modules:
         path = getattr(module, "__file__", None)
         if not path:
             continue
@@ -240,9 +255,14 @@ class AtofIndex:
     and is a stat and two small reads when nothing has been appended.
     """
 
-    def __init__(self, log_path: str, db_path: str):
+    def __init__(self, log_path: str, db_path: str, usage_shapes=None):
         self.log_path = log_path
         self.db_path = db_path
+        # The provider table this index's token counts were read with (ADR
+        # 13). Held rather than reached for, because it is also hashed into
+        # the fingerprint: an index and the shapes that filled it belong
+        # together, and a changed table has to invalidate it.
+        self.usage_shapes = tuple(usage_shapes) if usage_shapes else None
         self.state = IndexState()
         self._lock = threading.Lock()
 
@@ -301,6 +321,19 @@ class AtofIndex:
                 "SELECT uuid, last_us FROM stream_activity").fetchall()
         return {r["uuid"]: r["last_us"] for r in rows}
 
+    def stream_usage(self) -> Dict[str, dict]:
+        """Span uuid → token counts its final streamed chunk reported.
+
+        Separate from `stream_activity` because the two are read for
+        different reasons — liveness on every span, counts only on llm ones
+        — and only a minority of spans have anything to say here.
+        """
+        with self._db() as conn:
+            rows = conn.execute(
+                "SELECT uuid, usage FROM stream_activity "
+                "WHERE usage IS NOT NULL").fetchall()
+        return {r["uuid"]: json.loads(r["usage"]) for r in rows}
+
     # --- refreshing ------------------------------------------------------
 
     def refresh(self) -> IndexState:
@@ -323,7 +356,7 @@ class AtofIndex:
             return "no index yet"
         if meta.get("index_version") != str(INDEX_VERSION):
             return "index built by a different index version"
-        if meta.get("code_fingerprint") != code_fingerprint():
+        if meta.get("code_fingerprint") != code_fingerprint(self.usage_shapes):
             return "the reader that derived it has changed"
 
         try:
@@ -364,10 +397,16 @@ class AtofIndex:
         return None
 
     def _rebuild(self, conn, reason: str) -> IndexState:
-        conn.execute("DELETE FROM events")
-        conn.execute("DELETE FROM parse_errors")
-        conn.execute("DELETE FROM stream_activity")
         generation = int((_read_meta(conn).get("generation") or 0)) + 1
+        # Dropped and recreated, not emptied. ADR 11's rule is that a
+        # doubtful index is deleted rather than upgraded, and one of the
+        # reasons we get here is that the stored *shape* is wrong — a new
+        # column, say, which `CREATE TABLE IF NOT EXISTS` would not add to a
+        # table already standing and `DELETE FROM` would leave missing until
+        # the first insert failed. `meta` is kept: it holds the generation.
+        for table in ("events", "parse_errors", "stream_activity"):
+            conn.execute(f"DROP TABLE IF EXISTS {table}")
+        conn.executescript(_SCHEMA)
         state = self._ingest(conn, from_offset=0, from_line_no=1,
                              generation=generation)
         state.action = "rebuilt"
@@ -412,7 +451,7 @@ class AtofIndex:
             if not text.strip():
                 continue
             try:
-                event = parse_line(text, line_no)
+                event = parse_line(text, line_no, self.usage_shapes)
             except AtofParseError as exc:
                 errors.append((line_no, exc.message,
                                text.strip()[:_atof_reader._ERROR_LINE_PREVIEW_CHARS]))
@@ -420,12 +459,19 @@ class AtofIndex:
             if event.name in STREAM_MARK_NAMES:
                 parent = event.parent_uuid
                 if parent:
+                    # Only the stream's last chunk reports usage, so the
+                    # last non-empty one seen wins and the rest, which are
+                    # all of them, leave it alone.
+                    counts = chunk_usage(event.data.get("usage")
+                                         if isinstance(event.data, dict) else None)
                     entry = stream.get(parent)
                     if entry is None:
-                        stream[parent] = [event.timestamp_us, 1]
+                        stream[parent] = [event.timestamp_us, 1, counts or None]
                     else:
                         entry[0] = max(entry[0], event.timestamp_us)
                         entry[1] += 1
+                        if counts:
+                            entry[2] = counts
                 continue
             rows.append(_row_from_event(event, offset, length))
             if len(rows) >= _BATCH:
@@ -467,7 +513,7 @@ class AtofIndex:
             dev = ino = 0
         _write_meta(conn, {
             "index_version": str(INDEX_VERSION),
-            "code_fingerprint": code_fingerprint(),
+            "code_fingerprint": code_fingerprint(self.usage_shapes),
             "log_path": os.path.abspath(self.log_path),
             "log_dev": str(dev),
             "log_ino": str(ino),
@@ -553,14 +599,23 @@ def _write_errors(conn, rows) -> None:
 
 
 def _write_stream(conn, stream) -> None:
+    """Fold this batch of chunks into the one row per span.
+
+    An extend picks up a stream mid-flight, so the row is accumulated rather
+    than replaced. `usage` only ever arrives once — on the final chunk — so
+    a batch that saw none must not erase one an earlier batch stored.
+    """
     if not stream:
         return
     conn.executemany(
-        "INSERT INTO stream_activity (uuid, last_us, chunks) VALUES (?, ?, ?) "
+        "INSERT INTO stream_activity (uuid, last_us, chunks, usage) "
+        "VALUES (?, ?, ?, ?) "
         "ON CONFLICT(uuid) DO UPDATE SET "
         "  last_us = max(last_us, excluded.last_us), "
-        "  chunks = chunks + excluded.chunks",
-        [(uuid, last_us, count) for uuid, (last_us, count) in stream.items()])
+        "  chunks = chunks + excluded.chunks, "
+        "  usage = coalesce(excluded.usage, usage)",
+        [(uuid, last_us, count, json.dumps(usage) if usage else None)
+         for uuid, (last_us, count, usage) in stream.items()])
 
 
 def _read_meta(conn) -> dict:
@@ -584,20 +639,26 @@ def _fill_state(state: IndexState, conn, meta) -> None:
 
 # --- hydration ------------------------------------------------------------
 
-def hydrate_turn(turn, log_path: str) -> None:
+def hydrate_turn(turn, log_path: str, usage_shapes=None) -> None:
     """Read one turn's payloads back out of the log, in place.
 
     The whole point of the index: this runs for the turn being viewed and no
     other. A payload that cannot be re-read — the log rotated between
     assembly and render — leaves `payload_problem` set for the page to state
     rather than a blank field (ADR 2).
+
+    `usage_shapes` has to be the same table the index was built with (ADR
+    13): re-reading an llm end payload re-derives its token counts, and a
+    hydrated span disagreeing with the indexed one would be this app
+    contradicting itself between two renders of the same span.
     """
     for span in turn.spans:
-        _hydrate_span(span, log_path)
-    turn.marks[:] = [_hydrated_mark(mark, log_path) for mark in turn.marks]
+        _hydrate_span(span, log_path, usage_shapes)
+    turn.marks[:] = [_hydrated_mark(mark, log_path, usage_shapes)
+                     for mark in turn.marks]
 
 
-def hydrate_span(span, log_path: str) -> None:
+def hydrate_span(span, log_path: str, usage_shapes=None) -> None:
     """Read one span's payloads back, for a page showing that span alone.
 
     `hydrate_turn` is the usual door in; this is the one the full-value page
@@ -605,30 +666,31 @@ def hydrate_span(span, log_path: str) -> None:
     its forty siblings would be reading a megabyte to render a page that
     does not show them.
     """
-    _hydrate_span(span, log_path)
+    _hydrate_span(span, log_path, usage_shapes)
 
 
-def _hydrate_span(span, log_path: str) -> None:
+def _hydrate_span(span, log_path: str, usage_shapes=None) -> None:
     if not span.payload_elided:
         return
     try:
         if span.start_ref is not None:
-            start = _reparse(log_path, span.start_ref, span.line_no)
+            start = _reparse(log_path, span.start_ref, span.line_no, usage_shapes)
             span.start_data = start.data
             span.category_profile = start.category_profile
         if span.end_ref is not None:
-            span.end_data = _reparse(log_path, span.end_ref, span.line_no).data
+            span.end_data = _reparse(log_path, span.end_ref, span.line_no,
+                                     usage_shapes).data
     except (OSError, AtofParseError) as exc:
         span.payload_problem = str(exc)
         return
     span.payload_elided = False
 
 
-def _hydrated_mark(mark: AtofEvent, log_path: str) -> AtofEvent:
+def _hydrated_mark(mark: AtofEvent, log_path: str, usage_shapes=None) -> AtofEvent:
     if not mark.payload_elided or mark.payload_ref is None:
         return mark
     try:
-        fresh = _reparse(log_path, mark.payload_ref, mark.line_no)
+        fresh = _reparse(log_path, mark.payload_ref, mark.line_no, usage_shapes)
     except (OSError, AtofParseError):
         return mark          # generic_fields shows the trimmed payload
     return dataclasses.replace(mark, data=fresh.data,
@@ -636,5 +698,7 @@ def _hydrated_mark(mark: AtofEvent, log_path: str) -> AtofEvent:
                                payload_elided=False)
 
 
-def _reparse(log_path: str, ref: LineRef, line_no: int) -> AtofEvent:
-    return parse_line(read_at(log_path, ref.offset, ref.length), line_no)
+def _reparse(log_path: str, ref: LineRef, line_no: int,
+             usage_shapes=None) -> AtofEvent:
+    return parse_line(read_at(log_path, ref.offset, ref.length), line_no,
+                      usage_shapes)

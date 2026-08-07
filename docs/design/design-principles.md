@@ -19,7 +19,10 @@ show. Anything shaped as "the list of things we support" is a fork waiting to
 happen — [ADR 5](adr/0005-tabs-are-configured-plugins-loaded-by-module-path.md)
 removed one such list (the `PLUGINS` tuple),
 [ADR 7](adr/0007-declare-scope-rendering-as-row-specs.md) another (the span
-branch chain).
+branch chain),
+[ADR 13](adr/0013-provider-payload-reading-is-its-own-module-and-token-shapes-are-published.md)
+a third (the provider token shapes, which had silently become "the two APIs
+we have seen").
 
 ### The fork test
 
@@ -128,6 +131,15 @@ relative to `$h`, the hermes-agent checkout:
 specification; a shape that has been uniform for a whole log is still not a
 contract. See [docs/atof-reader.md](atof-reader.md) for the mapping and the
 traps.
+
+**A fact absent from the event you expected it on may be reported somewhere
+else entirely.** Not only the names differ per provider route — the
+*location* does. Token usage is on the llm span's end payload for
+`openai_responses` and only on the last `llm.chunk` of the stream for
+`openai_chat`, where the end payload says `usage: null`. Before concluding a
+producer does not report something, look for it on the other events of the
+same call; the observer showed no token counts for every openrouter turn
+while the log held all of them.
 
 **Never assume the `webui` platform.** The `platform` kwarg is `webui` today,
 but hermes has other frontends — a TUI among them — and the value space is

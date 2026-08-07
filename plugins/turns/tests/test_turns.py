@@ -104,8 +104,9 @@ def test_turn_detail_renders_waterfall_bars(tmp_path):
     assert "width: 36.36%" in page      # 2s of 5.5s
     # legend present
     assert "cat-llm" in page and "cat-tool" in page
-    # usage surfaces in the bar tooltip
-    assert "in 100 / out 50 tokens" in page
+    # the tree's top-level buckets surface in the bar tooltip; the leaves
+    # under them are detail-only and stay on the page
+    assert "prompt 120 / out 50 tokens" in page
     # terminal command and workdir shown inline, no disclosure needed
     assert "git status --short" in page
     assert "in /home/u/proj" in page

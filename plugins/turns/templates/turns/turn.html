@@ -178,7 +178,7 @@
         <div class="bar-track">
           <div class="bar {{ cls }}{{ ' open' if s.is_open }}"
                style="left: {{ '%.2f' | format(left_pct) }}%; width: {{ '%.2f' | format(width_pct) }}%;"
-               title="{{ s.name }}{% if s.call_role %} · {{ s.call_role }}{% endif %} · {{ s.duration_us | us_dur }}{% if s.usage %} · in {{ s.usage.get('input_tokens', '?') }} / out {{ s.usage.get('output_tokens', '?') }} tokens{% endif %}{% if s.finish_reason %} · {{ s.finish_reason }}{% endif %}{% if s.retry_count %} · retry {{ s.retry_count }}{% endif %}"></div>
+               title="{{ s.name }}{% if s.call_role %} · {{ s.call_role }}{% endif %} · {{ s.duration_us | us_dur }}{% if s.usage_summary %} · {{ s.usage_summary }}{% endif %}{% if s.finish_reason %} · {{ s.finish_reason }}{% endif %}{% if s.retry_count %} · retry {{ s.retry_count }}{% endif %}"></div>
         </div>
       </td>
     </tr>

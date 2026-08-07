@@ -51,6 +51,10 @@ audience it serves, not the one whose subject it shares.
 - [adr/](docs/design/adr/) — architecture decisions, sequentially numbered
 - [atof-reader.md](docs/design/atof-reader.md) — line reader → parser → index
   → assembler; what the index stores, its staleness checks, and hydration
+- [providers.py](plugins/turns/providers.py) + [ADR 13](docs/design/adr/0013-provider-payload-reading-is-its-own-module-and-token-shapes-are-published.md)
+  — where the assistant's words, tool calls and token counts sit per
+  provider. **Nothing else in the app knows one provider from another**;
+  put new provider knowledge there, not in the reader
 - [span-rendering.md](docs/design/span-rendering.md) — what each tool scope
   shows on the turn page, scope by scope
 - [live-pages.md](docs/design/live-pages.md) — polling, liveness, follow mode,
@@ -63,6 +67,8 @@ and scope-spec authors, and the record of what is published to them.
   tab, with a whole worked plugin; the contract in full
 - [writing-a-scope-spec.md](docs/extending/writing-a-scope-spec.md) — how to
   make the Turns tab display your own hermes tool
+- [writing-a-provider-spec.md](docs/extending/writing-a-provider-spec.md) —
+  how to make the Turns tab read your own router's token counts
 - [plugins-and-urls.md](docs/extending/plugins-and-urls.md) — the plugin
   contract, the config file, what happens when a tab cannot load, URL naming,
   crossing between plugins

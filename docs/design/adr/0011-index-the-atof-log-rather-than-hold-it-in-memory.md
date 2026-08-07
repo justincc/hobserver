@@ -87,8 +87,10 @@ One row per event, holding:
 
 Nothing else. No `data`, no `category_profile`, no `annotated_request`.
 
-`llm.chunk` events are aggregated to one timestamp per streaming llm span,
-not carried as rows. That is the only thing they can contribute.
+`llm.chunk` events are aggregated to one row per streaming llm span, not
+carried as rows of their own: the last timestamp, and the token counts the
+final chunk reported. (Written as "one timestamp — the only thing they can
+contribute"; the usage was found later, and is recorded below.)
 
 ### Payloads are read from the log, on demand
 
@@ -184,7 +186,7 @@ Measured on the same 1.19 GB log the day this was written.
 The model is byte-identical to the one the in-memory path produced: 84
 sessions, 361 turns, 262 anomalies, 0 parse errors.
 
-Three things this decision did not anticipate:
+Four things this decision did not anticipate:
 
 - **Chunks reach no turn today, so folding them in is a small improvement
   rather than a preservation.** They carry no `session_id` and no `turn_id`,
@@ -193,6 +195,19 @@ Three things this decision did not anticipate:
   parent span is the first time they inform a real turn's liveness — which
   matters for a long streaming call that otherwise looks silent since it
   started.
+- **A chunk carries more than liveness, and for one route it carries the
+  only copy** (found 2026-08-07). "That is the only thing they can
+  contribute" was wrong. On the chat-completions route — openrouter, and so
+  every non-codex model — the provider reports token usage *only* on the
+  stream's final chunk, and the llm span's own end payload carries `usage:
+  null`. Folding chunks away without reading that usage lost every token
+  count for those calls while the log held all of them; five calls of one
+  kimi-k3 turn showed no counts at all. The aggregate row therefore stores
+  the final chunk's usage beside its timestamp, and `Span.usage` falls back
+  to it. The decision stands — chunks are still not events — but "the only
+  thing they can contribute" was a claim about a payload this app had only
+  ever seen on one route, which is exactly what
+  [design-principles.md](../design-principles.md) warns against.
 - **The module is `atof_index.py`, not `index.py`.** `plugins.turns` already
   has an `index` — the turn-list view function — and it shadows a submodule of
   that name as a package attribute, which breaks `from plugins.turns import

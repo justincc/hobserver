@@ -32,8 +32,9 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Iterable, List, Optional
 
-from plugins.turns.atof_reader import (AtofEvent, LineRef,
+from plugins.turns.atof_reader import (STREAM_MARK_NAMES, AtofEvent, LineRef,
                                          generic_payload_fields)
+from plugins.turns.providers import chunk_usage
 
 TURN_START_MARK = "hermes.turn.start"
 TURN_END_MARK = "hermes.turn.end"
@@ -89,9 +90,11 @@ LLM_TEXT_PREVIEW_CHARS = 400
 # they used to be rendered as. The three relations behind the indent do not
 # hold equally firmly, and it is worth knowing which is which:
 #
-#   cache read + in + cache write == prompt   structural. hermes computes
-#       `prompt` as exactly this sum on every emit path (the
-#       `CanonicalUsage.prompt_tokens` property), so it cannot diverge.
+#   cache read + in + cache write == prompt   structural, and true by
+#       construction rather than by luck: whichever of `prompt` and `in` a
+#       producer did not report, `atof_reader` derives from the other and
+#       the cache counts, so the relation is the definition of the missing
+#       figure. Which one is reported varies by provider convention.
 #   reasoning <= out                          observed, not enforced.
 #
 # So the children of `prompt` are its parts by construction, and `reasoning`
@@ -100,9 +103,9 @@ LLM_TEXT_PREVIEW_CHARS = 400
 #
 # depth is the indent; subset marks a row that is part of its parent rather
 # than a share of it, which is the difference between a figure that can be
-# added up and one that must not be. The leaves — in, cache read, cache
-# write, out — are the counts the provider reports; the parents are sums
-# this app derives from them.
+# added up and one that must not be. Note that "the leaves are reported and
+# the parents derived" is *not* reliably true: on Anthropic's convention the
+# leaf `in` is the reported figure and the parent `prompt` is the sum.
 #
 # There is deliberately no `total` row. It is `prompt + out`, both of which
 # are here — and it is the one figure the tree could not vouch for, since
@@ -225,9 +228,11 @@ class Span:
     payload_elided: bool = False
     payload_problem: Optional[str] = None
     # Last `llm.chunk` seen under this span. Chunks are 94% of the log's
-    # lines and reach no template, so the index folds them into this one
-    # number rather than carrying them as events (ADR 11).
+    # lines and reach no template, so the index folds them into these two
+    # values rather than carrying them as events (ADR 11): when the stream
+    # was last alive, and the token counts the final chunk reported.
     stream_last_us: Optional[int] = None
+    stream_usage: Optional[dict] = None
 
     @property
     def last_activity_us(self) -> int:
@@ -255,9 +260,18 @@ class Span:
     # strings — so every field access must type-guard, never assume dict.
     @property
     def usage(self) -> Optional[dict]:
-        if isinstance(self.end_data, dict) and isinstance(self.end_data.get("usage"), dict):
-            return self.end_data["usage"]
-        return None
+        """The call's token counts, from wherever this provider reported them.
+
+        The end payload first, then the stream. A provider that reports
+        usage only on the final chunk — the openrouter route does, and
+        leaves `usage` null on the end event — would otherwise show no
+        token counts at all, when the log holds every one of them.
+        """
+        if isinstance(self.end_data, dict):
+            reported = self.end_data.get("usage")
+            if isinstance(reported, dict) and reported:
+                return reported
+        return self.stream_usage or None
 
     @property
     def finish_reason(self) -> Optional[str]:
@@ -507,6 +521,20 @@ class Span:
                          "summary": depth == 1,
                          "tooltip": tooltip})
         return rows
+
+    @property
+    def usage_summary(self) -> Optional[str]:
+        """The tree's top-level buckets on one line, for the bar's tooltip.
+
+        Built from `token_rows`, so it names the counts the way the rows do
+        and can never disagree with them. None when no bucket was reported:
+        the tooltip used to interpolate `?` for a missing figure, which read
+        as a count the provider had withheld rather than one this app had
+        gone looking for in the wrong place.
+        """
+        parts = [f"{row['label']} {row['value']}"
+                 for row in self.token_rows if row["summary"]]
+        return " / ".join(parts) + " tokens" if parts else None
 
     def _cache_share(self, key: str, prompt: int) -> Optional[str]:
         """`89% cached` for the prompt row — how much of it was served.
@@ -1369,15 +1397,17 @@ class Assembly:
         return stopped
 
 
-def _pair_spans(events, anomalies, stream_activity=None):
+def _pair_spans(events, anomalies, stream_activity=None, stream_usage=None):
     """Match scope start/end events by uuid; also map session-scope uuids.
 
     Returns (spans by uuid in start order, {agent scope uuid: session_id}).
 
-    `stream_activity` maps a span's uuid to the timestamp of the last
-    `llm.chunk` seen beneath it — see `assemble`.
+    `stream_activity` and `stream_usage` map a span's uuid to the timestamp
+    of the last `llm.chunk` seen beneath it and to the token counts that
+    chunk reported — see `assemble`.
     """
     stream_activity = stream_activity or {}
+    stream_usage = stream_usage or {}
     spans: dict = {}
     scope_sessions: dict = {}
     for event in events:
@@ -1409,6 +1439,7 @@ def _pair_spans(events, anomalies, stream_activity=None):
                 projection=dict(event.projection),
                 payload_elided=event.payload_elided,
                 stream_last_us=stream_activity.get(event.uuid),
+                stream_usage=stream_usage.get(event.uuid),
             )
             if event.category == AGENT_CATEGORY:
                 session_id = event.session_id or event.projected("data_session_id")
@@ -1637,20 +1668,32 @@ def _turn_for(session: Session, turn_id: Optional[str], timestamp_us: int) -> Op
 
 
 def assemble(events: Iterable[AtofEvent],
-             stream_activity: Optional[dict] = None) -> Assembly:
+             stream_activity: Optional[dict] = None,
+             stream_usage: Optional[dict] = None) -> Assembly:
     """Build the session/turn/span waterfall model from parsed events.
 
-    `stream_activity` maps a span uuid to the timestamp of the last
-    `llm.chunk` emitted beneath it. The index passes it because it does not
-    carry chunks as events (ADR 11); a caller assembling parsed lines
-    directly passes nothing and the chunks are simply in `events`.
+    `stream_activity` and `stream_usage` map a span uuid to the timestamp of
+    the last `llm.chunk` emitted beneath it and to the token counts that
+    chunk carried. The index passes both because it does not carry chunks as
+    events (ADR 11); a caller assembling parsed lines directly passes
+    neither, and the chunks are simply in `events` — where the sweep below
+    reads the same counts back out, so both paths see one model.
     """
     anomalies: List[Anomaly] = []
     # Defensive sort: the exporter appends in near-real-time order, but the
     # model must not depend on it. line_no breaks timestamp ties.
     ordered = sorted(events, key=lambda e: (e.timestamp_us, e.line_no))
 
-    spans, scope_sessions = _pair_spans(ordered, anomalies, stream_activity)
+    stream_usage = dict(stream_usage or {})
+    for event in ordered:
+        if event.is_mark and event.name in STREAM_MARK_NAMES and event.parent_uuid:
+            counts = chunk_usage(event.data.get("usage")
+                                 if isinstance(event.data, dict) else None)
+            if counts:      # only the stream's last chunk carries any
+                stream_usage[event.parent_uuid] = counts
+
+    spans, scope_sessions = _pair_spans(ordered, anomalies, stream_activity,
+                                        stream_usage)
 
     # The core runtime's turn tree (see TURN_SCOPE). Both eras can appear in
     # one file, so these are simply empty when only the plugin wrote it.

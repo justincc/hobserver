@@ -221,7 +221,7 @@ grow to absorb.
 
   | relation | strength |
   |---|---|
-  | `cache read + in + cache write == prompt` | structural — hermes computes `prompt` as this sum on every emit path (`CanonicalUsage.prompt_tokens`), so it cannot diverge |
+  | `cache read + in + cache write == prompt` | structural — whichever of `prompt` and `in` the producer did not report is *defined* as this relation by `atof_reader`, so it cannot diverge |
   | `reasoning <= out` | observed, not enforced — hence the marking below |
 
   (The dropped `total` was the exception: `prompt + out == total` held
@@ -327,13 +327,28 @@ Tokens are on the row rather than in the bar's tooltip because a cache read
 can be most of a prompt, and is often the difference between a fast call and a
 slow one — worth seeing on the span, not on hover.
 
-The leaves — `in`, `cache read`, `cache write`, `out` — are the counts the
-provider reports; the parents are sums the leaves make. Two caveats since
-hermes' core runtime began emitting provider-native payloads (ADR 6): `in`
-is *derived* there rather than reported, and only where the cache read was
-reported at all, so a route silent on caching shows `prompt` and `out`
-alone. A missing row means the payload did not say, which is not the same
-as a zero — see [atof-reader.md](atof-reader.md) for the mapping.
+The bar's tooltip still repeats the two buckets (`Span.usage_summary`, built
+from the `summary` rows so it can never disagree with them), and says nothing
+at all when neither was reported. It used to interpolate a `?` for a missing
+figure, which read as a count the provider had withheld rather than one this
+app had gone looking for in the wrong place — which, for every
+chat-completions call, is exactly what had happened.
+
+**Which figures are reported and which are derived is per-provider**, and
+the intuitive reading — leaves reported, parents summed — does not hold.
+OpenAI-shaped payloads report `prompt` and this app derives `in` by
+subtraction; Anthropic-shaped ones report `in` and it derives `prompt` by
+addition. Either way the derivation runs only where the cache read was
+reported, so a route silent on caching shows `prompt` and `out` alone. A
+missing row means the payload did not say, which is not the same as a zero
+— see [atof-reader.md](atof-reader.md) for the mapping.
+
+**Where the counts come from is per-route, and not always the end payload.**
+`openai_responses` (openai-codex) reports usage on the llm span's end event;
+`openai_chat` (openrouter, and so every non-codex model) reports it only on
+the last `llm.chunk` of the stream and leaves the end event's `usage` null.
+`Span.usage` reads the end payload first and falls back to what the index
+kept from that final chunk, so the tree above looks the same either way.
 
 An llm payload the reader presents carries `usage`, `model`,
 `finish_reason` and `assistant_message`, so anything a row says beyond
