@@ -35,6 +35,38 @@ registration pluggable and leave a fork one level down — ADR 7's first draft
 let a stranger register a scope spec but not read a payload key without
 patching `assembler.py`, which is the same fork with an extra step.
 
+### The ownership test
+
+The fork test asks whether a stranger can reach in. This one asks the prior
+question: *whose knowledge is this, and which module owns it?*
+
+**Every foreign system this app reads gets exactly one module that knows its
+shape — and that module is where its extension point lives.** Ask of any
+payload rule: *if this system changed, which single file would I open?* If
+the honest answer is "several", or "whichever one happens to touch that
+payload", the knowledge has no owner and will drift.
+
+| foreign system | owner | extension point |
+|---|---|---|
+| hermes' tools | `plugins/turns/scopes.py` | `scope_specs`, and a tab's own `SCOPES` — [ADR 7](adr/0007-declare-scope-rendering-as-row-specs.md), [ADR 10](adr/0010-a-tab-contributes-its-own-scope-specs.md) |
+| LLM provider APIs | `plugins/turns/providers.py` | `provider_specs` — [ADR 13](adr/0013-provider-payload-reading-is-its-own-module-and-token-shapes-are-published.md) |
+| another log or store entirely | its own tab | `observer.toml` — [ADR 5](adr/0005-tabs-are-configured-plugins-loaded-by-module-path.md) |
+
+The two tests fail differently, which is why both are worth running. Failing
+the fork test is visible: someone asks for a patch. Failing the ownership
+test is silent — knowledge of one system spreads across modules named after
+something else, and nothing marks it as contingent. ADR 13 is the worked
+example: reading OpenAI's token names lived in a file named for the ATOF
+envelope, so *"is this true of every provider, or only the one we have
+seen?"* was a question with no home. It was not true of every provider, and
+the wrong number went unnoticed until a second router turned up.
+
+A useful tell: **prose about a foreign system may live anywhere; a branch on
+one may not.** `assembler.py` explains in a comment why `cache write` is not
+in `ALWAYS_SHOWN` (hermes hard-codes it to zero on the codex route) — that
+is a display rule reasoning about provider behaviour, and it belongs with the
+display. A `if provider == ...` in the same file would not.
+
 ### What it commits us to
 
 - **Reach the source, not just our accessors.** An extension must be able to
@@ -140,6 +172,10 @@ else entirely.** Not only the names differ per provider route — the
 producer does not report something, look for it on the other events of the
 same call; the observer showed no token counts for every openrouter turn
 while the log held all of them.
+
+**Anything you learn here about one provider goes in `providers.py`**, not in
+the module that happened to need it — see the ownership test in §1. The rules
+above are about reading a payload; that one is about where the reading lives.
 
 **Never assume the `webui` platform.** The `platform` kwarg is `webui` today,
 but hermes has other frontends — a TUI among them — and the value space is

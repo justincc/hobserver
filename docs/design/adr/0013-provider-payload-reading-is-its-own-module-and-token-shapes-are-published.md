@@ -10,6 +10,11 @@ Extends [ADR 6](0006-parse-atof-by-declared-schema-era.md)'s normalization and
 [ADR 5](0005-tabs-are-configured-plugins-loaded-by-module-path.md)'s
 "extensible without a fork" rule to the provider axis.
 
+Generalized, with ADRs 5, 7 and 10, as the **ownership test** in
+[design-principles.md](../design-principles.md) — one module per foreign
+system, and that module is its extension point. This ADR decides the provider
+case; the principle is what to do about the next foreign system.
+
 ## Context
 
 `atof_reader` was mapping two different things at once and the second had
