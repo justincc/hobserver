@@ -309,6 +309,19 @@ grow to absorb.
   lines, and an instant cut leaves them unsure whether the page moved or was
   replaced — the scroll is what says which.
 
+  **The messages carry no reading-measure cap.** They fill the column beside
+  the contents list, out to the same gutter the page keeps on the left. The
+  62rem the rest of the app reads at is for prose; a message box holds JSON,
+  tool arguments and file contents far more often, and for those the width
+  is what saves scrolling — the cap left a third of a wide window empty.
+  `.full-sections` bounds them instead, and its `min-width: 0` is what keeps
+  one long unbroken line from pushing the column past the page.
+
+  The header keeps step: `.full-head.wide` on a sections page, because a
+  panel narrower than what it heads reads as a mistake rather than as a
+  measure. Over a value that is one document — the response page — the prose
+  keeps 62rem and so does the header.
+
   The response page is the assistant message whole. Both are declared as
   `Full`s on the llm scope, which is keyed by *category*, so a compaction, a
   delegated subagent call and a fallback retry each carry the same pair.

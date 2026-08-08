@@ -52,7 +52,7 @@
    a heading of its own, written by the model. The heading, the facts and the
    provenance are all this app talking, and they say so by sitting in a panel
    the rendered markdown never uses. #}
-<header class="full-head">
+<header class="full-head{% if rendered.sections %} wide{% endif %}">
   <h2>{{ title }}</h2>
   <p class="meta">
     {{ span.name }}{% if span.model_name %} · {{ span.model_name }}{% endif %}

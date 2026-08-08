@@ -160,6 +160,11 @@
        the rendered markdown ever uses. Same shade as `p.prompt`, which is
        the app's existing way of saying "quoted text lives here". */
     .full-head { background: #f4f5f8; border-left: 3px solid #2456c4; border-radius: 6px; padding: 0.7rem 1rem; margin: 0 0 1.75rem; max-width: 62rem; }
+    /* The header keeps step with what it heads. On a sections page the
+       messages below run the full width, and a narrower panel above them
+       reads as a mistake rather than as a measure; on a value that is one
+       document the prose keeps its 62rem and so does the header. */
+    .full-head.wide { max-width: none; }
     .full-head h2 { margin: 0; font-size: 1.15rem; color: #33406b; }
     .full-head p.meta { margin: 0.35rem 0 0; }
     /* Provenance under a full value's heading — quieter than the metadata
@@ -181,7 +186,14 @@
        heavier register. The accent rule itself moves to the box, where it
        runs the full height of the message and stays visible against the
        band rather than disappearing into it. */
-    .msg { border: 1px solid #e2e5ec; border-left: 3px solid #2456c4; border-radius: 6px; margin: 0 0 1rem; max-width: 62rem; overflow: hidden; }
+    /* No reading-measure cap: a message box fills the column beside the
+       contents list, out to the same gutter the page keeps on the left.
+       These hold JSON, tool arguments and file contents far more often than
+       prose, and for those the width is the thing that saves scrolling —
+       62rem left a third of a wide window empty. `.full-sections` bounds it
+       instead, and its `min-width: 0` is what keeps a long unbroken line
+       from pushing the column wider than the page. */
+    .msg { border: 1px solid #e2e5ec; border-left: 3px solid #2456c4; border-radius: 6px; margin: 0 0 1rem; overflow: hidden; }
     .msg-label { background: #33406b; color: #eceff5; font-family: ui-monospace, monospace; font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.4rem 0.7rem; }
     /* The messages and their contents list, side by side. The list is
        `sticky` rather than `fixed` so it scrolls out with the page it

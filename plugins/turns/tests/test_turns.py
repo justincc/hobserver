@@ -2054,7 +2054,7 @@ def test_the_pages_own_words_are_boxed_apart_from_the_value(tmp_path):
     none of it can be read as the value's own first lines."""
     page = _llm_client(tmp_path).get(
         "/turns/span/L1/prompt").get_data(as_text=True)
-    head = re.search(r'<header class="full-head">.*?</header>', page, re.S)
+    head = re.search(r'<header class="full-head[^"]*">.*?</header>', page, re.S)
     assert head, "the header panel is missing"
     head = head.group(0)
     assert "<h2>Prompt</h2>" in head             # the heading
@@ -2271,3 +2271,34 @@ def test_anchor_jumps_animate_unless_motion_is_unwelcome(tmp_path):
     assert re.search(r"html\s*\{[^}]*scroll-behavior:\s*smooth", css)
     assert re.search(r"prefers-reduced-motion[^{]*\{\s*html\s*\{"
                      r"[^}]*scroll-behavior:\s*auto", css)
+
+
+def test_message_boxes_fill_the_column_beside_the_contents_list(tmp_path):
+    """No reading-measure cap on a box holding JSON and file contents: at
+    62rem a third of a wide window sat empty, and width is what saves
+    scrolling through a tool result."""
+    css = re.sub(r"\{#.*?#\}", "",
+                 (REPO_ROOT / "templates" / "base.html").read_text(), flags=re.S)
+    msg = re.search(r"\n\s*\.msg \{([^}]*)\}", css)
+    assert msg, ".msg is not styled"
+    assert "max-width" not in msg.group(1), msg.group(1)
+    # bounded by its column instead, whose min-width:0 stops one long
+    # unbroken line pushing the whole page wider
+    sections = re.search(r"\.full-sections \{([^}]*)\}", css).group(1)
+    assert "min-width: 0" in sections
+
+
+def test_the_header_keeps_step_with_the_width_of_what_it_heads(tmp_path):
+    """A panel narrower than the messages under it reads as a mistake; over
+    a value that is one document, both keep the reading measure."""
+    client = _llm_client(tmp_path, profile=TOOL_REQUEST)
+    sectioned = client.get("/turns/span/L1/prompt").get_data(as_text=True)
+    assert re.search(r'<header class="full-head wide">', sectioned)
+
+    one_document = client.get("/turns/span/L1/response").get_data(as_text=True)
+    assert re.search(r'<header class="full-head">', one_document)
+
+    css = re.sub(r"\{#.*?#\}", "",
+                 (REPO_ROOT / "templates" / "base.html").read_text(), flags=re.S)
+    assert re.search(r"\.full-head \{[^}]*max-width:\s*62rem", css)
+    assert re.search(r"\.full-head\.wide \{[^}]*max-width:\s*none", css)
