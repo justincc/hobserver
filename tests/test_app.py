@@ -1,5 +1,7 @@
 """Shell tests: plugin registration, tab bar, the root redirect."""
 
+import os
+
 import app as app_module
 import hermes_paths
 import tabs as tabs_module
@@ -69,6 +71,18 @@ def test_sources_fall_back_without_hermes_home(monkeypatch):
     assert mem0.db_path({})[0].endswith("/config/jmem0_logged.db")
 
 
+def test_the_fallback_is_a_conventional_location(monkeypatch):
+    """A default has to suit an installation nobody has configured, so it is
+    a dotdir under $HOME and not a path particular to any one machine.
+    Anyone whose hermes lives elsewhere exports HERMES_HOME."""
+    monkeypatch.delenv("HERMES_HOME", raising=False)
+    fallback = hermes_paths.FALLBACK_CONFIG_DIR
+    assert fallback == os.path.join(os.path.expanduser("~"), ".hermes", "config")
+    # the origin names the path, so a tab's "from default (…)" says where to
+    # look rather than only that the reader did not choose it
+    assert hermes_paths.config_dir_origin() == "~/.hermes/config"
+
+
 def test_env_vars_override_the_defaults(monkeypatch):
     # a plugin resolves its own source: setting, then env var, then default
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
@@ -115,7 +129,8 @@ def test_banner_reports_an_unusable_database(monkeypatch):
 def test_banner_flags_an_unset_hermes_home(monkeypatch):
     monkeypatch.delenv("HERMES_HOME", raising=False)
     banner = app_module.startup_banner([], 5090, "built-in defaults")
-    assert "unset" in banner and "fallback" in banner
+    assert "unset" in banner
+    assert "/.hermes/config" in banner    # …and what stood in for it
 
 
 def test_banner_does_not_claim_to_listen_when_nothing_loaded():

@@ -15,8 +15,10 @@ single broken tab never is.
 
 Each plugin resolves its own, in this order: its `settings` from the config
 file, then an environment variable, then a default under
-`hermes_paths.hermes_config_dir()` (normalized `$HERMES_HOME`, else a literal
-fallback). So nothing has to be configured when `HERMES_HOME` is exported.
+`hermes_paths.hermes_config_dir()` — the normalized `$HERMES_HOME`, else
+`~/.hermes/config`. So nothing has to be configured when `HERMES_HOME` is
+exported, and an installation that keeps hermes in the conventional place
+needs nothing either.
 
 | tab | setting | env |
 | --- | --- | --- |

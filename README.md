@@ -63,8 +63,8 @@ Each tab resolves its own source: its `settings` in the config file, then an
 environment variable, then a default under the hermes-agent config directory.
 So with `HERMES_HOME` exported nothing has to be configured at all.
 `HERMES_HOME` is normalized, since the agent conventionally exports it as
-`<checkout>/hermes-agent/../config`; if it is unset, a built-in literal path
-stands in.
+`<checkout>/hermes-agent/../config`; if it is unset, `~/.hermes/config` stands
+in.
 
 | tab | setting | env | default |
 | --- | --- | --- | --- |

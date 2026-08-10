@@ -8,12 +8,12 @@ likes from its own settings.
 
 import os
 
-# The fallback for a shell that never exported HERMES_HOME. Keeping the
-# machine-specific absolute path in one place keeps it out of the plugins.
-FALLBACK_CONFIG_DIR = os.path.expanduser(
-    "~/jc/knowledge/data/processing/analysis/reasoning/artificial/agents/"
-    "autonomous/resident/hermes-agent/product/src/config"
-)
+# Where hermes-agent keeps its config when nobody has said otherwise: the
+# conventional location, a dotdir under the home directory. A default has to
+# be the one that suits an installation nobody has configured, not the one
+# that suits whoever wrote the line — anyone whose hermes lives elsewhere
+# exports HERMES_HOME and never meets it.
+FALLBACK_CONFIG_DIR = os.path.expanduser("~/.hermes/config")
 
 
 def hermes_config_dir():
@@ -27,5 +27,11 @@ def hermes_config_dir():
 
 
 def config_dir_origin():
-    """How `hermes_config_dir` decided, for the banner."""
-    return "HERMES_HOME" if os.environ.get("HERMES_HOME") else "built-in fallback"
+    """How `hermes_config_dir` decided, for the banner.
+
+    Names the fallback rather than calling it one: a tab reporting a missing
+    file "from default (~/.hermes/config)" has told the reader where to look
+    and what to set, where "from default (built-in fallback)" only says the
+    path came from somewhere they did not choose.
+    """
+    return "HERMES_HOME" if os.environ.get("HERMES_HOME") else "~/.hermes/config"
