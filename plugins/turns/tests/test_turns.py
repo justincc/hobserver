@@ -1434,12 +1434,24 @@ def _llm_turn(tmp_path, end_data):
         "/turns/turn/s1/1000000").get_data(as_text=True)
 
 
+TOKEN_ROW = (r'<div class="span-detail ([^"]*)">\s*'
+             r'(?:<span class="gen-key inline-only">·</span>\s*)?'
+             r'<span class="mode-tag"[^>]*>([a-z ]+)</span>\s*'
+             r'<span class="row-value"[^>]*>([\d,]+)</span>')
+
+
 def _token_rows(page):
     """The rendered token tree as [(label, css classes)], in page order."""
-    return [(label, klass.strip()) for klass, label, _ in re.findall(
-        r'<div class="span-detail ([^"]*)">\s*'
-        r'(?:<span class="gen-key inline-only">·</span>\s*)?'
-        r'<span class="mode-tag"[^>]*>([a-z ]+) ([\d,]+)<', page)]
+    return [(label, klass.strip())
+            for klass, label, _ in re.findall(TOKEN_ROW, page)]
+
+
+def _token_figures(page):
+    """The tree as `label figure` strings. The key and the figure are two
+    spans — faint monospace and the row's reading font — so a plain
+    `"in 2,465" in page` no longer sees a row and would pass on markup that
+    never rendered."""
+    return [f"{label} {value}" for _, label, value in re.findall(TOKEN_ROW, page)]
 
 
 def _assistant(content="", *tool_names):
@@ -1451,7 +1463,7 @@ def _assistant(content="", *tool_names):
 
 FIN_ROW = (r'<div class="span-detail">\s*'
            r'<span class="gen-key key-col list-item"[^>]*>finish_reason</span>\s*'
-           r'<span class="fin-reason"[^>]*>([a-z_]+)</span>\s*</div>')
+           r'<span class="row-value"[^>]*>([a-z_]+)</span>\s*</div>')
 
 
 def test_llm_span_shows_the_finish_reason(tmp_path):
@@ -1594,12 +1606,40 @@ def test_llm_span_reports_tokens_including_cache_reads(tmp_path):
         "input_tokens": 2465, "prompt_tokens": 20897, "output_tokens": 719,
         "cache_read_tokens": 18432, "cache_write_tokens": 0,
         "reasoning_tokens": 124, "total_tokens": 21616, "request_count": 1}})
-    assert "in 2,465" in page
-    assert "prompt 20,897" in page            # differs from in, so shown
-    assert "cache read 18,432" in page
-    assert "reasoning 124" in page
-    assert "requests 1" in page               # no longer eaten by an ellipsis
+    figures = _token_figures(page)
+    assert "in 2,465" in figures
+    assert "prompt 20,897" in figures         # differs from in, so shown
+    assert "cache read 18,432" in figures
+    assert "reasoning 124" in figures
+    assert "requests 1" in figures            # no longer eaten by an ellipsis
     assert "cache write" not in page          # zero says nothing
+
+
+def test_llm_token_figures_read_as_values_not_as_tags(tmp_path):
+    """One rule down the whole llm span: the key is faint monospace, the
+    value reads in the row's own font. The figures take the same `.row-value`
+    as the finish reason above them, so a reader is not asked to learn two
+    conventions between one row and the next."""
+    page = _llm_turn(tmp_path, {**_assistant("hi"), "finish_reason": "stop",
+                                "usage": {"prompt_tokens": 19349,
+                                          "output_tokens": 1089,
+                                          "request_count": 1}})
+    # every figure is a value; no `label 1,089` chip survives anywhere
+    assert not re.search(r'<span class="mode-tag"[^>]*>[a-z ]+ [\d,]+<', page)
+    assert {"prompt 19,349", "out 1,089"} <= set(_token_figures(page))
+    # …and the key beside it is still a tag, not a second value
+    assert re.search(r'<span class="mode-tag"[^>]*>prompt</span>', page)
+
+
+def test_llm_token_figures_keep_the_row_shade_they_are_on(tmp_path):
+    """`.row-value` sets no colour of its own, so `.tok-part`'s fainter shade
+    still reaches the figure on it — that row is counted *within* its parent
+    rather than added to it, and the shade is what says so."""
+    css = (REPO_ROOT / "templates" / "base.html").read_text()
+    rule = re.search(r"\.span-detail \.row-value \{([^}]*)\}", css)
+    assert rule, "no .row-value rule"
+    assert "color" not in rule.group(1)
+    assert "tabular-nums" in rule.group(1)      # figures compared down a column
 
 
 def test_llm_span_nests_token_counts_under_the_sums_they_make(tmp_path):
@@ -1634,15 +1674,18 @@ def test_llm_span_reports_how_much_of_the_prompt_was_cached(tmp_path):
         "input_tokens": 2273, "prompt_tokens": 20193, "output_tokens": 84,
         "cache_read_tokens": 17920, "request_count": 1}})
     assert '<span class="tok-share">(89% cached)</span>' in page
-    # …and it rides the prompt row, which survives the collapse. No
-    # whitespace between the two spans: the summary layout is inline, where
-    # the detail layout's flex gap does not apply, so a literal space there
-    # would render at the proportional body font's width and land on top of
-    # the 1ch margin base.html sets. The gap is stated in one place.
+    # …and it rides the prompt row, which survives the collapse. Whitespace
+    # before it, exactly as between the key and the figure — both collapse to
+    # one rendered space. That space is what sets both gaps on the summary
+    # line, which is inline and where the detail layout's flex gap does not
+    # apply; here it is ignored, whitespace-only text between flex items not
+    # being rendered, so `gap` sets both. One mechanism either way, so the
+    # two gaps cannot drift apart.
     assert re.search(r'<div class="span-detail tok-sep tok-d1">\s*'
                      r'<span class="gen-key inline-only">·</span>\s*'
-                     r'<span class="mode-tag"[^>]*>prompt 20,193</span>'
-                     r'<span class="tok-share">\(89% cached\)</span>', page)
+                     r'<span class="mode-tag"[^>]*>prompt</span>'
+                     r'\s+<span class="row-value"[^>]*>20,193</span>'
+                     r'\s+<span class="tok-share">\(89% cached\)</span>', page)
 
 
 def test_llm_span_never_claims_a_wholly_cached_prompt_it_did_not_have(tmp_path):
@@ -1713,9 +1756,10 @@ def test_llm_span_gives_cache_writes_a_row_of_their_own(tmp_path):
         "input_tokens": 1200, "prompt_tokens": 9200, "output_tokens": 300,
         "cache_read_tokens": 4000, "cache_write_tokens": 4000,
         "total_tokens": 9500, "request_count": 1}})
-    assert "cache write 4,000" in page
-    assert "cache read 4,000" in page
-    assert "prompt 9,200" in page             # and the three still sum to it
+    figures = _token_figures(page)
+    assert "cache write 4,000" in figures
+    assert "cache read 4,000" in figures
+    assert "prompt 9,200" in figures          # and the three still sum to it
 
 
 def test_llm_span_shows_the_cached_fresh_split_on_a_cold_prompt(tmp_path):
@@ -1730,7 +1774,7 @@ def test_llm_span_shows_the_cached_fresh_split_on_a_cold_prompt(tmp_path):
     assert [label for label, _ in _token_rows(page)] == [
         "prompt", "cache read", "in", "out", "reasoning", "requests"]
     assert ("cache read", "list-item tok-d2") in _token_rows(page)
-    assert "cache read 0" in page and "in 18,824" in page
+    assert {"cache read 0", "in 18,824"} <= set(_token_figures(page))
     assert '<span class="tok-share">(0% cached)</span>' in page
     # cache write stays out: on the codex route hermes hard-codes that zero
     # rather than measuring it, so the row would be a claim, not a reading

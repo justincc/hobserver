@@ -56,11 +56,12 @@
       is what is left to hover, and in the detail view a reader may reach for
       either. Set once above rather than written twice. #}
   <span class="gen-key key-col list-item" title="{{ fin_title }}">finish_reason</span>
-  {#- .fin-reason, not .mode-tag: this is a payload value like the three
+  {#- .row-value, not .mode-tag: this is a payload value like the three rows
       below it, and it reads in their font rather than the faint monospace
       the metadata chips use. That difference is what tells key from value
-      once the two sit side by side. #}
-  <span class="fin-reason" title="{{ fin_title }}">{{ s.finish_reason }}</span>
+      once the two sit side by side — the same class the token figures take,
+      for the same reason. #}
+  <span class="row-value" title="{{ fin_title }}">{{ s.finish_reason }}</span>
 </div>
 {% endif %}
 {# What this call was asked. Detail-only and one line of it, because the
@@ -140,9 +141,9 @@
 {# Tokens as the tree they form, not the flat line they were: the rows under
    `prompt` and `out` sum to them, so the indent is the arithmetic. The two
    top-level buckets are all a collapsed row carries; the parts wait for the
-   detail view, where each figure has room for its own tooltip. Every row is a
-   `.mode-tag` — they are the same kind of thing, and the tree should not say
-   otherwise. #}
+   detail view, where each figure has room for its own tooltip. Every row is
+   the same key-and-figure pair — they are the same kind of thing, and the
+   tree should not say otherwise; what separates them is the indent. #}
 {# `.list-item` is what marks a detail-only row, so it goes on the parts and
    not on the two buckets: collapsed, `prompt` and `out` inline onto the
    summary line and the rest stays hidden. The `tokens` label is detail-only
@@ -162,10 +163,23 @@
 {%- set dot = row.summary and ns.prior %}
 <div class="span-detail{% if not row.summary %} list-item{% endif %}{% if dot %} tok-sep{% endif %} tok-d{{ row.depth }}{% if row.subset %} tok-part{% endif %}">
   {%- if dot %}<span class="gen-key inline-only">·</span> {% endif %}
-  {#- no space before the share: the gap is set in base.html, in both layouts,
-      rather than left to whatever a literal one renders as #}
-  <span class="mode-tag" title="{{ row.tooltip }}">{{ row.label }} {{ row.value }}</span>
-  {%- if row.share %}<span class="tok-share">({{ row.share }})</span>{% endif %}
+  {#- key and figure are two spans, as on the `finish_reason` row above and
+      for the same reason: the figure is a value and reads in the row's own
+      font, the label beside it is a key and stays faint monospace. The
+      tooltip goes on both — either half is a thing to hover, and a title on
+      the row's div would follow the mouse across the gaps too.
+
+      Literal spaces separate all three, which is how every other row here
+      does it (`payload_rows`, the `finish_reason` row): whitespace-only text
+      between flex items is not rendered, so the detail layout's `gap` still
+      sets these gaps, and the space is what shows when the row collapses to
+      `display: inline` and that gap stops applying. The share used to state
+      its own collapsed gap in base.html because it was the only element
+      after a single-span row; now that the row has an internal gap of its
+      own, one mechanism for both is what keeps them equal. #}
+  <span class="mode-tag" title="{{ row.tooltip }}">{{ row.label }}</span>
+  <span class="row-value" title="{{ row.tooltip }}">{{ row.value }}</span>
+  {%- if row.share %} <span class="tok-share">({{ row.share }})</span>{% endif %}
 </div>
 {%- if row.summary %}{% set ns.prior = true %}{% endif %}
 {% endfor %}

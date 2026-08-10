@@ -362,14 +362,20 @@
        Not part of the spec vocabulary: a declared Field cannot ask for it,
        and the hand-written macro that can is the only user. */
     .span-detail .gen-key.key-col { min-width: 14ch; }
-    /* the finish reason's value. Deliberately not .mode-tag: it is a payload
-       value like the three keyed rows under it, so it takes their
-       proportional font and #555 rather than the faint monospace the
-       metadata chips (call_role, retry) use. With key and value now side by
-       side, the font is what separates them — the key alone is monospace.
-       nowrap because it is one short token and should never be the thing
-       that wraps a row. */
-    .span-detail .fin-reason { flex: none; white-space: nowrap; }
+    /* A short value beside its key: the finish reason, and every figure in
+       the token tree. Deliberately not .mode-tag — these are payload values
+       like the keyed rows around them, so they take the row's own
+       proportional font and colour rather than the faint monospace the
+       metadata chips (call_role, retry) use. With key and value side by
+       side, the font is what separates them: the key alone is monospace.
+       No colour of its own, so a .tok-part row's fainter shade still
+       reaches the figure on it.
+       tabular-nums is the one thing monospace was buying the token tree —
+       figures a reader compares down an indented column, where digits of
+       differing width make the comparison harder than it needs to be.
+       nowrap because these are single short tokens and should never be what
+       wraps a row. */
+    .span-detail .row-value { flex: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
     /* the tool names on the `tool_calls` row. Not .path: this list wraps
        rather than ellipsizing, because the row's point is how many calls
        there were and a sixteen-call fan-out cut at one line does not say it.
@@ -423,13 +429,13 @@
        detail overruns that reserve the block is dropped whole at the cell
        edge — acceptable, that case only loses an already-clipped path */
     body:not(.show-detail) tr:not(.detail-open) .span-detail .tail { display: inline-block; max-width: calc(100% - 12rem); overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
-    /* the share sits one monospace character from the figure it qualifies,
-       the same width as the space inside `prompt 20,193`. It needs saying
-       here because the detail layout's flex `gap` does not survive the
-       `display: inline` above: 1ch resolves against .tok-share's own
-       monospace font, so the two gaps match by construction rather than by
-       a literal space rendering at whatever width system-ui gives it */
-    body:not(.show-detail) tr:not(.detail-open) .span-detail .tok-share { margin-left: 1ch; }
+    /* The share used to state its own collapsed gap here — 1ch, matching the
+       space inside a single-span `prompt 20,193` — because the detail
+       layout's flex `gap` does not survive the `display: inline` above. The
+       row is a key span and a figure span now, so it has an internal gap of
+       its own, and both come from the literal spaces in the template: those
+       are ignored between flex items and render when the row goes inline, so
+       one mechanism keeps the two gaps equal in both layouts. */
     /* the parts of the token tree carry .list-item and so are detail-only by
        the rule below, as does the `tokens` label; the two buckets do not, and
        inline onto the summary line — ~25 characters, where the whole tree
@@ -454,9 +460,11 @@
     .span-detail.tok-d1 { margin-left: 2.3rem; }
     .span-detail.tok-d2 { margin-left: 3.45rem; }
     .span-detail.tok-part { color: #8a8a8a; }
-    /* the cache share rides the prompt figure, in the same #8a8a8a as the
-       counts: it is a figure to be read, not a lookup id to be copied, and
-       the #bbb used for those is too faint to take in at a glance */
+    /* the cache share rides the prompt figure, and stays in the faint
+       monospace the keys use rather than following the figure into the
+       reading font: it qualifies that figure rather than being one of the
+       counts the tree adds up. Not the #bbb of a lookup id — this is meant
+       to be taken in at a glance, only not before the number it modifies. */
     .span-detail .tok-share { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; color: #8a8a8a; }
     .span-detail.list-item + .span-detail.task-goal { margin-top: 0.95rem; }
     /* .wrap-detail text (search queries, subagent goals, delegate

@@ -76,6 +76,16 @@ no keys, because each is a word that names itself. The four below them are the
 **payload's** own values, and share the key column: `finish_reason`, `prompt`,
 `response`, `tool_calls`.
 
+**One rule holds down the whole span: a key is faint monospace, a value reads
+in the row's own font.** `.mode-tag` and `.gen-key` are keys; `.row-value` is
+the short-value counterpart, taken by the finish reason and by every figure in
+the token tree. The token rows had label and figure in one `.mode-tag` until
+the finish reason grew a key of its own and made them the odd rows out — a
+reader should not have to learn a second convention between one row and the
+next. `.row-value` sets no colour, so a `.tok-part` row's fainter shade still
+reaches the figure on it, and carries `tabular-nums`, which is the one thing
+monospace was buying a column of figures compared down the page.
+
 - **What the call was for** — a `.mode-tag` leading the chip line,
   from `metadata.call_role`, shown only when the call was *not* the ordinary
   one. Its values are `delegated` (a subagent's call), `fallback` (the
@@ -128,10 +138,10 @@ no keys, because each is a word that names itself. The four below them are the
   collapse for the value to. The waterfall bar's tooltip is a summary-line
   surface too, and shows the bare value for the same reason.
 
-  The value is not a `.mode-tag`. It reads in the proportional font of the
-  three payload values under it, leaving monospace to the key — with the two
-  side by side, the font is what separates them, and the chips above stay
-  visibly a different kind of thing.
+  The value is not a `.mode-tag`. It takes `.row-value`, reading in the
+  proportional font of the payload values around it and leaving monospace to
+  the key — with the two side by side, the font is what separates them, and
+  the metadata chips above stay visibly a different kind of thing.
 
   It had not. The two are different fields with different value spaces, and
   hermes' is the one shown: `category_profile.annotated_response.finish_reason`
@@ -201,8 +211,8 @@ no keys, because each is a word that names itself. The four below them are the
   The token tree further down carries a `prompt` row as well, counting the
   whole request where this one shows its last message. The word means the
   same thing in both — what the model was sent — and the rows are different
-  kinds: the token one is a `.mode-tag` indented under `tokens`, and always
-  has a figure on it. For a turn's ordinary call that is the
+  kinds: the token one is a bare key indented under `tokens`, and always has
+  a figure on it. For a turn's ordinary call that is the
   prompt already at the top of the page; for every other kind it is the only
   place the instruction appears at all. A compaction's is hermes talking to
   itself (*"You are a summarization agent creating a context
@@ -451,6 +461,15 @@ no keys, because each is a word that names itself. The four below them are the
   above the two rows it is read off, where it can be checked. Rounded to
   whole percent, half up rather than to even, since a reader comparing rows
   expects `.5` to go up.
+
+  It stays in the keys' faint monospace rather than following the figure
+  into the reading font: it qualifies that figure rather than being one of
+  the counts the tree adds up. Its gap from the figure used to be stated in
+  `base.html` as a `1ch` collapsed margin, matching the space inside a
+  single-span `prompt 20,193`; now that the row has its own key/figure gap,
+  both come from the literal spaces in the template — ignored between flex
+  items in the detail layout, rendered when the row goes inline — so one
+  mechanism keeps them equal instead of two being kept in step by hand.
 
   It never reads `100% cached` unless every last token was: straight
   rounding puts 27 of the 1,129 calls in the log at 100 with hundreds of
