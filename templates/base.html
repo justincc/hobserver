@@ -325,7 +325,20 @@
     .inflight-strip .strip-label { color: #8a5a00; font-weight: 600; }
     .inflight-entry.current { font-weight: 600; }
     .inflight-entry[data-stale] { color: #777; }
-    .follow-toggle { display: flex; justify-content: flex-end; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: #555; margin-bottom: 0.5rem; cursor: pointer; }
+    /* A slider switch: a hidden checkbox, a track that draws it, and the
+       label text. Both of the page's switches are one — follow mode and the
+       span details — so the look is stated once here and each of them adds
+       only where it sits. A checkbox styled by its neighbouring track, so
+       the input has to stay immediately before .track in the markup.
+       Kept before .follow-toggle: that one needs `display: flex` to right-
+       align itself, and equal specificity means the later rule wins. */
+    .switch { display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; }
+    .switch input { position: absolute; opacity: 0; pointer-events: none; }
+    .switch .track { width: 30px; height: 16px; border-radius: 8px; background: #ccc; position: relative; transition: background 0.15s; }
+    .switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: left 0.15s; }
+    .switch input:checked + .track { background: #2a78d6; }
+    .switch input:checked + .track::after { left: 16px; }
+    .follow-toggle { display: flex; justify-content: flex-end; font-size: 0.85rem; color: #555; margin-bottom: 0.5rem; }
     td.prompt-cell { max-width: 22rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .span-uuid { color: #bbb; font-size: 0.75rem; font-family: ui-monospace, monospace; white-space: nowrap; }
     .span-detail { display: flex; gap: 0.5rem; align-items: baseline; max-width: 36rem; font-size: 0.8rem; color: #555; margin: 0.15rem 0 0 1.15rem; }
@@ -495,13 +508,9 @@
        for detail mode */
     body.show-detail .list-compact, tr.detail-open .list-compact { display: none; }
     body:not(.show-detail) tr:not(.detail-open) .list-item { display: none; }
+    /* the details switch takes the far end of the legend row; everything
+       that draws it is on .switch, above */
     .legend .detail-toggle { margin-left: auto; }
-    .detail-toggle { display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; }
-    .detail-toggle input { position: absolute; opacity: 0; pointer-events: none; }
-    .detail-toggle .track { width: 30px; height: 16px; border-radius: 8px; background: #ccc; position: relative; transition: background 0.15s; }
-    .detail-toggle .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: left 0.15s; }
-    .detail-toggle input:checked + .track { background: #2a78d6; }
-    .detail-toggle input:checked + .track::after { left: 16px; }
     details.prompt, p.prompt { background: #f4f5f8; border-radius: 6px; padding: 0.6rem 1rem; margin: 0.75rem 0; font-size: 0.9rem; }
     details.prompt summary { cursor: pointer; }
     details.prompt pre.blob { margin: 0.6rem 0 0; padding: 0; background: none; }

@@ -1,8 +1,15 @@
 {# Follow-mode toggle. State lives in localStorage, wired up in base.html —
    which re-resolves this element and its checked state after every live-poll
    swap, so it works either inside the live region (turn page, in the nav row)
-   or outside it (index). Never hold a reference to it across a swap. #}
-<label class="follow-toggle"
+   or outside it (index). Never hold a reference to it across a swap.
+
+   `.switch` is what draws it, the same slider the details switch on the turn
+   page uses: two controls that do the same kind of thing should not be two
+   different-looking controls. `.track` has to follow the input immediately —
+   it is a sibling selector that paints the checkbox's state. #}
+<label class="switch follow-toggle"
        title="Automatically open a turn's waterfall when a new turn starts (never while already watching one in flight)">
-  <input type="checkbox" data-follow-toggle> follow new turns
+  <input type="checkbox" data-follow-toggle>
+  <span class="track"></span>
+  follow new turns
 </label>

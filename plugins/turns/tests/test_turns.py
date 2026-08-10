@@ -560,7 +560,7 @@ def test_turn_page_has_details_switch(tmp_path):
     assert "data-detail-toggle checked" not in page
     # and it says what it does to the page, not what it is: a lone `details`
     # beside three colour chips read as a fourth legend entry
-    assert re.search(r'<label class="detail-toggle".*?show all span details\s*</label>',
+    assert re.search(r'<label class="switch detail-toggle".*?show all span details\s*</label>',
                      page, re.S)
 
 
@@ -1065,6 +1065,25 @@ def test_follow_toggle_rendered_on_both_pages(tmp_path):
     assert "data-follow-toggle" in client.get("/turns/").get_data(as_text=True)
     assert "data-follow-toggle" in client.get(
         f"/turns/turn/s9/{inflight_start}").get_data(as_text=True)
+
+
+def test_both_switches_are_the_same_switch(tmp_path):
+    """Follow mode and the span details do the same kind of thing — a
+    persistent on/off for the page — so they are one control, drawn once by
+    `.switch`. The track has to sit immediately after the input: it is a
+    sibling selector that paints the checkbox's state, and a stray element
+    between them leaves a switch that never moves."""
+    _, inflight_start, lines = recent_stream()
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        f"/turns/turn/s9/{inflight_start}").get_data(as_text=True)
+    for attr in ("data-follow-toggle", "data-detail-toggle"):
+        assert re.search(r'<label class="switch [\w-]+"[^>]*>\s*'
+                         r'<input type="checkbox" ' + attr + r'>\s*'
+                         r'<span class="track"></span>', page), attr
+    # …and the look is stated once, not once per switch
+    css = (REPO_ROOT / "templates" / "base.html").read_text()
+    assert not re.search(r"\.(follow|detail)-toggle[^{,]*\{[^}]*\b(border-radius|opacity)", css)
 
 
 def test_index_shows_prompt_snippet_single_line(tmp_path):

@@ -46,10 +46,17 @@ the turn had been silent for 2 minutes.
 
 ## Follow mode
 
-A "follow new turns" toggle (persisted in localStorage) that auto-opens a
+A "follow new turns" switch (persisted in localStorage) that auto-opens a
 turn's waterfall when a new turn starts, with two guards: never while you are
 watching a turn that is still in flight (concurrent turns just appear in the
 strip for manual switching), and never to a stale entry.
+
+It is the same slider as **show all span details** on the turn page: both are
+a persistent on/off for the page, so they are one control drawn once by
+`.switch` in `base.html`, and each of `.follow-toggle` / `.detail-toggle`
+says only where it sits. The `.track` span must follow its `<input>`
+immediately — it is a sibling selector painting the checkbox's state, and
+anything between them leaves a switch that never moves.
 The strip's data attributes drive that JS: `data-inflight-start-us`,
 `data-stale`, `data-inflight-current`, `data-turn-start-us`.
 

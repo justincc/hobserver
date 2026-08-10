@@ -54,7 +54,9 @@
   <span><span class="chip cat-llm"></span>llm</span>
   <span><span class="chip cat-tool"></span>tool</span>
   <span><span class="chip cat-other"></span>other</span>
-  <label class="detail-toggle"
+  {# `.switch` draws it; `.detail-toggle` only says where it sits. The follow
+     toggle is the same slider — see turns/_follow.html. #}
+  <label class="switch detail-toggle"
          title="Expand scope detail onto its own line and show span uuids">
     <input type="checkbox" data-detail-toggle>
     <span class="track"></span>
