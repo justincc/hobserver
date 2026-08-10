@@ -380,7 +380,7 @@ def test_patch_mode_and_replaced_text():
                      start_data={"mode": "replace", "path": "/home/u/a.md",
                                  "old_string": "was", "new_string": "now"}),
         # the tool defaults to replace, so a payload that names no mode and
-        # carries no V4A text is one (see $h/tools/file_tools.py patch_tool)
+        # carries no V4A text is one (see $HERMES_SOURCE/tools/file_tools.py patch_tool)
         *scope_lines("P2", "tool", 1_250_000, 1_280_000, name="patch",
                      session="s1", turn="t1",
                      start_data={"path": "/home/u/b.md",
@@ -1048,7 +1048,7 @@ def test_turn_user_message_from_start_mark_data():
 
 def test_memory_scope_single_op_shape():
     """The `memory` tool's single-op shape — action plus the entry text.
-    A different tool from the mem0 scopes above ($h/tools/memory_tool.py)."""
+    A different tool from the mem0 scopes above ($HERMES_SOURCE/tools/memory_tool.py)."""
     lines = [
         *session_scope_lines("s1"),
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
@@ -1312,7 +1312,7 @@ def test_a_turn_takes_its_prompt_from_its_first_llm_request():
 def test_the_prompt_is_unwrapped_of_hermes_own_envelope():
     """The turn mark used to carry the bare prompt; the wire message it has
     to be read from now is wrapped, and the two known wrappers come off."""
-    wrapped = ("[Workspace::v1: /home/justincc/workspace]\n"
+    wrapped = ("[Workspace::v1: /home/u/workspace]\n"
                "please produce a jobs report\n\n"
                "<memory-context>\n[System note: recalled memory]\n</memory-context>")
     turn, = assemble_lines(relay_stream(prompt=wrapped)).sessions[0].turns
@@ -1534,7 +1534,7 @@ def test_two_concurrent_subagent_turns_are_not_mistaken_for_duplicates():
 
 # --- what a call was for -------------------------------------------------
 # hermes stamps `call_role` on every llm span. Its value space is wider than
-# the log shows (checked against the emit sites in $h/agent/): primary,
+# the log shows (checked against the emit sites in $HERMES_SOURCE/agent/): primary,
 # delegated, fallback, iteration_summary, auxiliary:<task>.
 
 

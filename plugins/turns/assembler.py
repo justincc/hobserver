@@ -283,7 +283,7 @@ class Span:
 
     # Every tool that fails says so the same two ways, whatever the scope:
     # metadata.status is "error" on the end event, and the end payload
-    # carries an "error" string. That is how the tools in $h/tools/ report
+    # carries an "error" string. That is how the tools in $HERMES_SOURCE/tools/ report
     # errors, and it has held for every failing call seen here — terminal,
     # patch, read_file, search_files, write_file, execute_code, web_search,
     # skill_view, skill_manage, memory — so this is one generic pair rather
@@ -322,7 +322,7 @@ class Span:
 
     # What this call was *for*, when it was not the ordinary one. hermes
     # stamps `call_role` on every llm span, and its value space is wider
-    # than it looks (checked against the emit sites in $h/agent/, not just
+    # than it looks (checked against the emit sites in $HERMES_SOURCE/agent/, not just
     # the log): "primary", "delegated" for a subagent's call, "fallback"
     # when the configured model failed and a backup answered,
     # "iteration_summary", and "auxiliary:<task>" for work like context
@@ -336,7 +336,7 @@ class Span:
     #
     # hermes also stamps `auxiliary_task` beside it, which is not read
     # here: the two are built from one value in the same dict literal
-    # (`$h/agent/auxiliary_client.py`), `call_role` being the f-string
+    # (`$HERMES_SOURCE/agent/auxiliary_client.py`), `call_role` being the f-string
     # "auxiliary:{task}". They cannot disagree, and only `call_role` is
     # present on the non-auxiliary roles.
     @property
@@ -593,7 +593,7 @@ class Span:
         return self._start_str("path")
 
     # the patch scope has two modes (checked against patch_tool's signature
-    # in $h/tools/file_tools.py): "replace" (the default — path plus
+    # in $HERMES_SOURCE/tools/file_tools.py): "replace" (the default — path plus
     # old_string/new_string) and "patch" (a V4A multi-file patch text, no
     # top-level path). The payload names the mode, but fall back to the
     # keys present so a start-only span still resolves.
@@ -806,8 +806,8 @@ class Span:
 
     # mem0 scopes carry the remembered fact under different keys —
     # mem0_add "content", mem0_update "text" (checked against the tool
-    # schemas in $h/plugins/memory/mem0/__init__.py: these four tools live
-    # in the memory plugin, not $h/tools/). Both keys are far too generic
+    # schemas in $HERMES_SOURCE/plugins/memory/mem0/__init__.py: these four tools live
+    # in the memory plugin, not $HERMES_SOURCE/tools/). Both keys are far too generic
     # to trust on other scopes.
     @property
     def memory_content(self) -> Optional[str]:
@@ -825,7 +825,7 @@ class Span:
                 if self.name in ("mem0_update", "mem0_delete") else None)
 
     # The `memory` scope is a different tool from the mem0 ones above
-    # (checked against $h/tools/memory_tool.py): bounded, file-backed,
+    # (checked against $HERMES_SOURCE/tools/memory_tool.py): bounded, file-backed,
     # §-delimited entries in two char-limited stores under
     # $HERMES_HOME/memories/ — MEMORY.md (the agent's own notes, `target`
     # "memory") and USER.md (who the user is, `target` "user") — injected
@@ -1034,7 +1034,7 @@ class Span:
 
     # a skill_manage "patch" carries the replaced text as old_string /
     # new_string (checked against skill_manage's signature in
-    # $h/tools/skill_manager_tool.py) — not a V4A patch text like the file
+    # $HERMES_SOURCE/tools/skill_manager_tool.py) — not a V4A patch text like the file
     # tools' patch scope, whose "replace" mode names the same two keys.
     # old_string is required and non-empty in both.
     @property

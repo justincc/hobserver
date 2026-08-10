@@ -3,7 +3,10 @@
 The vocabulary is in `scope_spec`; this file is only the data. Each entry is
 keyed by the hermes tool's own scope name, checked against the tool's
 signature in the hermes source rather than against shapes seen in the log —
-`$h/tools/`, and `$h/plugins/memory/mem0/` for the mem0 tools.
+`$HERMES_SOURCE/tools/`, and `$HERMES_SOURCE/plugins/memory/mem0/` for the
+mem0 tools. `$HERMES_SOURCE` is wherever hermes-agent is checked out; it is
+notation for a reader, not a variable anything here resolves, and it is not
+`$HERMES_HOME` (that is hermes' config directory, which this app does read).
 
 A scope with no entry here renders its payload through the generic fallback.
 That is the right destination for a tool this app has never heard of, and a
@@ -56,7 +59,7 @@ EXECUTE_CODE = Scope(rows=[
 
 # read_file and write_file are the file tools carrying a plain path; the other
 # two, patch and search_files, have specs of their own. Checked against the
-# tool names registered in $h/tools/file_tools.py.
+# tool names registered in $HERMES_SOURCE/tools/file_tools.py.
 FILE_PATH = Scope(rows=[
     Row([Field("path", clip="tail", transform=tilde)]),
 ])

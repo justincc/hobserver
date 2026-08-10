@@ -22,9 +22,9 @@ forking this tree — see
 
 Example values here are illustrations from one stream, not a contract: hermes'
 tools differ between users and versions, and a payload's real shape is
-whatever the tool's own signature says (`$h/tools/`, and
-`$h/plugins/memory/mem0/` for the mem0 tools). Anything phrased as "in
-practice" means observed while building this, and could differ for you.
+whatever the tool's own signature says (`$HERMES_SOURCE/tools/`, and
+`$HERMES_SOURCE/plugins/memory/mem0/` for the mem0 tools). Anything phrased as
+"in practice" means observed while building this, and could differ for you.
 
 ## The two layouts
 
@@ -111,7 +111,7 @@ what it means is left to the tooltip that was always carrying it.
 
   hermes stamps `auxiliary_task` beside it, which is deliberately **not**
   read: both are built from one value in the same dict literal
-  (`$h/agent/auxiliary_client.py`), `call_role` being the f-string
+  (`$HERMES_SOURCE/agent/auxiliary_client.py`), `call_role` being the f-string
   `"auxiliary:{task}"`. They cannot disagree, and only `call_role` is
   present on the other four roles.
 
@@ -723,8 +723,8 @@ Pattern in monospace, then the glob and the search path.
 
 ### patch — two modes
 
-Checked against `patch_tool` in `$h/tools/file_tools.py`. One spec, named by
-a `.mode-tag`:
+Checked against `patch_tool` in `$HERMES_SOURCE/tools/file_tools.py`. One spec,
+named by a `.mode-tag`:
 
 - **replace** (the tool's default) — `path` plus `old_string`/`new_string`.
   Its own spec names both, so it no longer depends on being matched before
@@ -748,8 +748,8 @@ also renders what came *back*, see
 
 ### session_search — four modes
 
-Checked against `$h/tools/session_search_tool.py`, rendered mode-aware in one
-spec.
+Checked against `$HERMES_SOURCE/tools/session_search_tool.py`, rendered
+mode-aware in one spec.
 
 `Span.session_search_mode` prefers the end payload's explicit `mode`, falling
 back to inferring it from the start-payload keys using the tool's own dispatch
@@ -796,10 +796,11 @@ its own line in detail mode only.
 
 ### mem0_add, mem0_update, mem0_delete — the fact and the id
 
-The four mem0 tools are defined in `$h/plugins/memory/mem0/__init__.py`, i.e.
-inside hermes' *memory plugin*, not in `$h/tools/` where the rest live. Do not
-confuse them with the [`memory` scope](#memory--the-in-prompt-stores), which
-is a different tool.
+The four mem0 tools are defined in
+`$HERMES_SOURCE/plugins/memory/mem0/__init__.py`, i.e. inside hermes' *memory
+plugin*, not in `$HERMES_SOURCE/tools/` where the rest live. Do not confuse
+them with the [`memory` scope](#memory--the-in-prompt-stores), which is a
+different tool.
 
 mem0_add carries the fact as `content` (plain text, not monospace); mem0_update
 carries it as `text`.
@@ -848,11 +849,11 @@ recovered fall back to showing only the id.
 
 ### memory — the in-prompt stores
 
-The other memory tool (`$h/tools/memory_tool.py`): bounded §-delimited entries
-in two char-limited files under `$HERMES_HOME/memories/` — MEMORY.md (the
-agent's own notes, `target` "memory") and USER.md (who the user is, `target`
-"user"). They are injected into the system prompt as a snapshot at session
-start, where mem0 is searched on demand.
+The other memory tool (`$HERMES_SOURCE/tools/memory_tool.py`): bounded
+§-delimited entries in two char-limited files under `$HERMES_HOME/memories/` —
+MEMORY.md (the agent's own notes, `target` "memory") and USER.md (who the user
+is, `target` "user"). They are injected into the system prompt as a snapshot at
+session start, where mem0 is searched on demand.
 
 Because the stores are small (1375 chars for user by default) most writes are
 entries being shortened to fit, and failing the budget and retrying within the
@@ -926,9 +927,9 @@ folds "" into None; the empty side renders in words. They stay out of the
 summary line because a real `new_string` runs to kilobytes of markdown.
 
 skill_manage's six actions are create/edit/patch/delete/write_file/remove_file
-(checked against `$h/tools/skill_manager_tool.py`). Only create, patch and
-write_file have turned up in practice so far, so the other three are covered
-by test alone.
+(checked against `$HERMES_SOURCE/tools/skill_manager_tool.py`). Only create,
+patch and write_file have turned up in practice so far, so the other three are
+covered by test alone.
 
 `file_path` (skill_view, skill_manage write_file and remove_file, and an
 optional patch target) is middot-separated from the skill name and
@@ -938,12 +939,12 @@ left-ellipsized (`.tail`, like the file tools' path).
 
 Every hermes tool reports a failure the same two ways: `metadata.status` is
 "error" on the end event, and the end payload carries an `error` string. That
-is how the tools in `$h/tools/` report errors, and has held for every failing
-call seen here (terminal, patch, read_file, search_files, write_file,
-execute_code, web_search, skill_view, skill_manage, memory), so `Span.failed`
-and `Span.error` are one generic pair rather than a reader per scope, rendered
-after the scope's own rows as a `badge-error` beside the name plus an `.err`
-row.
+is how the tools in `$HERMES_SOURCE/tools/` report errors, and has held for
+every failing call seen here (terminal, patch, read_file, search_files,
+write_file, execute_code, web_search, skill_view, skill_manage, memory), so
+`Span.failed` and `Span.error` are one generic pair rather than a reader per
+scope, rendered after the scope's own rows as a `badge-error` beside the name
+plus an `.err` row.
 
 Both stay out of detail mode: failures are common enough — some tools fail
 more often than they succeed — that noticing one must never need a click.
@@ -984,7 +985,9 @@ independently, so either can cover a call the other misses.
 
 ## Reading hermes' payloads
 
-Paths above are relative to `$h`, the hermes-agent checkout. The rules for
+Paths above are relative to `$HERMES_SOURCE`, the hermes-agent source
+checkout — not `$HERMES_HOME`, which is hermes' config directory and the one
+this app actually reads. The rules for
 reading a payload — check the tool's signature rather than the log, read
 defensively anyway, never assume the `webui` platform — are in
 [design-principles.md](design-principles.md#3-reading-hermes-payloads).

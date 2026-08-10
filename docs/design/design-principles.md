@@ -152,12 +152,18 @@ This section is the record; nothing else restates it.
 
 **Check a payload against the tool's own signature in the hermes source, not
 only against shapes seen in the ATOF log.** The log shows what has been
-exercised so far, which is not the same as what the tool can emit. Paths are
-relative to `$h`, the hermes-agent checkout:
+exercised so far, which is not the same as what the tool can emit.
 
-- `$h/tools/` — most tools.
-- `$h/plugins/memory/mem0/` — the four mem0 tools, which live in hermes'
-  memory *plugin* rather than with the rest.
+Paths are relative to `$HERMES_SOURCE`, **the hermes-agent source checkout** —
+wherever you cloned it. It is not `$HERMES_HOME`, which this app reads at
+runtime and which points at hermes' *config* directory (`nemo-relay/`,
+`memories/`, `jmem0_logged.db`). Source is where the tools are defined; home
+is where they wrote. Nothing in this app resolves `$HERMES_SOURCE` — it is
+notation for a reader going to look something up, not a variable to export.
+
+- `$HERMES_SOURCE/tools/` — most tools.
+- `$HERMES_SOURCE/plugins/memory/mem0/` — the four mem0 tools, which live in
+  hermes' memory *plugin* rather than with the rest.
 
 **Read payloads defensively regardless.** ATOF payloads are opaque by
 specification; a shape that has been uniform for a whole log is still not a
