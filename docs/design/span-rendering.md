@@ -82,9 +82,17 @@ the short-value counterpart, taken by the finish reason and by every figure in
 the token tree. The token rows had label and figure in one `.mode-tag` until
 the finish reason grew a key of its own and made them the odd rows out — a
 reader should not have to learn a second convention between one row and the
-next. `.row-value` sets no colour, so a `.tok-part` row's fainter shade still
-reaches the figure on it, and carries `tabular-nums`, which is the one thing
-monospace was buying a column of figures compared down the page.
+next. `.row-value` sets no colour, taking whatever shade its row is in, and
+carries `tabular-nums` — the one thing monospace was buying a column of
+figures compared down the page.
+
+The exception proves the rule's worth. `.tok-part` paints its row `#8a8a8a`,
+which is exactly `.mode-tag`'s own colour, so `reasoning 303` came out the
+single pair on the span whose key and value matched — and at three digits the
+font shift alone is easy to miss. The figure on such a row darkens one step to
+`#7a7a7a`: still lighter than the `#555` of a figure that *does* add to its
+siblings, so the row stays set apart, but no longer the one place where a
+value is indistinguishable from its key.
 
 - **What the call was for** — a `.mode-tag` leading the chip line,
   from `metadata.call_role`, shown only when the call was *not* the ordinary

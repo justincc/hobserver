@@ -368,8 +368,9 @@
        proportional font and colour rather than the faint monospace the
        metadata chips (call_role, retry) use. With key and value side by
        side, the font is what separates them: the key alone is monospace.
-       No colour of its own, so a .tok-part row's fainter shade still
-       reaches the figure on it.
+       No colour of its own, so it takes whatever shade its row is in — a
+       .tok-part row darkens it a step separately, below, rather than this
+       rule having to know about that row at all.
        tabular-nums is the one thing monospace was buying the token tree —
        figures a reader compares down an indented column, where digits of
        differing width make the comparison harder than it needs to be.
@@ -460,6 +461,15 @@
     .span-detail.tok-d1 { margin-left: 2.3rem; }
     .span-detail.tok-d2 { margin-left: 3.45rem; }
     .span-detail.tok-part { color: #8a8a8a; }
+    /* …but the figure on such a row still has to read as a figure. The row
+       shade is exactly .mode-tag's #8a8a8a, so `reasoning 303` came out with
+       key and value in one colour — the only pair on the span where they
+       matched, and at three digits the font shift alone is easy to miss.
+       One step darker than its key, and still two steps lighter than the
+       #555 of a figure that does add to its siblings: the row stays visibly
+       apart from them, and the key/value split holds on every row without
+       exception. */
+    .span-detail.tok-part .row-value { color: #7a7a7a; }
     /* the cache share rides the prompt figure, and stays in the faint
        monospace the keys use rather than following the figure into the
        reading font: it qualifies that figure rather than being one of the
