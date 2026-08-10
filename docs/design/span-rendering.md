@@ -35,8 +35,11 @@ Every row has a summary line and a detail layout:
 - **Detail** — the same content laid out on its own rows (`.list-item`,
   `.span-detail`), with the parts too long for one line added.
 
-The details switch — a slider on the right of the legend row, off on every
-page load and never persisted — turns detail mode on for the whole page.
+The details switch — labelled **show all span details**, a slider on the
+right of the legend row, off on every page load and never persisted — turns
+detail mode on for the whole page. The label says what flipping it does to
+the page rather than naming the switch: a lone `details` sitting beside three
+colour chips read as a fourth legend entry.
 Clicking a single row toggles just that row independently of the switch
 (`tr.detail-open`, remembered by uuid across live-poll swaps); clicks on
 links, buttons or a text selection do not toggle.

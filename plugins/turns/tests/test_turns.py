@@ -558,6 +558,10 @@ def test_turn_page_has_details_switch(tmp_path):
     # unchecked on every load — visibility state is per page load, not persisted
     assert "data-detail-toggle" in page
     assert "data-detail-toggle checked" not in page
+    # and it says what it does to the page, not what it is: a lone `details`
+    # beside three colour chips read as a fourth legend entry
+    assert re.search(r'<label class="detail-toggle".*?show all span details\s*</label>',
+                     page, re.S)
 
 
 def test_span_extra_info_stays_inline_when_details_off(tmp_path):
