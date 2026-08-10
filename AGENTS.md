@@ -3,6 +3,7 @@
 ## General Instructions
 - Keep this generation instructions section and its subsections at the top of the file.
 - Document and code should follow the DRY (Don't Repeat Yourself) principle when reasonable.
+- In code, docs, tests or examples, don't use locations or names particular to one machine or person.
 
 ### Testing
 - All new functionality must have an accompanying passing unit test.
