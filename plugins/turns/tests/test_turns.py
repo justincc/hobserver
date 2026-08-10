@@ -1449,9 +1449,49 @@ def _assistant(content="", *tool_names):
                        for i, n in enumerate(tool_names)]}}
 
 
+FIN_ROW = (r'<div class="span-detail">\s*'
+           r'<span class="gen-key key-col list-item"[^>]*>finish_reason</span>\s*'
+           r'<span class="fin-reason"[^>]*>([a-z_]+)</span>\s*</div>')
+
+
 def test_llm_span_shows_the_finish_reason(tmp_path):
     page = _llm_turn(tmp_path, {**_assistant("done"), "finish_reason": "stop"})
-    assert '<span class="mode-tag"' in page and ">stop<" in page
+    assert re.search(FIN_ROW, page).group(1) == "stop"
+
+
+def test_llm_finish_reason_carries_its_key_in_the_key_column(tmp_path):
+    """`complete` alone is a bare word in a row of bare words, and the reader
+    who goes to the log for it meets `status: "completed"` on the same event —
+    a different field — and concludes the page reworded it. The key is what
+    says which field this is, and it is the log's own key, not `status`:
+    hermes writes `finish_reason` on every route.
+
+    `key-col` is what aligns it with `prompt`, `response` and `tool_calls` —
+    the four are the payload's own values and are read down as a group."""
+    page = _llm_turn(tmp_path, {**_assistant("done"), "finish_reason": "complete"})
+    assert re.search(FIN_ROW, page).group(1) == "complete"
+
+
+def test_llm_finish_reason_key_is_detail_only(tmp_path):
+    """The key carries .list-item, not the row: the row has to survive the
+    collapse for the value to. On a summary line the value stands among token
+    figures with nothing to confuse it with, and the label would be 14 more
+    characters for the cell's ellipsis to eat."""
+    page = _llm_turn(tmp_path, {**_assistant("done"), "finish_reason": "complete"})
+    row = re.search(FIN_ROW, page)
+    assert "list-item" not in row.group(0)[:len('<div class="span-detail">')]
+    key = re.search(r'<span class="([^"]*)"[^>]*>finish_reason</span>', page)
+    assert "list-item" in key.group(1)
+
+
+def test_llm_finish_reason_value_is_not_a_metadata_chip(tmp_path):
+    """The value is a payload value like the three keyed rows under it, so it
+    reads in their font — not the faint monospace `.mode-tag` that call_role
+    and retry use. With key and value side by side, the font is what tells
+    them apart."""
+    page = _llm_turn(tmp_path, {**_assistant("done"), "finish_reason": "complete"})
+    assert not re.search(r'<span class="mode-tag"[^>]*>(finish_reason )?complete<',
+                         page)
 
 
 def test_llm_span_names_its_tool_calls_without_their_arguments(tmp_path):
@@ -1466,7 +1506,7 @@ def test_llm_span_names_its_tool_calls_without_their_arguments(tmp_path):
     rows = page[page.index("<tbody>"):]
     assert "mem0_search" in rows
     assert "brain development" not in rows     # the argument stays below
-    assert ">tool_calls<" in rows              # how it ended is still said
+    assert re.search(FIN_ROW, rows).group(1) == "tool_calls"  # how it ended
 
 
 def test_llm_span_lists_the_tools_it_asked_for(tmp_path):
@@ -1486,7 +1526,7 @@ def test_llm_span_names_nothing_when_the_model_only_talked(tmp_path):
     page = _llm_turn(tmp_path, {**_assistant("Just a reply."),
                                 "finish_reason": "stop"})
     assert '<span class="call-list' not in page   # no names beside the reason
-    assert ">stop<" in page                      # …and not the stylesheet's rule
+    assert re.search(FIN_ROW, page).group(1) == "stop"   # the reason still shows
 
 
 def test_llm_span_counts_a_tool_call_it_cannot_read(tmp_path):
@@ -1516,8 +1556,8 @@ def test_llm_tool_calls_take_their_own_labelled_row(tmp_path):
                     r'<span class="call-list[^"]*">(.*?)</span>\s*</div>', page, re.S)
     assert row, "no labelled tool_calls row"
     assert "terminal" in row.group(1) and "read_file" in row.group(1)
-    # the reason keeps its own row and says only what the provider said
-    assert re.search(r'<span class="mode-tag"[^>]*>complete</span>', page)
+    # the reason keeps its own row, under its own key, in the same column
+    assert re.search(FIN_ROW, page).group(1) == "complete"
 
 
 def test_llm_tool_call_names_stay_off_the_summary_line(tmp_path):
@@ -2103,11 +2143,16 @@ def test_a_call_that_said_nothing_has_no_response_row(tmp_path):
 def test_the_llm_value_rows_start_at_one_edge(tmp_path):
     """Values a reader compares down the span, so their left edges line up:
     the keys reserve one column rather than each taking its own width."""
-    page = _llm_client(tmp_path, end_data=_assistant(
-        "## Done\n\nall of it", "read_file")).get(
+    page = _llm_client(tmp_path, end_data={
+        **_assistant("## Done\n\nall of it", "read_file"),
+        "finish_reason": "complete"}).get(
         "/turns/turn/s1/1000000").get_data(as_text=True)
-    labels = re.findall(r'class="gen-key key-col"[^>]*>([^<]+)</span>', page)
-    assert {"prompt", "response", "tool_calls"} <= set(labels), labels
+    # `[^"]*` and not the bare class string: `finish_reason` carries
+    # `.list-item` beside `.key-col`, and an exact match would drop the
+    # longest label in the column from the width check below — the one row
+    # this test exists to catch
+    labels = re.findall(r'class="gen-key key-col[^"]*"[^>]*>([^<]+)</span>', page)
+    assert {"finish_reason", "prompt", "response", "tool_calls"} <= set(labels), labels
     css = re.sub(r"\{#.*?#\}", "",
                  (REPO_ROOT / "templates" / "base.html").read_text(), flags=re.S)
     width = re.search(r"\.gen-key\.key-col[^{}\n]*\{[^}]*min-width:\s*(\d+)ch", css)

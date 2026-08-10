@@ -70,7 +70,13 @@ This is one of the three scopes that keeps hand-written Jinja (`render="llm"`)
 — its token tree runs a separator state machine the spec vocabulary should not
 grow to absorb.
 
-- **What the call was for** — a `.mode-tag` leading the finish-reason row,
+The rows split by where the value comes from. `call_role` and `retry` are the
+span's **metadata** and stay `.mode-tag` chips on one line — faint monospace,
+no keys, because each is a word that names itself. The four below them are the
+**payload's** own values, and share the key column: `finish_reason`, `prompt`,
+`response`, `tool_calls`.
+
+- **What the call was for** — a `.mode-tag` leading the chip line,
   from `metadata.call_role`, shown only when the call was *not* the ordinary
   one. Its values are `delegated` (a subagent's call), `fallback` (the
   configured model failed and a backup answered), `iteration_summary`, and
@@ -94,9 +100,46 @@ grow to absorb.
   Often the reason a span is slow. Zero is withheld for the reason a zero
   cache write is: it is every row, and says nothing.
 
-- **Finish reason** — `.mode-tag`, always visible, as the provider reported
-  it and not reworded. On the current exporter this is `complete` whether or
-  not the model asked for tools; `length` would mean the answer was cut off.
+- **`finish_reason`** — the first of the keyed rows, always visible, passed
+  through as the exporter gives it. On the current exporter this is
+  `complete` whether or not the model asked for tools; the older one said
+  `tool_calls` or `stop`, the openrouter route says `tool_use`, and `length`
+  would mean the answer was cut off.
+
+  ```
+  finish_reason  complete
+  prompt         Have another look at the observer's llm rows …
+  response       The finish reason now carries its key …
+  tool_calls     read_file · read_file · terminal
+  ```
+
+  **It carries its key, and only in the detail view.** The value used to
+  stand alone everywhere, which worked no better than the unlabelled
+  `tool_calls` row below: `complete` is a bare word in a row of bare words,
+  saying nothing about what it is the answer to. Worse, a reader who took it
+  to the log found `status: "completed"` on the same event — `data.status`
+  and `annotated_response.api_specific.status`, the OpenAI Responses API's
+  own field — and concluded the page had reworded it.
+
+  On the summary line the value keeps standing alone. There it sits among
+  token figures with nothing else it could be confused for, and a 14-column
+  label would be 14 more characters for the cell's ellipsis to eat. So the
+  **key** carries `.list-item`, not the row — the row has to survive the
+  collapse for the value to. The waterfall bar's tooltip is a summary-line
+  surface too, and shows the bare value for the same reason.
+
+  The value is not a `.mode-tag`. It reads in the proportional font of the
+  three payload values under it, leaving monospace to the key — with the two
+  side by side, the font is what separates them, and the chips above stay
+  visibly a different kind of thing.
+
+  It had not. The two are different fields with different value spaces, and
+  hermes' is the one shown: `category_profile.annotated_response.finish_reason`
+  on the current exporter, `data.finish_reason` on the old envelope. The key
+  is `finish_reason` and not `status` for two reasons — it is hermes' own
+  word for this value on every provider route, and `status` is already taken
+  here: `metadata.status == "error"` is what makes a span read as failed
+  (`Span.failed`), so the word would mean two things on one span.
 
 - **`tool_calls`** — its own detail-only row, under `response`, because both
   are what came back: the words, then the calls. Names only
@@ -115,11 +158,12 @@ grow to absorb.
   `tool_calls`; the split is exactly at the changeover. A rendering that
   depended on a payload value outlived the value.
 
-  On those older spans the word now appears twice — once as the reason, once
-  as this row's key — which is the cost of a label that is reliable rather
-  than one that happens to be supplied by a neighbouring field. Accepted
-  knowingly: it affects only spans already written, and the two are different
-  rows, one of them collapsed away.
+  On those older spans the word now appears twice in the detail view — as
+  the `finish_reason` row's value and as this row's key — which is the cost
+  of a label that is reliable rather than one that happens to be supplied by
+  a neighbouring field. Accepted knowingly: it affects only spans already
+  written, the two are different rows in the same column, and one of them is
+  collapsed away on the summary line.
 
   `tool_calls` is hermes' own key and uniform across every provider route,
   so it takes the log's word (like `response`, unlike `prompt`). The wire
@@ -180,14 +224,17 @@ grow to absorb.
 
   These keys carry `.key-col`, which reserves one column so the values start
   at the same edge — they are read down as a group, and a ragged left edge is
-  what makes that hard. `tool_calls` is in that column too, and its value
-  carries `.wide` as theirs do, so the three share a right edge as well.
+  what makes that hard. `finish_reason` and `tool_calls` are in that column
+  too, and the values carry `.wide` as theirs do, so they share a right edge
+  as well.
 
   The width is in `ch` and the key is monospace, so it is exactly the longest
-  label plus a space — `tool_calls` at 10, hence 11ch. **A key longer than
+  label plus a space — `finish_reason` at 13, hence 14ch. **A key longer than
   the column is the one row whose value does not line up**, and nothing but
   the column width prevents it, so a test asserts the reserved width still
-  exceeds every label using it.
+  exceeds every label using it. That test matches `key-col` as a prefix and
+  not as the whole class string: `finish_reason` carries `.list-item` beside
+  it, and an exact match silently dropped the longest label from the check.
 
   It is not part of the spec vocabulary: a declared `Field` cannot ask for
   it, and the hand-written macro is its only user.
@@ -358,6 +405,8 @@ grow to absorb.
   ```
   complete · prompt 20,193 (89% cached) · out 84
   ```
+
+  The reason is bare here — its key is detail-only, per the row above.
 
   `cache read` leads the prompt's rows: how much of it the provider already
   had is the question they are usually being read to answer, and `in` reads

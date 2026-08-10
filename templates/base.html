@@ -353,15 +353,23 @@
        key stays quiet beside its value, like a label */
     .span-detail .gen-key { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; color: #8a8a8a; }
     /* A key that reserves a column, so the values under it start at one
-       edge — the llm scope's `prompt`, `response` and `tool_calls`, which
-       are read down as a group. In ch units because the key is monospace,
-       so the width is exactly the longest label plus a space: `tool_calls`
-       at 10, hence 11ch. Widening it moves all three together, which is the
-       point — a row that overflowed the column would be the only one whose
-       value did not line up.
+       edge — the llm scope's `finish_reason`, `prompt`, `response` and
+       `tool_calls`, which are read down as a group. In ch units because the
+       key is monospace, so the width is exactly the longest label plus a
+       space: `finish_reason` at 13, hence 14ch. Widening it moves all four
+       together, which is the point — a row that overflowed the column would
+       be the only one whose value did not line up.
        Not part of the spec vocabulary: a declared Field cannot ask for it,
        and the hand-written macro that can is the only user. */
-    .span-detail .gen-key.key-col { min-width: 11ch; }
+    .span-detail .gen-key.key-col { min-width: 14ch; }
+    /* the finish reason's value. Deliberately not .mode-tag: it is a payload
+       value like the three keyed rows under it, so it takes their
+       proportional font and #555 rather than the faint monospace the
+       metadata chips (call_role, retry) use. With key and value now side by
+       side, the font is what separates them — the key alone is monospace.
+       nowrap because it is one short token and should never be the thing
+       that wraps a row. */
+    .span-detail .fin-reason { flex: none; white-space: nowrap; }
     /* the tool names on the `tool_calls` row. Not .path: this list wraps
        rather than ellipsizing, because the row's point is how many calls
        there were and a sixteen-call fan-out cut at one line does not say it.

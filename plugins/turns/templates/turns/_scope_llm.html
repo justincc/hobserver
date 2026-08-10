@@ -25,7 +25,7 @@
    passes the reason through as the exporter gives it), so on 958 of the
    log's tool-calling spans the row read `complete  read_file` and nothing
    said what the names were. They take their own labelled row below. #}
-{% if s.call_role or s.retry_count or s.finish_reason %}
+{% if s.call_role or s.retry_count %}
 <div class="span-detail">
   {#- the role leads: it says what the call was for, which qualifies
       everything after it. Absent on an ordinary call — see Span.call_role
@@ -34,7 +34,33 @@
       attribute, which browsers tolerate and nothing else does. #}
   {%- if s.call_role %}<span class="mode-tag" title="What this call was for, when it was not the ordinary one. `delegated` is a subagent's call; `fallback` means the configured model failed and a backup answered; an `auxiliary:` role names hermes' own background work, such as compressing the conversation to fit the context window.">{{ s.call_role }}</span>{% endif %}
   {%- if s.retry_count %}<span class="mode-tag" title="Which attempt this was, counting the first as 0 — so this call was retried, or walked its fallback chain, before it answered. Often the reason a span is slow.">retry {{ s.retry_count }}</span>{% endif %}
-  {%- if s.finish_reason %}<span class="mode-tag" title="Why the model stopped, as the provider reported it and not reworded — `complete` on the current exporter, whether or not it asked for tools; the older one said `tool_calls`. `length` would mean its answer was cut off.">{{ s.finish_reason }}</span>{% endif %}
+</div>
+{% endif %}
+{# How the call ended, in the key column with `prompt`, `response` and
+   `tool_calls` — the four are what the payload itself carries, read down as
+   a group, so they share a left edge and the values share a right one. Its
+   own row, not the mode-tag line above: those two come from the span's
+   metadata and are chips, and a key that reserves a column cannot lead a
+   row it does not start.
+
+   The key is detail-only. On a summary line the value stands among token
+   figures with nothing else to confuse it with, and 14 characters of label
+   there would be 14 for the cell's ellipsis to eat; in the detail view,
+   where a reader is looking for which field this is, it is exactly what was
+   missing. This is why the key carries .list-item rather than the row —
+   the row has to survive the collapse for the value to. #}
+{% set fin_title = "Why the model stopped: hermes' own `finish_reason`, passed through as the exporter gives it. `complete` on the current exporter whether or not it asked for tools; the older one said `tool_calls` or `stop`, and the openrouter route says `tool_use`. `length` would mean its answer was cut off. Not the provider's `status: completed`, which sits on the same event and is a different field." %}
+{% if s.finish_reason %}
+<div class="span-detail">
+  {#- one title, on both halves: the key is gone when collapsed and the value
+      is what is left to hover, and in the detail view a reader may reach for
+      either. Set once above rather than written twice. #}
+  <span class="gen-key key-col list-item" title="{{ fin_title }}">finish_reason</span>
+  {#- .fin-reason, not .mode-tag: this is a payload value like the three
+      below it, and it reads in their font rather than the faint monospace
+      the metadata chips use. That difference is what tells key from value
+      once the two sit side by side. #}
+  <span class="fin-reason" title="{{ fin_title }}">{{ s.finish_reason }}</span>
 </div>
 {% endif %}
 {# What this call was asked. Detail-only and one line of it, because the
