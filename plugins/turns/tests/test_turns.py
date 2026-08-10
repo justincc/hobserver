@@ -1635,29 +1635,30 @@ def test_llm_token_figures_keep_the_row_shade_they_are_on(tmp_path):
     """`.row-value` sets no colour of its own, so it takes whatever shade its
     row is in rather than knowing about any particular row."""
     css = (REPO_ROOT / "templates" / "base.html").read_text()
-    rule = re.search(r"\.span-detail \.row-value \{([^}]*)\}", css)
-    assert rule, "no .row-value rule"
+    # the cache share shares this block rather than restating it, so match
+    # the selector list and not `.row-value` alone
+    rule = re.search(r"\.span-detail \.row-value,\s*"
+                     r"\.span-detail \.tok-share \{([^}]*)\}", css)
+    assert rule, "no .row-value rule, or the share no longer reads with it"
     assert "color" not in rule.group(1)
-    assert "tabular-nums" in rule.group(1)      # figures compared down a column
+    assert "font-family" not in rule.group(1)  # the row's own, not a chip's
+    assert "tabular-nums" in rule.group(1)     # figures compared down a column
 
 
-def test_a_tok_part_figure_still_reads_as_a_figure():
-    """`.tok-part` paints its row `.mode-tag`'s own #8a8a8a, which left
-    `reasoning 303` the one pair on the span whose key and value were the
-    same colour — and at three digits the font shift alone is easy to miss.
-    The figure darkens a step, staying lighter than a figure that does add
-    to its siblings, so the row is still visibly set apart."""
+def test_every_token_figure_is_one_colour(tmp_path):
+    """`.tok-part` used to shade its row `.mode-tag`'s own #8a8a8a, which
+    left `reasoning 303` the one pair on the span whose key and value
+    matched — the row read as the only one the change to values had missed.
+    Parts read like every other figure now; the class stays as a marker, and
+    what it means is left to the tooltip that was always carrying it."""
     css = (REPO_ROOT / "templates" / "base.html").read_text()
-    row = re.search(r"\.span-detail\.tok-part \{[^}]*color:\s*(#\w+)", css)
-    val = re.search(r"\.span-detail\.tok-part \.row-value \{[^}]*color:\s*(#\w+)", css)
-    assert row and val, "tok-part shades not both stated"
-    key = re.search(r"\.span-detail \.mode-tag \{[^}]*color:\s*(#\w+)", css)
-    assert row.group(1) == key.group(1)         # the row is the key's shade…
-    assert val.group(1) != row.group(1)         # …and the figure is not
-    # darker than its key, lighter than a figure counted alongside its
-    # siblings — `int` on the grey, which is the same in all three channels
-    plain = "#555555"
-    assert int(plain[1:3], 16) < int(val.group(1)[1:3], 16) < int(row.group(1)[1:3], 16)
+    assert not re.search(r"\.tok-part[^{,]*\{[^}]*color:", css), \
+        "a .tok-part rule still shades its row"
+    # …and the marker still reaches the markup, so the rows stay findable
+    page = _llm_turn(tmp_path, {**_assistant("hi"), "usage": {
+        "prompt_tokens": 19349, "output_tokens": 1089,
+        "reasoning_tokens": 303, "request_count": 1}})
+    assert ("reasoning", "list-item tok-d2 tok-part") in _token_rows(page)
 
 
 def test_llm_span_nests_token_counts_under_the_sums_they_make(tmp_path):

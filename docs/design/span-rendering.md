@@ -86,13 +86,12 @@ next. `.row-value` sets no colour, taking whatever shade its row is in, and
 carries `tabular-nums` — the one thing monospace was buying a column of
 figures compared down the page.
 
-The exception proves the rule's worth. `.tok-part` paints its row `#8a8a8a`,
-which is exactly `.mode-tag`'s own colour, so `reasoning 303` came out the
-single pair on the span whose key and value matched — and at three digits the
-font shift alone is easy to miss. The figure on such a row darkens one step to
-`#7a7a7a`: still lighter than the `#555` of a figure that *does* add to its
-siblings, so the row stays set apart, but no longer the one place where a
-value is indistinguishable from its key.
+**Every figure in the tree is one colour**, parts included. `.tok-part` used
+to shade its row `#8a8a8a` — exactly `.mode-tag`'s own colour — so once the
+figures became values, `reasoning 303` was the single pair on the span whose
+key and value matched, and the row read as the only one the change had
+missed. The class carries no shade now: it is a marker in the markup, and
+what it means is left to the tooltip that was always carrying it.
 
 - **What the call was for** — a `.mode-tag` leading the chip line,
   from `metadata.call_role`, shown only when the call was *not* the ordinary
@@ -451,8 +450,8 @@ value is indistinguishable from its key.
 
   So the rows under `prompt` are its parts by construction. `reasoning` is
   counted *within* `out` rather than alongside it, and is marked `.tok-part`
-  (fainter, and its tooltip says so) precisely because it must not be added
-  to its siblings.
+  precisely because it must not be added to its siblings. Its tooltip is what
+  says so — the class shades nothing.
 
   `out − reasoning` is **not** the reply. It is everything else the model
   emitted — the reply *and* the arguments of any tool calls — and on most
@@ -470,9 +469,15 @@ value is indistinguishable from its key.
   whole percent, half up rather than to even, since a reader comparing rows
   expects `.5` to go up.
 
-  It stays in the keys' faint monospace rather than following the figure
-  into the reading font: it qualifies that figure rather than being one of
-  the counts the tree adds up. Its gap from the figure used to be stated in
+  It reads with the figure it rides — same font, same colour, sharing
+  `.row-value`'s rule rather than restating it. It was faint monospace when
+  every token row was; keeping it so once the figures became values would
+  have set one part of `prompt 20,193 (89% cached)` in a different hand, for
+  a distinction a reader has no use for — both halves are what the prompt
+  cost. It keeps its own class name because it is a different thing to find
+  in the markup, not because it looks different.
+
+  Its gap from the figure used to be stated in
   `base.html` as a `1ch` collapsed margin, matching the space inside a
   single-span `prompt 20,193`; now that the row has its own key/figure gap,
   both come from the literal spaces in the template — ignored between flex

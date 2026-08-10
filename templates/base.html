@@ -368,15 +368,19 @@
        proportional font and colour rather than the faint monospace the
        metadata chips (call_role, retry) use. With key and value side by
        side, the font is what separates them: the key alone is monospace.
-       No colour of its own, so it takes whatever shade its row is in — a
-       .tok-part row darkens it a step separately, below, rather than this
-       rule having to know about that row at all.
+       No colour of its own, so it takes the row's — which is one colour for
+       every figure in the tree, parts included.
        tabular-nums is the one thing monospace was buying the token tree —
        figures a reader compares down an indented column, where digits of
        differing width make the comparison harder than it needs to be.
        nowrap because these are single short tokens and should never be what
-       wraps a row. */
-    .span-detail .row-value { flex: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
+       wraps a row.
+       .tok-share — the `(93% cached)` riding the prompt figure — reads the
+       same way, so it shares the block rather than restating it. It keeps
+       its own name because it is a different thing to find in the markup,
+       not because it looks different. */
+    .span-detail .row-value,
+    .span-detail .tok-share { flex: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
     /* the tool names on the `tool_calls` row. Not .path: this list wraps
        rather than ellipsizing, because the row's point is how many calls
        there were and a sixteen-call fan-out cut at one line does not say it.
@@ -454,28 +458,27 @@
        task+context pairs visually separate */
     .span-detail.ctx { margin-left: 2.3rem; color: #8a8a8a; }
     /* token rows indent by their place in the tree, so `in` and `cache read`
-       sit visibly under the `prompt` they sum to. .tok-part is a row counted
-       *within* its parent rather than a share of it (reasoning inside out) —
-       fainter because it must not be added to its siblings; its tooltip, not
-       the shade, is what says so */
+       sit visibly under the `prompt` they sum to. */
     .span-detail.tok-d1 { margin-left: 2.3rem; }
     .span-detail.tok-d2 { margin-left: 3.45rem; }
-    .span-detail.tok-part { color: #8a8a8a; }
-    /* …but the figure on such a row still has to read as a figure. The row
-       shade is exactly .mode-tag's #8a8a8a, so `reasoning 303` came out with
-       key and value in one colour — the only pair on the span where they
-       matched, and at three digits the font shift alone is easy to miss.
-       One step darker than its key, and still two steps lighter than the
-       #555 of a figure that does add to its siblings: the row stays visibly
-       apart from them, and the key/value split holds on every row without
-       exception. */
-    .span-detail.tok-part .row-value { color: #7a7a7a; }
-    /* the cache share rides the prompt figure, and stays in the faint
-       monospace the keys use rather than following the figure into the
-       reading font: it qualifies that figure rather than being one of the
-       counts the tree adds up. Not the #bbb of a lookup id — this is meant
-       to be taken in at a glance, only not before the number it modifies. */
-    .span-detail .tok-share { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; color: #8a8a8a; }
+    /* .tok-part marks a row counted *within* its parent rather than being a
+       share of it (reasoning inside out) — it must not be added to its
+       siblings, and its tooltip is what says so.
+
+       It used to shade its row #8a8a8a as well. That is exactly the colour
+       .mode-tag gives a key, so once the figures became values in their own
+       right `reasoning 303` was the one pair on the span whose key and value
+       matched, and the row read as the only one the change had missed.
+       Every figure in the tree is one colour now, and the class carries no
+       shade of its own — a marker for the markup and for anything that wants
+       to find these rows, with the meaning left to the tooltip that was
+       always carrying it. */
+    /* the cache share rides the prompt figure and reads with it — same font,
+       same colour, styled with .row-value above. It was faint monospace when
+       every token row was, and keeping it that way once the figures became
+       values would have made it the one part of `prompt 20,193 (89% cached)`
+       set in a different hand, for a distinction a reader has no use for:
+       both halves are what the prompt cost. */
     .span-detail.list-item + .span-detail.task-goal { margin-top: 0.95rem; }
     /* .wrap-detail text (search queries, subagent goals, delegate
        briefs) drops the one-line ellipsis in the detailed layout and
