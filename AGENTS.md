@@ -5,6 +5,9 @@
 - Document and code should follow the DRY (Don't Repeat Yourself) principle when reasonable.
 - In code, docs, tests or examples, don't use locations or names particular to one machine or person.
 
+### Coding
+- Write comments for someone maintaining the code, not for someone judging the decision.
+
 ### Testing
 - All new functionality must have an accompanying passing unit test.
 - Tests should always be run after making any changes and any fails fixed.
