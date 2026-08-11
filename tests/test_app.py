@@ -1,7 +1,10 @@
 """Shell tests: plugin registration, tab bar, the root redirect."""
 
+import errno
 import logging
 import os
+
+import pytest
 
 import app as app_module
 import hermes_paths
@@ -225,3 +228,27 @@ def test_banner_reports_reloading_in_both_states():
     assert "reloading    no (specify --dev to reload on .py changes)" in off
     on = app_module.startup_banner([], 5090, "x.toml", dev=True)
     assert "reloading    yes — on a .py edit" in on
+
+
+def test_a_taken_port_says_so_instead_of_a_traceback(monkeypatch, capsys):
+    def busy(app, host, port):
+        raise OSError(errno.EADDRINUSE, "Address already in use")
+    monkeypatch.setattr(app_module, "serve", busy)
+    exits = []
+    monkeypatch.setattr(app_module.os, "_exit", exits.append)
+
+    app_module.serve_forever(object(), port=5090)
+
+    message = capsys.readouterr().err
+    assert "port 5090 is already in use" in message
+    assert "Traceback" not in message
+    assert exits == [1]
+
+
+def test_other_serving_errors_are_not_swallowed(monkeypatch):
+    # only the one diagnosis is claimed; anything else keeps its traceback
+    def refused(app, host, port):
+        raise OSError(errno.EACCES, "Permission denied")
+    monkeypatch.setattr(app_module, "serve", refused)
+    with pytest.raises(OSError, match="Permission denied"):
+        app_module.serve_forever(object(), port=5090)

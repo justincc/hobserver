@@ -14,6 +14,7 @@ URLs are free to move: this is a single-user tool, so nothing redirects an
 old address to a new one — rename the prefix and follow it.
 """
 
+import errno
 import logging
 import os
 import sys
@@ -170,11 +171,8 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False):
                          f"{source.get('path', '')}  [{mark}]"
                          f" (from {source.get('from', 'default')})")
     if serving:
-        # Both states are printed, not just the on one: "off" is the answer to
-        # why an edit changed nothing, and it is only useful where the reader
-        # is already looking — so it names the switch rather than sending them
-        # to the docs for it. The server itself is not here: it is the same
-        # one every time, and the banner reports what this run resolved.
+        # Off prints too: it answers why an edit changed nothing, so it
+        # carries the switch. The server is not here — it never varies.
         lines.append("  reloading    " + (
             "yes — on a .py edit" if dev else
             "no (specify --dev to reload on .py changes)"))
@@ -183,6 +181,20 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False):
         lines.append("               successful requests are not logged below — only "
                      "errors show;\n               that page tallies every request.")
     return "\n".join(lines)
+
+
+def serve_forever(app, port=PORT):
+    """Serve until stopped, reporting if the port is already taken."""
+    try:
+        serve(app, host="0.0.0.0", port=port)
+    except OSError as exc:
+        if exc.errno != errno.EADDRINUSE:
+            raise
+        print(f"hermes-observer: port {port} is already in use — another "
+              "observer is probably still running", file=sys.stderr, flush=True)
+        # os._exit, not sys.exit: under --dev this runs in a thread the
+        # reloader starts, where SystemExit would end that thread alone.
+        os._exit(1)
 
 
 def parse_args(argv):
@@ -230,15 +242,15 @@ def main():
     logging.basicConfig(level=logging.WARNING, datefmt="%H:%M:%S",
                         format="[%(asctime)s] %(levelname)s %(message)s")
 
-    def serve_forever():
+    def start():
         # The app is built here rather than in main() so that under --dev the
         # supervisor never builds one: it does not serve, and a tab's init_app
         # may open files. The worker re-execs the whole script, so it gets a
         # fresh app on every restart either way.
-        serve(create_app(tabs), host="0.0.0.0", port=PORT)
+        serve_forever(create_app(tabs))
 
     if not dev:
-        serve_forever()
+        start()
         return
     # The reloader is a supervisor around any callable, so --dev adds
     # restart-on-edit to the same waitress server rather than swapping in a
@@ -247,7 +259,7 @@ def main():
     # fails loudly at the moment it is asked for, and ordinary running, which
     # never reaches this line, is untouched.
     from werkzeug._reloader import run_with_reloader
-    run_with_reloader(serve_forever)
+    run_with_reloader(start)
 
 
 if __name__ == "__main__":
