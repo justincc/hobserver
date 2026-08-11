@@ -151,8 +151,8 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False):
     lines = [
         "hermes-observer",
         f"  config       {config_origin}",
-        f"  HERMES_HOME  {home or '(unset — using the default below)'}",
-        f"  hermes dir   {hermes_paths.hermes_config_dir()}",
+        f"  hermes dir   {hermes_paths.hermes_config_dir()}"
+        f" ({'from HERMES_HOME' if home else 'default location, HERMES_HOME not set'})",
     ]
     if not tabs:
         lines.append("  tabs         (none configured)")

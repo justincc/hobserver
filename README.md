@@ -106,10 +106,10 @@ path. A database that fails the check takes **that tab** out of service: the
 tab is marked in the bar and serves a page naming the problem, while every
 other tab carries on.
 
-On startup the app prints what it resolved — the config file, `HERMES_HOME`,
-and every tab with its sources, each marked ok, MISSING or UNUSABLE and
-labelled with the rule that supplied it — because a missing source is the
-usual reason a tab looks empty. It prints once at launch, not on reloader
+On startup the app prints what it resolved — the config file, the hermes
+config directory with what supplied it, and every tab with its sources, each
+marked ok, MISSING or UNUSABLE and labelled with the rule that supplied it —
+because a missing source is the usual reason a tab looks empty. It prints once at launch, not on reloader
 restarts.
 
 ### Console noise and observer status

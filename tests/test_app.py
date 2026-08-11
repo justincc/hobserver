@@ -133,8 +133,15 @@ def test_banner_reports_an_unusable_database(monkeypatch):
 def test_banner_flags_an_unset_hermes_home(monkeypatch):
     monkeypatch.delenv("HERMES_HOME", raising=False)
     banner = app_module.startup_banner([], 5090, "built-in defaults")
-    assert "unset" in banner
+    assert "HERMES_HOME not set" in banner
     assert "/.hermes/config" in banner    # …and what stood in for it
+
+
+def test_banner_names_where_the_hermes_dir_came_from(monkeypatch):
+    # one line, not the variable and the path it resolves to
+    monkeypatch.setenv("HERMES_HOME", "/srv/hermes/hermes-agent/../config")
+    banner = app_module.startup_banner([], 5090, "observer.toml")
+    assert "hermes dir   /srv/hermes/config (from HERMES_HOME)" in banner
 
 
 def test_banner_does_not_claim_to_listen_when_nothing_loaded():
