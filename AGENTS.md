@@ -12,11 +12,11 @@
 ### Documentation
 - Documentation must be kept up to date with relevant changes to the project, or when you discover significant things about the project which have not already been recorded. This includes but is not limited to build commands, architecture decisions, code conventions, debugging insights and workflow preferences.
 - Keep the documentation organized and concise. Don't reproduce details that a user will see by running the system, or a developer by reading the code.
-- For this file, when a subject outgrows its bullet, split it into docs/<topic>.md and
-  leave a single line here naming the file and what it covers.
 - Documentation is read by humans as well as agents. A passage that is
   accurate but unscannable is not sufficient: if a person cannot find one fact in
   it without reading the whole thing, it needs breaking up.
+- For this file, when a subject outgrows its bullet, split it into docs/<topic>.md and
+  leave a single line here naming the file and what it covers.
 
 ## Project
 
