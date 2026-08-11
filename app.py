@@ -158,8 +158,8 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False):
         lines.append("  tabs         (none configured)")
     for tab in tabs:
         state = "ok" if tab.problem is None else f"UNAVAILABLE ({tab.problem})"
-        lines.append(f"  tab          {tab.label}  [{state}]"
-                     f"  ({tab.module_name})")
+        lines.append(f"  tab          {tab.label} ({tab.module_name})"
+                     f"  [{state}]")
         for source in tab.sources:
             problem = source.get("problem")
             if problem is None:

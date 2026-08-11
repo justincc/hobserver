@@ -109,7 +109,9 @@ def test_banner_reports_each_tabs_sources(memory_db, tmp_path, monkeypatch):
     banner = app_module.startup_banner(tabs, 5090, "observer.toml")
     assert f"{memory_db}  [ok]" in banner
     assert "/nope/absent.jsonl  [MISSING" in banner   # allowed to be absent
-    assert "Turns  [ok]" in banner and "Mem0  [ok]" in banner
+    # the mark ends the line, as it does on the source lines below it
+    assert "Turns (plugins.turns)  [ok]" in banner
+    assert "Mem0 (plugins.mem0)  [ok]" in banner
     assert "/srv/hermes/config" in banner
     assert "observer.toml" in banner
     assert "http://0.0.0.0:5090/" in banner
