@@ -218,8 +218,10 @@ def test_dev_flag_is_not_mistaken_for_a_config_file():
     assert app_module.parse_args(["other.toml", "--dev"]) == ("other.toml", True)
 
 
-def test_banner_names_the_server_and_whether_it_reloads():
-    plain = app_module.startup_banner([], 5090, "observer.toml")
-    assert "waitress" in plain and "--dev" not in plain
-    dev = app_module.startup_banner([], 5090, "observer.toml", dev=True)
-    assert "waitress" in dev and "restarts on a .py edit" in dev
+def test_banner_reports_reloading_in_both_states():
+    # off is worth a line too: it answers why an edit changed nothing, and
+    # names the switch where the reader is already looking
+    off = app_module.startup_banner([], 5090, "x.toml")
+    assert "reloading    no (specify --dev to reload on .py changes)" in off
+    on = app_module.startup_banner([], 5090, "x.toml", dev=True)
+    assert "reloading    yes — on a .py edit" in on

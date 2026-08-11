@@ -170,11 +170,14 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False):
                          f"{source.get('path', '')}  [{mark}]"
                          f" (from {source.get('from', 'default')})")
     if serving:
-        # Named because the two modes differ in one visible way — whether a
-        # .py edit restarts the server — and this is where to look for which
-        # one is running.
-        lines.append("  server       waitress"
-                     + (" (--dev: restarts on a .py edit)" if dev else ""))
+        # Both states are printed, not just the on one: "off" is the answer to
+        # why an edit changed nothing, and it is only useful where the reader
+        # is already looking — so it names the switch rather than sending them
+        # to the docs for it. The server itself is not here: it is the same
+        # one every time, and the banner reports what this run resolved.
+        lines.append("  reloading    " + (
+            "yes — on a .py edit" if dev else
+            "no (specify --dev to reload on .py changes)"))
         lines.append(f"  listening    http://0.0.0.0:{port}/")
         lines.append(f"  status       http://localhost:{port}{STATUS_PATH}")
         lines.append("               successful requests are not logged below — only "

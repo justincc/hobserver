@@ -66,11 +66,13 @@ the Turns tab says so itself rather than going out of service.
 
 ## The startup banner
 
-Prints the config file, `HERMES_HOME`, every tab with its sources — each marked
-ok, MISSING or UNUSABLE, and labelled with the rule that supplied the path —
-and the server, saying whether it restarts on an edit. Once: under `--dev` it
-prints in the reloader supervisor, since the worker sets `WERKZEUG_RUN_MAIN`,
-and without it there is only the one process.
+Prints the config file, `HERMES_HOME`, and every tab with its sources — each
+marked ok, MISSING or UNUSABLE, and labelled with the rule that supplied the
+path. Once: under `--dev` it prints in the reloader supervisor, since the
+worker sets `WERKZEUG_RUN_MAIN`, and without it there is only the one process.
+
+Everything on it is something this run resolved, which is the test for adding
+a line.
 
 It is the only place a tab's problem is visible without opening the tab, so it
 has to carry the whole picture: a tab that is out of service leads with
@@ -144,8 +146,7 @@ uv run python app.py --dev other.toml # either order; --dev is not a config path
 ```
 
 That adds the Werkzeug reloader as a supervisor around **the same waitress
-server** — it is not a second server. The banner's `server` line says which
-mode is running.
+server** — it is not a second server.
 
 Note that under `--dev` an edit to `atof_reader.py`, `assembler.py` or
 `atof_index.py` costs an index rebuild on the next request, as above.
