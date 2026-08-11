@@ -50,12 +50,11 @@ def atof_path(settings):
     always returned — if it does not exist this tab says so itself, naming the
     path it looked at, which beats the vaguer unconfigured state."""
     if settings.get("atof_log"):
-        return settings["atof_log"], "settings"
+        return settings["atof_log"]
     if os.environ.get("ATOF_LOG"):
-        return os.environ["ATOF_LOG"], "ATOF_LOG"
-    return (os.path.join(hermes_paths.hermes_config_dir(), "nemo-relay",
-                         "atof", "hermes-atof.jsonl"),
-            f"default ({hermes_paths.config_dir_origin()})")
+        return os.environ["ATOF_LOG"]
+    return os.path.join(hermes_paths.hermes_config_dir(), "nemo-relay",
+                        "atof", "hermes-atof.jsonl")
 
 
 def index_db_path(settings):
@@ -66,8 +65,8 @@ def index_db_path(settings):
     rebuild and nothing else; it holds no fact the log does not.
     """
     if settings.get("index_db"):
-        return settings["index_db"], "settings"
-    return default_index_path(atof_path(settings)[0]), "default (cache dir)"
+        return settings["index_db"]
+    return default_index_path(atof_path(settings))
 
 
 def spec_modules(settings):
@@ -225,13 +224,12 @@ def sources(settings):
     the same way, so an override or a failed import is visible at startup
     beside the log it renders.
     """
-    path, origin = atof_path(settings)
-    entries = [{"label": "ATOF log", "path": path, "from": origin,
-                "required": False,
+    path = atof_path(settings)
+    entries = [{"label": "ATOF log", "path": path, "required": False,
                 "problem": None if os.path.exists(path) else "no such file"}]
-    db_path, db_origin = index_db_path(settings)
-    entries.append({"label": "ATOF index (cache)", "path": db_path,
-                    "from": db_origin, "required": False, "problem": None})
+    entries.append({"label": "ATOF index (cache)",
+                    "path": index_db_path(settings),
+                    "required": False, "problem": None})
     entries.extend(spec_table(settings)[1])
     entries.extend(usage_shape_table(settings)[1])
     return entries
@@ -245,8 +243,8 @@ def init_app(app, settings):
     startup work, not per-request work, and a turn page polling every 2 s
     must not pay for it.
     """
-    app.config["ATOF_PATH"] = atof_path(settings)[0]
-    app.config["ATOF_INDEX_DB"] = index_db_path(settings)[0]
+    app.config["ATOF_PATH"] = atof_path(settings)
+    app.config["ATOF_INDEX_DB"] = index_db_path(settings)
     app.config["SCOPE_SPECS"] = spec_table(settings, app)[0]
     app.config["USAGE_SHAPES"] = usage_shape_table(settings)[0]
 

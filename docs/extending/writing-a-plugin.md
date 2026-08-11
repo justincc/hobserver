@@ -26,8 +26,7 @@ def _path(settings):
 def sources(settings):
     """What this tab reads. Shown in the startup banner."""
     path = _path(settings)
-    return [{"label": "log", "path": path, "from": "settings",
-             "required": True,
+    return [{"label": "log", "path": path, "required": True,
              "problem": None if os.path.exists(path) else "no such file"}]
 
 
@@ -97,9 +96,14 @@ not stash it yourself in `init_app`.
 Each entry is a plain dict, so you need no import:
 
 ```python
-{"label": "log", "path": "/var/log/app.log", "from": "settings",
+{"label": "log", "path": "/var/log/app.log",
  "required": True, "problem": None}
 ```
+
+An optional `from` prints in brackets after the path. Reserve it for something
+the path does not already say — the Turns tab uses it to report one scope spec
+overriding another. Which setting or variable a path came from is not that: the
+banner lists the path itself.
 
 `problem` is `None` when the source is fine, else a short phrase saying what is
 wrong. `required` decides what happens then:

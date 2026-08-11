@@ -57,8 +57,8 @@ def test_sources_derive_from_hermes_home(monkeypatch):
     monkeypatch.delenv("JMEM0_DB", raising=False)
     monkeypatch.delenv("ATOF_LOG", raising=False)
     assert hermes_paths.hermes_config_dir() == "/srv/hermes/config"
-    assert mem0.db_path({})[0] == "/srv/hermes/config/jmem0_logged.db"
-    assert turns.atof_path({})[0] == \
+    assert mem0.db_path({}) == "/srv/hermes/config/jmem0_logged.db"
+    assert turns.atof_path({}) == \
         "/srv/hermes/config/nemo-relay/atof/hermes-atof.jsonl"
 
 
@@ -72,7 +72,7 @@ def test_sources_fall_back_without_hermes_home(monkeypatch):
     monkeypatch.delenv("HERMES_HOME", raising=False)
     monkeypatch.delenv("JMEM0_DB", raising=False)
     assert hermes_paths.hermes_config_dir() == hermes_paths.FALLBACK_CONFIG_DIR
-    assert mem0.db_path({})[0].endswith("/config/jmem0_logged.db")
+    assert mem0.db_path({}).endswith("/config/jmem0_logged.db")
 
 
 def test_the_fallback_is_a_conventional_location(monkeypatch):
@@ -82,9 +82,6 @@ def test_the_fallback_is_a_conventional_location(monkeypatch):
     monkeypatch.delenv("HERMES_HOME", raising=False)
     fallback = hermes_paths.FALLBACK_CONFIG_DIR
     assert fallback == os.path.join(os.path.expanduser("~"), ".hermes", "config")
-    # the origin names the path, so a tab's "from default (…)" says where to
-    # look rather than only that the reader did not choose it
-    assert hermes_paths.config_dir_origin() == "~/.hermes/config"
 
 
 def test_env_vars_override_the_defaults(monkeypatch):
@@ -92,16 +89,15 @@ def test_env_vars_override_the_defaults(monkeypatch):
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
     monkeypatch.setenv("JMEM0_DB", "/tmp/other.db")
     monkeypatch.setenv("ATOF_LOG", "/tmp/other.jsonl")
-    assert mem0.db_path({}) == ("/tmp/other.db", "JMEM0_DB")
-    assert turns.atof_path({}) == ("/tmp/other.jsonl", "ATOF_LOG")
+    assert mem0.db_path({}) == "/tmp/other.db"
+    assert turns.atof_path({}) == "/tmp/other.jsonl"
 
 
 def test_settings_win_over_the_environment(monkeypatch):
     monkeypatch.setenv("JMEM0_DB", "/tmp/env.db")
     monkeypatch.setenv("ATOF_LOG", "/tmp/env.jsonl")
-    assert mem0.db_path({"db": "/tmp/set.db"}) == ("/tmp/set.db", "settings")
-    assert turns.atof_path({"atof_log": "/tmp/set.jsonl"}) == \
-        ("/tmp/set.jsonl", "settings")
+    assert mem0.db_path({"db": "/tmp/set.db"}) == "/tmp/set.db"
+    assert turns.atof_path({"atof_log": "/tmp/set.jsonl"}) == "/tmp/set.jsonl"
 
 
 def test_banner_reports_each_tabs_sources(memory_db, tmp_path, monkeypatch):
@@ -117,6 +113,19 @@ def test_banner_reports_each_tabs_sources(memory_db, tmp_path, monkeypatch):
     assert "/srv/hermes/config" in banner
     assert "observer.toml" in banner
     assert "http://0.0.0.0:5090/" in banner
+
+
+def test_banner_lists_a_path_without_saying_what_supplied_it(monkeypatch):
+    monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
+    monkeypatch.delenv("ATOF_LOG", raising=False)
+    for entry in ({"module": "plugins.turns"},
+                  {"module": "plugins.turns",
+                   "settings": {"atof_log": "/tmp/a.jsonl"}}):
+        banner = app_module.startup_banner(load([entry]), 5090, "observer.toml")
+        source_lines = [line for line in banner.splitlines()
+                        if line.startswith("    ")]
+        assert source_lines
+        assert all("(from" not in line for line in source_lines)
 
 
 def test_banner_reports_an_unusable_database(monkeypatch):

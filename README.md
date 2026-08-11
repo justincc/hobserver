@@ -108,7 +108,7 @@ other tab carries on.
 
 On startup the app prints what it resolved — the config file, the hermes
 config directory with what supplied it, and every tab with its sources, each
-marked ok, MISSING or UNUSABLE and labelled with the rule that supplied it —
+marked ok, MISSING or UNUSABLE —
 because a missing source is the usual reason a tab looks empty. It prints once at launch, not on reloader
 restarts.
 

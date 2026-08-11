@@ -167,9 +167,10 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False):
             else:
                 mark = f"{'UNUSABLE' if source.get('required') else 'MISSING'}" \
                        f" ({problem})"
+            supplier = source.get("from")
             lines.append(f"    {source.get('label', 'source'):<10} "
                          f"{source.get('path', '')}  [{mark}]"
-                         f" (from {source.get('from', 'default')})")
+                         + (f" (from {supplier})" if supplier else ""))
     if serving:
         # Off prints too: it answers why an edit changed nothing, so it
         # carries the switch. The server is not here — it never varies.

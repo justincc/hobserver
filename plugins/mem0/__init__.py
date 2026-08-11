@@ -121,11 +121,10 @@ def db_path(settings):
     """The event log to read: the `db` setting, else $JMEM0_DB, else the
     default under the hermes config dir."""
     if settings.get("db"):
-        return settings["db"], "settings"
+        return settings["db"]
     if os.environ.get("JMEM0_DB"):
-        return os.environ["JMEM0_DB"], "JMEM0_DB"
-    return (os.path.join(hermes_paths.hermes_config_dir(), "jmem0_logged.db"),
-            f"default ({hermes_paths.config_dir_origin()})")
+        return os.environ["JMEM0_DB"]
+    return os.path.join(hermes_paths.hermes_config_dir(), "jmem0_logged.db")
 
 
 def sources(settings):
@@ -135,15 +134,15 @@ def sources(settings):
     render and every page would 500 from inside a view. The shell replaces the
     tab with the problem instead, and the rest of the app serves on.
     """
-    path, origin = db_path(settings)
-    return [{"label": "event db", "path": path, "from": origin,
+    path = db_path(settings)
+    return [{"label": "event db", "path": path,
              "required": True, "problem": check_db(path)}]
 
 
 def init_app(app, settings):
     """Resolve the source once, at registration, so every request and the
     banner agree on which file this tab is reading."""
-    app.config["DB_PATH"] = db_path(settings)[0]
+    app.config["DB_PATH"] = db_path(settings)
 
 
 def get_db():

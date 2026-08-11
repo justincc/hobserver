@@ -24,14 +24,3 @@ def hermes_config_dir():
     """
     home = os.environ.get("HERMES_HOME")
     return os.path.normpath(home) if home else FALLBACK_CONFIG_DIR
-
-
-def config_dir_origin():
-    """How `hermes_config_dir` decided, for the banner.
-
-    Names the fallback rather than calling it one: a tab reporting a missing
-    file "from default (~/.hermes/config)" has told the reader where to look
-    and what to set, where "from default (built-in fallback)" only says the
-    path came from somewhere they did not choose.
-    """
-    return "HERMES_HOME" if os.environ.get("HERMES_HOME") else "~/.hermes/config"

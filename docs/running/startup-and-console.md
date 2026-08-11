@@ -67,8 +67,8 @@ the Turns tab says so itself rather than going out of service.
 ## The startup banner
 
 Prints the config file, the hermes config directory with what supplied it, and
-every tab with its sources — each marked ok, MISSING or UNUSABLE, and labelled
-with the rule that supplied the path. Once: under `--dev` it prints in the reloader supervisor, since the
+every tab with its sources — each marked ok, MISSING or UNUSABLE.
+Once: under `--dev` it prints in the reloader supervisor, since the
 worker sets `WERKZEUG_RUN_MAIN`, and without it there is only the one process.
 
 Everything on it is something this run resolved, which is the test for adding
