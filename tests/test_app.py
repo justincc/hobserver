@@ -1,5 +1,6 @@
 """Shell tests: plugin registration, tab bar, the root redirect."""
 
+import logging
 import os
 
 import app as app_module
@@ -185,3 +186,40 @@ def test_status_link_in_the_tab_bar_opens_a_new_tab(client):
 def test_status_link_is_on_every_page(client):
     for url in ("/memory/mem0/", "/turns/"):
         assert 'href="/_status"' in client.get(url).get_data(as_text=True)
+
+
+def test_errors_reach_the_console_and_successes_do_not(client, caplog):
+    """The console rule, exercised through the app rather than through a
+    server's access log — which is the point of moving it here: waitress logs
+    no requests, and never sees a 404 at all, since Flask answers it."""
+    with caplog.at_level(logging.WARNING):
+        client.get("/turns/")
+        assert caplog.records == []
+        client.get("/no/such/page")
+    assert [r.getMessage() for r in caplog.records] == \
+        ["GET /no/such/page -> 404"]
+
+
+def test_a_failing_poll_is_logged_with_its_query_string(client, caplog):
+    # a page left open across a URL rename polls the old address forever; the
+    # `since=` is what says which poll it is, so the log line has to carry it
+    with caplog.at_level(logging.WARNING):
+        client.get("/memory/mem0/fragment/renamed?since=42")
+    assert [r.getMessage() for r in caplog.records] == \
+        ["GET /memory/mem0/fragment/renamed?since=42 -> 404"]
+
+
+def test_dev_flag_is_not_mistaken_for_a_config_file():
+    # --dev may be written on either side of the config path
+    assert app_module.parse_args([]) == (None, False)
+    assert app_module.parse_args(["--dev"]) == (None, True)
+    assert app_module.parse_args(["other.toml"]) == ("other.toml", False)
+    assert app_module.parse_args(["--dev", "other.toml"]) == ("other.toml", True)
+    assert app_module.parse_args(["other.toml", "--dev"]) == ("other.toml", True)
+
+
+def test_banner_names_the_server_and_whether_it_reloads():
+    plain = app_module.startup_banner([], 5090, "observer.toml")
+    assert "waitress" in plain and "--dev" not in plain
+    dev = app_module.startup_banner([], 5090, "observer.toml", dev=True)
+    assert "waitress" in dev and "restarts on a .py edit" in dev

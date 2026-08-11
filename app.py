@@ -20,11 +20,15 @@ import sys
 
 from flask import (Blueprint, Flask, redirect, render_template, request,
                    url_for)
+from waitress import serve
 
 import hermes_paths
 import tabs as tabs_module
 from request_log import (REFRESH_SECONDS, STATUS_PATH, RequestStats,
-                         SuppressSuccessFilter, format_status)
+                         SuppressAccessLogFilter, format_status,
+                         log_error_response)
+
+PORT = 5090
 
 
 def create_app(tabs):
@@ -62,6 +66,14 @@ def create_app(tabs):
         # traffic, or its own "last" time would always read as fresh.
         if request.path != STATUS_PATH:
             stats.record(request.path, response.status_code)
+        # Not excluded from the log, though — a failing /_status is exactly the
+        # kind of thing the console must still say out loud. The query string
+        # goes with it when there is one, since a failing poll is identified by
+        # its `since=` as much as by its path.
+        log_error_response(app.logger, request.method,
+                           request.full_path if request.query_string
+                           else request.path,
+                           response.status_code)
         return response
 
     @app.route(STATUS_PATH)
@@ -127,7 +139,7 @@ def _register_unavailable(app, tab):
             "endpoint": f"{name}.index"}
 
 
-def startup_banner(tabs, port, config_origin, serving=True):
+def startup_banner(tabs, port, config_origin, serving=True, dev=False):
     """What the app resolved, and whether each tab can read what it needs.
 
     A missing or unreadable source is the usual reason a tab looks empty, so
@@ -158,6 +170,11 @@ def startup_banner(tabs, port, config_origin, serving=True):
                          f"{source.get('path', '')}  [{mark}]"
                          f" (from {source.get('from', 'default')})")
     if serving:
+        # Named because the two modes differ in one visible way — whether a
+        # .py edit restarts the server — and this is where to look for which
+        # one is running.
+        lines.append("  server       waitress"
+                     + (" (--dev: restarts on a .py edit)" if dev else ""))
         lines.append(f"  listening    http://0.0.0.0:{port}/")
         lines.append(f"  status       http://localhost:{port}{STATUS_PATH}")
         lines.append("               successful requests are not logged below — only "
@@ -165,33 +182,69 @@ def startup_banner(tabs, port, config_origin, serving=True):
     return "\n".join(lines)
 
 
+def parse_args(argv):
+    """`(config path or None, dev)` from the arguments after the program name.
+
+    One flag and one positional, so nothing here justifies argparse. `--dev` is
+    filtered out rather than counted by position, so it may be written on
+    either side of the config file.
+    """
+    dev = "--dev" in argv
+    rest = [arg for arg in argv if arg != "--dev"]
+    return (rest[0] if rest else None), dev
+
+
 def main():
-    port = 5090
-    path = tabs_module.config_path(sys.argv[1] if len(sys.argv) > 1 else None)
+    config_arg, dev = parse_args(sys.argv[1:])
+    path = tabs_module.config_path(config_arg)
     try:
         specs, origin = tabs_module.read_config(path)
         tabs = tabs_module.load_tabs(specs)
     except tabs_module.ConfigError as exc:
         sys.exit(f"hermes-observer: {exc}")
 
-    # The reloader runs main() in both the supervisor and the worker; only
-    # the worker sets WERKZEUG_RUN_MAIN, so printing in the supervisor shows
-    # the banner once at launch rather than again on every .py edit.
+    # Under --dev the reloader runs main() in both the supervisor and the
+    # worker; only the worker sets WERKZEUG_RUN_MAIN, so printing in the
+    # supervisor shows the banner once at launch rather than again on every
+    # .py edit. Without --dev there is one process and the variable is unset.
     if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
-        print(startup_banner(tabs, port, origin, serving=bool(tabs)), flush=True)
+        print(startup_banner(tabs, PORT, origin, serving=bool(tabs), dev=dev),
+              flush=True)
     # A broken tab is that tab's problem; no tab at all leaves nothing to
     # serve, which is worth exiting for.
     if not tabs:
         sys.exit("hermes-observer: no tabs could be loaded — nothing to serve")
 
-    # Installed on the werkzeug access logger, so it only affects the dev
-    # server's own console output — the app logs nothing of its own.
-    logging.getLogger("werkzeug").addFilter(SuppressSuccessFilter())
-    # use_reloader restarts the server when a .py file changes; debug stays
-    # False so the Werkzeug interactive debugger (arbitrary code execution)
-    # is never exposed on 0.0.0.0.
-    create_app(tabs).run(debug=False, use_reloader=True, host="0.0.0.0",
-                         port=port)
+    # Only the development server has an access log to quieten; waitress logs
+    # no requests at all. Errors reach the console from the app either way.
+    logging.getLogger("werkzeug").addFilter(SuppressAccessLogFilter())
+    # Configured here, and first: `waitress.serve` calls `logging.basicConfig()`
+    # itself, so leaving this out does not mean plain output — it means
+    # inheriting waitress's, which carries no clock. An error line needs one to
+    # be matched against the page that produced it. WARNING as the level is
+    # also what keeps waitress's own "Serving on ..." (INFO) out of a console
+    # the banner has already told where to look.
+    logging.basicConfig(level=logging.WARNING, datefmt="%H:%M:%S",
+                        format="[%(asctime)s] %(levelname)s %(message)s")
+
+    def serve_forever():
+        # The app is built here rather than in main() so that under --dev the
+        # supervisor never builds one: it does not serve, and a tab's init_app
+        # may open files. The worker re-execs the whole script, so it gets a
+        # fresh app on every restart either way.
+        serve(create_app(tabs), host="0.0.0.0", port=PORT)
+
+    if not dev:
+        serve_forever()
+        return
+    # The reloader is a supervisor around any callable, so --dev adds
+    # restart-on-edit to the same waitress server rather than swapping in a
+    # different one — no development-only serving path to diverge (ADR 14).
+    # Imported here because it is a private name: if it ever moves, --dev
+    # fails loudly at the moment it is asked for, and ordinary running, which
+    # never reaches this line, is untouched.
+    from werkzeug._reloader import run_with_reloader
+    run_with_reloader(serve_forever)
 
 
 if __name__ == "__main__":

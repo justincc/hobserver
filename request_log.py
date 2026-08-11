@@ -1,4 +1,4 @@
-"""Dev-server request visibility: quiet console, tally on demand.
+"""Request visibility: quiet console, tally on demand.
 
 The live-poll pages refetch every 2-3 s (turns index 3 s, a live turn 2 s,
 the memory fragment 3 s), which buries the console in identical lines. So
@@ -13,6 +13,15 @@ polling, and non-200 statuses mean the polls are arriving but failing.
 
 Only successful responses are suppressed. Errors always reach the console,
 since those are what a quiet log must never hide.
+
+**The app logs those errors itself** (`log_error_response`, called from the
+`after_request` hook), rather than leaving them to whatever is serving it.
+Waitress logs no requests at all — not even a 404, which Flask handles before
+the server ever sees a failure — so a console rule built on the server's
+access log would say nothing in the mode this app normally runs in. Logging a
+response where the app already has one keeps the rule true under both servers
+and in the same shape, and leaves `SuppressAccessLogFilter` one job: dropping
+the development server's duplicate access lines (ADR 14).
 """
 
 from __future__ import annotations
@@ -40,8 +49,8 @@ def _humanize(seconds: float) -> str:
 
 
 class RequestStats:
-    """Per-path request counts, thread-safe: the dev server serves requests
-    on threads, and /_status reads while they write."""
+    """Per-path request counts, thread-safe: waitress serves requests on a
+    pool of threads, and /_status reads while they write."""
 
     def __init__(self, clock=time.time):
         self._clock = clock
@@ -102,28 +111,47 @@ def format_status(snapshot: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _parse(record: logging.LogRecord):
-    """(path, status) from a werkzeug access record, or None if it is not
-    one. Werkzeug logs '"%s" %s %s' % (requestline, code, size), the code as
-    a string and the request line ANSI-styled for non-200 responses."""
+def log_error_response(logger, method: str, target: str, status: int) -> bool:
+    """Log a response the console must not hide. Returns whether it logged.
+
+    Successes are the silent case — the tally at /_status is what accounts for
+    those. 5xx is logged at error and 4xx at warning, so the two can be told
+    apart by level: a 404 is usually a stale URL after a rename, while a 500 is
+    this app failing to read what it was pointed at.
+    """
+    if 200 <= status < 400:
+        return False
+    logger.log(logging.ERROR if status >= 500 else logging.WARNING,
+               "%s %s -> %s", method, target, status)
+    return True
+
+
+def _is_access_record(record: logging.LogRecord) -> bool:
+    """Whether this is a werkzeug access line rather than one of its own
+    messages ("Restarting with stat", "Detected change in ...").
+
+    Werkzeug logs '"%s" %s %s' % (requestline, code, size), the code as a
+    string and the request line ANSI-styled for non-200 responses. Only the
+    shape is read, never the status: what to do with a request is decided by
+    `log_error_response`, on the app's side of the log, where it holds for
+    every server.
+    """
     args = record.args
     if not isinstance(args, tuple) or len(args) != 3:
-        return None
+        return False
     request_line, code = _ANSI.sub("", str(args[0])), str(args[1])
-    parts = request_line.split(" ")
-    if len(parts) != 3 or not code.isdigit():
-        return None
-    return parts[1], int(code)
+    return len(request_line.split(" ")) == 3 and code.isdigit()
 
 
-class SuppressSuccessFilter(logging.Filter):
-    """Drops the access-log line for any successful (2xx/3xx) response, so the
-    console shows only failures. Non-access records and 4xx/5xx pass through;
-    the running tally of everything, successes included, lives at /_status."""
+class SuppressAccessLogFilter(logging.Filter):
+    """Drops every access-log line from the development server, successes and
+    failures alike, leaving its own messages (the reloader's, notably) alone.
+
+    All of them, not just the successful ones: the app logs its own errors now
+    (`log_error_response`), so anything werkzeug adds here is the same response
+    reported twice. Dropping the lot is what makes `--dev` and ordinary running
+    print the same console.
+    """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        parsed = _parse(record)
-        if parsed is None:
-            return True
-        _, status = parsed
-        return not (200 <= status < 400)
+        return not _is_access_record(record)

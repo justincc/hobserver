@@ -29,13 +29,25 @@ uv run python app.py [observer.toml]
 
 Then open http://127.0.0.1:5090. The server binds to `0.0.0.0`, so it is
 also reachable from other machines on the local network at
-`http://<host-ip>:5090`.
+`http://<host-ip>:5090`. That is a local-network tool with no
+authentication in front of it — do not put it on an untrusted network.
 
-Edits are picked up without a manual restart: templates re-render from
-disk on the next request (`TEMPLATES_AUTO_RELOAD`), and the Werkzeug
-reloader restarts the server when a `.py` file changes. Debug mode stays
-off — the Werkzeug interactive debugger allows arbitrary code execution
-and must never be exposed on `0.0.0.0`.
+Serving is on [waitress](https://docs.pylonsproject.org/projects/waitress/),
+a production WSGI server, so there is no development-server warning at
+startup and no interactive debugger in existence to expose on `0.0.0.0`
+([ADR 14](docs/design/adr/0014-serve-on-waitress-and-keep-one-server-in-development.md)).
+It is pure Python: `uv sync` installs it like anything else, and there is
+no separate server command to run.
+
+Template edits are picked up on the next request without a restart
+(`TEMPLATES_AUTO_RELOAD`). For `.py` edits, add `--dev`:
+
+```bash
+uv run python app.py --dev
+```
+
+which puts the Werkzeug reloader around the same waitress server —
+restart-on-edit added, not a different server swapped in.
 
 ### Which tabs are served
 
@@ -112,8 +124,13 @@ app itself. The page repeats the distinction in its own header.
 
 The live-poll pages refetch every 2-3 s, which would bury the console. So
 successful (2xx/3xx) responses are **not logged at all**, on any path. Every
-non-2xx/3xx response keeps logging as usual — a quiet log must never hide an
-error.
+non-2xx/3xx response is logged — a quiet log must never hide an error — by
+the app itself rather than by the server, so the line reads the same in
+either mode:
+
+```
+[18:10:16] WARNING GET /memory/mem0/fragment/renamed?since=42 -> 404
+```
 
 The running tally lives at `/_status` (plain text, so it reads the same
 curled or in a browser): per path, request count, how long since the last

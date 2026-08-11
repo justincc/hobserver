@@ -14,6 +14,10 @@ dependencies = [
     # this one: something this tree should not hand-roll, behind a
     # degradation path.
     "markdown-it-py>=3",
+    # The WSGI server (ADR 14). This app binds 0.0.0.0, which wants a server
+    # written to face a network; waitress is pure Python and dependency-free,
+    # so it costs nothing at install time and runs wherever this app does.
+    "waitress>=3.0",
 ]
 
 [dependency-groups]

@@ -45,8 +45,8 @@ Two things to expect from it while running:
   persisting it.
 - **Editing `atof_reader.py`, `assembler.py` or `atof_index.py` forces a
   rebuild** on the next request, because the stored fields mean whatever those
-  files meant when they wrote them. With `use_reloader=True` this happens
-  during ordinary development, and the pause is the rebuild, not a hang.
+  files meant when they wrote them. Under `--dev` this happens during ordinary
+  development, and the pause is the rebuild, not a hang.
 
 ## Checking the db before serving
 
@@ -66,10 +66,11 @@ the Turns tab says so itself rather than going out of service.
 
 ## The startup banner
 
-Prints the config file, `HERMES_HOME`, and every tab with its sources — each
-marked ok, MISSING or UNUSABLE, and labelled with the rule that supplied the
-path. Once, in the reloader supervisor, since the worker sets
-`WERKZEUG_RUN_MAIN`.
+Prints the config file, `HERMES_HOME`, every tab with its sources — each marked
+ok, MISSING or UNUSABLE, and labelled with the rule that supplied the path —
+and the server, saying whether it restarts on an edit. Once: under `--dev` it
+prints in the reloader supervisor, since the worker sets `WERKZEUG_RUN_MAIN`,
+and without it there is only the one process.
 
 It is the only place a tab's problem is visible without opening the tab, so it
 has to carry the whole picture: a tab that is out of service leads with
@@ -78,18 +79,38 @@ requests are not logged, and points at `/_status`.
 
 ## Console noise
 
-`request_log.py` keeps the console usable despite the 2-3 s live polls: a
-`logging.Filter` (`SuppressSuccessFilter`) on the werkzeug access logger (dev
-server only) drops every successful (2xx/3xx) response on every path, so only
-errors are logged.
+`request_log.py` keeps the console usable despite the 2-3 s live polls:
+successful (2xx/3xx) responses are not logged at all, on any path, and only
+errors appear.
 
-This was deliberately simplified from an earlier per-path
+**The app logs the errors itself**, from the same `after_request` hook that
+keeps the tally — `log_error_response`, warning for a 4xx and error for a 5xx,
+carrying the query string when there is one, since a failing poll is identified
+by its `since=`:
+
+```
+[18:10:16] WARNING GET /memory/mem0/fragment/renamed?since=42 -> 404
+```
+
+It is the app's job rather than the server's because waitress logs no requests
+at all, and never sees a 404 in the first place — Flask answers those itself.
+A console rule built on a server's access log would say nothing in the mode
+this app normally runs in (ADR 14).
+
+`SuppressAccessLogFilter` therefore drops **every** access line from the
+development server, failures included: under `--dev` those are the same
+responses the app has already reported. Werkzeug's own messages — "Detected
+change in ...", which is the point of `--dev` — pass through. The filter reads
+only the shape of werkzeug's `'"%s" %s %s' % (request_line, code, size)` record
+args, never the status, so a werkzeug change can at worst restore duplicate
+lines under `--dev`; it cannot silence an error.
+
+`app.py` calls `logging.basicConfig` before serving. Not optional housekeeping:
+`waitress.serve` calls it otherwise, and its format has no clock.
+
+Success logging was deliberately simplified from an earlier per-path
 first-success-plus-pointer scheme. If fine-grained logging is ever wanted back,
 add a setting rather than reviving the complexity.
-
-The filter parses werkzeug's `'"%s" %s %s' % (request_line, code, size)` record
-args, so it is coupled to the dev server's log shape — check it on a werkzeug
-major bump.
 
 ## /_status
 
@@ -107,9 +128,30 @@ carries a clock, because counts look the same live or frozen.
 
 ## Serving
 
-Port 5090. Template and `.py` edits are picked up without a restart — template
-auto-reload plus the Werkzeug reloader. Debug stays off, so the interactive
-debugger is never exposed on 0.0.0.0.
+Port 5090, on **waitress** — a production WSGI server, chosen in
+[ADR 14](../design/adr/0014-serve-on-waitress-and-keep-one-server-in-development.md)
+because it is pure Python and so costs nothing to install. There is no
+interactive debugger to expose on 0.0.0.0; waitress has none.
+
+Template edits are always picked up on the next request
+(`TEMPLATES_AUTO_RELOAD`, which is Jinja's doing, not the server's).
+
+`.py` edits need `--dev`:
+
+```bash
+uv run python app.py --dev            # restarts on a .py edit
+uv run python app.py --dev other.toml # either order; --dev is not a config path
+```
+
+That adds the Werkzeug reloader as a supervisor around **the same waitress
+server** — it is not a second server. The banner's `server` line says which
+mode is running.
+
+Note that under `--dev` an edit to `atof_reader.py`, `assembler.py` or
+`atof_index.py` costs an index rebuild on the next request, as above.
+
+Being a real WSGI server is not the same as being safe to expose: there is no
+authentication in front of this app, and the bind is still `0.0.0.0`.
 
 Producer-side setup (nemo-relay install, plugin enable, `HERMES_NEMO_RELAY_*`
 in `~/.hermes/.env`) is in [setup-prompt-timing.md](setup-prompt-timing.md).

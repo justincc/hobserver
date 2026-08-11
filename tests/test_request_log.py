@@ -1,10 +1,20 @@
-"""Successful-response suppression and the /_status tally."""
+"""Response logging, access-log suppression, and the /_status tally."""
 
 import logging
 import re
 
-from request_log import (STATUS_PATH, RequestStats, SuppressSuccessFilter,
-                         format_status)
+from request_log import (STATUS_PATH, RequestStats, SuppressAccessLogFilter,
+                         format_status, log_error_response)
+
+
+class FakeLogger:
+    """Records (level, formatted message) instead of emitting."""
+
+    def __init__(self):
+        self.lines = []
+
+    def log(self, level, msg, *args):
+        self.lines.append((level, msg % args))
 
 
 def access_record(path, code=200, method="GET"):
@@ -16,26 +26,49 @@ def access_record(path, code=200, method="GET"):
         args=(f"{method} {path} HTTP/1.1", str(code), "-"), exc_info=None)
 
 
-def test_successful_responses_are_dropped():
-    f = SuppressSuccessFilter()
+def test_successful_responses_are_not_logged():
+    logger = FakeLogger()
     # every 2xx/3xx is silent, on any path — polled or not, first hit or not
     for path in ("/turns/", "/memory/mem0/", STATUS_PATH):
-        assert all(f.filter(access_record(path)) is False for _ in range(5))
-    assert f.filter(access_record("/turns/", code=302)) is False
+        for code in (200, 204, 302, 304):
+            assert log_error_response(logger, "GET", path, code) is False
+    assert logger.lines == []
 
 
-def test_errors_are_never_suppressed():
-    f = SuppressSuccessFilter()
-    # the failures a silenced log must never hide
-    assert f.filter(access_record("/turns/", code=500)) is True
-    assert f.filter(access_record("/turns/", code=404)) is True
+def test_errors_are_logged_with_the_server_out_of_it():
+    # the failures a quiet console must never hide — logged by the app, so
+    # they say the same thing whichever server is running
+    logger = FakeLogger()
+    assert log_error_response(logger, "GET", "/turns/999", 404) is True
+    assert log_error_response(logger, "POST", "/memory/mem0/", 500) is True
+    assert logger.lines == [(logging.WARNING, "GET /turns/999 -> 404"),
+                            (logging.ERROR, "POST /memory/mem0/ -> 500")]
+
+
+def test_server_error_and_client_error_differ_in_level():
+    # a 404 is usually a stale URL; a 500 is this app failing
+    logger = FakeLogger()
+    log_error_response(logger, "GET", "/turns/", 404)
+    log_error_response(logger, "GET", "/turns/", 503)
+    assert [level for level, _ in logger.lines] == [logging.WARNING,
+                                                    logging.ERROR]
+
+
+def test_every_access_line_is_dropped():
+    f = SuppressAccessLogFilter()
+    # including the failures: the app logs those itself, and one response
+    # reported twice is what --dev would otherwise print
+    for code in (200, 302, 404, 500):
+        assert f.filter(access_record("/turns/", code=code)) is False
 
 
 def test_non_access_records_pass_through():
-    f = SuppressSuccessFilter()
-    other = logging.LogRecord("werkzeug", logging.INFO, __file__, 1,
-                              "Restarting with stat", None, None)
-    assert f.filter(other) is True
+    f = SuppressAccessLogFilter()
+    # the reloader's own messages are the reason --dev keeps this logger
+    for message in ("Restarting with stat", "Detected change in 'app.py'"):
+        record = logging.LogRecord("werkzeug", logging.INFO, __file__, 1,
+                                   message, None, None)
+        assert f.filter(record) is True
 
 
 def test_stats_count_paths_and_statuses():
