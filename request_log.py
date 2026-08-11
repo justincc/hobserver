@@ -17,17 +17,15 @@ since those are what a quiet log must never hide.
 **The app logs those errors itself** (`log_error_response`, called from the
 `after_request` hook), rather than leaving them to whatever is serving it.
 Waitress logs no requests at all — not even a 404, which Flask handles before
-the server ever sees a failure — so a console rule built on the server's
-access log would say nothing in the mode this app normally runs in. Logging a
-response where the app already has one keeps the rule true under both servers
-and in the same shape, and leaves `SuppressAccessLogFilter` one job: dropping
-the development server's duplicate access lines (ADR 14).
+the server ever sees a failure — so nothing else here would report one. There
+is no access log to filter under either mode: werkzeug is present only as the
+reloader `--dev` wraps waitress in (ADR 14), and `QuietWerkzeugFilter` trims
+what that says.
 """
 
 from __future__ import annotations
 
 import logging
-import re
 import threading
 import time
 
@@ -35,8 +33,6 @@ STATUS_PATH = "/_status"
 # The status page refreshes itself, so watching it does not mean watching a
 # frozen number. Same cadence as the turns index.
 REFRESH_SECONDS = 3
-
-_ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def _humanize(seconds: float) -> str:
@@ -126,32 +122,18 @@ def log_error_response(logger, method: str, target: str, status: int) -> bool:
     return True
 
 
-def _is_access_record(record: logging.LogRecord) -> bool:
-    """Whether this is a werkzeug access line rather than one of its own
-    messages ("Restarting with stat", "Detected change in ...").
-
-    Werkzeug logs '"%s" %s %s' % (requestline, code, size), the code as a
-    string and the request line ANSI-styled for non-200 responses. Only the
-    shape is read, never the status: what to do with a request is decided by
-    `log_error_response`, on the app's side of the log, where it holds for
-    every server.
-    """
-    args = record.args
-    if not isinstance(args, tuple) or len(args) != 3:
-        return False
-    request_line, code = _ANSI.sub("", str(args[0])), str(args[1])
-    return len(request_line.split(" ")) == 3 and code.isdigit()
+# Logged by the reloader supervisor before it spawns each worker.
+_RESTART_NOTICE = "* Restarting with "
 
 
-class SuppressAccessLogFilter(logging.Filter):
-    """Drops every access-log line from the development server, successes and
-    failures alike, leaving its own messages (the reloader's, notably) alone.
+class QuietWerkzeugFilter(logging.Filter):
+    """Drops the reloader's restart notice, leaving "Detected change in ...,
+    reloading" — the line worth reading under `--dev`.
 
-    All of them, not just the successful ones: the app logs its own errors now
-    (`log_error_response`), so anything werkzeug adds here is the same response
-    reported twice. Dropping the lot is what makes `--dev` and ordinary running
-    print the same console.
+    The notice names the strategy files are watched with rather than anything
+    that happened, and at startup nothing has restarted at all. Every real
+    restart is already announced by the change line that causes it.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        return not _is_access_record(record)
+        return not record.getMessage().lstrip().startswith(_RESTART_NOTICE)

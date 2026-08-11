@@ -26,7 +26,7 @@ from waitress import serve
 import hermes_paths
 import tabs as tabs_module
 from request_log import (REFRESH_SECONDS, STATUS_PATH, RequestStats,
-                         SuppressAccessLogFilter, format_status,
+                         QuietWerkzeugFilter, format_status,
                          log_error_response)
 
 PORT = 5090
@@ -239,9 +239,9 @@ def main():
     if not tabs:
         sys.exit("hermes-observer: no tabs could be loaded — nothing to serve")
 
-    # Only the development server has an access log to quieten; waitress logs
-    # no requests at all. Errors reach the console from the app either way.
-    logging.getLogger("werkzeug").addFilter(SuppressAccessLogFilter())
+    # Werkzeug reaches this console only as the --dev reloader; installed in
+    # both modes so the two print the same thing.
+    logging.getLogger("werkzeug").addFilter(QuietWerkzeugFilter())
     # Configured here, and first: `waitress.serve` calls `logging.basicConfig()`
     # itself, so leaving this out does not mean plain output — it means
     # inheriting waitress's, which carries no clock. An error line needs one to

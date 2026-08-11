@@ -54,9 +54,10 @@ That belongs to the app rather than to the server because waitress logs no
 requests at all, and would not see a 404 in any case — Flask answers those
 before the server is involved. A console rule reading a server's access log
 would therefore say nothing in the mode this app normally runs in.
-`SuppressAccessLogFilter` is left with one job: dropping the development
-server's access lines, all of them, since under `--dev` those are responses the
-app has already reported.
+It also means no access log exists to filter: werkzeug arrives as the reloader
+alone, and its dev server never runs. `QuietWerkzeugFilter` is left trimming
+what that reloader says — dropping its restart notice, keeping the change line
+that explains a restart.
 
 `app.py` also calls `logging.basicConfig` before serving, because
 `waitress.serve` calls it otherwise and its default format carries no clock.

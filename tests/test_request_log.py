@@ -1,9 +1,9 @@
-"""Response logging, access-log suppression, and the /_status tally."""
+"""Response logging, reloader-notice suppression, and the /_status tally."""
 
 import logging
 import re
 
-from request_log import (STATUS_PATH, RequestStats, SuppressAccessLogFilter,
+from request_log import (STATUS_PATH, RequestStats, QuietWerkzeugFilter,
                          format_status, log_error_response)
 
 
@@ -15,15 +15,6 @@ class FakeLogger:
 
     def log(self, level, msg, *args):
         self.lines.append((level, msg % args))
-
-
-def access_record(path, code=200, method="GET"):
-    """A record shaped exactly as werkzeug 3.x emits one: the request line
-    and code are logging args, and the code is a string."""
-    return logging.LogRecord(
-        name="werkzeug", level=logging.INFO, pathname=__file__, lineno=1,
-        msg='127.0.0.1 - - [20/Jul/2026 12:00:00] "%s" %s %s',
-        args=(f"{method} {path} HTTP/1.1", str(code), "-"), exc_info=None)
 
 
 def test_successful_responses_are_not_logged():
@@ -54,21 +45,27 @@ def test_server_error_and_client_error_differ_in_level():
                                                     logging.ERROR]
 
 
-def test_every_access_line_is_dropped():
-    f = SuppressAccessLogFilter()
-    # including the failures: the app logs those itself, and one response
-    # reported twice is what --dev would otherwise print
-    for code in (200, 302, 404, 500):
-        assert f.filter(access_record("/turns/", code=code)) is False
+def werkzeug_record(message):
+    """One of the reloader's messages, as werkzeug logs it."""
+    return logging.LogRecord("werkzeug", logging.INFO, __file__, 1,
+                             message, None, None)
 
 
-def test_non_access_records_pass_through():
-    f = SuppressAccessLogFilter()
-    # the reloader's own messages are the reason --dev keeps this logger
-    for message in ("Restarting with stat", "Detected change in 'app.py'"):
-        record = logging.LogRecord("werkzeug", logging.INFO, __file__, 1,
-                                   message, None, None)
-        assert f.filter(record) is True
+def test_the_change_that_caused_a_reload_is_kept():
+    # the one line worth reading under --dev, and the reason this logger is
+    # filtered rather than silenced
+    f = QuietWerkzeugFilter()
+    assert f.filter(werkzeug_record(
+        " * Detected change in '/app/app.py', reloading")) is True
+
+
+def test_the_restart_notice_is_dropped():
+    # it names how files are watched, not anything that happened, and at
+    # startup nothing has restarted at all
+    f = QuietWerkzeugFilter()
+    assert f.filter(werkzeug_record(" * Restarting with stat")) is False
+    assert f.filter(werkzeug_record(
+        " * Restarting with watchdog (inotify)")) is False
 
 
 def test_stats_count_paths_and_statuses():

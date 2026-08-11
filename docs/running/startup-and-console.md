@@ -99,13 +99,14 @@ at all, and never sees a 404 in the first place — Flask answers those itself.
 A console rule built on a server's access log would say nothing in the mode
 this app normally runs in (ADR 14).
 
-`SuppressAccessLogFilter` therefore drops **every** access line from the
-development server, failures included: under `--dev` those are the same
-responses the app has already reported. Werkzeug's own messages — "Detected
-change in ...", which is the point of `--dev` — pass through. The filter reads
-only the shape of werkzeug's `'"%s" %s %s' % (request_line, code, size)` record
-args, never the status, so a werkzeug change can at worst restore duplicate
-lines under `--dev`; it cannot silence an error.
+Nothing else logs a request. There is no access log to filter in either mode:
+werkzeug is here only as the reloader `--dev` wraps waitress in, and its dev
+server never runs.
+
+What that reloader says is trimmed by `QuietWerkzeugFilter`, which drops
+`* Restarting with stat` — the strategy it watches files with, not anything
+that happened, and at startup nothing has restarted at all. `Detected change
+in ..., reloading` survives, which is the line worth reading under `--dev`.
 
 `app.py` calls `logging.basicConfig` before serving. Not optional housekeeping:
 `waitress.serve` calls it otherwise, and its format has no clock.
