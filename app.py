@@ -148,18 +148,20 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False):
     tab that could not load at all leads with its problem instead.
     """
     home = os.environ.get("HERMES_HOME")
-    lines = [
+    resolved = [
         "hermes-observer",
         f"  config       {config_origin}",
         f"  hermes dir   {hermes_paths.hermes_config_dir()}"
         f" ({'from HERMES_HOME' if home else 'default location, HERMES_HOME not set'})",
     ]
+
+    tab_lines = []
     if not tabs:
-        lines.append("  tabs         (none configured)")
+        tab_lines.append("  tabs         (none configured)")
     for tab in tabs:
         state = "ok" if tab.problem is None else f"UNAVAILABLE ({tab.problem})"
-        lines.append(f"  tab          {tab.label} ({tab.module_name})"
-                     f"  [{state}]")
+        tab_lines.append(f"  tab          {tab.label} ({tab.module_name})"
+                         f"  [{state}]")
         for source in tab.sources:
             problem = source.get("problem")
             if problem is None:
@@ -168,20 +170,26 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False):
                 mark = f"{'UNUSABLE' if source.get('required') else 'MISSING'}" \
                        f" ({problem})"
             supplier = source.get("from")
-            lines.append(f"    {source.get('label', 'source'):<10} "
-                         f"{source.get('path', '')}  [{mark}]"
-                         + (f" (from {supplier})" if supplier else ""))
+            tab_lines.append(f"    {source.get('label', 'source'):<10} "
+                             f"{source.get('path', '')}  [{mark}]"
+                             + (f" (from {supplier})" if supplier else ""))
+
+    serving_lines = []
     if serving:
         # Off prints too: it answers why an edit changed nothing, so it
         # carries the switch. The server is not here — it never varies.
-        lines.append("  reloading    " + (
+        serving_lines.append("  reloading    " + (
             "yes — on a .py edit" if dev else
             "no (specify --dev to reload on .py changes)"))
-        lines.append(f"  listening    http://0.0.0.0:{port}/")
-        lines.append(f"  status       http://localhost:{port}{STATUS_PATH}")
-        lines.append("               successful requests are not logged below — only "
-                     "errors show;\n               that page tallies every request.")
-    return "\n".join(lines)
+        serving_lines.append(f"  listening    http://0.0.0.0:{port}/")
+        serving_lines.append(f"  status       http://localhost:{port}{STATUS_PATH}")
+        serving_lines.append(
+            "               successful requests are not logged below — only "
+            "errors show;\n               that page tallies every request.")
+
+    # Blank lines between the groups, and an empty group takes none with it.
+    return "\n\n".join("\n".join(group) for group
+                       in (resolved, tab_lines, serving_lines) if group)
 
 
 def serve_forever(app, port=PORT):

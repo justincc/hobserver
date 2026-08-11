@@ -155,6 +155,25 @@ def test_banner_names_where_the_hermes_dir_came_from(monkeypatch):
     assert "hermes dir   /srv/hermes/config (from HERMES_HOME)" in banner
 
 
+def test_banner_separates_what_resolved_from_tabs_from_serving(memory_db):
+    tabs = load([{"module": "plugins.mem0", "settings": {"db": memory_db}}])
+    banner = app_module.startup_banner(tabs, 5090, "observer.toml")
+    groups = banner.split("\n\n")
+    assert len(groups) == 3
+    assert groups[0].startswith("hermes-observer")
+    assert groups[1].startswith("  tab   ")
+    assert groups[2].startswith("  reloading")
+    # a blank line ends nothing: it only ever comes between two groups
+    assert not banner.endswith("\n")
+    assert "\n\n\n" not in banner
+
+
+def test_banner_takes_no_blank_line_with_an_empty_group():
+    banner = app_module.startup_banner([], 5090, "observer.toml", serving=False)
+    assert not banner.endswith("\n")
+    assert len(banner.split("\n\n")) == 2
+
+
 def test_banner_does_not_claim_to_listen_when_nothing_loaded():
     banner = app_module.startup_banner([], 5090, "observer.toml", serving=False)
     assert "none configured" in banner
