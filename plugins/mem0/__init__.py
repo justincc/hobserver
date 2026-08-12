@@ -118,12 +118,10 @@ def check_db(path):
 
 
 def db_path(settings):
-    """The event log to read: the `db` setting, else $JMEM0_DB, else the
-    default under the hermes config dir."""
+    """The event log to read: the `db` setting, else the default under the
+    hermes config dir."""
     if settings.get("db"):
         return settings["db"]
-    if os.environ.get("JMEM0_DB"):
-        return os.environ["JMEM0_DB"]
     return os.path.join(hermes_paths.hermes_config_dir(), "jmem0_logged.db")
 
 

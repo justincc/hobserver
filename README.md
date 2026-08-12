@@ -89,18 +89,20 @@ default, so a fresh checkout runs with no setup.
 
 ### Where the data comes from
 
-Each tab resolves its own source: its `settings` in the config file, then an
-environment variable, then a default under the hermes-agent config directory.
-The hermes-agent config directory is `$HERMES_HOME` when it is set, else
-`~/.hermes` — the same fallback the agent itself uses, so a default install
-needs no configuring either way. `HERMES_HOME` is normalized, since the agent
-conventionally exports it as `<checkout>/hermes-agent/../config`.
+Each tab resolves its own source: its `settings` in the config file, else a
+default under the hermes-agent config directory. That directory is
+`$HERMES_HOME` when it is set, else `~/.hermes` — the same fallback the agent
+itself uses, so a default install needs no configuring either way.
+`HERMES_HOME` is normalized, since the agent conventionally exports it as
+`<checkout>/hermes-agent/../config`. It stays an environment variable
+deliberately: it is hermes-agent's, shared across its tooling, not this app's
+to relocate into a config file.
 
-| tab | setting | env | default |
-| --- | --- | --- | --- |
-| Turns | `atof_log` | `ATOF_LOG` | `$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl` |
-| Turns | `index_db` | — | `$XDG_CACHE_HOME/hermes-observer/atof-index-<hash>.sqlite3` |
-| Mem0 | `db` | `JMEM0_DB` | `$HERMES_HOME/jmem0_logged.db` |
+| tab | setting | default |
+| --- | --- | --- |
+| Turns | `atof_log` | `$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl` |
+| Turns | `index_db` | `$XDG_CACHE_HOME/hermes-observer/atof-index-<hash>.sqlite3` |
+| Mem0 | `db` | `$HERMES_HOME/jmem0_logged.db` |
 
 The Turns source is the events JSONL written by the nemo_relay plugin's ATOF
 exporter. It is allowed to be absent — hermes may simply not have run with the

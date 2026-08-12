@@ -45,14 +45,12 @@ STALE_AFTER_US = 10 * 60 * 1_000_000
 
 
 def atof_path(settings):
-    """The ATOF log to read: the `atof_log` setting, else $ATOF_LOG, else the
-    nemo_relay exporter's default under the hermes config dir. A path is
-    always returned — if it does not exist this tab says so itself, naming the
-    path it looked at, which beats the vaguer unconfigured state."""
+    """The ATOF log to read: the `atof_log` setting, else the nemo_relay
+    exporter's default under the hermes config dir. A path is always returned
+    — if it does not exist this tab says so itself, naming the path it looked
+    at, which beats the vaguer unconfigured state."""
     if settings.get("atof_log"):
         return settings["atof_log"]
-    if os.environ.get("ATOF_LOG"):
-        return os.environ["ATOF_LOG"]
     return os.path.join(hermes_paths.hermes_config_dir(), "nemo-relay",
                         "atof", "hermes-atof.jsonl")
 
@@ -316,8 +314,8 @@ def _source_problem():
     """The loud no-source state; None when the file is readable.
 
     There is no "unconfigured" case any more: a path is always resolved (the
-    setting, then $ATOF_LOG, then the default), so an absent log is always a
-    path that does not exist — which is the more useful thing to say.
+    setting, else the default), so an absent log is always a path that does
+    not exist — which is the more useful thing to say.
     """
     atof_path = current_app.config["ATOF_PATH"]
     if not os.path.exists(atof_path):

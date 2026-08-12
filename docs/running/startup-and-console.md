@@ -13,18 +13,17 @@ single broken tab never is.
 
 ## Resolving sources
 
-Each plugin resolves its own, in this order: its `settings` from the config
-file, then an environment variable, then a default under
-`hermes_paths.hermes_config_dir()` — the normalized `$HERMES_HOME`, else
-`~/.hermes`, which is what hermes-agent itself falls back to. So nothing has
-to be configured when `HERMES_HOME` is exported, and an installation that
-keeps hermes in the conventional place needs nothing either.
+Each plugin resolves its own: its `settings` from the config file, else a
+default under `hermes_paths.hermes_config_dir()` — the normalized
+`$HERMES_HOME`, else `~/.hermes`, which is what hermes-agent itself falls back
+to. So nothing has to be configured when `HERMES_HOME` is exported, and an
+installation that keeps hermes in the conventional place needs nothing either.
 
-| tab | setting | env |
-| --- | --- | --- |
-| Turns | `atof_log` | `ATOF_LOG` |
-| Turns | `index_db` | — |
-| Mem0 | `db` | `JMEM0_DB` |
+| tab | setting |
+| --- | --- |
+| Turns | `atof_log` |
+| Turns | `index_db` |
+| Mem0 | `db` |
 
 A plugin reports what it resolved through its `sources` hook, which is what
 the banner prints — the shell knows none of the above.

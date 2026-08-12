@@ -39,6 +39,9 @@ Conventions:
   process (ADR 2): memory reads `jmem0_logged.db` (`DB_PATH`), timing reads
   the ATOF JSONL (`ATOF_PATH`, from the `ATOF_LOG` environment variable).
   Data-source paths live in the shell's app config.
+  *(Later: the per-source environment variables were dropped — a path comes
+  from the tab's `settings` in `observer.toml`, else a default under the
+  hermes config dir. `HERMES_HOME` stays an env var, being hermes-agent's.)*
 - Each plugin's templates live in `templates/<name>/`; shared chrome and
   styling stay in `templates/base.html`.
   *(Later: a plugin's templates moved inside the plugin —

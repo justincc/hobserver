@@ -60,7 +60,7 @@ def test_missing_file_is_stated_loudly(tmp_path):
     # the fail-open caveat from ADR 1/2 must be surfaced to the user
     assert "fails open" in page
     # and how to point it somewhere else
-    assert "observer.toml" in page and "ATOF_LOG" in page
+    assert "observer.toml" in page
 
 
 def test_empty_file_states_no_events_loudly(tmp_path):

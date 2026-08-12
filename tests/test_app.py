@@ -65,8 +65,6 @@ def test_sources_derive_from_hermes_home(monkeypatch):
     # both in-tree plugins default off the hermes config dir, so a correctly
     # set HERMES_HOME is all that is needed to start with no config at all
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
-    monkeypatch.delenv("JMEM0_DB", raising=False)
-    monkeypatch.delenv("ATOF_LOG", raising=False)
     assert hermes_paths.hermes_config_dir() == "/srv/hermes/config"
     assert mem0.db_path({}) == "/srv/hermes/config/jmem0_logged.db"
     assert turns.atof_path({}) == \
@@ -81,7 +79,6 @@ def test_hermes_home_is_normalized(monkeypatch):
 
 def test_sources_fall_back_without_hermes_home(monkeypatch):
     monkeypatch.delenv("HERMES_HOME", raising=False)
-    monkeypatch.delenv("JMEM0_DB", raising=False)
     assert hermes_paths.hermes_config_dir() == hermes_paths.FALLBACK_CONFIG_DIR
     assert mem0.db_path({}).endswith("/.hermes/jmem0_logged.db")
 
@@ -96,18 +93,10 @@ def test_the_fallback_matches_the_agents_own_default(monkeypatch):
     assert fallback == os.path.join(os.path.expanduser("~"), ".hermes")
 
 
-def test_env_vars_override_the_defaults(monkeypatch):
-    # a plugin resolves its own source: setting, then env var, then default
+def test_settings_override_the_default(monkeypatch):
+    # a plugin resolves its own source: its `settings` entry, else the default
+    # under the hermes config dir. A set path wins wherever HERMES_HOME points.
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
-    monkeypatch.setenv("JMEM0_DB", "/tmp/other.db")
-    monkeypatch.setenv("ATOF_LOG", "/tmp/other.jsonl")
-    assert mem0.db_path({}) == "/tmp/other.db"
-    assert turns.atof_path({}) == "/tmp/other.jsonl"
-
-
-def test_settings_win_over_the_environment(monkeypatch):
-    monkeypatch.setenv("JMEM0_DB", "/tmp/env.db")
-    monkeypatch.setenv("ATOF_LOG", "/tmp/env.jsonl")
     assert mem0.db_path({"db": "/tmp/set.db"}) == "/tmp/set.db"
     assert turns.atof_path({"atof_log": "/tmp/set.jsonl"}) == "/tmp/set.jsonl"
 
@@ -131,7 +120,6 @@ def test_banner_reports_each_tabs_sources(memory_db, tmp_path, monkeypatch):
 
 def test_banner_lists_a_path_without_saying_what_supplied_it(monkeypatch):
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
-    monkeypatch.delenv("ATOF_LOG", raising=False)
     for entry in ({"module": "plugins.turns"},
                   {"module": "plugins.turns",
                    "settings": {"atof_log": "/tmp/a.jsonl"}}):
