@@ -49,7 +49,7 @@ re-addressing the tabs cheap.
 
 ## The configuration
 
-`observer.toml` lists the tabs, in tab order:
+`hobserve.toml` lists the tabs, in tab order:
 
 ```toml
 [[tabs]]
@@ -66,8 +66,8 @@ enabled = false
 - `module` is any importable path, in this tree or installed elsewhere.
 - `settings` is passed to the plugin untouched, with `~` and `$VARS` expanded.
 
-The file is found via the first command-line argument, else `$OBSERVER_CONFIG`,
-else `./observer.toml`. If none exists the built-in default list is used, so a
+The file is found via the first command-line argument, else `$HOBSERVE_CONFIG`,
+else `./hobserve.toml`. If none exists the built-in default list is used, so a
 fresh checkout runs with no setup.
 
 ## When a tab cannot load

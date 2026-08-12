@@ -4,7 +4,7 @@ These render on somebody else's page — a turn waterfall — but they are this
 plugin's rendering of this plugin's data, so they live here rather than in
 the Turns tab's own table. `__init__` exposes them as `SCOPES`, and the
 shell hands them to whichever tab paints spans; disable this tab in
-`observer.toml` and they go with it.
+`hobserve.toml` and they go with it.
 
 Nothing here opens the mem0 store. A `Link` names a page this tab serves and
 `accessor()` calls the lookup this tab published — ADR 4's two shapes, which

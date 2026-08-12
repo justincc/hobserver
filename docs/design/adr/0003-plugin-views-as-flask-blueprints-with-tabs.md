@@ -40,7 +40,7 @@ Conventions:
   the ATOF JSONL (`ATOF_PATH`, from the `ATOF_LOG` environment variable).
   Data-source paths live in the shell's app config.
   *(Later: the per-source environment variables were dropped — a path comes
-  from the tab's `settings` in `observer.toml`, else a default under the
+  from the tab's `settings` in `hobserve.toml`, else a default under the
   hermes config dir. `HERMES_HOME` stays an env var, being hermes-agent's.)*
 - Each plugin's templates live in `templates/<name>/`; shared chrome and
   styling stay in `templates/base.html`.

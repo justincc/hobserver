@@ -23,7 +23,7 @@
 
 ## Project
 
-hermes-observer: a Flask webapp for observing hermes-agent activity. Views
+hobserve: a Flask webapp for observing hermes-agent activity. Views
 are plugins shown as horizontal tabs — **Turns** (`/turns/`, per-turn
 waterfalls from the NeMo Relay ATOF JSONL) and **Mem0** (`/memory/mem0/`,
 the mem0 event log in `jmem0_logged.db`).
@@ -36,10 +36,10 @@ never owns or mutates data.
 Here because they are needed every session; explained once in
 [README.md](README.md), which is where a change to any of them goes.
 
-- Run: `uv run python app.py [observer.toml]`, port 5090. Every argument is
+- Run: `uv run python app.py [hobserve.toml]`, port 5090. Every argument is
   optional. `--dev` also reloads on `.py` edits.
 - Test: `uv run pytest`, or `uv run pytest plugins/<name>` for one plugin's.
-- Which tabs are served, in which order: `observer.toml`.
+- Which tabs are served, in which order: `hobserve.toml`.
 
 ### Where things are written down
 
@@ -75,7 +75,7 @@ and scope-spec authors, and the record of what is published to them.
   contract, the config file, what happens when a tab cannot load, URL naming,
   crossing between plugins
 
-**`docs/running/`** — operating the observer. For someone with it installed
+**`docs/running/`** — operating hobserve. For someone with it installed
 and no intention of writing code against it.
 
 - [setup-prompt-timing.md](docs/running/setup-prompt-timing.md) —

@@ -16,7 +16,7 @@ through `render=` — see [the one exception](#the-one-exception).
 **Adding a scope** is one entry in the `SCOPES` table. Order does not matter:
 each scope names its own rows, so nothing has to precede anything. A scope
 this app has no entry for renders its payload through the generic fallback,
-and a spec module named in `observer.toml` can add or replace entries without
+and a spec module named in `hobserve.toml` can add or replace entries without
 forking this tree — see
 [design-principles.md](design-principles.md#1-extension-without-a-fork).
 
@@ -128,7 +128,7 @@ what it means is left to the tooltip that was always carrying it.
 
   ```
   finish_reason  complete
-  prompt         Have another look at the observer's llm rows …
+  prompt         Have another look at hobserve's llm rows …
   response       The finish reason now carries its key …
   tool_calls     read_file · read_file · terminal
   ```
@@ -355,7 +355,7 @@ what it means is left to the tooltip that was always carrying it.
     there: the page's own title was tried and reads as one more part, since
     every entry below it is a part of the Prompt.
 
-    The anchor is on the **`hermes observer` heading in `base.html`**, not
+    The anchor is on the **`hobserve` heading in `base.html`**, not
     on anything this page renders. Everything the page renders is below
     that heading, so an anchor on any of it lands short of the top — which
     reads as a bug rather than as a choice. A test asserts nothing renders

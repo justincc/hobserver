@@ -1,5 +1,5 @@
 [project]
-name = "hermes-observer"
+name = "hobserve"
 version = "0.1.0"
 description = "Web UI for observing hermes-agent: mem0 event logs and prompt timing"
 # 3.11 for tomllib: the tab configuration is TOML (ADR 5) and reading it

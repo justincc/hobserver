@@ -2,7 +2,7 @@
 
 The Turns tab reads the ATOF JSONL stream that hermes-agent's bundled
 `observability/nemo_relay` plugin exports (see docs/design/adr/0001 and 0002).
-There are two halves: hermes-agent **produces** the log, hermes-observer
+There are two halves: hermes-agent **produces** the log, hobserve
 **consumes** it.
 
 ## Producing: enable the exporter in hermes-agent
@@ -41,7 +41,7 @@ There are two halves: hermes-agent **produces** the log, hermes-observer
 
    The directory is created automatically. The default filename is
    `hermes-atof.jsonl` (`HERMES_NEMO_RELAY_ATOF_FILENAME` overrides it).
-   Keep `append` mode — the observer's tailer reads incrementally and
+   Keep `append` mode — hobserve's tailer reads incrementally and
    treats a shrinking file as a rotation, but append is the mode ADR 2
    assumes day to day.
 
@@ -68,7 +68,7 @@ There are two halves: hermes-agent **produces** the log, hermes-observer
    installed in that venv, or the env vars are not reaching the process —
    the plugin **fails open** and reports none of these.
 
-## Consuming: point hermes-observer at the log
+## Consuming: point hobserve at the log
 
 Nothing needs passing — the log defaults to `nemo-relay/atof/hermes-atof.jsonl`
 under `$HERMES_HOME` when it is set, else under `~/.hermes`, which is the
@@ -79,7 +79,7 @@ uv run python app.py
 ```
 
 Override a source when it lives elsewhere by setting it for the tab in
-`observer.toml`:
+`hobserve.toml`:
 
 ```toml
 [[tabs]]

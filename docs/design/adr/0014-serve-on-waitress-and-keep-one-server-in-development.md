@@ -13,7 +13,7 @@ be written to face one: to survive a slow or malformed client, and to fail a
 request rather than the process. That is the whole of the requirement. Load is
 not part of it — this is a single-user tool, usually on a home network, and
 will never need to scale. *(Later: the bind defaults to loopback and a network
-bind is opt-in via `host` in observer.toml — but the server still has to be
+bind is opt-in via `host` in hobserve.toml — but the server still has to be
 one that could face a network, so the choice below is unchanged.)*
 
 Three constraints on the choice:

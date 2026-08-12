@@ -1,7 +1,7 @@
 """Reading the tab configuration and loading the plugins it names.
 
 Per ADR 5: tabs are declared in a TOML file, in tab order, and loaded by
-module path — `plugins.turns` from this tree and `hermes_observer_zep` from
+module path — `plugins.turns` from this tree and `hobserve_zep` from
 site-packages arrive the same way, so a tab needs no fork to be added.
 
     [[tabs]]
@@ -32,9 +32,9 @@ from dataclasses import dataclass, field
 # than half-loaded.
 PLUGIN_API = 1
 
-CONFIG_ENV = "OBSERVER_CONFIG"
-DEFAULT_CONFIG_FILE = "observer.toml"
-EXAMPLE_CONFIG_FILE = "observer.example.toml"
+CONFIG_ENV = "HOBSERVE_CONFIG"
+DEFAULT_CONFIG_FILE = "hobserve.toml"
+EXAMPLE_CONFIG_FILE = "hobserve.example.toml"
 
 # The `origin` read_config reports when no file was found and BUILTIN_TABS is
 # serving. A named constant, not a bare string, because the banner keys its
@@ -42,8 +42,8 @@ EXAMPLE_CONFIG_FILE = "observer.example.toml"
 BUILTIN_ORIGIN = "built-in defaults"
 
 # Used when no config file is found at all, so a fresh checkout runs with no
-# setup. Same two tabs, same order, as observer.example.toml — the tracked
-# template a user copies to observer.toml only when customising.
+# setup. Same two tabs, same order, as hobserve.example.toml — the tracked
+# template a user copies to hobserve.toml only when customising.
 BUILTIN_TABS = ({"module": "plugins.turns"}, {"module": "plugins.mem0"})
 
 # What a module must expose to be a tab: `bp` the Flask blueprint (its name

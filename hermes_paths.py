@@ -11,7 +11,7 @@ import os
 # Where hermes-agent keeps its config when nobody has said otherwise. This
 # must match what the agent itself falls back to with HERMES_HOME unset —
 # hermes_constants._get_platform_default_hermes_home() — or an installation
-# that configured nothing gets an observer looking in a directory hermes
+# that configured nothing gets hobserve looking in a directory hermes
 # never writes to, which is exactly the installation the fallback is for.
 FALLBACK_CONFIG_DIR = os.path.expanduser("~/.hermes")
 

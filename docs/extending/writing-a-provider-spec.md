@@ -63,12 +63,12 @@ ACME_ROUTER = UsageShape(
 USAGE_SHAPES = (ACME_ROUTER,)
 ```
 
-Then in `observer.toml`:
+Then in `hobserve.toml`:
 
 ```toml
 [[tabs]]
 module = "plugins.turns"
-settings = { provider_specs = ["hermes_observer_acme.providers"] }
+settings = { provider_specs = ["hobserve_acme.providers"] }
 ```
 
 That is the whole contract. The tab reads the module at startup, puts your

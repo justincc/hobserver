@@ -60,7 +60,7 @@ def test_missing_file_is_stated_loudly(tmp_path):
     # the fail-open caveat from ADR 1/2 must be surfaced to the user
     assert "fails open" in page
     # and how to point it somewhere else
-    assert "observer.toml" in page
+    assert "hobserve.toml" in page
 
 
 def test_empty_file_states_no_events_loudly(tmp_path):
@@ -2129,8 +2129,8 @@ def test_a_full_page_leaves_the_tab_bar_out(tmp_path):
     page = _llm_client(tmp_path).get(
         "/turns/span/L1/response").get_data(as_text=True)
     assert 'nav class="tabs"' not in page
-    assert "observer status" not in page
-    assert "hermes observer" in page        # …but the way home stays
+    assert "hobserve status" not in page
+    assert "hobserve" in page        # …but the way home stays
 
 
 def test_a_page_reached_by_navigating_keeps_the_tab_bar(tmp_path):
@@ -2373,12 +2373,12 @@ def test_the_contents_list_offers_a_way_back_to_the_top(tmp_path):
 def test_the_way_back_to_the_top_lands_at_the_actual_top(tmp_path):
     """`#top` with nothing carrying that id is a link that silently does
     nothing. Landing *nearly* at the top is the subtler bug: an anchor on
-    anything the page renders sits below the `hermes observer` heading, so
+    anything the page renders sits below the `hobserve` heading, so
     the jump stops short of it."""
     page = _full_page(tmp_path)
     assert 'id="top"' in page, "nothing carries the anchor"
     # it is on the site heading, and nothing renders above that
-    assert re.search(r'<h1 id="top"><a[^>]*>hermes observer</a></h1>', page)
+    assert re.search(r'<h1 id="top"><a[^>]*>hobserve</a></h1>', page)
     anchor = page.index('<h1 id="top"')
     body = page.index("<body>")
     between = page[body + len("<body>"):anchor]

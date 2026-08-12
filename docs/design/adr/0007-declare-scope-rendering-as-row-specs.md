@@ -86,7 +86,7 @@ leaves nowhere to put it destroys more than it tidies.
 ### Scope rendering is the last thing you must fork to extend
 
 [ADR 5](0005-tabs-are-configured-plugins-loaded-by-module-path.md) set out
-that someone should be able to install hermes-observer, install or write their
+that someone should be able to install hobserve, install or write their
 own tab, and run both "with no patch carried on top of this tree". That holds
 at tab granularity. It does not hold inside the Prompts tab.
 
@@ -147,7 +147,7 @@ display decisions outside `uv run pytest`, where 106 tests currently hold
 them. And every escape hatch a text format grows becomes an `eval` on config
 text.
 
-**`observer.toml` stays what ADR 5 made it: tab wiring.** This is the
+**`hobserve.toml` stays what ADR 5 made it: tab wiring.** This is the
 distinction that decides the format — which tabs load is an operator's
 choice, and how a span renders is the app's own structure. Only the first
 belongs in a file an operator edits.
@@ -184,12 +184,12 @@ ADR 5 already established rather than a new one:
 ```toml
 [[tabs]]
 module = "plugins.turns"
-settings = { scope_specs = ["hermes_observer_acme.specs"] }
+settings = { scope_specs = ["hobserve_acme.specs"] }
 ```
 
 The Prompts plugin imports each named module and merges its `SCOPES` table
 over its own. `settings` is opaque to the shell, the value is an importable
-module path, and `plugins.turns.specs` and `hermes_observer_acme.specs`
+module path, and `plugins.turns.specs` and `hobserve_acme.specs`
 load identically — the same three properties ADR 5 gave `module`. No new
 config concept, and no entry points, for the reason ADR 5 gave: discovery
 would be a second place to look when something does not render.

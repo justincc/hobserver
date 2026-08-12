@@ -10,7 +10,7 @@ notation for a reader, not a variable anything here resolves, and it is not
 
 A scope with no entry here renders its payload through the generic fallback.
 That is the right destination for a tool this app has never heard of, and a
-spec module named in `observer.toml` can override or extend this table
+spec module named in `hobserve.toml` can override or extend this table
 without forking — see docs/design/design-principles.md.
 
 Specs are alphabetical, and so is the SCOPES table at the foot, so a scope can

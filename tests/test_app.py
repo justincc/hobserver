@@ -107,14 +107,14 @@ def test_banner_reports_each_tabs_sources(memory_db, tmp_path, monkeypatch):
         {"module": "plugins.turns", "settings": {"atof_log": "/nope/absent.jsonl"}},
         {"module": "plugins.mem0", "settings": {"db": memory_db}},
     ])
-    banner = app_module.startup_banner(tabs, 5090, "observer.toml")
+    banner = app_module.startup_banner(tabs, 5090, "hobserve.toml")
     assert f"{memory_db}  [ok]" in banner
     assert "/nope/absent.jsonl  [MISSING" in banner   # allowed to be absent
     # the mark ends the line, as it does on the source lines below it
     assert "Turns (plugins.turns)  [ok]" in banner
     assert "Mem0 (plugins.mem0)  [ok]" in banner
     assert "/srv/hermes/config" in banner
-    assert "observer.toml" in banner
+    assert "hobserve.toml" in banner
     assert "http://127.0.0.1:5090/" in banner   # loopback by default
 
 
@@ -123,7 +123,7 @@ def test_banner_lists_a_path_without_saying_what_supplied_it(monkeypatch):
     for entry in ({"module": "plugins.turns"},
                   {"module": "plugins.turns",
                    "settings": {"atof_log": "/tmp/a.jsonl"}}):
-        banner = app_module.startup_banner(load([entry]), 5090, "observer.toml")
+        banner = app_module.startup_banner(load([entry]), 5090, "hobserve.toml")
         source_lines = [line for line in banner.splitlines()
                         if line.startswith("    ")]
         assert source_lines
@@ -136,7 +136,7 @@ def test_banner_reports_an_unusable_database(monkeypatch):
     longer exits the app, so the banner is where it has to be obvious."""
     monkeypatch.delenv("HERMES_HOME", raising=False)
     tabs = load([{"module": "plugins.mem0", "settings": {"db": "."}}])
-    banner = app_module.startup_banner(tabs, 5090, "observer.toml")
+    banner = app_module.startup_banner(tabs, 5090, "hobserve.toml")
     assert "UNAVAILABLE (event db: not a regular file)" in banner
     assert ".  [UNUSABLE (not a regular file)]" in banner
 
@@ -151,7 +151,7 @@ def test_banner_flags_an_unset_hermes_home(monkeypatch):
 def test_banner_names_where_the_hermes_dir_came_from(monkeypatch):
     # one line, not the variable and the path it resolves to
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/hermes-agent/../config")
-    banner = app_module.startup_banner([], 5090, "observer.toml")
+    banner = app_module.startup_banner([], 5090, "hobserve.toml")
     assert "hermes dir   /srv/hermes/config (from HERMES_HOME)" in banner
 
 
@@ -160,19 +160,19 @@ def test_banner_points_a_fresh_checkout_at_the_example():
     # none, and name the example to copy. Only on the built-in origin.
     fresh = app_module.startup_banner([], 5090, tabs_module.BUILTIN_ORIGIN)
     assert "running out of the box" in fresh
-    assert "copy observer.example.toml to observer.toml" in fresh
+    assert "copy hobserve.example.toml to hobserve.toml" in fresh
 
-    configured = app_module.startup_banner([], 5090, "observer.toml")
+    configured = app_module.startup_banner([], 5090, "hobserve.toml")
     assert "running out of the box" not in configured
-    assert "observer.example.toml" not in configured
+    assert "hobserve.example.toml" not in configured
 
 
 def test_banner_separates_what_resolved_from_tabs_from_serving(memory_db):
     tabs = load([{"module": "plugins.mem0", "settings": {"db": memory_db}}])
-    banner = app_module.startup_banner(tabs, 5090, "observer.toml")
+    banner = app_module.startup_banner(tabs, 5090, "hobserve.toml")
     groups = banner.split("\n\n")
     assert len(groups) == 3
-    assert groups[0].startswith("hermes-observer")
+    assert groups[0].startswith("hobserve")
     assert groups[1].startswith("  tab   ")
     assert groups[2].startswith("  reloading")
     # a blank line ends nothing: it only ever comes between two groups
@@ -185,7 +185,7 @@ def test_banner_puts_a_blank_line_between_tabs(memory_db):
     # reports do not run together
     tabs = load([{"module": "plugins.turns", "settings": {"atof_log": "/no.jsonl"}},
                  {"module": "plugins.mem0", "settings": {"db": memory_db}}])
-    banner = app_module.startup_banner(tabs, 5090, "observer.toml")
+    banner = app_module.startup_banner(tabs, 5090, "hobserve.toml")
     turns_at = banner.index("Turns (plugins.turns)")
     mem0_at = banner.index("Mem0 (plugins.mem0)")
     between = banner[turns_at:mem0_at]
@@ -194,13 +194,13 @@ def test_banner_puts_a_blank_line_between_tabs(memory_db):
 
 
 def test_banner_takes_no_blank_line_with_an_empty_group():
-    banner = app_module.startup_banner([], 5090, "observer.toml", serving=False)
+    banner = app_module.startup_banner([], 5090, "hobserve.toml", serving=False)
     assert not banner.endswith("\n")
     assert len(banner.split("\n\n")) == 2
 
 
 def test_banner_does_not_claim_to_listen_when_nothing_loaded():
-    banner = app_module.startup_banner([], 5090, "observer.toml", serving=False)
+    banner = app_module.startup_banner([], 5090, "hobserve.toml", serving=False)
     assert "none configured" in banner
     assert "listening" not in banner
 
@@ -242,7 +242,7 @@ def test_status_link_in_the_tab_bar_opens_a_new_tab(client):
     assert 'class="status-link"' in page
     # named so it cannot be read as agent/LLM requests, which is what every
     # other view on this app shows
-    assert ">observer status</a>" in page
+    assert ">hobserve status</a>" in page
     assert ">requests</a>" not in page
     # a diagnostic, not a view: it never takes the active-tab styling
     assert '/_status" class="active"' not in page

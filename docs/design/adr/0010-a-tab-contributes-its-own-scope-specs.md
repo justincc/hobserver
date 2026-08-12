@@ -29,7 +29,7 @@ Two things follow from leaving them there:
   would have stayed behind.
 - **A link can outlive its target.** `url_for` raises `BuildError` for an
   endpoint nothing serves — verified, not assumed. With the mem0 tab disabled
-  in `observer.toml` and its specs still loaded, every turn page holding a
+  in `hobserve.toml` and its specs still loaded, every turn page holding a
   mem0 span would 500. Nothing in the design prevented that; it simply had not
   happened yet because the specs and the tab were the same deployment unit by
   accident.

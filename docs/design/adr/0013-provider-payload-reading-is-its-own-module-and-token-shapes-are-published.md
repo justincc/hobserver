@@ -95,7 +95,7 @@ mapped key disagree — the exact fault that is otherwise silent.
 
 ### Contributed shapes are tried first, not merged
 
-`provider_specs = ["hermes_observer_acme.providers"]` names modules
+`provider_specs = ["hobserve_acme.providers"]` names modules
 exposing `USAGE_SHAPES`. They go in **front** of the built-ins.
 
 Not merged, because a shape is a probe rather than a table entry, and the

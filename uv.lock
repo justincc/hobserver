@@ -50,7 +50,7 @@ wheels = [
 ]
 
 [[package]]
-name = "hermes-observer"
+name = "hobserve"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
