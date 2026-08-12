@@ -27,7 +27,8 @@ to point at live files while hermes is writing to them.
 uv run python app.py [observer.toml]
 ```
 
-Both halves of that are optional, because two things are resolved for you:
+The argument is optional, and so is setting anything up beforehand, because
+two things are resolved for you:
 
 - **Which tabs to serve** comes from `observer.toml` in the current working
   directory when no path is given — so it matters where you launch from. With
