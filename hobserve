@@ -1,0 +1,11 @@
+#!/bin/sh
+# hobserve — launch from any directory.
+#
+# Resolves this script's real location (following a symlink, so it can be
+# linked onto your PATH), moves there, and runs the app through uv — which
+# builds the environment on first use, so this works on a fresh clone with no
+# setup. Running it is therefore the same as `uv run python app.py` from the
+# repo: same config (hobserve.toml here, or $HOBSERVE_CONFIG), same tabs.
+dir=$(dirname "$(readlink -f "$0")")
+cd "$dir" || exit 1
+exec uv run python app.py "$@"

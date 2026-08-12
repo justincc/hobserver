@@ -36,7 +36,7 @@ never owns or mutates data.
 Here because they are needed every session; explained once in
 [README.md](README.md), which is where a change to any of them goes.
 
-- Run: `uv run python app.py [hobserve.toml]`, port 5090. Every argument is
+- Run: `./hobserve [hobserve.toml]`, port 5090. Every argument is
   optional. `--dev` also reloads on `.py` edits.
 - Test: `uv run pytest`, or `uv run pytest plugins/<name>` for one plugin's.
 - Which tabs are served, in which order: `hobserve.toml`.

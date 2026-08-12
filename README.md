@@ -24,16 +24,21 @@ to point at live files while hermes is writing to them.
 ## Running
 
 ```bash
-uv run python app.py [hobserve.toml]
+./hobserve [hobserve.toml]
 ```
+
+`./hobserve` runs the app through uv, which builds the environment on first
+use — so a fresh clone needs no setup step. It resolves its own location, so
+you can run it from any directory, or symlink it onto your `PATH`. (The
+underlying `uv run python app.py` still works too.)
 
 The argument is optional, and so is setting anything up beforehand, because
 two things are resolved for you:
 
-- **Which tabs to serve** comes from `hobserve.toml` in the current working
-  directory when no path is given — so it matters where you launch from. With
-  no such file, a built-in list is used and a fresh checkout still runs.
-  Details in [which tabs are served](#which-tabs-are-served).
+- **Which tabs to serve** comes from `hobserve.toml` in the repo when no path
+  is given — the `./hobserve` launcher runs from there, so it uses that config
+  wherever you invoke it. With no such file, a built-in list is used and a
+  fresh checkout still runs. Details in [which tabs are served](#which-tabs-are-served).
 - **Which files each tab reads** are looked up under `$HERMES_HOME`, or under
   `~/.hermes` if it is unset, which is the same fallback hermes-agent itself
   uses. Details in [where the data comes from](#where-the-data-comes-from).
@@ -60,7 +65,7 @@ snapshot it started with, so a stray edit cannot alter a tool you are in the
 middle of watching an agent with. To develop against it, add `--dev`:
 
 ```bash
-uv run python app.py --dev
+./hobserve --dev
 ```
 
 and every edit lands: a template on the next request, a `.py` file by

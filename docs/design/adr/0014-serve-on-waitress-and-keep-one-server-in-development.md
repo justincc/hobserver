@@ -18,7 +18,7 @@ one that could face a network, so the choice below is unchanged.)*
 
 Three constraints on the choice:
 
-- **Setup cost stays at zero.** `uv run python app.py` is the entire install
+- **Setup cost stays at zero.** `./hobserve` is the entire install
   story. A server needing a separate command, a process manager or a compiler
   would trade a better socket for a worse tool.
 - **A `.py` edit restarts the server during development.** Template edits are

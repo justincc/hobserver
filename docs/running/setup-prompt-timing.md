@@ -75,7 +75,7 @@ under `$HERMES_HOME` when it is set, else under `~/.hermes`, which is the
 directory the exporter settings above write to either way:
 
 ```bash
-uv run python app.py
+./hobserve
 ```
 
 Override a source when it lives elsewhere by setting it for the tab in

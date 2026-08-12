@@ -144,8 +144,8 @@ reaches it — template or `.py` — without `--dev`
 ([ADR 15](../design/adr/0015-only-dev-lets-the-checkout-reach-a-running-app.md)):
 
 ```bash
-uv run python app.py --dev            # every edit lands
-uv run python app.py --dev other.toml # either order; --dev is not a config path
+./hobserve --dev            # every edit lands
+./hobserve --dev other.toml # either order; --dev is not a config path
 ```
 
 Under it a template edit shows up on the next request (Jinja's doing, not the
