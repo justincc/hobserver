@@ -27,6 +27,20 @@ to point at live files while hermes is writing to them.
 uv run python app.py [observer.toml]
 ```
 
+Both halves of that are optional, because two things are resolved for you:
+
+- **Which tabs to serve** comes from `observer.toml` in the current working
+  directory when no path is given — so it matters where you launch from. With
+  no such file, a built-in list is used and a fresh checkout still runs.
+  Details in [which tabs are served](#which-tabs-are-served).
+- **Which files each tab reads** are looked up under `$HERMES_HOME`, or under
+  `~/.hermes` if it is unset, which is the same fallback hermes-agent itself
+  uses. Details in [where the data comes from](#where-the-data-comes-from).
+
+The startup banner prints what each of those resolved to before it serves
+anything, so first runs are worth reading. A source that is not there is not
+an error — the tab says so and names the path it tried.
+
 Then open http://127.0.0.1:5090. The server binds to `0.0.0.0`, so it is
 also reachable from other machines on the local network at
 `http://<host-ip>:5090`. That is a local-network tool with no
