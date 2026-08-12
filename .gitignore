@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
+*.swp
 
 # Your live config. observer.example.toml is the tracked template; the app
 # also runs with no file at all, so this is only here once you customise.
