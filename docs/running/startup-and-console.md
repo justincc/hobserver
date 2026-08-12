@@ -136,18 +136,22 @@ Port 5090, on **waitress** — a production WSGI server, chosen in
 because it is pure Python and so costs nothing to install. There is no
 interactive debugger to expose on 0.0.0.0; waitress has none.
 
-Template edits are always picked up on the next request
-(`TEMPLATES_AUTO_RELOAD`, which is Jinja's doing, not the server's).
-
-`.py` edits need `--dev`:
+A running observer serves the checkout as it was when it started. No edit
+reaches it — template or `.py` — without `--dev`
+([ADR 15](../design/adr/0015-only-dev-lets-the-checkout-reach-a-running-app.md)):
 
 ```bash
-uv run python app.py --dev            # restarts on a .py edit
+uv run python app.py --dev            # every edit lands
 uv run python app.py --dev other.toml # either order; --dev is not a config path
 ```
 
-That adds the Werkzeug reloader as a supervisor around **the same waitress
-server** — it is not a second server.
+Under it a template edit shows up on the next request (Jinja's doing, not the
+server's) and a `.py` edit restarts the worker, in about 0.3 s. That restart
+is the Werkzeug reloader as a supervisor around **the same waitress server** —
+it is not a second server.
+
+The log, the mem0 db and the index are read live either way. `--dev` governs
+the checkout, not the data.
 
 Note that under `--dev` an edit to `atof_reader.py`, `assembler.py` or
 `atof_index.py` costs an index rebuild on the next request, as above.

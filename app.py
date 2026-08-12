@@ -32,12 +32,19 @@ from request_log import (REFRESH_SECONDS, STATUS_PATH, RequestStats,
 PORT = 5090
 
 
-def create_app(tabs):
-    """The app for an already-loaded list of `tabs.Tab`."""
+def create_app(tabs, dev=False):
+    """The app for an already-loaded list of `tabs.Tab`.
+
+    `dev` is the `--dev` switch, and decides one thing here: whether the
+    running app tracks edits to this checkout (ADR 15).
+    """
     app = Flask(__name__)
-    # Re-read templates from disk when they change, so edits show up on the
-    # next request (or next live-region poll) without a server restart.
-    app.config["TEMPLATES_AUTO_RELOAD"] = True
+    # Templates re-read from disk under --dev only, so that one switch covers
+    # every kind of edit: without it neither a .py nor a template reaches a
+    # running app, and a tool nobody is hacking on cannot be changed by a
+    # stray keystroke in a file it happens to serve. The log this app
+    # observes is not covered — that is data, and is always read live.
+    app.config["TEMPLATES_AUTO_RELOAD"] = dev
     app.extensions["tab_settings"] = {}
     # Scope specs the loaded tabs contribute (ADR 10), collected before any
     # tab is registered: a tab that paints spans resolves its table in
@@ -179,8 +186,9 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False):
         # Off prints too: it answers why an edit changed nothing, so it
         # carries the switch. The server is not here — it never varies.
         serving_lines.append("  reloading    " + (
-            "yes — on a .py edit" if dev else
-            "no (specify --dev to reload on .py changes)"))
+            "yes — .py edits restart, template edits land on the next request"
+            if dev else
+            "no (specify --dev to pick up .py and template edits)"))
         serving_lines.append(f"  listening    http://0.0.0.0:{port}/")
         serving_lines.append(f"  status       http://localhost:{port}{STATUS_PATH}")
         serving_lines.append(
@@ -256,7 +264,7 @@ def main():
         # supervisor never builds one: it does not serve, and a tab's init_app
         # may open files. The worker re-execs the whole script, so it gets a
         # fresh app on every restart either way.
-        serve_forever(create_app(tabs))
+        serve_forever(create_app(tabs, dev=dev))
 
     if not dev:
         start()

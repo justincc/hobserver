@@ -20,7 +20,10 @@ Three constraints on the choice:
   story. A server needing a separate command, a process manager or a compiler
   would trade a better socket for a worse tool.
 - **A `.py` edit restarts the server during development.** Template edits are
-  already free (`TEMPLATES_AUTO_RELOAD` is Jinja's, not the server's).
+  already free (`TEMPLATES_AUTO_RELOAD` is Jinja's, not the server's) —
+  though [ADR 15](0015-only-dev-lets-the-checkout-reach-a-running-app.md)
+  later gated them behind `--dev` anyway, so that one switch covers every
+  kind of edit.
 - **The console shows errors and nothing else.** The pages poll every 2-3 s, so
   successful responses are dropped and the tally of everything lives at
   `/_status`.

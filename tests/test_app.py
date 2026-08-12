@@ -43,11 +43,22 @@ def test_a_plugin_is_served_under_its_own_url_prefix(client):
     assert client.get("/turns/").status_code == 200
 
 
-def test_templates_reload_without_restart(client):
-    # template edits must show up on the next request/poll, no restart
-    app = client.application
-    assert app.config["TEMPLATES_AUTO_RELOAD"] is True
-    assert app.jinja_env.auto_reload is True
+def test_templates_reload_under_dev_and_not_otherwise(client):
+    """One switch for every kind of edit (ADR 15). Both directions are
+    asserted because each is a promise: --dev must pick a template edit up on
+    the next request without a restart, and a plain run must not pick it up
+    at all, however long it serves for."""
+    tabs = load([{"module": "plugins.turns"}])
+    dev = app_module.create_app(tabs, dev=True)
+    assert dev.config["TEMPLATES_AUTO_RELOAD"] is True
+    assert dev.jinja_env.auto_reload is True
+
+    plain = app_module.create_app(tabs)
+    assert plain.config["TEMPLATES_AUTO_RELOAD"] is False
+    assert plain.jinja_env.auto_reload is False
+
+    # …and the default is the plain one, so nothing gets it by accident
+    assert client.application.jinja_env.auto_reload is False
 
 
 def test_sources_derive_from_hermes_home(monkeypatch):
@@ -263,9 +274,11 @@ def test_banner_reports_reloading_in_both_states():
     # off is worth a line too: it answers why an edit changed nothing, and
     # names the switch where the reader is already looking
     off = app_module.startup_banner([], 5090, "x.toml")
-    assert "reloading    no (specify --dev to reload on .py changes)" in off
+    assert "reloading    no (specify --dev to pick up .py and template " \
+           "edits)" in off
     on = app_module.startup_banner([], 5090, "x.toml", dev=True)
-    assert "reloading    yes — on a .py edit" in on
+    assert "reloading    yes — .py edits restart, template edits land on " \
+           "the next request" in on
 
 
 def test_a_taken_port_says_so_instead_of_a_traceback(monkeypatch, capsys):

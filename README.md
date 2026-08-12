@@ -54,15 +54,21 @@ startup and no interactive debugger in existence to expose on `0.0.0.0`
 It is pure Python: `uv sync` installs it like anything else, and there is
 no separate server command to run.
 
-Template edits are picked up on the next request without a restart. For
-`.py` edits, add `--dev`:
+**Editing this checkout does not change a running observer.** It serves the
+snapshot it started with, so a stray edit cannot alter a tool you are in the
+middle of watching an agent with. To develop against it, add `--dev`:
 
 ```bash
 uv run python app.py --dev
 ```
 
-which puts the Werkzeug reloader around the same waitress server —
-restart-on-edit added, not a different server swapped in.
+and every edit lands: a template on the next request, a `.py` file by
+restarting in about 0.3 s. That is the Werkzeug reloader around the same
+waitress server — restart-on-edit added, not a different server swapped in
+([ADR 15](docs/design/adr/0015-only-dev-lets-the-checkout-reach-a-running-app.md)).
+
+The log being observed is not part of this: it is always read live, `--dev`
+or not.
 
 ### Which tabs are served
 
