@@ -180,6 +180,19 @@ def test_banner_separates_what_resolved_from_tabs_from_serving(memory_db):
     assert "\n\n\n" not in banner
 
 
+def test_banner_puts_a_blank_line_between_tabs(memory_db):
+    # each tab is its own block, divided like the sections are, so two tabs'
+    # reports do not run together
+    tabs = load([{"module": "plugins.turns", "settings": {"atof_log": "/no.jsonl"}},
+                 {"module": "plugins.mem0", "settings": {"db": memory_db}}])
+    banner = app_module.startup_banner(tabs, 5090, "observer.toml")
+    turns_at = banner.index("Turns (plugins.turns)")
+    mem0_at = banner.index("Mem0 (plugins.mem0)")
+    between = banner[turns_at:mem0_at]
+    assert "\n\n  tab" in between        # a blank line, then the next tab
+    assert "\n\n\n" not in banner        # exactly one, never a doubled gap
+
+
 def test_banner_takes_no_blank_line_with_an_empty_group():
     banner = app_module.startup_banner([], 5090, "observer.toml", serving=False)
     assert not banner.endswith("\n")

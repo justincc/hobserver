@@ -176,13 +176,15 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False,
         f"  hermes dir   {hermes_paths.hermes_config_dir()}"
         f" ({'from HERMES_HOME' if home else 'default location, HERMES_HOME not set'})")
 
-    tab_lines = []
+    # Each tab is its own block, so the same blank line that divides the
+    # sections also divides one tab's report from the next — the `tab` key
+    # already says which section this is.
+    tab_blocks = []
     if not tabs:
-        tab_lines.append("  tabs         (none configured)")
+        tab_blocks.append(["  tabs         (none configured)"])
     for tab in tabs:
         state = "ok" if tab.problem is None else f"UNAVAILABLE ({tab.problem})"
-        tab_lines.append(f"  tab          {tab.label} ({tab.module_name})"
-                         f"  [{state}]")
+        block = [f"  tab          {tab.label} ({tab.module_name})  [{state}]"]
         for source in tab.sources:
             problem = source.get("problem")
             if problem is None:
@@ -191,9 +193,10 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False,
                 mark = f"{'UNUSABLE' if source.get('required') else 'MISSING'}" \
                        f" ({problem})"
             supplier = source.get("from")
-            tab_lines.append(f"    {source.get('label', 'source'):<10} "
-                             f"{source.get('path', '')}  [{mark}]"
-                             + (f" (from {supplier})" if supplier else ""))
+            block.append(f"    {source.get('label', 'source'):<10} "
+                         f"{source.get('path', '')}  [{mark}]"
+                         + (f" (from {supplier})" if supplier else ""))
+        tab_blocks.append(block)
 
     serving_lines = []
     if serving:
@@ -209,9 +212,9 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False,
             "               successful requests are not logged below — only "
             "errors show;\n               that page tallies every request.")
 
-    # Blank lines between the groups, and an empty group takes none with it.
-    return "\n\n".join("\n".join(group) for group
-                       in (resolved, tab_lines, serving_lines) if group)
+    # Blank lines between the blocks, and an empty block takes none with it.
+    blocks = [resolved, *tab_blocks, serving_lines]
+    return "\n\n".join("\n".join(block) for block in blocks if block)
 
 
 def serve_forever(app, host=DEFAULT_HOST, port=PORT):
