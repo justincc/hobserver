@@ -31,6 +31,11 @@ from request_log import (REFRESH_SECONDS, STATUS_PATH, RequestStats,
 
 PORT = 5090
 
+# Bound to loopback unless the config file says otherwise: this app has no
+# authentication, so reachable-from-the-network is a choice the operator makes
+# on purpose (`host` in observer.toml), not the default they get for free.
+DEFAULT_HOST = "127.0.0.1"
+
 
 def create_app(tabs, dev=False):
     """The app for an already-loaded list of `tabs.Tab`.
@@ -146,7 +151,8 @@ def _register_unavailable(app, tab):
             "endpoint": f"{name}.index"}
 
 
-def startup_banner(tabs, port, config_origin, serving=True, dev=False):
+def startup_banner(tabs, port, config_origin, serving=True, dev=False,
+                   host=DEFAULT_HOST):
     """What the app resolved, and whether each tab can read what it needs.
 
     A missing or unreadable source is the usual reason a tab looks empty, so
@@ -154,12 +160,21 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False):
     tab that could not load at all leads with its problem instead.
     """
     home = os.environ.get("HERMES_HOME")
-    resolved = [
-        "hermes-observer",
-        f"  config       {config_origin}",
+    resolved = ["hermes-observer"]
+    if config_origin == tabs_module.BUILTIN_ORIGIN:
+        # Fresh checkout: it is already working, on the standard tabs, with no
+        # file. Say both — that nothing is required, and where to start if they
+        # do want to change something — since this is the one run where the
+        # user has not yet seen the config file at all.
+        resolved.append(f"  config       {config_origin} — running out of the "
+                        "box, no config file needed")
+        resolved.append(f"               copy {tabs_module.EXAMPLE_CONFIG_FILE}"
+                        f" to {tabs_module.DEFAULT_CONFIG_FILE} to customise")
+    else:
+        resolved.append(f"  config       {config_origin}")
+    resolved.append(
         f"  hermes dir   {hermes_paths.hermes_config_dir()}"
-        f" ({'from HERMES_HOME' if home else 'default location, HERMES_HOME not set'})",
-    ]
+        f" ({'from HERMES_HOME' if home else 'default location, HERMES_HOME not set'})")
 
     tab_lines = []
     if not tabs:
@@ -188,7 +203,7 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False):
             "yes — .py edits restart, template edits land on the next request"
             if dev else
             "no (specify --dev to pick up .py and template edits)"))
-        serving_lines.append(f"  listening    http://0.0.0.0:{port}/")
+        serving_lines.append(f"  listening    http://{host}:{port}/")
         serving_lines.append(f"  status       http://localhost:{port}{STATUS_PATH}")
         serving_lines.append(
             "               successful requests are not logged below — only "
@@ -199,10 +214,10 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False):
                        in (resolved, tab_lines, serving_lines) if group)
 
 
-def serve_forever(app, port=PORT):
+def serve_forever(app, host=DEFAULT_HOST, port=PORT):
     """Serve until stopped, reporting if the port is already taken."""
     try:
-        serve(app, host="0.0.0.0", port=port)
+        serve(app, host=host, port=port)
     except OSError as exc:
         if exc.errno != errno.EADDRINUSE:
             raise
@@ -229,18 +244,19 @@ def main():
     config_arg, dev = parse_args(sys.argv[1:])
     path = tabs_module.config_path(config_arg)
     try:
-        specs, origin = tabs_module.read_config(path)
+        specs, origin, config_host = tabs_module.read_config(path)
         tabs = tabs_module.load_tabs(specs)
     except tabs_module.ConfigError as exc:
         sys.exit(f"hermes-observer: {exc}")
+    host = config_host or DEFAULT_HOST
 
     # Under --dev the reloader runs main() in both the supervisor and the
     # worker; only the worker sets WERKZEUG_RUN_MAIN, so printing in the
     # supervisor shows the banner once at launch rather than again on every
     # .py edit. Without --dev there is one process and the variable is unset.
     if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
-        print(startup_banner(tabs, PORT, origin, serving=bool(tabs), dev=dev),
-              flush=True)
+        print(startup_banner(tabs, PORT, origin, serving=bool(tabs), dev=dev,
+                             host=host), flush=True)
     # A broken tab is that tab's problem; no tab at all leaves nothing to
     # serve, which is worth exiting for.
     if not tabs:
@@ -263,7 +279,7 @@ def main():
         # supervisor never builds one: it does not serve, and a tab's init_app
         # may open files. The worker re-execs the whole script, so it gets a
         # fresh app on every restart either way.
-        serve_forever(create_app(tabs, dev=dev))
+        serve_forever(create_app(tabs, dev=dev), host=host)
 
     if not dev:
         start()

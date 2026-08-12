@@ -34,9 +34,16 @@ PLUGIN_API = 1
 
 CONFIG_ENV = "OBSERVER_CONFIG"
 DEFAULT_CONFIG_FILE = "observer.toml"
+EXAMPLE_CONFIG_FILE = "observer.example.toml"
+
+# The `origin` read_config reports when no file was found and BUILTIN_TABS is
+# serving. A named constant, not a bare string, because the banner keys its
+# "you are running the defaults" hint off it — the two must agree.
+BUILTIN_ORIGIN = "built-in defaults"
 
 # Used when no config file is found at all, so a fresh checkout runs with no
-# setup. Same two tabs, same order, as the shipped observer.toml.
+# setup. Same two tabs, same order, as observer.example.toml — the tracked
+# template a user copies to observer.toml only when customising.
 BUILTIN_TABS = ({"module": "plugins.turns"}, {"module": "plugins.mem0"})
 
 # What a module must expose to be a tab: `bp` the Flask blueprint (its name
@@ -125,6 +132,19 @@ def parse_config(data):
     return specs
 
 
+def parse_host(data):
+    """The bind address from the top-level `host` key, or None if unset.
+
+    None means "use the serving default" — what that default is (loopback) is
+    the server's decision, not the config file's, so it is applied in `app`
+    next to the port rather than here.
+    """
+    host = data.get("host")
+    if host is not None and not isinstance(host, str):
+        raise ConfigError("host must be a string")
+    return host
+
+
 def _expand(settings):
     """Expand ~ and $VARS in string settings, so paths can be written once.
 
@@ -150,20 +170,22 @@ def config_path(argv_path=None):
 
 
 def read_config(path):
-    """(specs, origin) from a TOML file, falling back to the built-in tabs.
+    """(specs, origin, host) from a TOML file, falling back to the built-in
+    tabs. `host` is None when the file does not set one (or is absent).
 
     A missing file is not an error: the app should run from a fresh checkout
     with no setup. A malformed one is, since it says what was meant and cannot
     be honoured.
     """
     if not os.path.exists(path):
-        return [TabSpec(**entry) for entry in BUILTIN_TABS], "built-in defaults"
+        return ([TabSpec(**entry) for entry in BUILTIN_TABS],
+                BUILTIN_ORIGIN, None)
     try:
         with open(path, "rb") as fh:
             data = tomllib.load(fh)
     except tomllib.TOMLDecodeError as exc:
         raise ConfigError(f"{path} is not valid TOML: {exc}") from exc
-    return parse_config(data), path
+    return parse_config(data), path, parse_host(data)
 
 
 def load_tabs(specs):

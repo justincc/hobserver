@@ -115,7 +115,7 @@ def test_banner_reports_each_tabs_sources(memory_db, tmp_path, monkeypatch):
     assert "Mem0 (plugins.mem0)  [ok]" in banner
     assert "/srv/hermes/config" in banner
     assert "observer.toml" in banner
-    assert "http://0.0.0.0:5090/" in banner
+    assert "http://127.0.0.1:5090/" in banner   # loopback by default
 
 
 def test_banner_lists_a_path_without_saying_what_supplied_it(monkeypatch):
@@ -153,6 +153,18 @@ def test_banner_names_where_the_hermes_dir_came_from(monkeypatch):
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/hermes-agent/../config")
     banner = app_module.startup_banner([], 5090, "observer.toml")
     assert "hermes dir   /srv/hermes/config (from HERMES_HOME)" in banner
+
+
+def test_banner_points_a_fresh_checkout_at_the_example():
+    # the one run where the user has seen no config file: say it works with
+    # none, and name the example to copy. Only on the built-in origin.
+    fresh = app_module.startup_banner([], 5090, tabs_module.BUILTIN_ORIGIN)
+    assert "running out of the box" in fresh
+    assert "copy observer.example.toml to observer.toml" in fresh
+
+    configured = app_module.startup_banner([], 5090, "observer.toml")
+    assert "running out of the box" not in configured
+    assert "observer.example.toml" not in configured
 
 
 def test_banner_separates_what_resolved_from_tabs_from_serving(memory_db):
@@ -256,6 +268,21 @@ def test_dev_flag_is_not_mistaken_for_a_config_file():
     assert app_module.parse_args(["other.toml"]) == ("other.toml", False)
     assert app_module.parse_args(["--dev", "other.toml"]) == ("other.toml", True)
     assert app_module.parse_args(["other.toml", "--dev"]) == ("other.toml", True)
+
+
+def test_banner_shows_the_bind_host():
+    assert "listening    http://127.0.0.1:5090/" in \
+        app_module.startup_banner([], 5090, "x.toml")
+    assert "listening    http://0.0.0.0:5090/" in \
+        app_module.startup_banner([], 5090, "x.toml", host="0.0.0.0")
+
+
+def test_serve_forever_binds_the_host_it_is_given(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(app_module, "serve",
+                        lambda app, host, port: seen.update(host=host, port=port))
+    app_module.serve_forever(object(), host="0.0.0.0", port=5090)
+    assert seen == {"host": "0.0.0.0", "port": 5090}
 
 
 def test_banner_reports_reloading_in_both_states():

@@ -192,6 +192,30 @@ def test_two_tabs_with_one_blueprint_name_is_fatal(tmp_path):
     assert "blueprint name" in str(exc.value)
 
 
+def test_host_is_read_from_the_top_level_key(tmp_path):
+    path = tmp_path / "observer.toml"
+    path.write_text(textwrap.dedent("""
+        host = "0.0.0.0"
+
+        [[tabs]]
+        module = "plugins.turns"
+    """))
+    _, _, host = tabs_module.read_config(str(path))
+    assert host == "0.0.0.0"
+
+
+def test_host_defaults_to_none_when_unset():
+    # None, not a bind address: the serving default lives with the server, so
+    # the config layer only reports what the file said, which here is nothing
+    assert tabs_module.parse_host({"tabs": []}) is None
+
+
+def test_a_non_string_host_is_fatal():
+    with pytest.raises(tabs_module.ConfigError) as exc:
+        tabs_module.parse_host({"host": 5090})
+    assert "host must be a string" in str(exc.value)
+
+
 def test_config_errors_name_the_entry(tmp_path):
     with pytest.raises(tabs_module.ConfigError) as exc:
         tabs_module.parse_config({"tabs": [{"module": "a"}, {"label": "b"}]})
@@ -203,9 +227,10 @@ def test_config_errors_name_the_entry(tmp_path):
 
 
 def test_a_missing_config_file_falls_back_to_the_built_in_tabs(tmp_path):
-    specs, origin = tabs_module.read_config(str(tmp_path / "absent.toml"))
+    specs, origin, host = tabs_module.read_config(str(tmp_path / "absent.toml"))
     assert origin == "built-in defaults"
     assert [s.module for s in specs] == ["plugins.turns", "plugins.mem0"]
+    assert host is None                      # no file, so no host — app defaults it
 
 
 def test_a_config_file_is_read_in_order(tmp_path):
@@ -219,11 +244,12 @@ def test_a_config_file_is_read_in_order(tmp_path):
         module = "plugins.turns"
         enabled = false
     """))
-    specs, origin = tabs_module.read_config(str(path))
+    specs, origin, host = tabs_module.read_config(str(path))
     assert origin == str(path)
     assert [(s.module, s.enabled) for s in specs] == [
         ("plugins.mem0", True), ("plugins.turns", False)]
     assert specs[0].settings == {"db": "/tmp/x.db"}
+    assert host is None                      # this file sets no host
 
 
 def test_malformed_toml_is_fatal(tmp_path):
@@ -234,8 +260,10 @@ def test_malformed_toml_is_fatal(tmp_path):
     assert str(path) in str(exc.value)
 
 
-def test_the_shipped_config_matches_the_built_in_default():
-    # the file in the repo is what a fresh checkout gets either way
-    specs, _ = tabs_module.read_config("observer.toml")
+def test_the_example_config_matches_the_built_in_default():
+    # observer.example.toml is the template a user copies; the built-in list
+    # is what runs when they have not. They must show the same tabs, or the
+    # example teaches a layout the zero-config default does not deliver.
+    specs, _, _ = tabs_module.read_config("observer.example.toml")
     assert [s.module for s in specs] == \
         [entry["module"] for entry in tabs_module.BUILTIN_TABS]

@@ -42,15 +42,16 @@ The startup banner prints what each of those resolved to before it serves
 anything, so first runs are worth reading. A source that is not there is not
 an error — the tab says so and names the path it tried.
 
-Then open http://127.0.0.1:5090. The server binds to `0.0.0.0`, so it is
-also reachable from other machines on the local network at
-`http://<host-ip>:5090`. That is a local-network tool with no
-authentication in front of it — do not put it on an untrusted network.
+Then open http://127.0.0.1:5090. By default the server binds loopback, so it
+is reachable only from this machine. To reach it from elsewhere on your
+network, set a `host` in `observer.toml` — it has no authentication in front
+of it, so only on a network you trust. The startup banner names the bind
+address it resolved.
 
 Serving is on [waitress](https://docs.pylonsproject.org/projects/waitress/),
 a production WSGI server, so there is no development-server warning at
-startup and no interactive debugger in existence to expose on `0.0.0.0`
-([ADR 14](docs/design/adr/0014-serve-on-waitress-and-keep-one-server-in-development.md)).
+startup and no interactive debugger in existence to expose when you do open
+it up ([ADR 14](docs/design/adr/0014-serve-on-waitress-and-keep-one-server-in-development.md)).
 It is pure Python: `uv sync` installs it like anything else, and there is
 no separate server command to run.
 
@@ -86,6 +87,18 @@ alongside is added the same way, with no fork of this repo — see
 from the first command-line argument, else `$OBSERVER_CONFIG`, else
 `./observer.toml`; with none of them present the two tabs above are served by
 default, so a fresh checkout runs with no setup.
+
+There is no `observer.toml` in the repo — the standard tabs are built in, so
+the app runs the moment you check it out. When you want to change something
+(the bind address, a source path, your own tabs), copy the tracked template:
+
+```bash
+cp observer.example.toml observer.toml
+```
+
+`observer.toml` is gitignored, so your settings stay yours and never land in
+a commit. The startup banner points you here on any run that has no config
+file yet.
 
 ### Where the data comes from
 
@@ -294,7 +307,8 @@ uv run pytest plugins/mem0     # one plugin's alone
   tab bar, the root redirect, CLI entry. Imports no plugin.
 - `tabs.py` — reads `observer.toml` and loads the modules it names; the
   collision check and the per-tab failure handling live here
-- `observer.toml` — which tabs are served, in tab order
+- `observer.example.toml` — the tracked config template, copied to a
+  gitignored `observer.toml` to customise; built-in defaults serve without one
 - `hermes_paths.py` — where hermes-agent keeps things, for the in-tree
   plugins' default paths
 - `plugins/` — one package per in-tree view, each self-contained: its module

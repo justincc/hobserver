@@ -1,11 +1,22 @@
-# Which tabs this observer serves, in tab order. The first one serves /.
+# A starting point. The observer runs without any config file — the standard
+# two tabs on loopback — so copy this to `observer.toml` (untracked) only when
+# you want to change something: the bind address, a source path, your own tabs.
 #
-# Each entry names an importable module: `plugins.turns` from this tree and
+#     cp observer.example.toml observer.toml
+#
+# ---------------------------------------------------------------------------
+# How this observer is configured: the tabs it serves, and where it binds.
+#
+# The `[[tabs]]` entries below are served in order, and the first serves /.
+# Each names an importable module: `plugins.turns` from this tree and
 # `hermes_observer_zep` from site-packages load the same way, so a tab written
 # elsewhere needs no fork. See docs/extending/writing-a-plugin.md for the contract.
 #
 # `enabled = false` turns a tab off without removing its settings.
 # `settings` is passed to the plugin untouched; ~ and $VARS are expanded.
+
+# Bind address
+# host = "127.0.0.1"
 
 [[tabs]]
 module = "plugins.turns"

@@ -133,7 +133,11 @@ carries a clock, because counts look the same live or frozen.
 Port 5090, on **waitress** — a production WSGI server, chosen in
 [ADR 14](../design/adr/0014-serve-on-waitress-and-keep-one-server-in-development.md)
 because it is pure Python and so costs nothing to install. There is no
-interactive debugger to expose on 0.0.0.0; waitress has none.
+interactive debugger to expose if you open the bind up; waitress has none.
+
+The bind address is loopback (`127.0.0.1`) unless `observer.toml` sets a
+top-level `host` — set one to reach the observer from other machines. The
+banner prints the address it resolved.
 
 A running observer serves the checkout as it was when it started. No edit
 reaches it — template or `.py` — without `--dev`
@@ -153,7 +157,8 @@ Note that under `--dev` an edit to `atof_reader.py`, `assembler.py` or
 `atof_index.py` costs an index rebuild on the next request, as above.
 
 Being a real WSGI server is not the same as being safe to expose: there is no
-authentication in front of this app, and the bind is still `0.0.0.0`.
+authentication in front of this app, so a `host` that is not loopback puts it
+on the network unguarded. That is why the bind defaults to loopback.
 
 Producer-side setup (nemo-relay install, plugin enable, `HERMES_NEMO_RELAY_*`
 in `~/.hermes/.env`) is in [setup-prompt-timing.md](setup-prompt-timing.md).

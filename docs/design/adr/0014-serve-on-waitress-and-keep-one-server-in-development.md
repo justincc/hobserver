@@ -8,11 +8,13 @@ Accepted
 
 ## Context
 
-This app binds `0.0.0.0`, so whatever answers that socket should be written to
-face a network: to survive a slow or malformed client, and to fail a request
-rather than the process. That is the whole of the requirement. Load is not part
-of it — this is a single-user tool, usually on a home network, and will never
-need to scale.
+This app can be bound to the network, so whatever answers that socket should
+be written to face one: to survive a slow or malformed client, and to fail a
+request rather than the process. That is the whole of the requirement. Load is
+not part of it — this is a single-user tool, usually on a home network, and
+will never need to scale. *(Later: the bind defaults to loopback and a network
+bind is opt-in via `host` in observer.toml — but the server still has to be
+one that could face a network, so the choice below is unchanged.)*
 
 Three constraints on the choice:
 
@@ -67,8 +69,9 @@ that explains a restart.
 
 ## Consequences
 
-The server in front of `0.0.0.0` is one written to be there, and there is no
-interactive debugger in existence to expose: waitress has none.
+The server is one written to face a network, for whenever the bind is opened
+up to one, and there is no interactive debugger in existence to expose:
+waitress has none.
 
 `werkzeug._reloader` is a private name. It is imported inside the `--dev`
 branch, so if it ever moves, `--dev` fails loudly at the point it is asked for
