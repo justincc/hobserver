@@ -150,9 +150,6 @@ server's) and a `.py` edit restarts the worker, in about 0.3 s. That restart
 is the Werkzeug reloader as a supervisor around **the same waitress server** —
 it is not a second server.
 
-The log, the mem0 db and the index are read live either way. `--dev` governs
-the checkout, not the data.
-
 Note that under `--dev` an edit to `atof_reader.py`, `assembler.py` or
 `atof_index.py` costs an index rebuild on the next request, as above.
 

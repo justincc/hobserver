@@ -42,8 +42,7 @@ def create_app(tabs, dev=False):
     # Templates re-read from disk under --dev only, so that one switch covers
     # every kind of edit: without it neither a .py nor a template reaches a
     # running app, and a tool nobody is hacking on cannot be changed by a
-    # stray keystroke in a file it happens to serve. The log this app
-    # observes is not covered — that is data, and is always read live.
+    # stray keystroke in a file it happens to serve.
     app.config["TEMPLATES_AUTO_RELOAD"] = dev
     app.extensions["tab_settings"] = {}
     # Scope specs the loaded tabs contribute (ADR 10), collected before any

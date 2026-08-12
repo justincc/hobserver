@@ -67,9 +67,6 @@ restarting in about 0.3 s. That is the Werkzeug reloader around the same
 waitress server — restart-on-edit added, not a different server swapped in
 ([ADR 15](docs/design/adr/0015-only-dev-lets-the-checkout-reach-a-running-app.md)).
 
-The log being observed is not part of this: it is always read live, `--dev`
-or not.
-
 ### Which tabs are served
 
 `observer.toml` lists them, in tab order — the first one is where `/` lands:
