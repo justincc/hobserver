@@ -1,7 +1,7 @@
 # hermes-observer
 
-A small Flask webapp for observing hermes-agent activity (formerly
-jmem0-logged-browser). Views are plugins, shown as horizontal tabs:
+A small Flask webapp for observing hermes-agent activity. Views are plugins,
+shown as horizontal tabs:
 
 - **Turns** — per-turn latency waterfalls from the NeMo Relay ATOF
   JSONL stream exported by the hermes-agent `observability/nemo_relay`

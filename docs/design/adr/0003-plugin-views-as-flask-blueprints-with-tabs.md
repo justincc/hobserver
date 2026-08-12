@@ -66,7 +66,7 @@ existing two.
   combined view is additive, and plugins share nothing but `base.html` and
   the app config.
 - The page title becomes the generic "hermes agent log browser"; the
-  repository name (`jmem0-logged-browser`) now understates its scope, and a
-  rename can be decided separately without code consequences.
+  repository name now understates its scope, and a rename can be decided
+  separately without code consequences.
 - Blueprint endpoints are namespaced (`memory.index`, `timing.index`), so
   templates must use qualified `url_for` names.

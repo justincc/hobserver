@@ -23,10 +23,10 @@
 
 ## Project
 
-hermes-observer (formerly jmem0-logged-browser): a Flask webapp for observing
-hermes-agent activity. Views are plugins shown as horizontal tabs — **Turns**
-(`/turns/`, per-turn waterfalls from the NeMo Relay ATOF JSONL) and **Mem0**
-(`/memory/mem0/`, the mem0 event log in `jmem0_logged.db`).
+hermes-observer: a Flask webapp for observing hermes-agent activity. Views
+are plugins shown as horizontal tabs — **Turns** (`/turns/`, per-turn
+waterfalls from the NeMo Relay ATOF JSONL) and **Mem0** (`/memory/mem0/`,
+the mem0 event log in `jmem0_logged.db`).
 
 Every view is read-only over a log produced by another process. The browser
 never owns or mutates data.
