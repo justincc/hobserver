@@ -33,18 +33,13 @@ never owns or mutates data.
 
 ### Commands
 
-- Run: `uv run python app.py [observer.toml]` — the config argument is
-  optional, and so is everything else: tabs default their sources under
-  `$HERMES_HOME` when it is set, else `~/.hermes`. Serves on port 5090,
-  on waitress (ADR 14). Template edits are picked up without a restart; add
-  `--dev` for `.py` edits, which wraps that same server in the Werkzeug
-  reloader.
-- Test: `uv run pytest` — collects both roots, the shell's `tests/` and each
-  plugin's `plugins/<name>/tests/`. `uv run pytest plugins/mem0` runs one
-  plugin's alone.
-- Which tabs are served, in which order: `observer.toml`. `enabled = false`
-  turns one off; `module` is any importable path, in this tree or installed
-  elsewhere.
+Here because they are needed every session; explained once in
+[README.md](README.md), which is where a change to any of them goes.
+
+- Run: `uv run python app.py [observer.toml]`, port 5090. Every argument is
+  optional. `--dev` also reloads on `.py` edits.
+- Test: `uv run pytest`, or `uv run pytest plugins/<name>` for one plugin's.
+- Which tabs are served, in which order: `observer.toml`.
 
 ### Where things are written down
 

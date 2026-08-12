@@ -264,7 +264,8 @@ See [docs/design/live-pages.md](docs/design/live-pages.md) for all of it.
 ## Tests
 
 ```bash
-uv run pytest
+uv run pytest                  # both roots: tests/ and every plugins/<name>/tests/
+uv run pytest plugins/mem0     # one plugin's alone
 ```
 
 ## Layout
