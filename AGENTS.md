@@ -84,6 +84,8 @@ and no intention of writing code against it.
   resolution, the db check, the startup banner, console noise, `/_status`
 
 - [README.md](README.md) — pages, layout, data-source path resolution
+- [SECURITY.md](SECURITY.md) — trust model (no auth: trusted access only), the
+  XSS mitigations to preserve, and what counts as trusted input
 
 ### Conventions
 

@@ -21,6 +21,17 @@ tried, and each of those would arrive as its own tab beside this one.
 Every view is read-only over a log another process produces, so it is safe
 to point at live files while hermes is writing to them.
 
+## Security
+
+**hobserve has no authentication — run it only where only trusted parties can
+reach it.** It binds loopback (`127.0.0.1`) by default; setting a non-loopback
+`host` in `hobserve.toml` puts it on your network with nothing in front of it,
+so do that only on a network you control. Log content is rendered safely
+(HTML-escaped, no raw HTML), so pointing it at real logs is fine.
+
+[SECURITY.md](SECURITY.md) has the full trust model, the XSS mitigations to
+preserve, and what counts as trusted input.
+
 ## Running
 
 ```bash
@@ -49,8 +60,8 @@ an error — the tab says so and names the path it tried.
 
 Then open http://127.0.0.1:5090. By default the server binds loopback, so it
 is reachable only from this machine. To reach it from elsewhere on your
-network, set a `host` in `hobserve.toml` — it has no authentication in front
-of it, so only on a network you trust. The startup banner names the bind
+network, set a `host` in `hobserve.toml` — but read [Security](#security)
+first, because nothing authenticates it. The startup banner names the bind
 address it resolved.
 
 Serving is on [waitress](https://docs.pylonsproject.org/projects/waitress/),
