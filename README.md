@@ -54,8 +54,8 @@ startup and no interactive debugger in existence to expose on `0.0.0.0`
 It is pure Python: `uv sync` installs it like anything else, and there is
 no separate server command to run.
 
-Template edits are picked up on the next request without a restart
-(`TEMPLATES_AUTO_RELOAD`). For `.py` edits, add `--dev`:
+Template edits are picked up on the next request without a restart. For
+`.py` edits, add `--dev`:
 
 ```bash
 uv run python app.py --dev
