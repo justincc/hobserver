@@ -1,7 +1,7 @@
 # Setting up prompt timing
 
 The Turns tab reads the ATOF JSONL stream that hermes-agent's bundled
-`observability/nemo_relay` plugin exports (see docs/adr/0001 and 0002).
+`observability/nemo_relay` plugin exports (see docs/design/adr/0001 and 0002).
 There are two halves: hermes-agent **produces** the log, hermes-observer
 **consumes** it.
 
@@ -70,9 +70,9 @@ There are two halves: hermes-agent **produces** the log, hermes-observer
 
 ## Consuming: point hermes-observer at the log
 
-With `HERMES_HOME` exported, nothing needs passing — the log defaults to
-`$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl`, the same directory the
-exporter settings above write to:
+Nothing needs passing — the log defaults to `nemo-relay/atof/hermes-atof.jsonl`
+under `$HERMES_HOME` when it is set, else under `~/.hermes`, which is the
+directory the exporter settings above write to either way:
 
 ```bash
 uv run python app.py

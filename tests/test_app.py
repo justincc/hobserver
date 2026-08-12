@@ -72,16 +72,17 @@ def test_sources_fall_back_without_hermes_home(monkeypatch):
     monkeypatch.delenv("HERMES_HOME", raising=False)
     monkeypatch.delenv("JMEM0_DB", raising=False)
     assert hermes_paths.hermes_config_dir() == hermes_paths.FALLBACK_CONFIG_DIR
-    assert mem0.db_path({}).endswith("/config/jmem0_logged.db")
+    assert mem0.db_path({}).endswith("/.hermes/jmem0_logged.db")
 
 
-def test_the_fallback_is_a_conventional_location(monkeypatch):
-    """A default has to suit an installation nobody has configured, so it is
-    a dotdir under $HOME and not a path particular to any one machine.
-    Anyone whose hermes lives elsewhere exports HERMES_HOME."""
+def test_the_fallback_matches_the_agents_own_default(monkeypatch):
+    """The fallback is what hermes-agent itself uses with HERMES_HOME unset —
+    `~/.hermes`, not a `config` subdirectory of it. An installation that
+    configured nothing has to find the files the agent actually wrote; anyone
+    whose hermes lives elsewhere exports HERMES_HOME and never meets this."""
     monkeypatch.delenv("HERMES_HOME", raising=False)
     fallback = hermes_paths.FALLBACK_CONFIG_DIR
-    assert fallback == os.path.join(os.path.expanduser("~"), ".hermes", "config")
+    assert fallback == os.path.join(os.path.expanduser("~"), ".hermes")
 
 
 def test_env_vars_override_the_defaults(monkeypatch):
@@ -145,7 +146,7 @@ def test_banner_flags_an_unset_hermes_home(monkeypatch):
     monkeypatch.delenv("HERMES_HOME", raising=False)
     banner = app_module.startup_banner([], 5090, "built-in defaults")
     assert "HERMES_HOME not set" in banner
-    assert "/.hermes/config" in banner    # …and what stood in for it
+    assert "/.hermes (default location" in banner   # …and what stood in for it
 
 
 def test_banner_names_where_the_hermes_dir_came_from(monkeypatch):

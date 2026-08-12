@@ -8,12 +8,12 @@ likes from its own settings.
 
 import os
 
-# Where hermes-agent keeps its config when nobody has said otherwise: the
-# conventional location, a dotdir under the home directory. A default has to
-# be the one that suits an installation nobody has configured, not the one
-# that suits whoever wrote the line — anyone whose hermes lives elsewhere
-# exports HERMES_HOME and never meets it.
-FALLBACK_CONFIG_DIR = os.path.expanduser("~/.hermes/config")
+# Where hermes-agent keeps its config when nobody has said otherwise. This
+# must match what the agent itself falls back to with HERMES_HOME unset —
+# hermes_constants._get_platform_default_hermes_home() — or an installation
+# that configured nothing gets an observer looking in a directory hermes
+# never writes to, which is exactly the installation the fallback is for.
+FALLBACK_CONFIG_DIR = os.path.expanduser("~/.hermes")
 
 
 def hermes_config_dir():

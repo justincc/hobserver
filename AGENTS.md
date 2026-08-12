@@ -33,10 +33,12 @@ never owns or mutates data.
 
 ### Commands
 
-- Run: `uv run python app.py [observer.toml]` — no arguments needed when
-  `HERMES_HOME` is exported. Serves on port 5090, on waitress (ADR 14).
-  Template edits are picked up without a restart; add `--dev` for `.py` edits,
-  which wraps that same server in the Werkzeug reloader.
+- Run: `uv run python app.py [observer.toml]` — the config argument is
+  optional, and so is everything else: tabs default their sources under
+  `$HERMES_HOME` when it is set, else `~/.hermes`. Serves on port 5090,
+  on waitress (ADR 14). Template edits are picked up without a restart; add
+  `--dev` for `.py` edits, which wraps that same server in the Werkzeug
+  reloader.
 - Test: `uv run pytest` — collects both roots, the shell's `tests/` and each
   plugin's `plugins/<name>/tests/`. `uv run pytest plugins/mem0` runs one
   plugin's alone.

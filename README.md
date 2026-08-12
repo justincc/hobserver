@@ -6,11 +6,11 @@ jmem0-logged-browser). Views are plugins, shown as horizontal tabs:
 - **Turns** — per-turn latency waterfalls from the NeMo Relay ATOF
   JSONL stream exported by the hermes-agent `observability/nemo_relay`
   plugin: where each turn's time went (llm vs tool vs overhead), with a
-  span timeline per turn. See `docs/adr/` for the design.
+  span timeline per turn. See `docs/design/adr/` for the design.
 - **Mem0** — browses `jmem0_logged.db`, the SQLite event log produced by
   the hermes-agent mem0 logging wrapper.
 
-Tabs read left to right in the order `plugins.PLUGINS` lists them, and the
+Tabs read left to right in the order `observer.toml` lists them, and the
 first is where `/` lands. Turns leads because a turn is the unit of
 activity — what hermes was asked and everything it did about it, memory
 calls included — while the mem0 log covers one tool. Mem0 is named for the
@@ -73,10 +73,10 @@ default, so a fresh checkout runs with no setup.
 
 Each tab resolves its own source: its `settings` in the config file, then an
 environment variable, then a default under the hermes-agent config directory.
-So with `HERMES_HOME` exported nothing has to be configured at all.
-`HERMES_HOME` is normalized, since the agent conventionally exports it as
-`<checkout>/hermes-agent/../config`; if it is unset, `~/.hermes/config` stands
-in.
+The hermes-agent config directory is `$HERMES_HOME` when it is set, else
+`~/.hermes` — the same fallback the agent itself uses, so a default install
+needs no configuring either way. `HERMES_HOME` is normalized, since the agent
+conventionally exports it as `<checkout>/hermes-agent/../config`.
 
 | tab | setting | env | default |
 | --- | --- | --- | --- |
