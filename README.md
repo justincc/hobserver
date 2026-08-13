@@ -1,4 +1,4 @@
-# hobserve
+# hobserver
 
 A small Flask webapp for observing hermes-agent activity. Views are plugins,
 shown as horizontal tabs:
@@ -10,7 +10,7 @@ shown as horizontal tabs:
 - **Mem0** — browses `jmem0_logged.db`, the SQLite event log produced by
   the hermes-agent mem0 logging wrapper.
 
-Tabs read left to right in the order `hobserve.toml` lists them, and the
+Tabs read left to right in the order `hobserver.toml` lists them, and the
 first is where `/` lands. Turns leads because a turn is the unit of
 activity — what hermes was asked and everything it did about it, memory
 calls included — while the mem0 log covers one tool. Mem0 is named for the
@@ -23,9 +23,9 @@ to point at live files while hermes is writing to them.
 
 ## Security
 
-**hobserve has no authentication — run it only where only trusted parties can
+**hobserver has no authentication — run it only where only trusted parties can
 reach it.** It binds loopback (`127.0.0.1`) by default; setting a non-loopback
-`host` in `hobserve.toml` puts it on your network with nothing in front of it,
+`host` in `hobserver.toml` puts it on your network with nothing in front of it,
 so do that only on a network you control. Log content is rendered safely
 (HTML-escaped, no raw HTML), so pointing it at real logs is fine.
 
@@ -35,10 +35,10 @@ preserve, and what counts as trusted input.
 ## Running
 
 ```bash
-./hobserve [hobserve.toml]
+./hobserver [hobserver.toml]
 ```
 
-`./hobserve` runs the app through uv, which builds the environment on first
+`./hobserver` runs the app through uv, which builds the environment on first
 use — so a fresh clone needs no setup step. It resolves its own location, so
 you can run it from any directory, or symlink it onto your `PATH`. (The
 underlying `uv run python app.py` still works too.)
@@ -46,8 +46,8 @@ underlying `uv run python app.py` still works too.)
 The argument is optional, and so is setting anything up beforehand, because
 two things are resolved for you:
 
-- **Which tabs to serve** comes from `hobserve.toml` in the repo when no path
-  is given — the `./hobserve` launcher runs from there, so it uses that config
+- **Which tabs to serve** comes from `hobserver.toml` in the repo when no path
+  is given — the `./hobserver` launcher runs from there, so it uses that config
   wherever you invoke it. With no such file, a built-in list is used and a
   fresh checkout still runs. Details in [which tabs are served](#which-tabs-are-served).
 - **Which files each tab reads** are looked up under `$HERMES_HOME`, or under
@@ -60,7 +60,7 @@ an error — the tab says so and names the path it tried.
 
 Then open http://127.0.0.1:5090. By default the server binds loopback, so it
 is reachable only from this machine. To reach it from elsewhere on your
-network, set a `host` in `hobserve.toml` — but read [Security](#security)
+network, set a `host` in `hobserver.toml` — but read [Security](#security)
 first, because nothing authenticates it. The startup banner names the bind
 address it resolved.
 
@@ -71,12 +71,12 @@ it up ([ADR 14](docs/design/adr/0014-serve-on-waitress-and-keep-one-server-in-de
 It is pure Python: `uv sync` installs it like anything else, and there is
 no separate server command to run.
 
-**Editing this checkout does not change a running hobserve.** It serves the
+**Editing this checkout does not change a running hobserver.** It serves the
 snapshot it started with, so a stray edit cannot alter a tool you are in the
 middle of watching an agent with. To develop against it, add `--dev`:
 
 ```bash
-./hobserve --dev
+./hobserver --dev
 ```
 
 and every edit lands: a template on the next request, a `.py` file by
@@ -86,7 +86,7 @@ waitress server — restart-on-edit added, not a different server swapped in
 
 ### Which tabs are served
 
-`hobserve.toml` lists them, in tab order — the first one is where `/` lands:
+`hobserver.toml` lists them, in tab order — the first one is where `/` lands:
 
 ```toml
 [[tabs]]
@@ -100,19 +100,19 @@ enabled = false            # one line to turn a tab off
 `module` is any importable path, so a tab written elsewhere and installed
 alongside is added the same way, with no fork of this repo — see
 [docs/extending/writing-a-plugin.md](docs/extending/writing-a-plugin.md). The config file is taken
-from the first command-line argument, else `$HOBSERVE_CONFIG`, else
-`./hobserve.toml`; with none of them present the two tabs above are served by
+from the first command-line argument, else `$HOBSERVER_CONFIG`, else
+`./hobserver.toml`; with none of them present the two tabs above are served by
 default, so a fresh checkout runs with no setup.
 
-There is no `hobserve.toml` in the repo — the standard tabs are built in, so
+There is no `hobserver.toml` in the repo — the standard tabs are built in, so
 the app runs the moment you check it out. When you want to change something
 (the bind address, a source path, your own tabs), copy the tracked template:
 
 ```bash
-cp hobserve.example.toml hobserve.toml
+cp hobserver.example.toml hobserver.toml
 ```
 
-`hobserve.toml` is gitignored, so your settings stay yours and never land in
+`hobserver.toml` is gitignored, so your settings stay yours and never land in
 a commit. The startup banner points you here on any run that has no config
 file yet.
 
@@ -130,7 +130,7 @@ to relocate into a config file.
 | tab | setting | default |
 | --- | --- | --- |
 | Turns | `atof_log` | `$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl` |
-| Turns | `index_db` | `$XDG_CACHE_HOME/hobserve/atof-index-<hash>.sqlite3` |
+| Turns | `index_db` | `$XDG_CACHE_HOME/hobserver/atof-index-<hash>.sqlite3` |
 | Mem0 | `db` | `$HERMES_HOME/jmem0_logged.db` |
 
 The Turns source is the events JSONL written by the nemo_relay plugin's ATOF
@@ -144,7 +144,7 @@ where each event sits and reads payloads back as pages need them
 ([ADR 11](docs/design/adr/0011-index-the-atof-log-rather-than-hold-it-in-memory.md)).
 It holds no fact the log does not, so **deleting it is always safe**: the next
 request rebuilds it, about ten seconds per gigabyte. It is kept in a cache
-directory of hobserve's own rather than beside the log, which is hermes'.
+directory of hobserver's own rather than beside the log, which is hermes'.
 
 The Mem0 source is checked before the tab is served: the path must exist, be a
 regular file, and yield a row from an `events` table when opened read-only.
@@ -161,9 +161,9 @@ marked ok, MISSING or UNUSABLE —
 because a missing source is the usual reason a tab looks empty. It prints once at launch, not on reloader
 restarts.
 
-### Console noise and hobserve status
+### Console noise and hobserver status
 
-An **hobserve status** link sits at the right of the tab row on every page,
+A **hobserver status** link sits at the right of the tab row on every page,
 opening `/_status` in a new tab — new rather than in place because the tally
 is for checking *while* a page sits there polling. It is deliberately not
 called "requests": every other view in this app shows the agent's LLM and
@@ -321,10 +321,10 @@ uv run pytest plugins/mem0     # one plugin's alone
 
 - `app.py` — app shell: app factory `create_app(tabs)`, tab registration, the
   tab bar, the root redirect, CLI entry. Imports no plugin.
-- `tabs.py` — reads `hobserve.toml` and loads the modules it names; the
+- `tabs.py` — reads `hobserver.toml` and loads the modules it names; the
   collision check and the per-tab failure handling live here
-- `hobserve.example.toml` — the tracked config template, copied to a
-  gitignored `hobserve.toml` to customise; built-in defaults serve without one
+- `hobserver.example.toml` — the tracked config template, copied to a
+  gitignored `hobserver.toml` to customise; built-in defaults serve without one
 - `hermes_paths.py` — where hermes-agent keeps things, for the in-tree
   plugins' default paths
 - `plugins/` — one package per in-tree view, each self-contained: its module

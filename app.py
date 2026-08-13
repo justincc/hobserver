@@ -1,4 +1,4 @@
-"""App shell for the hobserve.
+"""App shell for the hobserver.
 
 Views are plugins (Flask blueprints) named by a TOML config file and loaded by
 module path — see ADR 5 and tabs.py. The shell registers each tab under its
@@ -33,7 +33,7 @@ PORT = 5090
 
 # Bound to loopback unless the config file says otherwise: this app has no
 # authentication, so reachable-from-the-network is a choice the operator makes
-# on purpose (`host` in hobserve.toml), not the default they get for free.
+# on purpose (`host` in hobserver.toml), not the default they get for free.
 DEFAULT_HOST = "127.0.0.1"
 
 
@@ -160,7 +160,7 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False,
     tab that could not load at all leads with its problem instead.
     """
     home = os.environ.get("HERMES_HOME")
-    resolved = ["hobserve"]
+    resolved = ["hobserver"]
     if config_origin == tabs_module.BUILTIN_ORIGIN:
         # Fresh checkout: it is already working, on the standard tabs, with no
         # file. Say both — that nothing is required, and where to start if they
@@ -221,8 +221,8 @@ def serve_forever(app, host=DEFAULT_HOST, port=PORT):
     except OSError as exc:
         if exc.errno != errno.EADDRINUSE:
             raise
-        print(f"hobserve: port {port} is already in use — another "
-              "hobserve is probably still running", file=sys.stderr, flush=True)
+        print(f"hobserver: port {port} is already in use — another "
+              "hobserver is probably still running", file=sys.stderr, flush=True)
         # os._exit, not sys.exit: under --dev this runs in a thread the
         # reloader starts, where SystemExit would end that thread alone.
         os._exit(1)
@@ -247,7 +247,7 @@ def main():
         specs, origin, config_host = tabs_module.read_config(path)
         tabs = tabs_module.load_tabs(specs)
     except tabs_module.ConfigError as exc:
-        sys.exit(f"hobserve: {exc}")
+        sys.exit(f"hobserver: {exc}")
     host = config_host or DEFAULT_HOST
 
     # Under --dev the reloader runs main() in both the supervisor and the
@@ -260,7 +260,7 @@ def main():
     # A broken tab is that tab's problem; no tab at all leaves nothing to
     # serve, which is worth exiting for.
     if not tabs:
-        sys.exit("hobserve: no tabs could be loaded — nothing to serve")
+        sys.exit("hobserver: no tabs could be loaded — nothing to serve")
 
     # Werkzeug reaches this console only as the --dev reloader; installed in
     # both modes so the two print the same thing.

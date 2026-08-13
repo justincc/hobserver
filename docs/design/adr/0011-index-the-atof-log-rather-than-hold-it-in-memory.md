@@ -130,7 +130,7 @@ Four ways it can go stale, four checks, all run on refresh:
    It over-invalidates — a docstring edit forces a rebuild — which at six
    seconds is the right side to be wrong on.
 
-The index lives in hobserve's own cache directory, keyed by a hash of the
+The index lives in hobserver's own cache directory, keyed by a hash of the
 log path, and never beside the log: that directory is hermes'.
 
 ## Consequences

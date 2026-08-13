@@ -45,7 +45,7 @@ def index():
         text="".join(lines))
 ```
 
-Add it to `hobserve.toml`:
+Add it to `hobserver.toml`:
 
 ```toml
 [[tabs]]
@@ -134,7 +134,7 @@ The empty `tabbar` is the one piece of chrome worth turning off, and only in
 the case it exists for: `/turns/span/<uuid>/<key>` is opened from a span
 icon into a new tab, so a row of tabs there offers to navigate away from a
 place the reader never navigated to. Any page a reader *walks* to keeps the
-bar, or they lose their place in the app. The `hobserve` heading is
+bar, or they lose their place in the app. The `hobserver` heading is
 outside the block, so a page without the bar still has a way home.
 
 Keep your templates in your own package —

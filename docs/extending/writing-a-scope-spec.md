@@ -42,7 +42,7 @@ SCOPES = {"deploy": DEPLOY}
 ```
 
 That is the whole module. No blueprint, no registration call, no import from
-the rest of hobserve.
+the rest of hobserver.
 
 ## Wiring it up
 
@@ -64,7 +64,7 @@ disabling it takes them away again — which is what stops a span linking to a
 page nobody serves. `plugins/mem0/` is this shape.
 
 **If you have no tab**, just hermes tools to render, name the module in the
-Turns tab's settings in `hobserve.toml`:
+Turns tab's settings in `hobserver.toml`:
 
 ```toml
 [[tabs]]
@@ -93,7 +93,7 @@ does not identify the scope — an llm span is named for the provider that
 answered it (`anthropic`), which is why that one is a category spec.
 
 **A spec module imports `plugins.turns.scope_spec`, and nothing else from
-hobserve.** That vocabulary is a published surface — one of the few,
+hobserver.** That vocabulary is a published surface — one of the few,
 listed in [ADR 8](../design/adr/0008-plugins-may-import-published-host-vocabulary.md) —
 so importing it is the ordinary thing to do, and the names in it change with
 the same care as a URL.

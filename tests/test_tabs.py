@@ -193,7 +193,7 @@ def test_two_tabs_with_one_blueprint_name_is_fatal(tmp_path):
 
 
 def test_host_is_read_from_the_top_level_key(tmp_path):
-    path = tmp_path / "hobserve.toml"
+    path = tmp_path / "hobserver.toml"
     path.write_text(textwrap.dedent("""
         host = "0.0.0.0"
 
@@ -234,7 +234,7 @@ def test_a_missing_config_file_falls_back_to_the_built_in_tabs(tmp_path):
 
 
 def test_a_config_file_is_read_in_order(tmp_path):
-    path = tmp_path / "hobserve.toml"
+    path = tmp_path / "hobserver.toml"
     path.write_text(textwrap.dedent("""
         [[tabs]]
         module = "plugins.mem0"
@@ -261,9 +261,9 @@ def test_malformed_toml_is_fatal(tmp_path):
 
 
 def test_the_example_config_matches_the_built_in_default():
-    # hobserve.example.toml is the template a user copies; the built-in list
+    # hobserver.example.toml is the template a user copies; the built-in list
     # is what runs when they have not. They must show the same tabs, or the
     # example teaches a layout the zero-config default does not deliver.
-    specs, _, _ = tabs_module.read_config("hobserve.example.toml")
+    specs, _, _ = tabs_module.read_config("hobserver.example.toml")
     assert [s.module for s in specs] == \
         [entry["module"] for entry in tabs_module.BUILTIN_TABS]

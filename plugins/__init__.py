@@ -2,7 +2,7 @@
 
 A plugin is any importable module exposing the tab contract (ADR 5) — the
 ones here are simply the plugins that ship with the app. Which of them are
-served, in what order, is decided by hobserve.toml, not by this package; there
+served, in what order, is decided by hobserver.toml, not by this package; there
 is no registry to add a tab to.
 
 The contract, in full:
@@ -16,7 +16,7 @@ The contract, in full:
     def sources(settings)           # optional: what this tab reads, for the banner
 
 A plugin imports nothing from the app: the contract is module attributes and
-Flask, so an out-of-tree tab does not depend on a hobserve package or
+Flask, so an out-of-tree tab does not depend on a hobserver package or
 track its version. The in-tree plugins do import `hermes_paths`, but only to
 default their paths — nothing in the contract requires it.
 

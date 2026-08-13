@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}{{ label }} unavailable — hobserve{% endblock %}
+{% block title %}{{ label }} unavailable — hobserver{% endblock %}
 {# Served by the shell in place of a tab whose plugin could not be loaded
    (ADR 5). It names the module and what went wrong, because the fix is
-   almost always in hobserve.toml or in the file the tab wanted to read. #}
+   almost always in hobserver.toml or in the file the tab wanted to read. #}
 {% block content %}
 <h2>{{ label }} is unavailable</h2>
 <p class="problem">{{ problem }}</p>
-<p class="hint">Configured as <code>{{ module }}</code> in hobserve.toml.</p>
+<p class="hint">Configured as <code>{{ module }}</code> in hobserver.toml.</p>
 {% if sources %}
 <h3>What this tab reads</h3>
 <ul class="sources">

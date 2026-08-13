@@ -85,7 +85,7 @@ def format_status(snapshot: dict) -> str:
     # the counts alone look identical either way when traffic has stopped.
     stamp = time.strftime("%H:%M:%S", time.localtime(snapshot["now"]))
     lines = [
-        f"hobserve status          {stamp}"
+        f"hobserver status          {stamp}"
         f"  (refreshes every {REFRESH_SECONDS}s)",
         "  HTTP requests reaching this web app itself — not agent activity.",
         "",

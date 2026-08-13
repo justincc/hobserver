@@ -4,6 +4,6 @@ __pycache__/
 .pytest_cache/
 *.swp
 
-# Your live config. hobserve.example.toml is the tracked template; the app
+# Your live config. hobserver.example.toml is the tracked template; the app
 # also runs with no file at all, so this is only here once you customise.
-/hobserve.toml
+/hobserver.toml

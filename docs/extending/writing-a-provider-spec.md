@@ -63,12 +63,12 @@ ACME_ROUTER = UsageShape(
 USAGE_SHAPES = (ACME_ROUTER,)
 ```
 
-Then in `hobserve.toml`:
+Then in `hobserver.toml`:
 
 ```toml
 [[tabs]]
 module = "plugins.turns"
-settings = { provider_specs = ["hobserve_acme.providers"] }
+settings = { provider_specs = ["hobserver_acme.providers"] }
 ```
 
 That is the whole contract. The tab reads the module at startup, puts your

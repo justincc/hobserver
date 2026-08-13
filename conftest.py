@@ -15,7 +15,7 @@ REPO_ROOT = pathlib.Path(__file__).parent
 def make_app(db=None, atof=None, entries=None):
     """An app serving the two in-tree tabs, pointed at test sources.
 
-    Tests describe tabs the way hobserve.toml does — a list of entries — so
+    Tests describe tabs the way hobserver.toml does — a list of entries — so
     what they exercise is the real config path, not a private shortcut.
     """
     # An explicit non-existent path rather than nothing: a settings key left

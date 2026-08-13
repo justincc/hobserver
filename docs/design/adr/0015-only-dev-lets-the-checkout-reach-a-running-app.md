@@ -24,7 +24,7 @@ implementations, not about who is running the app or what they want from it.
 The two audiences want opposite things, and neither was being served
 consistently:
 
-- Someone **using** hobserve wants a fixed thing. They are watching an
+- Someone **using** hobserver wants a fixed thing. They are watching an
   agent, and the tool should not change under them because a file in the
   directory they launched from was touched — by an editor, a `git checkout`,
   or the agent they are observing, which can write to files.
@@ -48,7 +48,7 @@ the app is for. The rule is about the checkout, not about disk.
 
 Nothing else needed changing to make this true: there is no `static/`
 directory in the shell or either plugin (CSS and JS are inline in
-`base.html`), `hobserve.toml` is read once in `main()`, and plugin, scope and
+`base.html`), `hobserver.toml` is read once in `main()`, and plugin, scope and
 provider modules are imported at startup. Templates were the only live
 exception.
 

@@ -10,7 +10,7 @@ pointer: nothing here restates an ADR's reasoning.
 
 ## 1. Extension without a fork
 
-**Someone else should be able to run hobserve against their hermes,
+**Someone else should be able to run hobserver against their hermes,
 display their own tools and stores, and carry no patch on top of this tree.**
 
 hermes' tool set differs between users and versions, and its frontends differ
@@ -50,7 +50,7 @@ payload", the knowledge has no owner and will drift.
 |---|---|---|
 | hermes' tools | `plugins/turns/scopes.py` | `scope_specs`, and a tab's own `SCOPES` — [ADR 7](adr/0007-declare-scope-rendering-as-row-specs.md), [ADR 10](adr/0010-a-tab-contributes-its-own-scope-specs.md) |
 | LLM provider APIs | `plugins/turns/providers.py` | `provider_specs` — [ADR 13](adr/0013-provider-payload-reading-is-its-own-module-and-token-shapes-are-published.md) |
-| another log or store entirely | its own tab | `hobserve.toml` — [ADR 5](adr/0005-tabs-are-configured-plugins-loaded-by-module-path.md) |
+| another log or store entirely | its own tab | `hobserver.toml` — [ADR 5](adr/0005-tabs-are-configured-plugins-loaded-by-module-path.md) |
 
 The two tests fail differently, which is why both are worth running. Failing
 the fork test is visible: someone asks for a patch. Failing the ownership
@@ -73,7 +73,7 @@ display. A `if provider == ...` in the same file would not.
   read the underlying payload/row/file directly. Curated accessors
   (`Span` properties, and the like) are a convenience for in-tree code, never
   the only road in.
-- **One loading mechanism.** `hobserve.toml`: an importable `module` path plus
+- **One loading mechanism.** `hobserver.toml`: an importable `module` path plus
   an opaque `settings` table, in-tree and installed modules loading
   identically. Do not add a second discovery route beside it — ADR 5 declined
   entry points so there is one place to look when something does not appear.
@@ -93,7 +93,7 @@ display. A `if provider == ...` in the same file would not.
   (no tab at all) is worth exiting for.
 - **Config over code for the operator; code for us.** What tabs load and how a
   scope displays is a stranger's choice, expressed as data. It is not a knob
-  in `hobserve.toml` for the person merely *running* hobserve — that file
+  in `hobserver.toml` for the person merely *running* hobserver — that file
   wires tabs, and app structure does not belong in it.
 
 ### What it does not mean
@@ -176,7 +176,7 @@ else entirely.** Not only the names differ per provider route — the
 `openai_responses` and only on the last `llm.chunk` of the stream for
 `openai_chat`, where the end payload says `usage: null`. Before concluding a
 producer does not report something, look for it on the other events of the
-same call; hobserve showed no token counts for every openrouter turn
+same call; hobserver showed no token counts for every openrouter turn
 while the log held all of them.
 
 **Anything you learn here about one provider goes in `providers.py`**, not in

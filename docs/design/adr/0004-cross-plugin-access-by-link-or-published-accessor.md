@@ -35,7 +35,7 @@ A second case pushed harder on the same boundary. A `mem0_update` or
 memory contained — the one thing a reader wants, and for a delete the only
 record that it ever existed. mem0 cannot supply it: hermes' `Mem0Backend`
 exposes only search/add/update/delete, and the platform cannot return a
-deleted memory at all. Asking it would also mean hobserve making
+deleted memory at all. Asking it would also mean hobserver making
 authenticated network calls, which ADR 2 rules out.
 
 The local log has the text anyway. A `mem0_search` result carries each hit's

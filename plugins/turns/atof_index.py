@@ -118,12 +118,12 @@ def default_index_path(log_path: str) -> str:
 
     Never beside the log: that directory is hermes'. Keyed by the log's
     absolute path so two configured logs do not share one index, and two
-    hobserve processes reading the same log do share it.
+    hobserver processes reading the same log do share it.
     """
     base = (os.environ.get("XDG_CACHE_HOME")
             or os.path.join(os.path.expanduser("~"), ".cache"))
     digest = hashlib.sha256(os.path.abspath(log_path).encode()).hexdigest()[:16]
-    return os.path.join(base, "hobserve", f"atof-index-{digest}.sqlite3")
+    return os.path.join(base, "hobserver", f"atof-index-{digest}.sqlite3")
 
 
 def code_fingerprint(usage_shapes=None) -> str:

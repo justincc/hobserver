@@ -13,7 +13,7 @@ Amends [ADR 5](0005-tabs-are-configured-plugins-loaded-by-module-path.md).
 [ADR 5](0005-tabs-are-configured-plugins-loaded-by-module-path.md) said **"a
 plugin imports nothing from the host"**, reasoning that the contract is plain
 module attributes and Flask, "so a third-party tab does not depend on a
-hobserve package or track its version".
+hobserver package or track its version".
 
 That was a true *description* of the tab contract, written down as a
 *prohibition*. A tab needs `PLUGIN_API`, `bp`, `TAB_LABEL`, `URL_PREFIX` and
@@ -44,7 +44,7 @@ public surface deserves — or whether it is this app's internals.
 
 ## Decision
 
-**A plugin may import from hobserve, from the surfaces this app
+**A plugin may import from hobserver, from the surfaces this app
 publishes. What is forbidden is depending on internals, and on other
 plugins.**
 
@@ -75,7 +75,7 @@ for a published name is a legitimate choice rather than a violation.
   plugin that ever used a `base.html` class. `PLUGIN_API` is what says which
   contract a plugin was written against, and published surfaces move with it.
 - **`docs/writing-a-plugin.md`'s checklist changes** from "imports nothing
-  from hobserve" to importing only published surfaces, and
+  from hobserver" to importing only published surfaces, and
   `docs/plugins-and-urls.md` no longer says a plugin imports nothing from
   this app.
 - **The list above is now a thing to maintain.** Adding a module to it is a

@@ -29,7 +29,7 @@ Two further wants, neither served today:
 - **Turning a tab off** should be one edit, and today it means deleting a line
   of Python from a tuple.
 - **Other people adding tabs** without forking this repo. The intent is that
-  someone can install hobserve, install or write their own tab —
+  someone can install hobserver, install or write their own tab —
   another memory provider, a different log — and run both, with no patch
   carried on top of this tree.
 
@@ -85,7 +85,7 @@ settings = { db = "…" }
 - **Order in the file is tab order**, and the first enabled tab serves `/`.
 - **`enabled = false` is the off switch** — one line, no code edit.
 - **`module` is any importable path.** `plugins.timing` (in this tree) and
-  `hobserve_zep` (installed from elsewhere) load by exactly the same
+  `hobserver_zep` (installed from elsewhere) load by exactly the same
   mechanism, so an out-of-tree tab needs no fork and no change here.
 - **`settings` is an opaque table** passed to the plugin. The shell never
   interprets it; a plugin validates its own and supplies its own defaults.
@@ -113,7 +113,7 @@ Optional hooks, each absent meaning "nothing to do":
 
 **A plugin imports nothing from the host.** The contract is plain module
 attributes and Flask, so a third-party tab does not depend on a
-hobserve package or track its version. The one real coupling is
+hobserver package or track its version. The one real coupling is
 `templates/base.html` — a tab extends it and inherits the tab bar, the
 `data-live-poll` convention and the CSS classes — so that surface is
 documented as public and changed with the same care as a URL.

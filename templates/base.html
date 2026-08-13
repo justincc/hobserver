@@ -24,7 +24,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}hobserve{% endblock %}</title>
+  <title>{% block title %}hobserver{% endblock %}</title>
   <style>
     /* Anchor jumps animate rather than teleport. On the request page the
        contents list can move a reader thousands of lines in one click, and
@@ -522,11 +522,11 @@
      means "top" lands slightly short of it. The full page's contents list
      is the one thing using it today; being on the shell costs nothing and
      is correct for any page that later wants the same. #}
-  <h1 id="top"><a href="{{ url_for('root') }}">hobserve</a></h1>
+  <h1 id="top"><a href="{{ url_for('root') }}">hobserver</a></h1>
   {# A block so a page that is one thing to read — a whole prompt, opened in
      its own tab from a span — can leave the tab bar out. Overriding it is
      for that case only: a page reached by navigating always keeps the bar,
-     or the reader loses their place in the app. The `hobserve`
+     or the reader loses their place in the app. The `hobserver`
      heading above is outside it deliberately, so a page with no tab bar
      still has a way home. #}
   {% block tabbar %}
@@ -541,7 +541,7 @@
        there polling, so navigating away from that page would defeat it. #}
     <a class="status-link" href="{{ url_for('request_status') }}"
        target="_blank" rel="noopener"
-       title="Health of this web app itself — HTTP requests reaching hobserve. Not agent activity.">hobserve status</a>
+       title="Health of this web app itself — HTTP requests reaching hobserver. Not agent activity.">hobserver status</a>
   </nav>
   {% endblock %}
   {% block content %}{% endblock %}
@@ -568,7 +568,7 @@
     const openRows = new Set();
 
     (function () {
-      const FOLLOW_KEY = "hobserve.follow";
+      const FOLLOW_KEY = "hobserver.follow";
       let region = document.querySelector("[data-live-poll]");
       const followOn = () => localStorage.getItem(FOLLOW_KEY) === "1";
       // Looked up on each use, never captured: on a turn page the toggle

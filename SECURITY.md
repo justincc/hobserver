@@ -2,19 +2,19 @@
 
 ## Trust model — read this first
 
-**hobserve has no authentication.** Anyone who can reach the port sees
+**hobserver has no authentication.** Anyone who can reach the port sees
 everything it shows and can use every page. Run it only where **only people
 you trust** can reach it.
 
 - It binds `127.0.0.1` (loopback) by default — reachable only from the machine
   it runs on.
-- Setting a non-loopback `host` in `hobserve.toml` (e.g. `0.0.0.0`) puts it on
+- Setting a non-loopback `host` in `hobserver.toml` (e.g. `0.0.0.0`) puts it on
   your network with nothing in front of it. Do that only on a network you
   control, never a public or untrusted one.
 - The startup banner prints the bind address, so you can see what you exposed.
 
 That trust boundary — who can reach the port — is the whole security model.
-hobserve is a single-user tool for observing your own hermes-agent: there is
+hobserver is a single-user tool for observing your own hermes-agent: there is
 no login, no user model, no per-page permissions, and none is planned while
 that assumption holds.
 
@@ -25,7 +25,7 @@ never writes to them and has no endpoint that mutates data. The only file it
 writes is a rebuildable index cache under your cache directory.
 
 The log can contain text hermes ingested from untrusted places (web pages,
-email, files it was asked to read). hobserve renders that content safely (see
+email, files it was asked to read). hobserver renders that content safely (see
 below), but it will faithfully **show** you whatever is in the log — including
 a secret a model may have written into its own output (see Redaction).
 
@@ -57,11 +57,11 @@ input provably does not come from the log.
 Some inputs are configuration you provide, and are trusted as such. Anyone who
 can write them can run code or read files as you:
 
-- **`hobserve.toml`** names Python modules (`module`, `scope_specs`,
-  `provider_specs`) that hobserve **imports** — that is, executes. Treat the
+- **`hobserver.toml`** names Python modules (`module`, `scope_specs`,
+  `provider_specs`) that hobserver **imports** — that is, executes. Treat the
   config file and everything on the Python path as trusted.
 - **Source paths** in the config (`atof_log`, `db`, `index_db`) are read and
-  displayed; hobserve will read whatever file you point it at.
+  displayed; hobserver will read whatever file you point it at.
 
 ## Redaction
 
@@ -79,7 +79,7 @@ Database access is parameterized throughout. There is no `eval`/`exec`, no
 
 ## Reporting
 
-There is no formal vulnerability-reporting process. hobserve is a personal
+There is no formal vulnerability-reporting process. hobserver is a personal
 tool meant to run behind a trust boundary, so its exposure is small by
 construction. If that changes, or you find something worth flagging, open an
 issue.

@@ -13,12 +13,12 @@ be written to face one: to survive a slow or malformed client, and to fail a
 request rather than the process. That is the whole of the requirement. Load is
 not part of it — this is a single-user tool, usually on a home network, and
 will never need to scale. *(Later: the bind defaults to loopback and a network
-bind is opt-in via `host` in hobserve.toml — but the server still has to be
+bind is opt-in via `host` in hobserver.toml — but the server still has to be
 one that could face a network, so the choice below is unchanged.)*
 
 Three constraints on the choice:
 
-- **Setup cost stays at zero.** `./hobserve` is the entire install
+- **Setup cost stays at zero.** `./hobserver` is the entire install
   story. A server needing a separate command, a process manager or a compiler
   would trade a better socket for a worse tool.
 - **A `.py` edit restarts the server during development.** Template edits are

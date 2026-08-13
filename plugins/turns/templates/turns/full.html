@@ -9,7 +9,7 @@
    for why that is the only trusted string on the page. #}
 {% extends "base.html" %}
 {% from "turns/_macros.html" import copy_btn %}
-{% block title %}{{ title }} · {{ span.name }} — hobserve{% endblock %}
+{% block title %}{{ title }} · {{ span.name }} — hobserver{% endblock %}
 {# No tab bar. This page is opened from a span, in its own tab, to read one
    thing; a row of tabs offering to navigate away from it is chrome for a
    place the reader did not come from. The heading above it still goes home. #}
@@ -125,7 +125,7 @@
         a reader needs. Above the list rather than in it, because it is not
         one of the messages.
 
-        `#top` is on the `hobserve` heading in base.html — the first
+        `#top` is on the `hobserver` heading in base.html — the first
         thing on the page. An anchor on anything this template renders lands
         below that heading, which is short of the top and reads as a bug. #}
     <a class="nav-top" href="#top">&uarr; top</a>

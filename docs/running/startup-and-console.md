@@ -2,8 +2,8 @@
 
 ## Loading the tabs
 
-The first command-line argument, else `$HOBSERVE_CONFIG`, else
-`./hobserve.toml` names the config file; with none present the built-in
+The first command-line argument, else `$HOBSERVER_CONFIG`, else
+`./hobserver.toml` names the config file; with none present the built-in
 default list is used. `tabs.py` parses it and imports each enabled module. See
 [plugins-and-urls.md](../extending/plugins-and-urls.md).
 
@@ -135,17 +135,17 @@ Port 5090, on **waitress** — a production WSGI server, chosen in
 because it is pure Python and so costs nothing to install. There is no
 interactive debugger to expose if you open the bind up; waitress has none.
 
-The bind address is loopback (`127.0.0.1`) unless `hobserve.toml` sets a
-top-level `host` — set one to reach hobserve from other machines. The
+The bind address is loopback (`127.0.0.1`) unless `hobserver.toml` sets a
+top-level `host` — set one to reach hobserver from other machines. The
 banner prints the address it resolved.
 
-A running hobserve serves the checkout as it was when it started. No edit
+A running hobserver serves the checkout as it was when it started. No edit
 reaches it — template or `.py` — without `--dev`
 ([ADR 15](../design/adr/0015-only-dev-lets-the-checkout-reach-a-running-app.md)):
 
 ```bash
-./hobserve --dev            # every edit lands
-./hobserve --dev other.toml # either order; --dev is not a config path
+./hobserver --dev            # every edit lands
+./hobserver --dev other.toml # either order; --dev is not a config path
 ```
 
 Under it a template edit shows up on the next request (Jinja's doing, not the
