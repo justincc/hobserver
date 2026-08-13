@@ -225,7 +225,7 @@ def sources(settings):
     path = atof_path(settings)
     entries = [{"label": "ATOF log", "path": path, "required": False,
                 "problem": None if os.path.exists(path) else "no such file"}]
-    entries.append({"label": "ATOF index (cache)",
+    entries.append({"label": "ATOF index",
                     "path": index_db_path(settings),
                     "required": False, "problem": None})
     entries.extend(spec_table(settings)[1])

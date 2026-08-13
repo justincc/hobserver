@@ -30,7 +30,7 @@ the banner prints — the shell knows none of the above.
 
 ## The ATOF index, in the banner
 
-The Turns tab prints a second line, `ATOF index (cache)`, naming the SQLite
+The Turns tab prints a second line, `ATOF index`, naming the SQLite
 file it keeps beside nothing —
 [ADR 11](../design/adr/0011-index-the-atof-log-rather-than-hold-it-in-memory.md).
 It is listed with the sources because that is where a reader looks for "which

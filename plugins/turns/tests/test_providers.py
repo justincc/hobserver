@@ -326,5 +326,5 @@ def test_contributed_modules_appear_in_the_startup_sources(tmp_path, monkeypatch
                        "index_db": str(tmp_path / "index.sqlite3"),
                        "provider_specs": ["no_such_module"]})
     assert [e["label"] for e in entries] == [
-        "ATOF log", "ATOF index (cache)", "provider spec"]
+        "ATOF log", "ATOF index", "provider spec"]
     assert entries[-1]["problem"].startswith("ModuleNotFoundError")
