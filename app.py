@@ -208,9 +208,6 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False,
             "no (specify --dev to pick up .py and template edits)"))
         serving_lines.append(f"  listening    http://{host}:{port}/")
         serving_lines.append(f"  status       http://localhost:{port}{STATUS_PATH}")
-        serving_lines.append(
-            "               successful requests are not logged below — only "
-            "errors show;\n               that page tallies every request.")
 
     # Blank lines between the blocks, and an empty block takes none with it.
     blocks = [resolved, *tab_blocks, serving_lines]
