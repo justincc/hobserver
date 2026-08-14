@@ -11,6 +11,21 @@ on. Polling pauses while the browser tab is hidden.
 No SSE or WebSockets; a poll reuses the per-request tailer, which reads only
 what the exporter appended since the last request.
 
+### Selecting text pauses everything
+
+A swap replaces the nodes a selection lives in, which drops it — so dragging
+across a prompt to copy it lost the selection on the next tick, and copying
+anything off a live page was impossible. Nothing can rescue a selection whose
+text has just been removed, so the loop holds still instead: while a selection
+sits **inside the live region**, there is no fetch, no swap and no follow-mode
+navigation, and the next tick after it collapses resumes all three. A click
+anywhere collapses it, which is what a reader does after copying.
+
+Follow mode is paused with the rest deliberately: navigating away mid-copy
+loses the selection just as thoroughly as swapping does. A selection outside
+the region (the page header) survives a swap untouched and does not pause
+anything.
+
 ## The in-flight strip
 
 Both Turns pages show an in-flight strip

@@ -549,7 +549,9 @@
     // Live regions: an element with data-live-poll="<ms>" is refetched from
     // the current URL on that interval and swapped in place; a value of "0"
     // (e.g. a finished turn) means static — render but never poll. Polling
-    // pauses while the tab is hidden.
+    // pauses while the tab is hidden, and while text inside the region is
+    // selected (see `selecting`) — a swap would drop the selection, so
+    // copying anything off a live page was impossible before.
     //
     // Follow mode ([data-follow-toggle], persisted in localStorage) auto-opens
     // a turn's page when an in-flight turn appears whose start_us is newer
@@ -629,6 +631,26 @@
       const pollMs = () =>
         parseInt(region.dataset.livePoll, 10) || (toggle() && followOn() ? 3000 : 0);
 
+      // Selecting text pauses the whole loop — the fetch, the swap and any
+      // follow-mode navigation with it.
+      //
+      // A swap replaces the nodes the selection lives in, which drops it: a
+      // reader dragging across a prompt to copy it lost the selection on the
+      // next tick, every 2 or 3 s, and could not copy at all. Nothing here
+      // could rescue it either, since the text they had selected is gone with
+      // the old nodes. So the page holds still instead, and resumes on the
+      // first tick after the selection collapses — which a click anywhere
+      // does, and is what a reader does after copying.
+      //
+      // Only a selection *inside* the region counts: one in the page header
+      // survives a swap untouched, and pausing for it would stop a live turn
+      // updating for no gain.
+      const selecting = () => {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount || sel.isCollapsed) return false;
+        return region.contains(sel.anchorNode) || region.contains(sel.focusNode);
+      };
+
       let busy = false;
       async function poll() {
         busy = true;
@@ -677,7 +699,7 @@
       }
       (function loop() {
         setTimeout(async () => {
-          if (pollMs() && !busy && !document.hidden) await poll();
+          if (pollMs() && !busy && !document.hidden && !selecting()) await poll();
           loop();
         }, pollMs() || 1000);
       })();

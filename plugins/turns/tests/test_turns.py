@@ -1104,6 +1104,22 @@ def test_follow_toggle_defaults_on(tmp_path):
     assert 'localStorage.getItem(FOLLOW_KEY) !== "0"' in js
 
 
+def test_a_selection_inside_a_live_region_holds_the_poll():
+    """A swap drops the selection it replaces, so copying off a live page
+    was impossible while it polled. The guard has to sit on the loop, not
+    inside `poll()`: the fetch and the follow-mode navigation that follows
+    it would otherwise still run, and navigating away loses a selection
+    just as thoroughly as swapping does."""
+    js = (REPO_ROOT / "templates" / "base.html").read_text()
+    assert "const selecting = () =>" in js
+    # only a selection in the swapped region counts — one in the page header
+    # survives untouched
+    assert ("return region.contains(sel.anchorNode) || "
+            "region.contains(sel.focusNode);") in js
+    assert ("if (pollMs() && !busy && !document.hidden && !selecting()) "
+            "await poll();") in js
+
+
 def test_both_switches_are_the_same_switch(tmp_path):
     """Follow mode and the span details do the same kind of thing — a
     persistent on/off for the page — so they are one control, drawn once by
