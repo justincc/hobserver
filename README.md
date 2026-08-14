@@ -21,6 +21,19 @@ tried, and each of those would arrive as its own tab beside this one.
 Every view is read-only over a log another process produces, so it is safe
 to point at live files while hermes is writing to them.
 
+## Philosophy
+
+- **Be useful**. The primary view of Hobserver is to be a useful tool for seeing what Hermes
+  is up to. So inferring information (e.g. which memory got changed on a memory operation)
+  on top of what appears in logs and through API calls is a good thing to do. Or being able to click
+  a link in the turns view and see the memory in full.
+- **Be modular**. I started off making this because I was very curious about what Hermes
+  was doing under the hood. But I have a particular way of using Hermes and a particular
+  set of plugins that I use, where other people may end up invoking different tools or 
+  be using different plugins. So an important value for the code is modularity. For example,
+  it should be possible to write a plugin for any of the memory systems out there which can
+  live in a separate git tree and doesn't need any modifications to the core Hobserver files. 
+
 ## Security
 
 **hobserver has no authentication — run it only where only trusted parties can
