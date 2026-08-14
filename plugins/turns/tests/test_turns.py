@@ -1288,6 +1288,67 @@ def test_memory_batch_lists_every_operation(tmp_path):
     assert 'title="Atlas weekly"' in page
 
 
+HOUSEHOLD_ENTRY = ("For household fault-finding, user prefers likely causes "
+                   "ranked by commonality, visual diagrams, and practical "
+                   "identification steps.")
+
+
+def _consolidation_stream():
+    """The routine shape of a memory turn: a write rejected for the char
+    budget hands back the whole store, and the write that follows
+    consolidates an entry it names by a fragment."""
+    return [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("W1", "tool", 1_100_000, 1_200_000, name="memory",
+                     session="s1", turn="t1", end_status="error",
+                     start_data={"action": "add", "target": "user",
+                                 "content": "Terminology: be precise."},
+                     end_data={"success": False, "usage": "1,306/1,375",
+                               "error": "Memory at 1,306/1,375 chars.",
+                               "current_entries": ["Crypto: pithy bold Pros.",
+                                                   HOUSEHOLD_ENTRY]}),
+        *scope_lines("W2", "tool", 5_200_000, 5_300_000, name="memory",
+                     session="s1", turn="t1", end_status="ok",
+                     start_data={"target": "user", "operations": [
+                         {"action": "replace",
+                          "old_text": "For household fault-finding",
+                          "content": "Household fault-finding: rank common "
+                                     "causes."}]},
+                     end_data={"success": True, "entry_count": 12,
+                               "usage": "96% — 1,329/1,375 chars"}),
+        mark_line("hermes.turn.end", 6_000_000, session="s1", turn="t1"),
+    ]
+
+
+def test_memory_replace_shows_the_whole_entry_it_matched(tmp_path):
+    atof = write_atof(tmp_path, _consolidation_stream())
+    page = make_client(tmp_path, str(atof)).get(
+        "/turns/turn/s1/1000000").get_data(as_text=True)
+    # the − side is the entry, not the fragment the payload names it by
+    assert f'title="{escape(HOUSEHOLD_ENTRY)}"' in page
+    assert "Household fault-finding: rank common causes." in page
+    # and it says where that came from, on the same muted row mem0's
+    # recovered text uses
+    assert 'class="span-detail list-item prov"' in page
+    assert "matched entry from the store listing 4 s earlier in this turn" in page
+    # the fragment the payload actually holds is not lost with it
+    assert escape("logged as “For household fault-finding”") in page
+    assert "never the entry it resolved to" in page       # the tooltip
+
+
+def test_memory_replace_keeps_the_fragment_when_nothing_listed_the_store(tmp_path):
+    # the same turn without the rejection that hands the store back: the row
+    # falls back to what the log holds and claims nothing
+    lines = [line for line in _consolidation_stream()
+             if '"uuid": "W1"' not in line]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        "/turns/turn/s1/1000000").get_data(as_text=True)
+    assert 'title="For household fault-finding"' in page
+    assert HOUSEHOLD_ENTRY not in page
+    assert 'class="span-detail list-item prov"' not in page
+
+
 def test_failed_span_is_badged_and_shows_the_tools_error(tmp_path):
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),

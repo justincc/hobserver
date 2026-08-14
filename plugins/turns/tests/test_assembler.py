@@ -7,7 +7,8 @@ correlation metadata.
 
 import json
 
-from plugins.turns.assembler import UNKNOWN_SESSION, assemble
+from plugins.turns.assembler import (UNKNOWN_SESSION, assemble,
+                                     resolve_memory_entries)
 from plugins.turns.atof_reader import parse_lines
 
 SESSION_SCOPE_UUID = "scope-s1"
@@ -1081,6 +1082,11 @@ def test_memory_scope_single_op_shape():
         "old_text": "User does not want auto-commits",
         "content": "User requires a staged diff before commits.",
         "text": "User requires a staged diff before commits.",
+        # nothing listed the store in this turn, so the − side stays the
+        # fragment the log holds and claims nothing more
+        "old_entry": None,
+        "old_shown": "User does not want auto-commits",
+        "old_entry_note": None,
     }]
     assert add.memory_action == "add"
     assert add.memory_target == "memory"
@@ -1128,7 +1134,9 @@ def test_memory_scope_batch_shape():
     assert batch.memory_ops[1]["text"] == "Atlas weekly"
     assert staged.memory_action == "batch"
     assert staged.memory_ops == [{"action": "add", "old_text": None,
-                                  "content": "One entry.", "text": "One entry."}]
+                                  "content": "One entry.", "text": "One entry.",
+                                  "old_entry": None, "old_shown": None,
+                                  "old_entry_note": None}]
 
 
 def test_failed_spans_carry_the_tools_own_error():
@@ -1207,6 +1215,212 @@ def test_memory_results_report_the_char_budget():
     assert stored.memory_current_entries == []
     # both keys are far too generic to read outside a memory scope
     assert other.memory_stats == [] and other.memory_current_entries == []
+
+
+# --- recovering the entry a memory write matched --------------------------
+# `old_text` is a fragment the tool matches by containment, and the fragment
+# is all the log holds. A rejected write hands back the whole store, so a
+# turn that consolidates after one — the routine reason to replace at all —
+# says what the entry was. See `resolve_memory_entries`.
+
+HOUSEHOLD = ("For household fault-finding, user prefers likely causes ranked "
+             "by commonality, visual diagrams, and practical identification "
+             "steps.")
+CRYPTO = "Crypto: pithy bold alphabetized Pros/Neutral/Cons."
+
+
+def _listing_span(uuid, start_us, end_us, entries, target="user"):
+    """A write rejected for the char budget: it changed nothing and came
+    back with the entire store, which is the only listing there is."""
+    return scope_lines(uuid, "tool", start_us, end_us, name="memory",
+                       session="s1", turn="t1", end_status="error",
+                       start_data={"action": "add", "target": target,
+                                   "content": "One more thing."},
+                       end_data={"success": False, "usage": "1,338/1,375",
+                                 "error": "Memory at 1,338/1,375 chars.",
+                                 "current_entries": entries})
+
+
+def _write_span(uuid, start_us, end_us, ops, target="user", success=True):
+    return scope_lines(uuid, "tool", start_us, end_us, name="memory",
+                       session="s1", turn="t1",
+                       end_status="ok" if success else "error",
+                       start_data={"target": target, "operations": ops},
+                       end_data={"success": success, "entry_count": 12,
+                                 "usage": "96% — 1,329/1,375 chars"})
+
+
+def _memory_turn(*span_lines):
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *[line for group in span_lines for line in group],
+        mark_line("hermes.turn.end", 60_000_000, session="s1", turn="t1"),
+    ]
+    turn = assemble_lines(lines).sessions[0].turns[0]
+    resolve_memory_entries(turn)
+    return turn
+
+
+def test_memory_replace_recovers_the_entry_behind_the_fragment():
+    turn = _memory_turn(
+        _listing_span("W1", 1_100_000, 1_200_000, [CRYPTO, HOUSEHOLD]),
+        _write_span("W2", 5_200_000, 5_300_000, [
+            {"action": "replace", "old_text": "For household fault-finding",
+             "content": "Household fault-finding: rank common causes."},
+            {"action": "add", "content": "Terminology: be precise."},
+        ]),
+    )
+    replace, add = turn.spans[1].memory_ops
+    assert replace["old_entry"] == HOUSEHOLD
+    # the − side shows the whole entry; the fragment stays available as the
+    # payload's own value
+    assert replace["old_shown"] == HOUSEHOLD
+    assert replace["old_text"] == "For household fault-finding"
+    assert replace["old_entry_note"] == (
+        "matched entry from the store listing 4 s earlier in this turn "
+        "\u00b7 logged as \u201cFor household fault-finding\u201d")
+    # an add matched nothing and claims nothing
+    assert add["old_entry"] is None and add["old_entry_note"] is None
+
+
+def test_memory_entry_unresolved_when_no_listing_precedes_it():
+    turn = _memory_turn(_write_span("W1", 1_100_000, 1_200_000, [
+        {"action": "remove", "old_text": "Crypto"}]))
+    op, = turn.spans[0].memory_ops
+    # silence, not a guess and not a note: nothing in the turn ever said
+    # what the store held
+    assert op["old_entry"] is None and op["old_entry_note"] is None
+    assert op["old_shown"] == "Crypto"
+
+
+def test_memory_listing_answers_for_the_call_that_returned_it():
+    """A rejected batch is handed the store *and* names the entries it
+    failed to write, so its own ops resolve against it."""
+    turn = _memory_turn(scope_lines(
+        "W1", "tool", 1_100_000, 1_200_000, name="memory", session="s1",
+        turn="t1", end_status="error",
+        start_data={"target": "user", "operations": [
+            {"action": "replace", "old_text": "For household fault-finding",
+             "content": "x" * 400}]},
+        end_data={"success": False, "usage": "1,700/1,375",
+                  "error": "Batch would exceed the limit.",
+                  "current_entries": [CRYPTO, HOUSEHOLD]}))
+    op, = turn.spans[0].memory_ops
+    assert op["old_entry"] == HOUSEHOLD
+    assert op["old_entry_note"] == (
+        "matched entry from the store listing this call returned "
+        "\u00b7 logged as \u201cFor household fault-finding\u201d")
+
+
+def test_memory_listing_is_dropped_once_a_write_lands():
+    """A successful write reports what it cost, never what the store now
+    says, so the listing stops describing anything after it."""
+    turn = _memory_turn(
+        _listing_span("W1", 1_100_000, 1_200_000, [CRYPTO, HOUSEHOLD]),
+        _write_span("W2", 2_000_000, 2_100_000, [
+            {"action": "remove", "old_text": "Crypto"}]),
+        _write_span("W3", 3_000_000, 3_100_000, [
+            {"action": "replace", "old_text": "For household fault-finding",
+             "content": "Household: rank common causes."}]),
+    )
+    landed, after = turn.spans[1].memory_ops[0], turn.spans[2].memory_ops[0]
+    assert landed["old_entry"] == CRYPTO          # still covered by the listing
+    assert after["old_entry"] is None             # past it
+    assert after["old_entry_note"] is None
+    assert after["old_shown"] == "For household fault-finding"
+
+
+def test_memory_listing_survives_a_write_that_did_not_land():
+    turn = _memory_turn(
+        _listing_span("W1", 1_100_000, 1_200_000, [CRYPTO, HOUSEHOLD]),
+        _write_span("W2", 2_000_000, 2_100_000, success=False, ops=[
+            {"action": "replace", "old_text": "Crypto", "content": "x" * 400}]),
+        _write_span("W3", 3_000_000, 3_100_000, [
+            {"action": "remove", "old_text": "For household fault-finding"}]),
+    )
+    assert turn.spans[2].memory_ops[0]["old_entry"] == HOUSEHOLD
+
+
+def test_ambiguous_fragment_is_stated_rather_than_picked():
+    turn = _memory_turn(
+        _listing_span("W1", 1_100_000, 1_200_000,
+                      ["Git: commit in logical units.", "Git: stage first."]),
+        _write_span("W2", 2_000_000, 2_100_000, [
+            {"action": "replace", "old_text": "Git",
+             "content": "Git: stage, then commit in logical units."}]),
+    )
+    op, = turn.spans[1].memory_ops
+    assert op["old_entry"] is None
+    assert op["old_entry_note"] == (
+        "2 entries in the store listing 800 ms earlier in this turn "
+        "contain this text — not resolved to one")
+    assert op["old_shown"] == "Git"
+
+
+def test_fragment_the_listing_does_not_hold_says_so():
+    turn = _memory_turn(
+        _listing_span("W1", 1_100_000, 1_200_000, [CRYPTO]),
+        _write_span("W2", 2_000_000, 2_100_000, [
+            {"action": "remove", "old_text": "Atlas weekly"}]),
+    )
+    op, = turn.spans[1].memory_ops
+    assert op["old_entry"] is None
+    assert op["old_entry_note"] == (
+        "no entry in the store listing 800 ms earlier in this turn "
+        "contains this text")
+
+
+def test_a_fragment_that_is_the_whole_entry_adds_no_note():
+    turn = _memory_turn(
+        _listing_span("W1", 1_100_000, 1_200_000, [CRYPTO]),
+        _write_span("W2", 2_000_000, 2_100_000, [
+            {"action": "remove", "old_text": CRYPTO}]),
+    )
+    op, = turn.spans[1].memory_ops
+    assert op["old_entry"] is None and op["old_entry_note"] is None
+    assert op["old_shown"] == CRYPTO
+
+
+def test_later_ops_in_a_batch_see_what_earlier_ones_left():
+    """Within one span the log is complete — a batch is atomic and every op
+    is on the span — so the ops are replayed rather than all matched against
+    the same starting list."""
+    turn = _memory_turn(
+        _listing_span("W1", 1_100_000, 1_200_000, [CRYPTO, HOUSEHOLD]),
+        _write_span("W2", 2_000_000, 2_100_000, [
+            {"action": "replace", "old_text": "Crypto",
+             "content": "Crypto: bold alphabetized Pros/Cons."},
+            # matches the entry the op above wrote, not the one it replaced
+            {"action": "remove", "old_text": "bold alphabetized"},
+        ]),
+    )
+    first_op, second = turn.spans[1].memory_ops
+    assert first_op["old_entry"] == CRYPTO
+    assert second["old_entry"] == "Crypto: bold alphabetized Pros/Cons."
+
+
+def test_memory_entries_are_resolved_per_store():
+    """The two stores are separate files; a listing of one says nothing
+    about the other."""
+    turn = _memory_turn(
+        _listing_span("W1", 1_100_000, 1_200_000, [HOUSEHOLD], target="user"),
+        _write_span("W2", 2_000_000, 2_100_000, target="memory", ops=[
+            {"action": "remove", "old_text": "For household fault-finding"}]),
+    )
+    assert turn.spans[1].memory_ops[0]["old_entry"] is None
+
+
+def test_resolving_memory_entries_twice_gives_the_same_answer():
+    # the assembly is cached and a live page re-renders it every few seconds
+    turn = _memory_turn(
+        _listing_span("W1", 1_100_000, 1_200_000, [CRYPTO, HOUSEHOLD]),
+        _write_span("W2", 2_000_000, 2_100_000, [
+            {"action": "remove", "old_text": "For household"}]),
+    )
+    before = turn.spans[1].memory_ops
+    resolve_memory_entries(turn)
+    assert turn.spans[1].memory_ops == before
 
 
 # --- the core runtime's turn tree ----------------------------------------

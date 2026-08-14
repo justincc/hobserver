@@ -875,6 +875,34 @@ Rendering: a `.mode-tag` and the store name always visible, the first op's text
 a replace both — with a per-op action label only when there is more than one,
 since the mode tag already names a lone op.
 
+#### The entry behind the fragment
+
+The − side is `old_shown`, not `old_text`: the log holds the fragment the
+tool matched on, and the reader wants the entry it matched. `Span.memory_ops`
+carries both, plus the note that has to appear with them —
+`assembler.resolve_memory_entries` fills them in and
+[ADR 16](adr/0016-recover-a-matched-store-entry-from-a-listing-in-the-same-turn.md)
+is the reasoning:
+
+| key | what it is |
+|---|---|
+| `old_text` | the fragment, exactly as the payload has it |
+| `old_entry` | the whole entry it resolved to, or None |
+| `old_shown` | the − side: the entry where there is one, else the fragment |
+| `old_entry_note` | the `.prov` row — provenance when resolved, the reason when not |
+
+The evidence is `current_entries`, which only a rejected write returns (see
+below), so a listing is available exactly where consolidation happens. It
+answers for the call that returned it and for later calls to the same store,
+until a write **lands** — a success reports its char count, never the store,
+so the listing is dropped there rather than replayed forward. Inside one span
+the ops *are* replayed, since a batch is atomic and every op is on the span.
+
+Unresolved is stated, never silent: "no entry in the store listing 800 ms
+earlier in this turn contains this text", or "2 entries … — not resolved to
+one". A fragment that is already the whole entry adds no note at all, having
+nothing to add.
+
 This is the one scope whose *end* payload is rendered as a matter of course,
 because the char budget is the whole story of the tool:
 
@@ -884,7 +912,8 @@ because the char budget is the whole story of the tool:
 - `Span.memory_current_entries` — the whole store, which a rejection hands back
   for the model to consolidate before its own entry will fit; its error says
   "see current_entries below". Detail-only: it is the store's state, not this
-  write.
+  write. It is also the evidence the section above resolves fragments
+  against.
 
 ### todo — `todos`
 

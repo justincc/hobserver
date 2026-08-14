@@ -233,6 +233,11 @@ class Span:
     # was last alive, and the token counts the final chunk reported.
     stream_last_us: Optional[int] = None
     stream_usage: Optional[dict] = None
+    # Which store entry each of this span's memory ops matched, by position
+    # in `memory_ops`: {index: {"entry": str|None, "note": str}}. Filled by
+    # `resolve_memory_entries` for the turn being viewed and empty for every
+    # other span, because it is read off *other* spans of the same turn.
+    memory_entries: dict = field(default_factory=dict)
 
     @property
     def last_activity_us(self) -> int:
@@ -866,7 +871,16 @@ class Span:
         content}. old_text is the entry matched (a short unique substring,
         not an id — the tool matches by containment); content is what
         replaces it, so an add has only content and a remove only old_text.
-        `text` is whichever of the two the summary line should carry."""
+        `text` is whichever of the two the summary line should carry.
+
+        Three more keys come from `resolve_memory_entries`, which is the
+        only thing that fills `memory_entries` in: `old_entry` is the whole
+        entry the fragment matched where the turn itself said what the store
+        held, `old_shown` is what the − side displays (that entry, else the
+        fragment as logged), and `old_entry_note` is the provenance line the
+        page must print beside it. Unresolved, they are None, None and the
+        reason — never a silent fallback to the fragment.
+        """
         if self.name != "memory":
             return []
         data = _as_dict(self.start_data)
@@ -886,8 +900,15 @@ class Span:
             old_text = op.get("old_text")
             content = content if isinstance(content, str) and content else None
             old_text = old_text if isinstance(old_text, str) and old_text else None
+            # keyed by position in this same list, which is why the resolver
+            # walks `memory_ops` rather than the raw payload
+            found = self.memory_entries.get(len(out)) or {}
+            entry = found.get("entry")
             out.append({"action": action, "content": content,
                         "old_text": old_text,
+                        "old_entry": entry,
+                        "old_shown": entry or old_text,
+                        "old_entry_note": found.get("note"),
                         # a remove names only the entry it drops, so that is
                         # the one line worth showing for it
                         "text": content or old_text})
@@ -1087,6 +1108,167 @@ class Span:
     def vision_question(self) -> Optional[str]:
         return (self._start_str("question")
                 if self.name == "vision_analyze" else None)
+
+
+# --- which entry a memory write matched -----------------------------------
+#
+# The `memory` tool addresses an entry by a fragment of it, not by an id
+# ($HERMES_SOURCE/tools/memory_tool.py: `[e for e in entries if old_text in
+# e]`), and logs only the fragment. So the − side of a replace is a few
+# words where the store held a whole sentence, and nothing in the span says
+# what the rest of it was.
+#
+# The turn often does, though. A write that fails the char budget comes back
+# with `current_entries` — the entire store — and consolidating after such a
+# rejection is the routine reason for a replace in the first place, so the
+# listing and the write that uses it usually sit seconds apart in one turn.
+# Matching the fragment against that listing recovers the entry.
+#
+# Two limits are deliberate, and both are why the note beside the recovered
+# text names the listing rather than presenting the entry as logged
+# (design principle 2 — derived data says where it came from):
+#
+# - **The listing is a snapshot, not a running model of the store.** A write
+#   that *succeeded* leaves the store somewhere this app cannot see: the
+#   success payload reports a char count and an entry count, never the
+#   entries. So a landed write drops the snapshot for that store, and later
+#   ops go unresolved until another rejection lists it again. Replaying our
+#   own idea of the writes onto it would be a second store, kept by us,
+#   diverging silently — the thing ADR 2 exists to prevent.
+# - **Within one span it is replayed**, because there the log is complete: a
+#   batch is applied atomically to one working list and every operation in it
+#   is on the span, so the state each op matched against is a reading of the
+#   payload rather than a guess about the world.
+MEMORY_SCOPE = "memory"
+
+
+def resolve_memory_entries(turn) -> None:
+    """Recover the whole entry behind each memory write's `old_text`, in place.
+
+    Reads across the spans of one turn, so it is a turn-level pass rather
+    than a `Span` property, and it is called for the turn being *viewed* —
+    it needs end payloads, which are in the log rather than the index
+    (ADR 11), so running it over every turn would hydrate the whole log.
+
+    Idempotent: each span's result is rebuilt from scratch, so a re-render of
+    a cached assembly gets the same answer.
+    """
+    listings = {}                      # target -> (entries, as-of us)
+    for span in sorted(turn.spans, key=lambda s: s.start_us):
+        if span.name != MEMORY_SCOPE:
+            continue
+        span.memory_entries = {}
+        target = span.memory_target
+        listed = span.memory_current_entries
+        if listed:
+            # Every payload carrying `current_entries` is a rejection, and a
+            # rejected write — batch included, it is all-or-nothing — changed
+            # nothing. The listing therefore describes the store as this span
+            # found it, and holds for this span's own ops as well as later ones.
+            listings[target] = (listed, span.end_us or span.start_us)
+        listing = listings.get(target)
+        if listing is not None:
+            entries, as_of_us = listing
+            working = list(entries)
+            # `memory_ops` is read once here, before the results go in, and
+            # rebuilt with them when the page asks for it
+            for i, op in enumerate(span.memory_ops):
+                found = _match_memory_entry(op, working, as_of_us, span)
+                if found is not None:
+                    span.memory_entries[i] = found
+                _replay_memory_op(op, working)
+        if _memory_write_landed(span):
+            listings.pop(target, None)
+
+
+def _memory_write_landed(span) -> bool:
+    """Whether this write reached the store — i.e. whether a listing taken
+    before it still describes what is there.
+
+    Unknown counts as landed. A span still in flight, or one whose end
+    payload could not be read, must not leave later rows quoting a store
+    that may have moved on.
+    """
+    end = _as_dict(span.end_data)
+    if end is not None and isinstance(end.get("success"), bool):
+        return end["success"]
+    return not span.failed
+
+
+def _match_memory_entry(op, entries, as_of_us, span) -> Optional[dict]:
+    """The one listed entry this op's fragment matched, with its provenance.
+
+    None when there is nothing to add: an add (no fragment), or a fragment
+    that is already the whole entry. Otherwise the note says what happened,
+    including when the listing could not answer — an unmatched or ambiguous
+    fragment is stated rather than passed over, since the row would
+    otherwise look like one we simply chose not to resolve.
+    """
+    fragment = (op.get("old_text") or "").strip()
+    if not fragment:
+        return None
+    matched = {e for e in entries if fragment in e}
+    listing = _listing_phrase(as_of_us, span)
+    if len(matched) > 1:
+        # what the tool itself rejects as ambiguous, unless the duplicates
+        # are identical — either way, not something to pick between here
+        return {"entry": None,
+                "note": f"{len(matched)} entries in {listing} contain this "
+                        "text — not resolved to one"}
+    if not matched:
+        return {"entry": None,
+                "note": f"no entry in {listing} contains this text"}
+    entry = next(iter(matched))
+    if entry.strip() == fragment:
+        return None                    # the fragment was the whole entry
+    # The fragment goes in the note because the entry has taken its place on
+    # the row: it is what the payload actually says, and without it the page
+    # would show only text this app worked out.
+    return {"entry": entry,
+            "note": f"matched entry from {listing} · logged as “{fragment}”"}
+
+
+def _listing_phrase(as_of_us: int, span) -> str:
+    """Which store listing answered, and how long before this call it was
+    taken — the provenance half of every note above.
+
+    Milliseconds are worth printing: consecutive memory calls in one turn are
+    routinely that close, and "0 s earlier" would read as a rounding error
+    rather than as the tight loop it is.
+    """
+    gap_s = (span.start_us - as_of_us) / 1_000_000
+    if gap_s <= 0:
+        return "the store listing this call returned"
+    if gap_s < 1:
+        return f"the store listing {gap_s * 1000:.0f} ms earlier in this turn"
+    if gap_s < 90:
+        return f"the store listing {gap_s:.0f} s earlier in this turn"
+    return f"the store listing {gap_s / 60:.0f} min earlier in this turn"
+
+
+def _replay_memory_op(op, working: list) -> None:
+    """Apply one op to the working list, as the tool applies a batch.
+
+    Only ever within a single span (see the note above the module's
+    MEMORY_SCOPE). Matching is the tool's own containment rule, so a later op
+    in a batch sees what the earlier ones left it rather than the entry one
+    of them already replaced.
+    """
+    action, content = op.get("action"), op.get("content")
+    fragment = (op.get("old_text") or "").strip()
+    if action == "add":
+        if content:
+            working.append(content)
+        return
+    if not fragment:
+        return
+    idx = next((i for i, e in enumerate(working) if fragment in e), None)
+    if idx is None:
+        return
+    if action == "remove":
+        working.pop(idx)
+    elif action == "replace" and content:
+        working[idx] = content
 
 
 def _unwrap_prompt(content: str) -> Optional[str]:

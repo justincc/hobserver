@@ -68,6 +68,14 @@ FILE_PATH = Scope(rows=[
 # entries being shortened to fit the char budget, so a batch reads as the
 # list of edits it is. The end payload's stats and current_entries are
 # outcome rows and stay with the error row in the template.
+#
+# The − side is `old_shown`, not the logged `old_text`: the tool matches an
+# entry by a fragment of it, so the fragment is what the log holds and the
+# whole entry is what a reader is trying to see. `resolve_memory_entries`
+# recovers it from a store listing elsewhere in the turn where it can, and
+# the `.prov` row below says so — the same shape mem0's recovered text uses,
+# for the same reason (design principle 2). Where nothing was recovered the
+# − side falls back to the fragment and the note says why.
 MEMORY = Scope(rows=[
     Row([Field("memory_action", deco="tag"),
          Field("memory_target", deco="cat", prefix="· ")]),
@@ -79,7 +87,20 @@ MEMORY = Scope(rows=[
     Each("memory_ops", [
         Row([Field(item("action"), deco="action")],
             layer="detail", when_many=True),
-        Diff(item("old_text"), item("content")),
+        Diff(item("old_shown"), item("content")),
+        Row([Field(item("old_entry_note"), deco="plain",
+                   title=const(
+                       "The log records only the fragment the tool matched "
+                       "on, never the entry it resolved to: `old_text` is a "
+                       "short unique substring, matched by containment. This "
+                       "app recovers the entry by matching that fragment "
+                       "against the whole store, which a write rejected for "
+                       "the char budget hands back — so it is the entry as "
+                       "that listing showed it, not something the tool "
+                       "reported having replaced. A listing is only used "
+                       "until a write lands, since a successful write says "
+                       "what it cost but never what the store now says."))],
+            layer="detail", cls="prov"),
     ]),
 ])
 

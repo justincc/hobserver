@@ -25,7 +25,7 @@ from werkzeug.routing import BuildError
 
 import hermes_paths
 from plugins.turns import fulltext
-from plugins.turns.assembler import assemble
+from plugins.turns.assembler import assemble, resolve_memory_entries
 from plugins.turns.atof_index import (AtofIndex, default_index_path,
                                         hydrate_span, hydrate_turn)
 from plugins.turns.providers import USAGE_SHAPES, check_shapes
@@ -446,6 +446,10 @@ def turn(session_id, start_us):
     # of the same turn costs nothing, and the next append drops the lot.
     hydrate_turn(found, current_app.config["ATOF_PATH"],
                  current_app.config.get("USAGE_SHAPES"))
+    # After hydration and only for this turn: it reads one memory span's
+    # store listing to make sense of another's, which needs the end payloads
+    # the line above just fetched.
+    resolve_memory_entries(found)
     # Scale for the bars: a turn still in flight is drawn against the last
     # thing we saw in it.
     span_edges = [s.end_us or s.start_us for s in found.spans]
