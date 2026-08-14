@@ -9,7 +9,11 @@
    it is a sibling selector that paints the checkbox's state. #}
 <label class="switch follow-toggle"
        title="Automatically open a turn's waterfall when a new turn starts (never while already watching one in flight)">
-  <input type="checkbox" data-follow-toggle>
+  {# Checked in the markup because follow mode defaults on: the switch must
+     already read "on" when the page paints, or a page that is following
+     shows an off switch until the script resyncs it. base.html unchecks it
+     for anyone who has switched it off. #}
+  <input type="checkbox" data-follow-toggle checked>
   <span class="track"></span>
   follow new turns
 </label>

@@ -303,7 +303,8 @@ the page is static.
 ### Live updating
 
 Timing pages self-update by polling and swapping, show an in-flight strip, and
-offer a follow-mode toggle that opens new turns as they start. Because hermes
+offer a follow-mode toggle, on by default, that opens new turns as they start.
+Because hermes
 drops `hermes.turn.end` marks often, an open turn is poor evidence of running
 work, and liveness is decided by proof rather than by a clock.
 

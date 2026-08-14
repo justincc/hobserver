@@ -1067,6 +1067,19 @@ def test_follow_toggle_rendered_on_both_pages(tmp_path):
         f"/turns/turn/s9/{inflight_start}").get_data(as_text=True)
 
 
+def test_follow_toggle_defaults_on(tmp_path):
+    """Follow mode is on until switched off, so the switch ships checked and
+    the script only unchecks it for a stored "0"."""
+    _, inflight_start, lines = recent_stream()
+    atof = write_atof(tmp_path, lines)
+    client = make_client(tmp_path, str(atof))
+    for url in ("/turns/", f"/turns/turn/s9/{inflight_start}"):
+        assert re.search(r'<input type="checkbox" data-follow-toggle checked>',
+                         client.get(url).get_data(as_text=True)), url
+    js = (REPO_ROOT / "templates" / "base.html").read_text()
+    assert 'localStorage.getItem(FOLLOW_KEY) !== "0"' in js
+
+
 def test_both_switches_are_the_same_switch(tmp_path):
     """Follow mode and the span details do the same kind of thing — a
     persistent on/off for the page — so they are one control, drawn once by
@@ -1079,7 +1092,7 @@ def test_both_switches_are_the_same_switch(tmp_path):
         f"/turns/turn/s9/{inflight_start}").get_data(as_text=True)
     for attr in ("data-follow-toggle", "data-detail-toggle"):
         assert re.search(r'<label class="switch [\w-]+"[^>]*>\s*'
-                         r'<input type="checkbox" ' + attr + r'>\s*'
+                         r'<input type="checkbox" ' + attr + r'[^>]*>\s*'
                          r'<span class="track"></span>', page), attr
     # …and the look is stated once, not once per switch
     css = (REPO_ROOT / "templates" / "base.html").read_text()

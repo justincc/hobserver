@@ -570,7 +570,10 @@
     (function () {
       const FOLLOW_KEY = "hobserver.follow";
       let region = document.querySelector("[data-live-poll]");
-      const followOn = () => localStorage.getItem(FOLLOW_KEY) === "1";
+      // On unless it has been switched off: opening the app and watching the
+      // next turn arrive is what it is for. Only an explicit "0" opts out, so
+      // a first visit (nothing stored) follows.
+      const followOn = () => localStorage.getItem(FOLLOW_KEY) !== "0";
       // Looked up on each use, never captured: on a turn page the toggle
       // sits in the nav *inside* the live region, so the swap replaces the
       // element. A held reference would go stale and silently stop working.
@@ -650,8 +653,8 @@
           });
           region.replaceWith(fresh);
           region = fresh;
-          // the swapped-in follow and details switches arrive unchecked —
-          // resync both to the state they are actually held in
+          // the swapped-in follow and details switches arrive at their markup
+          // default — resync both to the state they are actually held in
           syncToggle();
           // (details state lives on <body>)
           region.querySelectorAll("[data-detail-toggle]").forEach((el) => {
