@@ -53,7 +53,7 @@ WHOLE = "whole"
 PARTS = "parts"
 CONVENTIONS = (WHOLE, PARTS)
 
-# The canonical names, which are the ones `assembler.TOKEN_TREE` renders. A
+# The canonical names, which are the ones `spans.TOKEN_TREE` renders. A
 # shape may map any subset; `request_count` has no counterpart in any
 # provider payload and is never mapped.
 CANONICAL_COUNTS = ("prompt_tokens", "input_tokens", "cache_read_tokens",
@@ -275,7 +275,7 @@ def canonical_usage(usage: Any, shapes: Optional[Sequence] = None) -> dict:
 
     Only what the payload actually reported: an absent count stays absent,
     because absent and zero mean different things to every row that reads
-    these (see `assembler.TOKEN_TREE`). Nothing is derived here — see
+    these (see `spans.TOKEN_TREE`). Nothing is derived here — see
     `complete_the_prompt`.
     """
     if not isinstance(usage, dict):

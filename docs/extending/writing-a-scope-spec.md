@@ -99,7 +99,7 @@ listed in [ADR 8](../design/adr/0008-plugins-may-import-published-host-vocabular
 so importing it is the ordinary thing to do, and the names in it change with
 the same care as a URL.
 
-What you should not import is this app's internals (`assembler`,
+What you should not import is this app's internals (`spans`, `assembler`,
 `atof_reader`, a tab's own helpers) or another plugin. Those are not
 promised to stay put, and reading another plugin's data has its own route:
 [ADR 4](../design/adr/0004-cross-plugin-access-by-link-or-published-accessor.md).

@@ -52,7 +52,9 @@ audience it serves, not the one whose subject it shares.
   commitments, extensibility above all; **read before designing a change**
 - [adr/](docs/design/adr/) — architecture decisions, sequentially numbered
 - [atof-reader.md](docs/design/atof-reader.md) — line reader → parser → index
-  → assembler; what the index stores, its staleness checks, and hydration
+  → assembler, and `spans.py` beside it; **which of those two a payload
+  reading belongs in**, what the index stores, its staleness checks, and
+  hydration
 - [providers.py](plugins/turns/providers.py) + [ADR 13](docs/design/adr/0013-provider-payload-reading-is-its-own-module-and-token-shapes-are-published.md)
   — where the assistant's words, tool calls and token counts sit per
   provider. **Nothing else in the app knows one provider from another**;
@@ -61,8 +63,9 @@ audience it serves, not the one whose subject it shares.
   shows on the turn page, scope by scope
 - [ADR 17](docs/design/adr/0017-a-payload-reading-is-contributed-beside-the-spec-that-names-it.md)
   — a tool's payload is read by whoever owns that tool, as `SPAN_READERS`
-  beside its specs. **`Span` properties are this tab's reading of hermes'
-  own tools**; another system's shape goes with that system
+  beside its specs. **[plugins/turns/spans.py](plugins/turns/spans.py) is
+  this tab's reading of hermes' own tools**, and nothing else's; another
+  system's shape goes with that system
   ([plugins/mem0/spans.py](plugins/mem0/spans.py) is the worked example)
 - [live-pages.md](docs/design/live-pages.md) — polling, liveness, follow mode,
   item navigation, waterfall colors

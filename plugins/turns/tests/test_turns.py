@@ -8,8 +8,8 @@ from markupsafe import escape
 
 from conftest import REPO_ROOT, make_app
 from conftest import make_memory_change_db, make_memory_db
-from test_assembler import (mark_line, scope_lines, session_scope_lines,
-                                  two_turn_stream)
+from streams import (mark_line, scope_lines, session_scope_lines,
+                     two_turn_stream)
 
 
 def make_client(tmp_path, atof_path):

@@ -217,7 +217,7 @@ def _payload_key(span, which: str, key: str):
     `which` names the span attribute holding the payload — not `attr`, which
     is now a source helper in this module and would shadow it.
     """
-    from plugins.turns.assembler import _as_dict
+    from plugins.turns.spans import _as_dict
 
     data = _as_dict(getattr(span, which, None))
     if data is None:

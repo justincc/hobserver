@@ -212,6 +212,22 @@ def test_a_changed_reader_invalidates_the_derived_fields(index, log,
     assert "reader" in state.reason
 
 
+def test_the_fingerprint_covers_every_module_a_projection_goes_through():
+    """`project()` reads payloads through `spans`, so an edit there has to
+    invalidate an index built before it. The list is easy to leave behind
+    when code moves between modules — which is exactly how a cache goes
+    quietly wrong (ADR 11) — so it is pinned here rather than trusted."""
+    import inspect
+
+    from plugins.turns import atof_index
+
+    source = inspect.getsource(atof_index.code_fingerprint)
+    for module in ("_atof_reader", "_providers", "_spans", "_assembler"):
+        assert module in source, module
+    # and the projection really does go through the one that moved
+    assert "user_message_from_data" in inspect.getsource(atof_index.project)
+
+
 def test_a_changed_index_version_invalidates_it(index, log):
     write(log, mark("a", 1))
     index.refresh()

@@ -170,9 +170,9 @@ def generic_payload_fields(data: Any) -> list:
 
 # --- relay-runtime normalization ----------------------------------------
 # The core runtime emits the provider's own response object where the plugin
-# emitted hermes' canonical envelope. Rather than teach forty Span
-# properties, the assembler and every template about a second shape, new
-# events are mapped back onto the canonical one as they are parsed — the
+# emitted hermes' canonical envelope. Rather than teach forty readings in
+# `spans` and every template about a second shape, new events are mapped
+# back onto the canonical one as they are parsed — the
 # only place in this app that knows there were ever two formats.
 #
 # What is mapped is only what genuinely moved. Facts the new exporter never

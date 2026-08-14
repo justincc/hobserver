@@ -1,6 +1,6 @@
 # The ATOF reader
 
-Four layers in `plugins/turns/`, per ADR 2 (the JSONL is the source of
+Five files in `plugins/turns/`, per ADR 2 (the JSONL is the source of
 truth) and ADR 11 (a rebuildable index of it, so the log need not fit in
 memory).
 
@@ -10,9 +10,30 @@ memory).
 | parser | `atof_reader.py` | one line → one typed event |
 | index | `atof_index.py` | events → a cached spine; payloads stay in the log |
 | assembler | `assembler.py` | events → sessions → turns → waterfall |
+| span readings | `spans.py` | the `Span` itself, and what one span's payloads mean |
 
 Views refresh the index on each request and assemble in memory. The turn page
 reads back the payloads of the one turn it is showing, and no others.
+
+## Which file a thing belongs in
+
+`spans.py` and `assembler.py` were one file until they were 1,979 lines and
+only a quarter of it assembled anything. The seam between them is **what a
+question needs to answer it**:
+
+- **One span's own payloads** — a tool's arguments, a call's token counts,
+  the entry a memory write matched. `spans.py`.
+- **More than one event** — pairing a start with an end, placing a span in a
+  turn, bounding a turn, summing a session, an anomaly none of that explains.
+  `assembler.py`.
+
+The dependency runs one way, `assembler` → `spans`, and a test pins it: a
+span that reached for its turn would put the two back in one knot. It also
+sets where hermes' payload knowledge lives — in the readings, never in the
+assembly, which is design principle 1's ownership test applied in-tree.
+**Another system's spans are read by whoever owns that system**
+(`plugins/mem0/spans.py`, [ADR 17](adr/0017-a-payload-reading-is-contributed-beside-the-spec-that-names-it.md));
+a reading here is this tab reading hermes' own tools.
 
 ## tailer.py — the line reader
 
@@ -261,9 +282,13 @@ and the whole set costs a `stat` and two small reads.
    re-read and compared. This is the one that survives a rewrite preserving
    both size and head, and past the first 64 KB it is the only one that can
    see anything at all.
-4. **A hash of `atof_reader.py`, `assembler.py` and `atof_index.py`** — the
-   stored spine means whatever those meant when they wrote it, and they keep
-   changing while hermes' schema does. It over-invalidates (a docstring edit
+4. **A hash of `atof_reader.py`, `spans.py`, `assembler.py` and
+   `atof_index.py`** — the stored spine means whatever those meant when they
+   wrote it, and they keep changing while hermes' schema does. `spans.py` is
+   in the list because `project()` reads payloads through it
+   (`user_message_from_data`, `request_prompt_from_profile`); when code moves
+   between these files the list has to move with it, since a projection
+   helper hashed by no module is how a cache goes quietly wrong. It over-invalidates (a docstring edit
    rebuilds), which at seconds per rebuild is the right side to be wrong on.
    **Expect a rebuild on the next request after any edit to those files.**
 
@@ -308,6 +333,19 @@ A payload that cannot be re-read — the log rotated between assembly and
 render — sets `Span.payload_problem`, which the turn page states on the row
 rather than rendering a blank field (ADR 2). What the index kept is still
 shown; the row says it is not the whole payload.
+
+## spans.py — what a span holds and what it means
+
+The `Span` dataclass — the assembled fields, and every reading of a hermes
+payload hung off them (`command`, `patch_mode`, `token_rows`, `memory_ops`,
+the request/response sections, `resolve_memory_entries`). Payloads are opaque
+per the ATOF spec, so every one of these type-guards and none raises on a
+shape it did not expect.
+
+What each reading ends up *showing* is
+[span-rendering.md](span-rendering.md); this file is only where they live and
+why. A spec names one by bare string, and a contributed reader of the same
+name stands in front of it (ADR 17).
 
 ## assembler.py — events → turns
 

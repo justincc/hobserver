@@ -7,8 +7,8 @@ What a span shows, scope by scope.
 `plugins/turns/scope_spec.py` holds the vocabulary those declarations are
 written in; `plugins/turns/templates/turns/_macros.html` paints whatever they resolve to
 and knows about no particular tool, and `turn.html` is the page around it.
-The values come from `Span` properties in `plugins/turns/assembler.py`, or
-straight from the payload.
+The values come from `Span` properties in `plugins/turns/spans.py`, from a
+contributed reader of the same name (ADR 17), or straight from the payload.
 
 One scope, llm, is not declarative and keeps hand-written Jinja, reached
 through `render=` — see [the one exception](#the-one-exception).
@@ -891,7 +891,7 @@ since the mode tag already names a lone op.
 The − side is `old_shown`, not `old_text`: the log holds the fragment the
 tool matched on, and the reader wants the entry it matched. `Span.memory_ops`
 carries both, plus the note that has to appear with them —
-`assembler.resolve_memory_entries` fills them in and
+`spans.resolve_memory_entries` fills them in and
 [ADR 16](adr/0016-recover-a-matched-store-entry-from-a-listing-in-the-same-turn.md)
 is the reasoning:
 

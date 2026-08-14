@@ -42,10 +42,11 @@ from typing import Any, Dict, List, Optional, Tuple
 from plugins.turns import assembler as _assembler
 from plugins.turns import atof_reader as _atof_reader
 from plugins.turns import providers as _providers
-from plugins.turns.assembler import (AGENT_CATEGORY, LLM_CATEGORY,
-                                       TURN_START_MARK,
-                                       request_prompt_from_profile,
-                                       user_message_from_data)
+from plugins.turns import spans as _spans
+from plugins.turns.assembler import TURN_START_MARK
+from plugins.turns.spans import (AGENT_CATEGORY, LLM_CATEGORY,
+                                   request_prompt_from_profile,
+                                   user_message_from_data)
 from plugins.turns.atof_reader import (STREAM_MARK_NAMES, AtofEvent,
                                          AtofParseError, LineRef, ParseError,
                                          parse_line)
@@ -130,12 +131,20 @@ def code_fingerprint(usage_shapes=None) -> str:
     """Hash of every module whose code decides what the index *means*.
 
     The stored spine is normalized by `atof_reader`, read per provider by
-    `providers`, and projected through `assembler`; edit any of them and the
-    stored values no longer mean what they say. Hashing the source
-    invalidates them automatically, rather than relying on someone
+    `providers`, and projected through `spans` and `assembler`; edit any of
+    them and the stored values no longer mean what they say. Hashing the
+    source invalidates them automatically, rather than relying on someone
     remembering to bump a constant while chasing a hermes schema change. It
     over-invalidates — a docstring edit forces a rebuild — which at seconds
     per rebuild is the right side to be wrong on.
+
+    **`spans` is in the list because `project()` reads payloads through it**
+    (`user_message_from_data`, `request_prompt_from_profile`). Those readings
+    decide what a stored projection *is*, so they belong here even though
+    every other reading in that module runs at render time and could not
+    stale an index if it tried. When the reader/assembler split moved them,
+    this list had to move with them — a projection helper hashed by no module
+    is precisely how a cache goes quietly wrong (ADR 11).
 
     **Contributed provider modules are hashed too** (ADR 13). A third-party
     `UsageShape` decides what the stored token counts mean just as much as
@@ -144,7 +153,8 @@ def code_fingerprint(usage_shapes=None) -> str:
     cache is never allowed to be (ADR 11).
     """
     digest = hashlib.sha256()
-    modules = [_atof_reader, _providers, _assembler, sys.modules[__name__]]
+    modules = [_atof_reader, _providers, _spans, _assembler,
+               sys.modules[__name__]]
     for name in _providers.shape_modules(usage_shapes or ()):
         module = sys.modules.get(name)
         if module is not None and module not in modules:

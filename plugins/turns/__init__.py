@@ -4,8 +4,9 @@ NeMo Relay ATOF stream.
 Reader per docs/design/adr/0002: tailer (byte-offset incremental read) → parser
 (JSONL line → typed event) → index (spine cached in SQLite, payloads left in
 the log, docs/design/adr/0011) → assembler (events → sessions → turns →
-waterfall). Views refresh the index on each request and assemble in memory;
-the turn page reads back the payloads of the one turn it is showing.
+waterfall), with `spans` reading what each span holds. Views refresh the
+index on each request and assemble in memory; the turn page reads back the
+payloads of the one turn it is showing.
 
 Per ADR 2's fail-open caveat, the page states loudly when the source is
 missing or silent instead of rendering an empty timeline,
@@ -25,7 +26,7 @@ from werkzeug.routing import BuildError
 
 import hermes_paths
 from plugins.turns import fulltext
-from plugins.turns.assembler import Span, assemble, resolve_memory_entries
+from plugins.turns.assembler import assemble
 from plugins.turns.atof_index import (AtofIndex, default_index_path,
                                         hydrate_span, hydrate_turn)
 from plugins.turns.providers import USAGE_SHAPES, check_shapes
@@ -34,6 +35,7 @@ from plugins.turns.scope_spec import (SpecTable, check_readers,
                                         render_macro, resolve_full,
                                         resolve_source, rows_for)
 from plugins.turns.scopes import SCOPES, SCOPES_BY_CATEGORY
+from plugins.turns.spans import Span, resolve_memory_entries
 
 PLUGIN_API = 1
 bp = Blueprint("turns", __name__, template_folder="templates")

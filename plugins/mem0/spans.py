@@ -27,7 +27,7 @@ def _end_dict(span):
 
     The nemo_relay plugin emits hermes tool results as raw JSON strings, so
     the payload arrives as text about as often as it arrives as an object.
-    The Turns tab has its own defensive read for this (`assembler._as_dict`);
+    The Turns tab has its own defensive read for this (`spans._as_dict`);
     this is a plugin, and a plugin importing another tab's private helper
     would be exactly the coupling ADR 4 rules out — so mem0 keeps its own.
     """

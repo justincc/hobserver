@@ -166,7 +166,7 @@ the log it reads, with its problem if it has one.
 - **Assistant text and tool calls.** hermes' `annotated_response` carries
   both, uniformly across routes, and leads over the raw payload — so a new
   provider's text usually works already. See ADR 13 for the reasoning.
-- **The token tree.** A count with no row in `assembler.TOKEN_TREE` maps
+- **The token tree.** A count with no row in `spans.TOKEN_TREE` maps
   fine and then displays nowhere. If your provider reports a kind of count
   this app has no row for, that needs an in-tree change; open it as a
   question rather than working around it in a spec.

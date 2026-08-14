@@ -33,7 +33,7 @@ this tree", the design is not finished.
 Apply it to the whole path, not the entry point. It is easy to make
 registration pluggable and leave a fork one level down — ADR 7's first draft
 let a stranger register a scope spec but not read a payload key without
-patching `assembler.py`, which is the same fork with an extra step.
+patching this tree's own reader, which is the same fork with an extra step.
 
 ### The ownership test
 
@@ -68,7 +68,7 @@ seen?"* was a question with no home. It was not true of every provider, and
 the wrong number went unnoticed until a second router turned up.
 
 A useful tell: **prose about a foreign system may live anywhere; a branch on
-one may not.** `assembler.py` explains in a comment why `cache write` is not
+one may not.** `spans.py` explains in a comment why `cache write` is not
 in `ALWAYS_SHOWN` (hermes hard-codes it to zero on the codex route) — that
 is a display rule reasoning about provider behaviour, and it belongs with the
 display. A `if provider == ...` in the same file would not.
