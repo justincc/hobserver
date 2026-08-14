@@ -55,11 +55,12 @@ BUILTIN_TABS = ({"module": "plugins.turns"}, {"module": "plugins.mem0"})
 REQUIRED_ATTRS = ("bp", "TAB_LABEL", "URL_PREFIX")
 
 # Optional, and carried untouched: a tab may describe how its own spans show
-# on a tab that paints spans (ADR 10). The shell never looks inside these —
-# it does not know what a scope spec is, the same way it does not know what a
-# setting means — it only hands them to the tabs that want them, which is
-# what ties their lifetime to this tab being enabled.
-SPEC_ATTRS = ("SCOPES", "SCOPES_BY_CATEGORY")
+# on a tab that paints spans (ADR 10), and how their payloads are read
+# (`SPAN_READERS`, ADR 17). The shell never looks inside these — it does not
+# know what a scope spec is, the same way it does not know what a setting
+# means — it only hands them to the tabs that want them, which is what ties
+# their lifetime to this tab being enabled.
+SPEC_ATTRS = ("SCOPES", "SCOPES_BY_CATEGORY", "SPAN_READERS")
 
 
 class ConfigError(Exception):

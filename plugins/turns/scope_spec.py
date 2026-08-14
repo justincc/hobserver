@@ -25,10 +25,17 @@ from typing import Any, Callable, Optional, Sequence, Union
 
 # --- sources ---------------------------------------------------------
 #
-# A source says where a value comes from. A bare string is a Span property,
-# which is the common case and keeps the table readable; the helpers below
-# cover everything else. `payload` is what lets a contributed spec read a
-# tool this app has no properties for.
+# A source says where a value comes from. A bare string names a value of the
+# span, which is the common case and keeps the table readable; the helpers
+# below cover everything else. `payload` is what lets a contributed spec read
+# a tool this app has no properties for.
+#
+# A bare string resolves against the **span readers** first and the `Span`
+# object second (ADR 17). A reader is `fn(span) -> value` contributed beside
+# a spec, for the payloads that need reading rather than looking up: a
+# stranger's tool can have both halves — how its payload is read and how it
+# shows — without either living in this tree. In-tree readings stay `Span`
+# properties, which is the same thing with a shorter path to it.
 
 
 def payload(key: str):
@@ -110,7 +117,7 @@ def _resolve(source, span, ctx):
     if source is None:
         return None
     if isinstance(source, str):
-        return getattr(span, source, None)
+        return _span_value(span, source, ctx)
     if isinstance(source, (list, tuple)) and source and isinstance(source[0], str):
         kind = source[0]
         if kind == "payload":
@@ -154,6 +161,27 @@ def _resolve(source, span, ctx):
         if kind == "accessor":
             return _accessor(span, ctx, source[1], source[2])
     return None
+
+
+def _span_value(span, name: str, ctx):
+    """One named value of the span: a contributed reader, else a property.
+
+    Readers win, because the in-tree table is a default and not a floor —
+    the same rule the spec table follows, and the override is named at
+    startup rather than applied silently (ADR 17).
+
+    A reader that raises costs its own value and nothing else. It is
+    somebody else's code reading somebody else's payload, which is exactly
+    the case `_accessor` below already treats this way: one plugin's bad
+    afternoon must not be a payload dump where another plugin's rows were.
+    """
+    reader = (ctx.get("readers") or {}).get(name)
+    if reader is None:
+        return getattr(span, name, None)
+    try:
+        return reader(span)
+    except Exception:  # noqa: BLE001 - a reader may come from outside this tree
+        return None
 
 
 def _attr(value, key: str):
@@ -669,8 +697,8 @@ class Scope:
     def full_named(self, key: str) -> Optional[Full]:
         return next((f for f in self.fulls if f.key == key), None)
 
-    def resolve(self, span, accessors=None) -> list:
-        ctx = {"accessors": accessors or {},
+    def resolve(self, span, accessors=None, readers=None) -> list:
+        ctx = {"accessors": accessors or {}, "readers": readers or {},
                "fulls": {f.key: f for f in self.fulls}}
         out = []
         for spec in self.rows:
@@ -686,10 +714,16 @@ class SpecTable:
 
     Name wins over category, so a spec can single out one tool inside a
     category that already has one.
+
+    `readers` is the other half of a contribution (ADR 17): the payload
+    readings a spec names as bare-string sources. It travels with the specs
+    because it arrives with them, from the same module, and dies with them
+    when that tab is disabled.
     """
 
     by_name: dict = dc_field(default_factory=dict)
     by_category: dict = dc_field(default_factory=dict)
+    readers: dict = dc_field(default_factory=dict)
 
     def lookup(self, span) -> Optional[Scope]:
         spec = self.by_name.get(getattr(span, "name", None))
@@ -697,18 +731,23 @@ class SpecTable:
             spec = self.by_category.get(getattr(span, "category", None))
         return spec
 
-    def merged_with(self, by_name: dict, by_category: dict) -> "SpecTable":
+    def merged_with(self, by_name: dict, by_category: dict,
+                    readers: Optional[dict] = None) -> "SpecTable":
         """This table with another module's specs laid over it. Later wins:
         the in-tree table is a default, not a floor (ADR 7)."""
         return SpecTable({**self.by_name, **by_name},
-                         {**self.by_category, **by_category})
+                         {**self.by_category, **by_category},
+                         {**self.readers, **(readers or {})})
 
-    def overrides_of(self, by_name: dict, by_category: dict) -> list:
+    def overrides_of(self, by_name: dict, by_category: dict,
+                     readers: Optional[dict] = None) -> list:
         """Which names another module would take over, for the startup line.
         An override is legitimate and announced, never silent."""
         return sorted([n for n in by_name if n in self.by_name]
                       + [f"category:{c}" for c in by_category
-                         if c in self.by_category])
+                         if c in self.by_category]
+                      + [f"reader:{r}" for r in (readers or {})
+                         if r in self.readers])
 
 
 def rows_for(span, table: SpecTable, accessors=None) -> Optional[list]:
@@ -725,7 +764,7 @@ def rows_for(span, table: SpecTable, accessors=None) -> Optional[list]:
     if spec is None or spec.render:
         return None
     try:
-        rows = spec.resolve(span, accessors)
+        rows = spec.resolve(span, accessors, table.readers)
     except Exception:  # noqa: BLE001 - a spec may come from outside this tree
         return None
     return rows or None
@@ -758,10 +797,11 @@ def full_link(span, table: SpecTable, key: str, accessors=None) -> Optional[dict
     full = full_for(span, table, key)
     if full is None:
         return None
-    return full.link(span, {"accessors": accessors or {}})
+    return full.link(span, {"accessors": accessors or {},
+                            "readers": table.readers})
 
 
-def resolve_source(source, span, accessors=None):
+def resolve_source(source, span, accessors=None, readers=None):
     """One source resolved outside any row — a `Full`'s title and note.
 
     Those two are sources like everything else, so a scope can take its
@@ -770,19 +810,21 @@ def resolve_source(source, span, accessors=None):
     everywhere else a spec is read.
     """
     try:
-        return _resolve(source, span, {"accessors": accessors or {}})
+        return _resolve(source, span, {"accessors": accessors or {},
+                                       "readers": readers or {}})
     except Exception:  # noqa: BLE001 - a spec may come from outside this tree
         return None
 
 
-def resolve_full(span, full: Full, accessors=None):
+def resolve_full(span, full: Full, accessors=None, readers=None):
     """The value behind a `Full`, whatever type its source resolves to.
 
     Left as it came: a string stays a string, a structure stays a structure,
     and what to do about that is the renderer's business, not the
     vocabulary's.
     """
-    return _resolve(full.source, span, {"accessors": accessors or {}})
+    return _resolve(full.source, span, {"accessors": accessors or {},
+                                        "readers": readers or {}})
 
 
 def check_table(by_name: dict, by_category: dict) -> list:
@@ -813,6 +855,29 @@ def check_table(by_name: dict, by_category: dict) -> list:
             if not spec.render and not spec.rows:
                 problems.append(f"{where} sets neither rows nor render")
             problems.extend(_full_problems(where, spec))
+    return problems
+
+
+def check_readers(readers: dict) -> list:
+    """What is wrong with a contributed span-reader table (ADR 17).
+
+    The same reasoning as `check_table`: every fault here otherwise shows up
+    as a row that quietly does not render, which is indistinguishable from
+    the module not being installed. A reader is a name a spec can put where
+    a `Span` property would go, so the name has to be one — anything else
+    could never be reached by a source and is a typo with no other symptom.
+    """
+    problems = []
+    if not isinstance(readers, dict):
+        return [f"SPAN_READERS is {type(readers).__name__}, not a dict"]
+    for name, reader in readers.items():
+        where = f"SPAN_READERS[{name!r}]"
+        if not isinstance(name, str) or not name.isidentifier():
+            problems.append(f"{where} is not a name a spec could use as a "
+                            "source")
+        elif not callable(reader):
+            problems.append(f"{where} is {type(reader).__name__}, not "
+                            "callable — a reader is fn(span) -> value")
     return problems
 
 

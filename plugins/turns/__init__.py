@@ -25,12 +25,13 @@ from werkzeug.routing import BuildError
 
 import hermes_paths
 from plugins.turns import fulltext
-from plugins.turns.assembler import assemble, resolve_memory_entries
+from plugins.turns.assembler import Span, assemble, resolve_memory_entries
 from plugins.turns.atof_index import (AtofIndex, default_index_path,
                                         hydrate_span, hydrate_turn)
 from plugins.turns.providers import USAGE_SHAPES, check_shapes
-from plugins.turns.scope_spec import (SpecTable, check_table, full_for,
-                                        full_link, render_macro, resolve_full,
+from plugins.turns.scope_spec import (SpecTable, check_readers,
+                                        check_table, full_for, full_link,
+                                        render_macro, resolve_full,
                                         resolve_source, rows_for)
 from plugins.turns.scopes import SCOPES, SCOPES_BY_CATEGORY
 
@@ -132,30 +133,37 @@ def usage_shape_table(settings):
 
 
 def tab_spec_tables(app):
-    """Scope specs the other loaded tabs contribute (ADR 10).
+    """Scope specs and span readers the other loaded tabs contribute
+    (ADR 10, ADR 17).
 
     A tab that owns a kind of span describes it itself — mem0's spans are
-    declared in `plugins/mem0/scopes.py`, not here — and the shell collects
-    them before any tab registers. Reading them from `app.extensions` rather
-    than importing anything keeps ADR 4's rule intact: this tab knows no
-    other plugin by name.
+    declared in `plugins/mem0/scopes.py` and read in `plugins/mem0/spans.py`,
+    not here — and the shell collects them before any tab registers. Reading
+    them from `app.extensions` rather than importing anything keeps ADR 4's
+    rule intact: this tab knows no other plugin by name.
 
     Their lifetime is the contributing tab's. Disable that tab and its specs
     go with it, which is what stops a span linking to a page nobody serves.
+
+    A fault in either table skips the whole contribution: the two arrive
+    from one module and describe one tool between them, and half of it —
+    rows naming readings that never loaded — is worse than the payload dump
+    they replace.
     """
     out = []
     for name, tables in (app.extensions.get("tab_scopes") or {}).items():
         by_name = tables.get("SCOPES") or {}
         by_category = tables.get("SCOPES_BY_CATEGORY") or {}
+        readers = tables.get("SPAN_READERS") or {}
         # This tab exposes SCOPES too — it owns the specs for hermes' own
         # tools — and the shell offers them back like any other tab's. They
         # are already the base here, so skip them rather than merging a table
         # over itself and reporting it as a contribution.
         if by_name is SCOPES or by_category is SCOPES_BY_CATEGORY:
             continue
-        faults = check_table(by_name, by_category)
+        faults = check_table(by_name, by_category) + check_readers(readers)
         out.append({"tab": name, "by_name": by_name,
-                    "by_category": by_category,
+                    "by_category": by_category, "readers": readers,
                     "problem": "; ".join(faults) if faults else None})
     return out
 
@@ -181,11 +189,14 @@ def spec_table(settings, app=None):
                 "problem": contributed["problem"]}
         if note["problem"] is None:
             taken = table.overrides_of(contributed["by_name"],
-                                       contributed["by_category"])
+                                       contributed["by_category"],
+                                       contributed["readers"])
+            taken += _shadowed_properties(contributed["readers"])
             if taken:
                 note["from"] = f"contributed, overriding {', '.join(taken)}"
             table = table.merged_with(contributed["by_name"],
-                                      contributed["by_category"])
+                                      contributed["by_category"],
+                                      contributed["readers"])
         notes.append(note)
     for path in spec_modules(settings):
         note = {"label": "scope spec", "path": path, "from": "settings",
@@ -194,23 +205,44 @@ def spec_table(settings, app=None):
             module = importlib.import_module(path)
             by_name = getattr(module, "SCOPES", None) or {}
             by_category = getattr(module, "SCOPES_BY_CATEGORY", None) or {}
+            readers = getattr(module, "SPAN_READERS", None) or {}
             if not isinstance(by_name, dict) or not isinstance(by_category, dict):
                 raise TypeError("SCOPES must be a dict of scope name to Scope")
-            if not by_name and not by_category:
-                raise ValueError("no SCOPES in module")
-            faults = check_table(by_name, by_category)
+            # Readers alone are a legitimate module: replacing this app's
+            # reading of a payload without touching how it shows is exactly
+            # the override design principle 1 allows (ADR 17). What is not
+            # legitimate is a module that does nothing, which is what this
+            # catches.
+            if not by_name and not by_category and not readers:
+                raise ValueError("no SCOPES or SPAN_READERS in module")
+            faults = check_table(by_name, by_category) + check_readers(readers)
             if faults:
                 raise ValueError("; ".join(faults))
         except Exception as exc:  # noqa: BLE001 - third-party module
             note["problem"] = f"{type(exc).__name__}: {exc}"
             notes.append(note)
             continue
-        taken = table.overrides_of(by_name, by_category)
+        taken = (table.overrides_of(by_name, by_category, readers)
+                 + _shadowed_properties(readers))
         if taken:
             note["from"] = f"settings, overriding {', '.join(taken)}"
-        table = table.merged_with(by_name, by_category)
+        table = table.merged_with(by_name, by_category, readers)
         notes.append(note)
     return table, notes
+
+
+def _shadowed_properties(readers) -> list:
+    """Which of these readers stand in front of a `Span` property of the
+    same name, for the startup line.
+
+    A reader beating a property is legitimate — someone whose payload
+    differs from hermes' replaces our reading of it (design principle 1) —
+    but it is the kind of override nothing else would show: the rows keep
+    rendering, with different values in them. `SpecTable.overrides_of`
+    cannot see it, because a property is not in any table.
+    """
+    return sorted(f"Span.{name}" for name in (readers or {})
+                  if hasattr(Span, name))
 
 
 def sources(settings):
@@ -531,14 +563,19 @@ def span_full(span_uuid, key):
     hydrate_span(span, current_app.config["ATOF_PATH"],
                  current_app.config.get("USAGE_SHAPES"))
     accessors = _accessors()
-    rendered = fulltext.render(resolve_full(span, full, accessors), full.render)
+    # The readers as well as the accessors: a whole value can be a reading of
+    # a payload just as a row can, and the two pages must resolve a source
+    # the same way or a `Full` would open on nothing (ADR 17).
+    readers = table.readers
+    rendered = fulltext.render(resolve_full(span, full, accessors, readers),
+                               full.render)
     return render_template(
         "turns/full.html",
         span=span,
         turn=turn,
         full=full,
-        title=resolve_source(full.title, span, accessors) or full.key,
-        note=resolve_source(full.note, span, accessors),
+        title=resolve_source(full.title, span, accessors, readers) or full.key,
+        note=resolve_source(full.note, span, accessors, readers),
         rendered=rendered,
         raw=request.args.get("raw") is not None,
     )

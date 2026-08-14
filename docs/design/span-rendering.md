@@ -648,11 +648,22 @@ classes themselves in `plugins/turns/scope_spec.py`** — that is the
 reference, and it is what an editor shows you while you type. This section is
 the shape; the docstrings are the detail.
 
-A `Field` reads either a `Span` property (`Field("command")`) or a payload key
-(`Field(payload("command"))`). Use the property where one does real work —
-`patch_mode`'s inference, `memory_ops`' normalization of two payload shapes —
-and the payload otherwise. **A spec written with `payload=` needs no property,
-which is what lets someone declare a scope without patching this tree.**
+A `Field` reads either a payload key (`Field(payload("command"))`) or a named
+value of the span (`Field("command")`). Use the payload for a lookup, and a
+named value where the reading does real work — `patch_mode`'s inference,
+`memory_ops`' normalization of two payload shapes.
+
+A bare string resolves against the **span readers** first and the `Span`
+object second ([ADR 17](adr/0017-a-payload-reading-is-contributed-beside-the-spec-that-names-it.md)).
+A reader is `fn(span) -> value`, contributed as `SPAN_READERS` beside the
+`SCOPES` that name it, and it gets the whole span — both payloads, the
+metadata, the timings. That is what lets a whole tool come from outside this
+tree: `payload=` covers the keys, readers cover everything that has to be
+worked out. A reader of the same name stands in front of a `Span` property,
+and the startup line says so.
+
+`plugins/mem0/spans.py` is the worked example: mem0's payload shapes are read
+by the mem0 tab, not by this one, and go away with it.
 
 Row kinds: `Row` (fields on a line), `Diff` (a − / + pair), `Items` (a list as
 first-plus-count then one row each), `Each` (rows repeated per list entry,
@@ -980,10 +991,16 @@ more often than they succeed — that noticing one must never need a click.
 
 ## mem0_search results
 
-`Span.mem0_results` reads the end payload —
+`mem0_results` reads the end payload —
 `{"count": n, "results": [{id, memory, score}, …]}` — which arrives as a JSON
 string ranked by score descending. That shape has been uniform in practice
 and is still read defensively: payloads are opaque per the ATOF spec.
+
+It is a **span reader** in `plugins/mem0/spans.py`, not a `Span` property:
+the shape is mem0's, so the reading belongs to mem0's tab
+([ADR 17](adr/0017-a-payload-reading-is-contributed-beside-the-spec-that-names-it.md)).
+Turn the Mem0 tab off and these spans render as a payload dump, rows and
+reading together.
 
 Only the top three render, on detail-only rows: whole facts would swamp the
 summary line. How many is bound once, as `shown` in the template — the same

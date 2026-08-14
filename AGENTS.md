@@ -59,6 +59,11 @@ audience it serves, not the one whose subject it shares.
   put new provider knowledge there, not in the reader
 - [span-rendering.md](docs/design/span-rendering.md) — what each tool scope
   shows on the turn page, scope by scope
+- [ADR 17](docs/design/adr/0017-a-payload-reading-is-contributed-beside-the-spec-that-names-it.md)
+  — a tool's payload is read by whoever owns that tool, as `SPAN_READERS`
+  beside its specs. **`Span` properties are this tab's reading of hermes'
+  own tools**; another system's shape goes with that system
+  ([plugins/mem0/spans.py](plugins/mem0/spans.py) is the worked example)
 - [live-pages.md](docs/design/live-pages.md) — polling, liveness, follow mode,
   item navigation, waterfall colors
 
@@ -68,7 +73,7 @@ and scope-spec authors, and the record of what is published to them.
 - [writing-a-plugin.md](docs/extending/writing-a-plugin.md) — how to add a
   tab, with a whole worked plugin; the contract in full
 - [writing-a-scope-spec.md](docs/extending/writing-a-scope-spec.md) — how to
-  make the Turns tab display your own hermes tool
+  make the Turns tab display your own hermes tool, and read its payload
 - [writing-a-provider-spec.md](docs/extending/writing-a-provider-spec.md) —
   how to make the Turns tab read your own router's token counts
 - [plugins-and-urls.md](docs/extending/plugins-and-urls.md) — the plugin

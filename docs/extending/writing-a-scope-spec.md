@@ -86,6 +86,7 @@ Restart the app. The startup banner gains a line naming the module, and the
 | --- | --- | --- |
 | `SCOPES` | required | `{scope name: Scope}` — the hermes tool's own name, as it appears on the span |
 | `SCOPES_BY_CATEGORY` | optional | `{category: Scope}`, for spans with no stable name |
+| `SPAN_READERS` | optional | `{name: fn(span) -> value}` — payload readings your rows name as sources |
 
 A name beats a category, so a category spec is the default for a whole class
 of span and a name spec singles one out. Use a category only when the name
@@ -102,6 +103,51 @@ What you should not import is this app's internals (`assembler`,
 `atof_reader`, a tab's own helpers) or another plugin. Those are not
 promised to stay put, and reading another plugin's data has its own route:
 [ADR 4](../design/adr/0004-cross-plugin-access-by-link-or-published-accessor.md).
+
+## When a payload needs reading, not looking up
+
+`payload("service")` reads a key. When the value has to be worked out —
+decoded from a JSON string, ranked, counted, walked — write a **span reader**
+and name it from a `Field` the way you would a built-in
+([ADR 17](../design/adr/0017-a-payload-reading-is-contributed-beside-the-spec-that-names-it.md)):
+
+```python
+import json
+
+def deploy_targets(span):
+    """Hosts this deploy touched, newest first."""
+    data = span.end_data                     # a dict, a JSON string, anything
+    if isinstance(data, str):
+        data = json.loads(data)              # your payload, your parsing
+    if not isinstance(data, dict):
+        return []                            # never raise on a shape you did
+    hosts = data.get("hosts")                # not expect: payloads are opaque
+    return [h for h in hosts if isinstance(h, str)] if isinstance(hosts, list) else []
+
+SCOPES = {"deploy": Scope(rows=[
+    Row([Field("deploy_targets", clip="wide")], layer="detail")])}
+SPAN_READERS = {"deploy_targets": deploy_targets}
+```
+
+Four things to know:
+
+- **You get the whole span** — `start_data`, `end_data`, `metadata`,
+  `category_profile`, the timings. Read what you need; nothing is curated for
+  you first.
+- **Read defensively.** A payload is opaque per the ATOF spec, and a shape
+  that has held all year is still not a contract. A reader that raises loses
+  its own value and nothing else, but a reader that trusts a shape shows a
+  wrong one, which no error will tell you about.
+- **A reader wins over a built-in of the same name.** That is how you replace
+  this app's reading of a tool whose payload differs from hermes'; the
+  startup line names it (`overriding Span.command`) so it is never silent.
+- **Both halves load or neither does.** A reader that is not callable, or
+  named something a `Field` could not use, takes the whole module out with a
+  reason in the banner — rows naming readings that never loaded would fail
+  more quietly than that.
+
+`plugins/mem0/spans.py` is the in-tree example, beside the `scopes.py` whose
+rows name it.
 
 ## `render=`, and why it is not for you
 
@@ -232,15 +278,19 @@ profile, which is where an llm span keeps its request and its response. All
 three read defensively — a payload is opaque per the ATOF spec, may arrive as
 a JSON string, and may be missing the key entirely.
 
-`Field("command")` names a `Span` property instead. Those exist for this
-tree's own scopes, where reading the payload is not enough — inferring a
-patch's mode, normalizing two shapes of a memory batch. **Your spec does not
-need one**, and cannot add one without patching this tree, which is why
-`payload=` exists.
+`Field("command")` names a value of the span instead — one of your own
+`SPAN_READERS` if you declared one by that name, else a `Span` property.
+The properties exist for this tree's own scopes, where reading the payload is
+not enough: inferring a patch's mode, normalizing two shapes of a memory
+batch. **Your spec cannot add a property** — but it does not need to, because
+a reader is the same thing from outside (see "When a payload needs reading"
+above), and it can stand in front of a property whose reading does not suit
+your payload.
 
-If you find yourself wanting a property, the usual answer is that the value
-needs computing before it can be shown; do it in your own module and pass a
-callable to `transform`, which receives the resolved value.
+`transform` is the other route, and the smaller one: it takes a callable
+applied to an already-resolved value, so it is for presentation — shortening,
+formatting, `tilde()` on a path — where a reader is for getting the value out
+of the payload at all.
 
 ## Overriding a spec this app ships
 
@@ -255,6 +305,12 @@ rather than a silent difference in what a page shows:
     scope spec acme_hermes_specs  [ok] (from settings, overriding terminal)
 ```
 
+A `SPAN_READERS` name is announced the same way — `overriding
+reader:mem0_results` for another module's reader, `overriding Span.command`
+for one of this app's own readings. That second line is the one worth
+watching for: nothing else would show it, because the rows go on rendering
+with different values in them.
+
 ## When it goes wrong
 
 Nothing a spec does can take a turn page down. A page holds many spans and
@@ -264,8 +320,10 @@ payload dump — which is what that scope showed before your module existed.
 | what happened | what you see |
 | --- | --- |
 | module will not import | banner names the module and the exception; every other scope renders |
-| no `SCOPES` in it, or not a dict | banner says so; module skipped |
+| no `SCOPES` and no `SPAN_READERS` in it, or not a dict | banner says so; module skipped |
+| a `SPAN_READERS` entry is not callable, or badly named | banner says so; the whole module is skipped, specs included |
 | a spec raises while resolving | that span falls back to its payload; the rest of the page is fine |
+| a reader raises while resolving | that one field is empty; the row, the span and the page are fine |
 | a spec resolves to no rows | same — treated as "nothing to say about this span" |
 
 Because failure is quiet on the page and loud at startup, **read the banner**

@@ -686,6 +686,30 @@ def test_turn_detail_shows_top_mem0_results_and_links_to_memory(tmp_path):
     assert "all 4 results" in page
 
 
+def test_mem0_spans_lose_both_halves_when_that_tab_is_off(tmp_path):
+    """The rows and the reading behind them are one contribution with one
+    lifetime (ADR 10, ADR 17). Without the Mem0 tab, nothing in this tree
+    knows what a mem0 search result is, and the span falls back to the
+    payload dump any unknown tool gets."""
+    from conftest import make_app
+
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("T1", "tool", 1_100_000, 1_600_000, name="mem0_search",
+                     session="s1", turn="t1", start_data={"query": "q"},
+                     end_data='{"count": 1, "results":'
+                     ' [{"id": "a", "memory": "top fact", "score": 0.9}]}'),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    app = make_app(entries=[{"module": "plugins.turns",
+                             "settings": {"atof_log": str(atof)}}])
+    page = app.test_client().get("/turns/turn/s1/1000000").get_data(as_text=True)
+    assert "mem0_search" in page               # the span is still there
+    assert 'class="mem-score"' not in page     # but not mem0's rows
+    assert "/memory/mem0/search-event" not in page
+
+
 def test_turn_detail_mem0_link_reads_full_result_when_nothing_is_hidden(tmp_path):
     # with three or fewer hits the preview is the whole list, so promising
     # "all 3 results" behind the link would be promising nothing new

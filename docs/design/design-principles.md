@@ -49,8 +49,14 @@ payload", the knowledge has no owner and will drift.
 | foreign system | owner | extension point |
 |---|---|---|
 | hermes' tools | `plugins/turns/scopes.py` | `scope_specs`, and a tab's own `SCOPES` — [ADR 7](adr/0007-declare-scope-rendering-as-row-specs.md), [ADR 10](adr/0010-a-tab-contributes-its-own-scope-specs.md) |
+| a tool's payload *shape* | whoever owns the tool — `plugins/mem0/spans.py` for mem0's | `SPAN_READERS` beside the specs — [ADR 17](adr/0017-a-payload-reading-is-contributed-beside-the-spec-that-names-it.md) |
 | LLM provider APIs | `plugins/turns/providers.py` | `provider_specs` — [ADR 13](adr/0013-provider-payload-reading-is-its-own-module-and-token-shapes-are-published.md) |
 | another log or store entirely | its own tab | `hobserver.toml` — [ADR 5](adr/0005-tabs-are-configured-plugins-loaded-by-module-path.md) |
+
+The first two rows are one system read at two levels, and the split is the
+point: `scopes.py` owns how *hermes'* tools show, while the reading of a
+payload belongs wherever that payload's system does. `Span` properties are
+this tab's own readings of hermes' own tools, not a place for everyone's.
 
 The two tests fail differently, which is why both are worth running. Failing
 the fork test is visible: someone asks for a patch. Failing the ownership
@@ -72,7 +78,9 @@ display. A `if provider == ...` in the same file would not.
 - **Reach the source, not just our accessors.** An extension must be able to
   read the underlying payload/row/file directly. Curated accessors
   (`Span` properties, and the like) are a convenience for in-tree code, never
-  the only road in.
+  the only road in — and since
+  [ADR 17](adr/0017-a-payload-reading-is-contributed-beside-the-spec-that-names-it.md)
+  an extension can add a reading of its own rather than only reach past ours.
 - **One loading mechanism.** `hobserver.toml`: an importable `module` path plus
   an opaque `settings` table, in-tree and installed modules loading
   identically. Do not add a second discovery route beside it — ADR 5 declined

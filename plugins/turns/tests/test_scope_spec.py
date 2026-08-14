@@ -16,11 +16,12 @@ from plugins.turns.assembler import Span
 from plugins.turns.scope_spec import (FULL_ENDPOINT, FULL_RENDERERS,
                                         RENDER_MACROS, Alt, Diff, Each, Field,
                                         Full, Items, Link, Row, Scope,
-                                        SpecTable, accessor, attr, check_table,
-                                        const, first, full_for, full_link,
-                                        item, joined, mapped, payload,
-                                        payload_end, profile, render_macro,
-                                        resolve_full, resolve_source, rows_for)
+                                        SpecTable, accessor, attr,
+                                        check_readers, check_table, const,
+                                        first, full_for, full_link, item,
+                                        joined, mapped, payload, payload_end,
+                                        profile, render_macro, resolve_full,
+                                        resolve_source, rows_for)
 from plugins.turns.scopes import SCOPES, SCOPES_BY_CATEGORY
 
 
@@ -33,8 +34,8 @@ def make_span(name="acme_widget", category="tool", start=None, end=None,
                 api_request_id=None, turn_id="t1", line_no=1)
 
 
-def table(by_name=None, by_category=None):
-    return SpecTable(by_name or {}, by_category or {})
+def table(by_name=None, by_category=None, readers=None):
+    return SpecTable(by_name or {}, by_category or {}, readers or {})
 
 
 def only_cell(rows):
@@ -591,6 +592,79 @@ SCOPES = {"deploy": Scope(render="my_own_macro")}
     assert "deploy" not in built.by_name   # skipped, not half-loaded
 
 
+# --- span readers: reading a payload from outside this tree (ADR 17) ---
+
+
+def test_a_bare_string_source_reads_a_contributed_reader():
+    """The other half of the fork test: a spec can name a *reading* of a
+    payload, not only a key of it, without that reading living here."""
+    spec = Scope(rows=[Row([Field("widget_summary")])])
+    built = table({"acme_widget": spec},
+                  readers={"widget_summary":
+                           lambda span: f"{span.start_data['widget']}!"})
+    span = make_span(start={"widget": "left-handed"})
+    assert only_cell(rows_for(span, built))["text"] == "left-handed!"
+
+
+def test_a_reader_beats_a_span_property_of_the_same_name():
+    """The in-tree reading is a default, not a floor — the same rule the
+    spec table follows, so a payload that differs from hermes' can be read
+    differently without a patch."""
+    spec = Scope(rows=[Row([Field("command")])])
+    span = make_span(name="terminal", start={"command": "ls"})
+    assert only_cell(rows_for(span, table({"terminal": spec})))["text"] == "ls"
+    built = table({"terminal": spec},
+                  readers={"command": lambda s: "theirs"})
+    assert only_cell(rows_for(span, built))["text"] == "theirs"
+
+
+def test_a_reader_that_raises_costs_its_own_value_only():
+    def broken(span):
+        raise RuntimeError("someone else's afternoon")
+
+    spec = Scope(rows=[Row([Field("boom"), Field(payload("widget"))])])
+    built = table({"acme_widget": spec}, readers={"boom": broken})
+    span = make_span(start={"widget": "left-handed"})
+    # the row survives with the field that did resolve; the page does not
+    # fall back to a payload dump for one bad reader
+    assert only_cell(rows_for(span, built))["text"] == "left-handed"
+
+
+def test_an_unknown_bare_string_still_resolves_to_nothing():
+    spec = Scope(rows=[Row([Field("no_such_reading")])])
+    assert rows_for(make_span(), table({"acme_widget": spec})) is None
+
+
+def test_readers_reach_a_full_value_too():
+    """A whole value can be a reading of a payload just as a row can, and
+    the page serving it resolves the source the same way."""
+    full = Full(key="w", source="widget_reading", render="text",
+                title="widget_title")
+    spec = Scope(rows=[Row([Field(payload("widget"), full="w")])], fulls=[full])
+    built = table({"acme_widget": spec},
+                  readers={"widget_reading": lambda s: "the whole thing",
+                           "widget_title": lambda s: "Widget"})
+    span = make_span(start={"widget": "left-handed"})
+    assert resolve_full(span, full, readers=built.readers) == "the whole thing"
+    assert resolve_source(full.title, span, readers=built.readers) == "Widget"
+    # and the link the row carries, which resolves its title the same way
+    assert full_link(span, built, "w")["title"] == "Widget"
+
+
+def test_a_reader_that_is_not_callable_is_refused():
+    faults = check_readers({"widget_summary": "not a function"})
+    assert "not callable" in faults[0]
+
+
+def test_a_reader_name_a_spec_could_not_use_is_refused():
+    assert "not a name" in check_readers({"widget summary": len})[0]
+    assert "not a dict" in check_readers(["mem0_results"])[0]
+
+
+def test_a_table_with_no_readers_is_fine():
+    assert check_readers({}) == []
+
+
 # --- contributed spec modules, loaded from settings ------------------
 
 
@@ -638,6 +712,78 @@ SCOPES = {"terminal": Scope(rows=[Row([Field(payload("cmdline"))])])}
                                              "cmdline": "theirs"})
     assert only_cell(rows_for(span, built))["text"] == "theirs"
     assert "overriding terminal" in notes[0]["from"]
+
+
+def test_a_contributed_module_brings_its_own_payload_reading(tmp_path,
+                                                             monkeypatch):
+    """A whole tool from outside this tree: how its payload is read and how
+    it shows, neither of them in this tree (ADR 17)."""
+    from plugins.turns import spec_table
+
+    name = write_spec_module(tmp_path, monkeypatch, "acme_reader_specs", '''
+from plugins.turns.scope_spec import Field, Row, Scope
+
+def widget_summary(span):
+    data = span.start_data or {}
+    return f"{data.get('widget')} × {data.get('count')}"
+
+SCOPES = {"acme_widget": Scope(rows=[Row([Field("widget_summary")])])}
+SPAN_READERS = {"widget_summary": widget_summary}
+''')
+    built, notes = spec_table({"scope_specs": [name]})
+    span = make_span(start={"widget": "left-handed", "count": 3})
+    assert only_cell(rows_for(span, built))["text"] == "left-handed × 3"
+    assert notes[0]["problem"] is None
+
+
+def test_a_reader_standing_in_front_of_a_property_is_reported(tmp_path,
+                                                              monkeypatch):
+    """Nothing else would show this one: the rows keep rendering, with
+    different values in them."""
+    from plugins.turns import spec_table
+
+    name = write_spec_module(tmp_path, monkeypatch, "shadow_specs", '''
+from plugins.turns.scope_spec import Field, Row, Scope
+SCOPES = {"terminal": Scope(rows=[Row([Field("command")])])}
+SPAN_READERS = {"command": lambda span: "theirs"}
+''')
+    built, notes = spec_table({"scope_specs": [name]})
+    assert "overriding" in notes[0]["from"]
+    assert "Span.command" in notes[0]["from"]
+    span = make_span(name="terminal", start={"command": "ls"})
+    assert only_cell(rows_for(span, built))["text"] == "theirs"
+
+
+def test_a_module_may_contribute_readings_alone(tmp_path, monkeypatch):
+    """Replacing how a payload is read, without touching how it shows: the
+    in-tree reading is a default, not a floor."""
+    from plugins.turns import spec_table
+
+    name = write_spec_module(tmp_path, monkeypatch, "reading_only_specs", '''
+SPAN_READERS = {"command": lambda span: (span.start_data or {}).get("argv")}
+''')
+    built, notes = spec_table({"scope_specs": [name]})
+    assert notes[0]["problem"] is None
+    span = make_span(name="terminal", start={"command": "ls", "argv": "ls -l"})
+    assert only_cell(rows_for(span, built))["text"] == "ls -l"
+    # …and this tree's own spec for that scope is still the one rendering it
+    assert built.by_name["terminal"] is SCOPES["terminal"]
+
+
+def test_a_bad_reader_table_skips_the_whole_contribution(tmp_path, monkeypatch):
+    """The specs and the readings describe one tool between them, and rows
+    naming readings that never loaded are worse than the payload dump."""
+    from plugins.turns import spec_table
+
+    name = write_spec_module(tmp_path, monkeypatch, "badreader_specs", '''
+from plugins.turns.scope_spec import Field, Row, Scope
+SCOPES = {"acme_widget": Scope(rows=[Row([Field("widget_summary")])])}
+SPAN_READERS = {"widget_summary": "not a function"}
+''')
+    built, notes = spec_table({"scope_specs": [name]})
+    assert "not callable" in notes[0]["problem"]
+    assert "acme_widget" not in built.by_name
+    assert built.readers == {}
 
 
 def test_a_module_that_cannot_be_imported_is_reported_and_skipped():
