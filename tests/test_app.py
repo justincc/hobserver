@@ -242,7 +242,7 @@ def test_status_link_in_the_tab_bar_opens_a_new_tab(client):
     assert 'class="status-link"' in page
     # named so it cannot be read as agent/LLM requests, which is what every
     # other view on this app shows
-    assert ">hobserver status</a>" in page
+    assert ">Hobserver status</a>" in page
     assert ">requests</a>" not in page
     # a diagnostic, not a view: it never takes the active-tab styling
     assert '/_status" class="active"' not in page

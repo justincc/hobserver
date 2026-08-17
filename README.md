@@ -1,4 +1,10 @@
-# hobserver
+<picture>
+  <source media="(prefers-color-scheme: dark)"
+          srcset="static/hobserver-integrated-wordmark-capital-h-white.svg">
+  <img alt="Hobserver"
+       src="static/hobserver-integrated-wordmark-capital-h.svg"
+       width="440">
+</picture>
 
 A small Flask webapp for observing hermes-agent activity. Views are plugins,
 shown as horizontal tabs:
@@ -36,7 +42,7 @@ to point at live files while hermes is writing to them.
 
 ## Security
 
-**hobserver has no authentication — run it only where only trusted parties can
+**Hobserver has no authentication — run it only where only trusted parties can
 reach it.** It binds loopback (`127.0.0.1`) by default; setting a non-loopback
 `host` in `hobserver.toml` puts it on your network with nothing in front of it,
 so do that only on a network you control. Log content is rendered safely
@@ -84,7 +90,7 @@ it up ([ADR 14](docs/design/adr/0014-serve-on-waitress-and-keep-one-server-in-de
 It is pure Python: `uv sync` installs it like anything else, and there is
 no separate server command to run.
 
-**Editing this checkout does not change a running hobserver.** It serves the
+**Editing this checkout does not change a running Hobserver.** It serves the
 snapshot it started with, so a stray edit cannot alter a tool you are in the
 middle of watching an agent with. To develop against it, add `--dev`:
 
@@ -174,7 +180,7 @@ marked ok, MISSING or UNUSABLE —
 because a missing source is the usual reason a tab looks empty. It prints once at launch, not on reloader
 restarts.
 
-### Console noise and hobserver status
+### Console noise and Hobserver status
 
 A **hobserver status** link sits at the right of the tab row on every page,
 opening `/_status` in a new tab — new rather than in place because the tally
@@ -359,6 +365,11 @@ uv run pytest plugins/mem0     # one plugin's alone
   (chrome, tab bar, the CSS classes plugins render against), `_item_nav.html`
   (the `item_nav` macro every detail page uses), and `unavailable.html` for a
   tab that could not load. Each plugin's own pages live with the plugin.
+- `static/` — the shell's brand assets, served by Flask at `/static/`: the
+  wordmark shown in the masthead and the hob icon used as the SVG favicon
+  (both referenced from `base.html`). The README's own header pairs the black
+  wordmark with a white variant through `<picture>`, so it stays legible on
+  GitHub's light and dark themes.
 - `conftest.py` — fixtures every test can reach, and `REPO_ROOT` for the
   ones that read a file out of the tree
 - `tests/` — the shell's own: `test_app.py`, `test_tabs.py`,

@@ -2243,8 +2243,8 @@ def test_a_full_page_leaves_the_tab_bar_out(tmp_path):
     page = _llm_client(tmp_path).get(
         "/turns/span/L1/response").get_data(as_text=True)
     assert 'nav class="tabs"' not in page
-    assert "hobserver status" not in page
-    assert "hobserver" in page        # …but the way home stays
+    assert "Hobserver status" not in page
+    assert "hobserver" in page        # …but the way home stays (wordmark src)
 
 
 def test_a_page_reached_by_navigating_keeps_the_tab_bar(tmp_path):
@@ -2491,8 +2491,11 @@ def test_the_way_back_to_the_top_lands_at_the_actual_top(tmp_path):
     the jump stops short of it."""
     page = _full_page(tmp_path)
     assert 'id="top"' in page, "nothing carries the anchor"
-    # it is on the site heading, and nothing renders above that
-    assert re.search(r'<h1 id="top"><a[^>]*>hobserver</a></h1>', page)
+    # it is on the site heading — now the wordmark image, carrying the name
+    # as its alt — and nothing renders above that
+    assert re.search(
+        r'<h1 id="top"><a[^>]*>\s*<img[^>]*\balt="Hobserver"[^>]*>\s*</a></h1>',
+        page, re.S)
     anchor = page.index('<h1 id="top"')
     body = page.index("<body>")
     between = page[body + len("<body>"):anchor]

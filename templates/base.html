@@ -24,7 +24,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}hobserver{% endblock %}</title>
+  <title>{% block title %}Hobserver{% endblock %}</title>
+  {# The hob icon on its own, as an SVG favicon: it is self-coloured, so it
+     reads against both a light and a dark browser chrome without a second
+     asset, and scales from the source 1024px art with no rasterising. #}
+  <link rel="icon" type="image/svg+xml"
+        href="{{ url_for('static', filename='hobserver-hob.svg') }}">
   <style>
     /* Anchor jumps animate rather than teleport. On the request page the
        contents list can move a reader thousands of lines in one click, and
@@ -47,6 +52,11 @@
     a:hover { text-decoration: underline; }
     h1 { font-size: 1.4rem; }
     h1 a { color: inherit; }
+    /* The wordmark stands in for the 1.4rem text heading, sized a touch
+       taller than the cap height it replaces so the name reads at a glance.
+       `display: block` drops the inline-image baseline gap under it, and
+       `width: auto` lets the ~3.45:1 art keep its ratio from the height. */
+    .masthead-logo { display: block; height: 3rem; width: auto; }
     h2 { font-size: 1.1rem; margin-top: 2rem; }
     nav.tabs { display: flex; gap: 1.5rem; border-bottom: 1px solid #ddd; margin-bottom: 1.5rem; }
     nav.tabs a { padding: 0.4rem 0.2rem; color: #555; border-bottom: 2px solid transparent; margin-bottom: -1px; }
@@ -522,7 +532,13 @@
      means "top" lands slightly short of it. The full page's contents list
      is the one thing using it today; being on the shell costs nothing and
      is correct for any page that later wants the same. #}
-  <h1 id="top"><a href="{{ url_for('root') }}">hobserver</a></h1>
+  {# The wordmark carries the name as art; the black variant is correct on
+     this light page, which has no dark theme. The alt text is "Hobserver",
+     so the heading reads the same to a screen reader or with images off as
+     it does painted. #}
+  <h1 id="top"><a href="{{ url_for('root') }}"><img class="masthead-logo"
+    src="{{ url_for('static', filename='hobserver-integrated-wordmark-capital-h.svg') }}"
+    alt="Hobserver"></a></h1>
   {# A block so a page that is one thing to read — a whole prompt, opened in
      its own tab from a span — can leave the tab bar out. Overriding it is
      for that case only: a page reached by navigating always keeps the bar,
@@ -541,7 +557,7 @@
        there polling, so navigating away from that page would defeat it. #}
     <a class="status-link" href="{{ url_for('request_status') }}"
        target="_blank" rel="noopener"
-       title="Health of this web app itself — HTTP requests reaching hobserver. Not agent activity.">hobserver status</a>
+       title="Health of this web app itself — HTTP requests reaching Hobserver. Not agent activity.">Hobserver status</a>
   </nav>
   {% endblock %}
   {% block content %}{% endblock %}
