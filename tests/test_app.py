@@ -48,7 +48,7 @@ def test_templates_reload_under_dev_and_not_otherwise(client):
     asserted because each is a promise: --dev must pick a template edit up on
     the next request without a restart, and a plain run must not pick it up
     at all, however long it serves for."""
-    tabs = load([{"module": "plugins.turns"}])
+    tabs = load([{"plugin": "plugins.turns"}])
     dev = app_module.create_app(tabs, dev=True)
     assert dev.config["TEMPLATES_AUTO_RELOAD"] is True
     assert dev.jinja_env.auto_reload is True
@@ -104,8 +104,8 @@ def test_settings_override_the_default(monkeypatch):
 def test_banner_reports_each_tabs_sources(memory_db, tmp_path, monkeypatch):
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
     tabs = load([
-        {"module": "plugins.turns", "settings": {"atof_log": "/nope/absent.jsonl"}},
-        {"module": "plugins.mem0", "settings": {"db": memory_db}},
+        {"plugin": "plugins.turns", "settings": {"atof_log": "/nope/absent.jsonl"}},
+        {"plugin": "plugins.mem0", "settings": {"db": memory_db}},
     ])
     banner = app_module.startup_banner(tabs, 5090, "hobserver.toml")
     assert f"{memory_db}  [ok]" in banner
@@ -120,8 +120,8 @@ def test_banner_reports_each_tabs_sources(memory_db, tmp_path, monkeypatch):
 
 def test_banner_lists_a_path_without_saying_what_supplied_it(monkeypatch):
     monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
-    for entry in ({"module": "plugins.turns"},
-                  {"module": "plugins.turns",
+    for entry in ({"plugin": "plugins.turns"},
+                  {"plugin": "plugins.turns",
                    "settings": {"atof_log": "/tmp/a.jsonl"}}):
         banner = app_module.startup_banner(load([entry]), 5090, "hobserver.toml")
         source_lines = [line for line in banner.splitlines()
@@ -135,7 +135,7 @@ def test_banner_reports_an_unusable_database(monkeypatch):
     was the stray `app.py .` failure, which only showed up as a 500. It no
     longer exits the app, so the banner is where it has to be obvious."""
     monkeypatch.delenv("HERMES_HOME", raising=False)
-    tabs = load([{"module": "plugins.mem0", "settings": {"db": "."}}])
+    tabs = load([{"plugin": "plugins.mem0", "settings": {"db": "."}}])
     banner = app_module.startup_banner(tabs, 5090, "hobserver.toml")
     assert "UNAVAILABLE (event db: not a regular file)" in banner
     assert ".  [UNUSABLE (not a regular file)]" in banner
@@ -168,7 +168,7 @@ def test_banner_points_a_fresh_checkout_at_the_example():
 
 
 def test_banner_separates_what_resolved_from_tabs_from_serving(memory_db):
-    tabs = load([{"module": "plugins.mem0", "settings": {"db": memory_db}}])
+    tabs = load([{"plugin": "plugins.mem0", "settings": {"db": memory_db}}])
     banner = app_module.startup_banner(tabs, 5090, "hobserver.toml")
     groups = banner.split("\n\n")
     assert len(groups) == 3
@@ -183,8 +183,8 @@ def test_banner_separates_what_resolved_from_tabs_from_serving(memory_db):
 def test_banner_puts_a_blank_line_between_tabs(memory_db):
     # each tab is its own block, divided like the sections are, so two tabs'
     # reports do not run together
-    tabs = load([{"module": "plugins.turns", "settings": {"atof_log": "/no.jsonl"}},
-                 {"module": "plugins.mem0", "settings": {"db": memory_db}}])
+    tabs = load([{"plugin": "plugins.turns", "settings": {"atof_log": "/no.jsonl"}},
+                 {"plugin": "plugins.mem0", "settings": {"db": memory_db}}])
     banner = app_module.startup_banner(tabs, 5090, "hobserver.toml")
     turns_at = banner.index("Turns (plugins.turns)")
     mem0_at = banner.index("Mem0 (plugins.mem0)")

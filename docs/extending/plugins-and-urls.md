@@ -54,17 +54,17 @@ re-addressing the tabs cheap.
 
 ```toml
 [[tabs]]
-module = "plugins.turns"
+plugin = "plugins.turns"
 settings = { atof_log = "$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl" }
 
 [[tabs]]
-module = "plugins.mem0"
+plugin = "plugins.mem0"
 enabled = false
 ```
 
 - File order is tab order; the first enabled tab is where `/` lands.
 - `enabled = false` turns a tab off in one line.
-- `module` is any importable path, in this tree or installed elsewhere.
+- `plugin` is any importable path, in this tree or installed elsewhere.
 - `settings` is passed to the plugin untouched, with `~` and `$VARS` expanded.
 
 The file is found via the first command-line argument, else `$HOBSERVER_CONFIG`,

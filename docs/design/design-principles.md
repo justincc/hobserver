@@ -81,9 +81,9 @@ display. A `if provider == ...` in the same file would not.
   the only road in — and since
   [ADR 17](adr/0017-a-payload-reading-is-contributed-beside-the-spec-that-names-it.md)
   an extension can add a reading of its own rather than only reach past ours.
-- **One loading mechanism.** `hobserver.toml`: an importable `module` path plus
-  an opaque `settings` table, in-tree and installed modules loading
-  identically. Do not add a second discovery route beside it — ADR 5 declined
+- **One loading mechanism.** `hobserver.toml`: a `plugin` naming an importable
+  module path plus an opaque `settings` table, in-tree and installed modules
+  loading identically. Do not add a second discovery route beside it — ADR 5 declined
   entry points so there is one place to look when something does not appear.
 - **Publish a surface deliberately, then keep it.** What an extension may
   depend on is a named list, not whatever happens to be importable —

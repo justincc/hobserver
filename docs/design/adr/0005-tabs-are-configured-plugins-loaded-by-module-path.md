@@ -8,6 +8,11 @@ Accepted
 
 Extends [ADR 3](0003-plugin-views-as-flask-blueprints-with-tabs.md).
 
+Amended by [ADR 18](0018-configure-a-tab-by-the-plugin-key.md): the per-tab
+config key is now `plugin`, not `module`. Everything else here still holds —
+the value is the same importable path, loaded the same way. The examples below
+predate the rename and are left as the historical record.
+
 ## Context
 
 [ADR 3](0003-plugin-views-as-flask-blueprints-with-tabs.md) made each view a

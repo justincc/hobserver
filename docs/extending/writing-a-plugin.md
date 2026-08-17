@@ -49,7 +49,7 @@ Add it to `hobserver.toml`:
 
 ```toml
 [[tabs]]
-module = "my_tail_tab"          # or "plugins.tail" if it lives in this tree
+plugin = "my_tail_tab"          # or "plugins.tail" if it lives in this tree
 settings = { path = "~/logs/app.log" }
 ```
 

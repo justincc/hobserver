@@ -702,7 +702,7 @@ def test_mem0_spans_lose_both_halves_when_that_tab_is_off(tmp_path):
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
     atof = write_atof(tmp_path, lines)
-    app = make_app(entries=[{"module": "plugins.turns",
+    app = make_app(entries=[{"plugin": "plugins.turns",
                              "settings": {"atof_log": str(atof)}}])
     page = app.test_client().get("/turns/turn/s1/1000000").get_data(as_text=True)
     assert "mem0_search" in page               # the span is still there

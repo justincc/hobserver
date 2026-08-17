@@ -5,11 +5,11 @@ module path — `plugins.turns` from this tree and `hobserver_zep` from
 site-packages arrive the same way, so a tab needs no fork to be added.
 
     [[tabs]]
-    module = "plugins.turns"
+    plugin = "plugins.turns"
     settings = { atof_log = "…" }
 
     [[tabs]]
-    module = "plugins.mem0"
+    plugin = "plugins.mem0"
     enabled = false
 
 Everything here is deliberately tolerant except one case. A tab that will not
@@ -44,7 +44,7 @@ BUILTIN_ORIGIN = "built-in defaults"
 # Used when no config file is found at all, so a fresh checkout runs with no
 # setup. Same two tabs, same order, as hobserver.example.toml — the tracked
 # template a user copies to hobserver.toml only when customising.
-BUILTIN_TABS = ({"module": "plugins.turns"}, {"module": "plugins.mem0"})
+BUILTIN_TABS = ({"plugin": "plugins.turns"}, {"plugin": "plugins.mem0"})
 
 # What a module must expose to be a tab: `bp` the Flask blueprint (its name
 # keys the template directory and every url_for), `TAB_LABEL` the text in the
@@ -69,9 +69,9 @@ class ConfigError(Exception):
 
 @dataclass(frozen=True)
 class TabSpec:
-    """One `[[tabs]]` entry, before its module is imported."""
+    """One `[[tabs]]` entry, before the plugin it names is imported."""
 
-    module: str
+    plugin: str
     enabled: bool = True
     settings: dict = field(default_factory=dict)
 
@@ -108,7 +108,7 @@ def parse_config(data):
     """`[[tabs]]` entries → TabSpecs. Raises ConfigError on anything unusable.
 
     Errors name the entry by position, since a config file has no other handle
-    on an entry that is missing its module.
+    on an entry that is missing its plugin.
     """
     entries = data.get("tabs")
     if entries is None:
@@ -121,13 +121,13 @@ def parse_config(data):
         where = f"[[tabs]] entry {i}"
         if not isinstance(entry, dict):
             raise ConfigError(f"{where} is not a table")
-        module = entry.get("module")
-        if not module or not isinstance(module, str):
-            raise ConfigError(f"{where} has no module")
+        plugin = entry.get("plugin")
+        if not plugin or not isinstance(plugin, str):
+            raise ConfigError(f"{where} has no plugin")
         settings = entry.get("settings", {})
         if not isinstance(settings, dict):
-            raise ConfigError(f"{where} ({module}): settings must be a table")
-        specs.append(TabSpec(module=module,
+            raise ConfigError(f"{where} ({plugin}): settings must be a table")
+        specs.append(TabSpec(plugin=plugin,
                              enabled=bool(entry.get("enabled", True)),
                              settings=_expand(settings)))
     return specs
@@ -198,10 +198,10 @@ def load_tabs(specs):
 
 
 def _load(spec):
-    tab = Tab(module_name=spec.module, settings=spec.settings,
-              label=spec.module.rsplit(".", 1)[-1])
+    tab = Tab(module_name=spec.plugin, settings=spec.settings,
+              label=spec.plugin.rsplit(".", 1)[-1])
     try:
-        module = importlib.import_module(spec.module)
+        module = importlib.import_module(spec.plugin)
     except Exception as exc:                      # any import-time failure
         tab.problem = f"cannot be imported ({exc.__class__.__name__}: {exc})"
         return tab

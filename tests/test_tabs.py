@@ -59,8 +59,8 @@ def test_a_plugin_from_outside_the_tree_loads_and_serves(tmp_path, memory_db):
     # the whole point of module paths: nothing in this repo mentions it
     name = write_plugin(tmp_path, "outside_tab", label="Outside")
     client = make_app(entries=[
-        {"module": name},
-        {"module": "plugins.mem0", "settings": {"db": memory_db}},
+        {"plugin": name},
+        {"plugin": "plugins.mem0", "settings": {"db": memory_db}},
     ]).test_client()
     assert client.get("/outside_tab/").get_data(as_text=True) == \
         "hello from outside_tab"
@@ -71,7 +71,7 @@ def test_a_plugin_from_outside_the_tree_loads_and_serves(tmp_path, memory_db):
 
 def test_settings_reach_the_plugin_untouched(tmp_path):
     name = write_plugin(tmp_path, "settings_tab")
-    tabs = load([{"module": name, "settings": {"path": "/x", "n": 3}}])
+    tabs = load([{"plugin": name, "settings": {"path": "/x", "n": 3}}])
     create_app(tabs)
     assert sys.modules[name].SEEN["settings"] == {"path": "/x", "n": 3}
 
@@ -79,19 +79,19 @@ def test_settings_reach_the_plugin_untouched(tmp_path):
 def test_settings_expand_user_and_env(tmp_path, monkeypatch):
     monkeypatch.setenv("SOME_DIR", "/srv/data")
     specs = tabs_module.parse_config({"tabs": [
-        {"module": "plugins.turns", "settings": {"atof_log": "$SOME_DIR/a.jsonl"}}]})
+        {"plugin": "plugins.turns", "settings": {"atof_log": "$SOME_DIR/a.jsonl"}}]})
     assert specs[0].settings["atof_log"] == "/srv/data/a.jsonl"
 
 
 def test_disabled_tab_is_not_loaded(tmp_path):
     name = write_plugin(tmp_path, "off_tab")
-    assert load([{"module": name, "enabled": False}]) == []
+    assert load([{"plugin": name, "enabled": False}]) == []
 
 
 def test_config_order_is_tab_order(memory_db):
     app = make_app(entries=[
-        {"module": "plugins.mem0", "settings": {"db": memory_db}},
-        {"module": "plugins.turns", "settings": {"atof_log": "/nope.jsonl"}},
+        {"plugin": "plugins.mem0", "settings": {"db": memory_db}},
+        {"plugin": "plugins.turns", "settings": {"atof_log": "/nope.jsonl"}},
     ])
     page = app.test_client().get("/memory/mem0/").get_data(as_text=True)
     assert page.index("Mem0") < page.index("Turns")
@@ -103,8 +103,8 @@ def test_a_broken_plugin_does_not_stop_the_others(tmp_path, memory_db):
     write_plugin(tmp_path, "exploding_tab",
                  body="raise RuntimeError('boom')\n")
     app = make_app(entries=[
-        {"module": "exploding_tab"},
-        {"module": "plugins.mem0", "settings": {"db": memory_db}},
+        {"plugin": "exploding_tab"},
+        {"plugin": "plugins.mem0", "settings": {"db": memory_db}},
     ])
     client = app.test_client()
     assert client.get("/memory/mem0/").status_code == 200
@@ -115,7 +115,7 @@ def test_a_broken_plugin_does_not_stop_the_others(tmp_path, memory_db):
 
 def test_a_broken_plugin_serves_its_reason(tmp_path):
     write_plugin(tmp_path, "broken_tab", body="raise RuntimeError('boom')\n")
-    app = make_app(entries=[{"module": "broken_tab"}])
+    app = make_app(entries=[{"plugin": "broken_tab"}])
     resp = app.test_client().get("/unavailable/broken_tab/")
     assert resp.status_code == 503
     page = resp.get_data(as_text=True)
@@ -125,7 +125,7 @@ def test_a_broken_plugin_serves_its_reason(tmp_path):
 
 def test_a_module_that_is_not_a_plugin_is_reported(tmp_path):
     write_plugin(tmp_path, "not_a_tab", body="ANSWER = 42\n")
-    tab = load([{"module": "not_a_tab"}])[0]
+    tab = load([{"plugin": "not_a_tab"}])[0]
     assert tab.bp is None
     assert "not a tab plugin" in tab.problem
     assert "bp" in tab.problem
@@ -133,14 +133,14 @@ def test_a_module_that_is_not_a_plugin_is_reported(tmp_path):
 
 def test_a_plugin_for_another_api_version_is_refused(tmp_path):
     name = write_plugin(tmp_path, "future_tab", api=99)
-    tab = load([{"module": name}])[0]
+    tab = load([{"plugin": name}])[0]
     assert tab.bp is None
     assert "99" in tab.problem and str(tabs_module.PLUGIN_API) in tab.problem
 
 
 def test_an_unusable_required_source_takes_the_tab_out_of_service(tmp_path):
     name = write_plugin(tmp_path, "needy_tab", required="True")
-    tab = load([{"module": name, "settings": {"problem": "no such file"}}])[0]
+    tab = load([{"plugin": name, "settings": {"problem": "no such file"}}])[0]
     assert tab.bp is None
     assert tab.problem == "thing: no such file"
 
@@ -148,7 +148,7 @@ def test_an_unusable_required_source_takes_the_tab_out_of_service(tmp_path):
 def test_an_optional_source_problem_leaves_the_tab_serving(tmp_path):
     # the Turns tab's case: a missing log is the tab's own story to tell
     name = write_plugin(tmp_path, "relaxed_tab", required="False")
-    tab = load([{"module": name, "settings": {"problem": "no such file"}}])[0]
+    tab = load([{"plugin": name, "settings": {"problem": "no such file"}}])[0]
     assert tab.bp is not None
     assert tab.problem is None
 
@@ -156,8 +156,8 @@ def test_an_optional_source_problem_leaves_the_tab_serving(tmp_path):
 def test_the_mem0_tab_survives_an_unusable_database(tmp_path):
     # was a process exit before ADR 5; now one tab's problem, not the app's
     app = make_app(entries=[
-        {"module": "plugins.turns", "settings": {"atof_log": "/nope.jsonl"}},
-        {"module": "plugins.mem0", "settings": {"db": str(tmp_path)}},
+        {"plugin": "plugins.turns", "settings": {"atof_log": "/nope.jsonl"}},
+        {"plugin": "plugins.mem0", "settings": {"db": str(tmp_path)}},
     ])
     client = app.test_client()
     assert client.get("/turns/").status_code == 200
@@ -170,7 +170,7 @@ def test_two_tabs_at_one_url_prefix_is_fatal(tmp_path):
     write_plugin(tmp_path, "first_tab", prefix="same")
     write_plugin(tmp_path, "second_tab", prefix="same")
     with pytest.raises(tabs_module.ConfigError) as exc:
-        load([{"module": "first_tab"}, {"module": "second_tab"}])
+        load([{"plugin": "first_tab"}, {"plugin": "second_tab"}])
     assert "same" in str(exc.value)
     assert "first_tab" in str(exc.value) and "second_tab" in str(exc.value)
 
@@ -188,7 +188,7 @@ def test_two_tabs_with_one_blueprint_name_is_fatal(tmp_path):
     for name in ("clash_a", "clash_b"):
         sys.modules.pop(name, None)
     with pytest.raises(tabs_module.ConfigError) as exc:
-        load([{"module": "clash_a"}, {"module": "clash_b"}])
+        load([{"plugin": "clash_a"}, {"plugin": "clash_b"}])
     assert "blueprint name" in str(exc.value)
 
 
@@ -198,7 +198,7 @@ def test_host_is_read_from_the_top_level_key(tmp_path):
         host = "0.0.0.0"
 
         [[tabs]]
-        module = "plugins.turns"
+        plugin = "plugins.turns"
     """))
     _, _, host = tabs_module.read_config(str(path))
     assert host == "0.0.0.0"
@@ -218,7 +218,7 @@ def test_a_non_string_host_is_fatal():
 
 def test_config_errors_name_the_entry(tmp_path):
     with pytest.raises(tabs_module.ConfigError) as exc:
-        tabs_module.parse_config({"tabs": [{"module": "a"}, {"label": "b"}]})
+        tabs_module.parse_config({"tabs": [{"plugin": "a"}, {"label": "b"}]})
     assert "entry 2" in str(exc.value)
 
     with pytest.raises(tabs_module.ConfigError) as exc:
@@ -229,7 +229,7 @@ def test_config_errors_name_the_entry(tmp_path):
 def test_a_missing_config_file_falls_back_to_the_built_in_tabs(tmp_path):
     specs, origin, host = tabs_module.read_config(str(tmp_path / "absent.toml"))
     assert origin == "built-in defaults"
-    assert [s.module for s in specs] == ["plugins.turns", "plugins.mem0"]
+    assert [s.plugin for s in specs] == ["plugins.turns", "plugins.mem0"]
     assert host is None                      # no file, so no host — app defaults it
 
 
@@ -237,16 +237,16 @@ def test_a_config_file_is_read_in_order(tmp_path):
     path = tmp_path / "hobserver.toml"
     path.write_text(textwrap.dedent("""
         [[tabs]]
-        module = "plugins.mem0"
+        plugin = "plugins.mem0"
         settings = { db = "/tmp/x.db" }
 
         [[tabs]]
-        module = "plugins.turns"
+        plugin = "plugins.turns"
         enabled = false
     """))
     specs, origin, host = tabs_module.read_config(str(path))
     assert origin == str(path)
-    assert [(s.module, s.enabled) for s in specs] == [
+    assert [(s.plugin, s.enabled) for s in specs] == [
         ("plugins.mem0", True), ("plugins.turns", False)]
     assert specs[0].settings == {"db": "/tmp/x.db"}
     assert host is None                      # this file sets no host
@@ -254,7 +254,7 @@ def test_a_config_file_is_read_in_order(tmp_path):
 
 def test_malformed_toml_is_fatal(tmp_path):
     path = tmp_path / "bad.toml"
-    path.write_text("[[tabs]\nmodule =\n")
+    path.write_text("[[tabs]\nplugin =\n")
     with pytest.raises(tabs_module.ConfigError) as exc:
         tabs_module.read_config(str(path))
     assert str(path) in str(exc.value)
@@ -265,5 +265,5 @@ def test_the_example_config_matches_the_built_in_default():
     # is what runs when they have not. They must show the same tabs, or the
     # example teaches a layout the zero-config default does not deliver.
     specs, _, _ = tabs_module.read_config("hobserver.example.toml")
-    assert [s.module for s in specs] == \
-        [entry["module"] for entry in tabs_module.BUILTIN_TABS]
+    assert [s.plugin for s in specs] == \
+        [entry["plugin"] for entry in tabs_module.BUILTIN_TABS]

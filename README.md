@@ -6,7 +6,7 @@
        width="440">
 </picture>
 
-Hobserver is a webapp for observing hermes-agent activity. The currently bundled modules are:
+Hobserver is a webapp for observing hermes-agent activity. The currently bundled plugins are:
 
 - **Turns** — per-turn latency waterfalls from the NeMo Relay ATOF
   JSONL stream exported by the hermes-agent `observability/nemo_relay`
@@ -42,7 +42,7 @@ so do that only on a network you control. Log content is rendered safely
 
 Unless you already have [Herme's NeMo relay](https://docs.nvidia.com/nemo/relay/v0.5.0/nemo-relay-cli/hermes) configured you'll to set that up first to produce an [Agent Trajectory Observability Format (ATOF)](https://docs.nvidia.com/nemo/relay/configure-plugins/observability/atof) log that Hobserver can consume. See [docs/running/setup-prompt-timing.md](docs/running/setup-prompt-timing.md) for instructions.
 
-By default, Hobserver will run with a default set of modules configured, enough to observer Hermes if logs are in default locations. If you want to configure things any further, copy `hobserver.example.toml` to `hobserver.toml` and edit.
+By default, Hobserver will run with a default set of plugins configured, enough to observer Hermes if logs are in default locations. If you want to configure things any further, copy `hobserver.example.toml` to `hobserver.toml` and edit.
 
 More details on Hobserver settings below.
 
@@ -69,16 +69,16 @@ Configuration is done in `hobserver.toml`. Here's a simplified example.
 host = "127.0.0.1"
 
 [[tabs]]
-module = "plugins.turns"
+plugin = "plugins.turns"
 settings = { atof_log = "$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl" }
 settings = { index_db = "/var/tmp/hermes-atof-index.sqlite3" }
 
 [[tabs]]
-module = "plugins.mem0"
+plugin = "plugins.mem0"
 enabled = false            # one line to turn a tab off
 ```
 
-`module` is any importable path, so a tab written elsewhere and installed
+`plugin` is any importable path, so a tab written elsewhere and installed
 alongside is added the same way, with no fork of this repo — see
 [docs/extending/writing-a-plugin.md](docs/extending/writing-a-plugin.md). The config file is taken
 from the first command-line argument, else `$HOBSERVER_CONFIG`, else

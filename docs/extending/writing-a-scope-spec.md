@@ -68,12 +68,12 @@ Turns tab's settings in `hobserver.toml`:
 
 ```toml
 [[tabs]]
-module = "plugins.turns"
+plugin = "plugins.turns"
 settings = { scope_specs = ["acme_hermes_specs"] }
 ```
 
 `scope_specs` takes a list, or a bare string for one module. Each entry is an
-importable module path, resolved the same way `module` is — so an installed
+importable module path, resolved the same way `plugin` is — so an installed
 package and a directory on `PYTHONPATH` both work, and nothing needs to be
 inside this repo.
 

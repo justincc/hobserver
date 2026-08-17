@@ -67,7 +67,7 @@ Then in `hobserver.toml`:
 
 ```toml
 [[tabs]]
-module = "plugins.turns"
+plugin = "plugins.turns"
 settings = { provider_specs = ["hobserver_acme.providers"] }
 ```
 
