@@ -58,13 +58,22 @@ def create_app(tabs, dev=False):
     app.extensions["tab_scopes"] = {
         tab.name: tab.scopes for tab in tabs if tab.bp is not None and tab.scopes}
 
+    # CSS each loaded plugin contributes (its `STYLES`), concatenated in tab
+    # order and injected once into every page's <head> by base.html. Each
+    # block is fenced with the plugin name so a stylesheet inspector can see
+    # whose rule is whose. Trusted like the rest of a plugin: it is installed
+    # Python, so its CSS is no more privileged than its code (SECURITY.md).
+    plugin_styles = "\n".join(
+        f"/* plugin: {tab.name} */\n{tab.styles.strip()}"
+        for tab in tabs if tab.bp is not None and tab.styles.strip())
+
     entries = []
     for tab in tabs:
         entries.append(_register(app, tab))
 
     @app.context_processor
     def inject_tabs():
-        return {"tabs": entries}
+        return {"tabs": entries, "plugin_styles": plugin_styles}
 
     # Request tally behind /_status: the console suppresses successful
     # responses, so this is what answers "is anything still reaching the

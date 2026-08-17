@@ -117,7 +117,7 @@ def test_const_supplies_a_literal():
     ("prose", "wide", None, "span", "path wide"),
     ("prose", "wide-wrap", None, "span", "path wide wrap-detail"),
     ("prose", None, "tag", "span", "mode-tag"),
-    ("prose", None, "id", "span", "mem-id"),
+    ("prose", None, "id", "span", "detail-id"),
     ("prose", None, "cat", "span", "skill-cat"),
     ("prose", None, "action", "span", "skill-action"),
     ("prose", None, "plain", "span", ""),

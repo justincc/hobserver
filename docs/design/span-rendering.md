@@ -1008,7 +1008,7 @@ slice decides whether the link below reads "all N results" or "full result",
 so a preview that already covers everything never promises more behind it.
 
 Each hit's score leads its row, then the fact; the memory id sits on its own
-faint `.mem-id` row, the same treatment mem0_update/mem0_delete give theirs.
+faint `.detail-id` row, the same treatment mem0_update/mem0_delete give theirs.
 Those spans' ids are a lookup key *for* these, so the pair resolves without
 leaving the UI.
 

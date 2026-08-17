@@ -95,6 +95,11 @@ class Tab:
     # {attribute name: table} from SPEC_ATTRS — opaque here, meaningful only
     # to a tab that paints spans. Empty for a tab that contributes none.
     scopes: dict = field(default_factory=dict)
+    # CSS the plugin ships in its `STYLES` string, injected once into every
+    # page's <head> by the shell. It lets a plugin carry the styling for what
+    # it renders — including its spans on another tab — instead of the shell
+    # holding every plugin's classes. Empty for a plugin that ships none.
+    styles: str = ""
 
     @property
     def name(self):
@@ -230,6 +235,10 @@ def _load(spec):
 
     tab.scopes = {a: getattr(module, a) for a in SPEC_ATTRS
                   if isinstance(getattr(module, a, None), dict)}
+    # Optional `STYLES` — CSS the plugin contributes. A non-string is ignored
+    # rather than fatal, the same tolerance the rest of the contract shows.
+    styles = getattr(module, "STYLES", "")
+    tab.styles = styles if isinstance(styles, str) else ""
     tab.bp = module.bp
     return tab
 

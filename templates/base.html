@@ -8,7 +8,7 @@
      blocks, `data-live-poll` / `data-live-tail`, `_item_nav.html`, and
      `.notice`.
    - **Scope-spec authors** never touch this file, but every class the spec
-     vocabulary resolves to is defined here — `.mode-tag`, `.mem-id`,
+     vocabulary resolves to is defined here — `.mode-tag`, `.detail-id`,
      `.gen-key`, `.skill-action`, `.skill-cat`, `.gen-omitted`, `.tail`,
      `.wide`, `.wrap-detail`, and the `.list-item` / `.list-compact` split
      that is the whole of summary-vs-detail. A test asserts these still
@@ -356,19 +356,17 @@
     .span-detail .path { flex: none; max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .span-detail .skill-action { flex: none; margin-right: 0.4rem; }
     .span-detail .skill-cat { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; }
-    /* mem0 memory id — a lookup key back to a mem0_search result, so faint
-       and mono like the span uuid it sits under; detail-only, so the two ids
-       never share the summary line, which carries the fact instead */
-    .span-detail .mem-id { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; font-size: 0.75rem; color: #bbb; }
-    /* a mem0 search hit's relevance score: data, not a lookup key, so it
+    /* a detail row's lookup-key id — a key back to another record, so faint
+       and mono like the span uuid it sits under; detail-only, so two ids
+       never share the summary line, which carries the value instead */
+    .span-detail .detail-id { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; font-size: 0.75rem; color: #bbb; }
+    /* a detail row's score/relevance value: data, not a lookup key, so it
        reads darker than the id above and leads its row like a diff mark */
-    .span-detail .mem-score { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; color: #8a8a8a; }
+    .span-detail .detail-score { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; color: #8a8a8a; }
     /* where reconstructed content came from. Muted and italic: it is about
        the data above, not part of it, and the reader must be able to tell
-       the local log's copy from something mem0 returned. */
+       the local log's copy from what the source returned. */
     .span-detail.prov { color: #8a8a8a; font-style: italic; }
-    /* the same note as a subheading on the memory event page */
-    h2 .provenance { font-size: 0.8rem; font-weight: normal; font-style: italic; color: #8a8a8a; margin-left: 0.4rem; }
     /* mode label on a scope with modes: session_search
        (discover/scroll/read/browse), patch (replace/patch) */
     .span-detail .mode-tag { flex: none; white-space: nowrap; font-family: ui-monospace, monospace; color: #8a8a8a; }
@@ -525,6 +523,14 @@
     details.prompt summary { cursor: pointer; }
     details.prompt pre.blob { margin: 0.6rem 0 0; padding: 0; background: none; }
   </style>
+  {# CSS contributed by the loaded plugins (their `STYLES`), injected once so a
+     plugin can carry the styling for what it renders — including its spans on
+     another tab — instead of the shell holding every plugin's classes. Marked
+     safe because a plugin is trusted, installed Python (SECURITY.md); its CSS
+     is no more privileged than the code already running. #}
+  {% if plugin_styles %}<style>
+    {{ plugin_styles|safe }}
+  </style>{% endif %}
 </head>
 <body>
   {# `id="top"` is here rather than on anything a page renders below: this

@@ -41,6 +41,15 @@ TAB_LABEL = "Mem0"
 # as a scheme, which would silently break any link not built by url_for.
 URL_PREFIX = "memory/mem0"
 
+# CSS this plugin ships to every page's <head> (the STYLES seam in tabs.py):
+# the provenance note that heads its event page. It lived in the shell's
+# base.html until a plugin could carry its own styling — the shell no longer
+# needs to know mem0 has an event page with a provenance subheading.
+STYLES = """
+h2 .provenance { font-size: 0.8rem; font-weight: normal; font-style: italic;
+                 color: #8a8a8a; margin-left: 0.4rem; }
+"""
+
 # Columns shown as metadata on the detail page; everything except the
 # query/result pair, which get their own sections.
 METADATA_COLUMNS = (

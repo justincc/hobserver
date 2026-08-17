@@ -67,6 +67,7 @@ That is the whole mechanism. There is no registry to add yourself to.
 | `sources(settings)` | no | what you read, for the banner and error states |
 | `SCOPES` / `SCOPES_BY_CATEGORY` | no | how your own hermes spans render on a tab that paints spans |
 | `SPAN_READERS` | no | how those spans' payloads are read, for the values your rows name (ADR 17) |
+| `STYLES` | no | a CSS string the shell injects into every page's `<head>`, for classes the shared stylesheet does not cover (ADR 20) |
 
 Your blueprint must have an `index` endpoint — that is what the tab links to.
 
@@ -145,6 +146,34 @@ under `templates/tail/` so the names cannot collide with another tab's.
 loader path. The in-tree plugins are built this way too, so nothing about
 your layout differs from theirs.
 
+## Styling
+
+`base.html` ships a stylesheet, and the classes a scope spec resolves to —
+`.detail-id`, `.mode-tag`, `.list-item`, and the rest — are a published surface
+([ADR 8](../design/adr/0008-plugins-may-import-published-host-vocabulary.md)).
+Reuse them where they fit: by naming them on your own pages, and through the
+scope vocabulary on a span-painting tab. A test pins them, so they are not
+renamed out from under you.
+
+For styling that is genuinely your own — a class the shared vocabulary does not
+cover, or the look of your own pages — expose a `STYLES` string. The shell
+concatenates every loaded plugin's `STYLES` and injects it once into every
+page's `<head>`, each block fenced with your plugin name. Because it lands on
+every page, it also styles the spans you paint on another tab, which have no
+template of yours to carry a `<style>`
+([ADR 20](../design/adr/0020-a-plugin-ships-its-own-css-through-a-styles-seam.md)).
+
+```python
+STYLES = """
+.tail-stale { color: #999; font-style: italic; }
+"""
+```
+
+It is injected as written — trusted, like the rest of your plugin. Keep it to
+what the shared vocabulary does not already give you: scattering the common
+classes into every plugin trades the shell's one coherent stylesheet for many.
+Prefix your class names so they cannot collide with another plugin's.
+
 ## Tests
 
 Keep them in your package, `<your_package>/tests/`. The in-tree plugins are
@@ -187,5 +216,8 @@ accessor being absent — the tab that publishes it may be disabled.
       disabled ([ADR 10](../design/adr/0010-a-tab-contributes-its-own-scope-specs.md),
       [writing-a-scope-spec.md](writing-a-scope-spec.md))
 - [ ] a prefix unlikely to collide
+- [ ] `STYLES` only for a class the shared stylesheet does not already cover —
+      reuse `base.html`'s published classes first
+      ([ADR 20](../design/adr/0020-a-plugin-ships-its-own-css-through-a-styles-seam.md))
 - [ ] your own defaults for every setting, and a sensible error when a setting
       is wrong

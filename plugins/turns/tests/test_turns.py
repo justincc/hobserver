@@ -404,11 +404,11 @@ def test_mem0_update_and_delete_show_the_memory_id(tmp_path):
     assert "list-item" not in page[page.index(text) - 200:page.index(text)]
     # the id is faint and copyable, and detail-only (.list-item) so it never
     # shares the summary line with the span's own uuid
-    mem_id = '<span class="mem-id">fdd806c1-0789-4522-aaf3'
+    mem_id = '<span class="detail-id">fdd806c1-0789-4522-aaf3'
     assert mem_id in page and 'data-copy="fdd806c1-0789-4522-aaf3"' in page
     assert "list-item" in page[page.index(mem_id) - 200:page.index(mem_id)]
     # a delete has nothing but the id
-    delete_id = '<span class="mem-id">b3e3ade6-d852-44b2-98f4'
+    delete_id = '<span class="detail-id">b3e3ade6-d852-44b2-98f4'
     assert delete_id in page
     assert "list-item" in page[page.index(delete_id) - 200:page.index(delete_id)]
 
@@ -706,7 +706,7 @@ def test_mem0_spans_lose_both_halves_when_that_tab_is_off(tmp_path):
                              "settings": {"atof_log": str(atof)}}])
     page = app.test_client().get("/turns/turn/s1/1000000").get_data(as_text=True)
     assert "mem0_search" in page               # the span is still there
-    assert 'class="mem-score"' not in page     # but not mem0's rows
+    assert 'class="detail-score"' not in page     # but not mem0's rows
     assert "/memory/mem0/search-event" not in page
 
 
@@ -820,7 +820,7 @@ def test_delete_summary_line_leads_with_the_deleted_memory(tmp_path):
         "mem0_delete", "bbb22222", {"memory_id": "bbb22222"}))
     page = _change_client(tmp_path, str(atof)).get(
         "/turns/turn/s9/2020000000").get_data(as_text=True)
-    summary = page[page.index("mem0_delete"):page.index('class="mem-id"')]
+    summary = page[page.index("mem0_delete"):page.index('class="detail-id"')]
     assert "the doomed fact" in summary
     # .list-compact, so detail mode drops it rather than repeating the text
     # the − row below already carries in full
@@ -832,7 +832,7 @@ def test_delete_summary_line_absent_when_nothing_was_recovered(tmp_path):
         "mem0_delete", "unknown-id", {"memory_id": "unknown-id"}))
     page = _change_client(tmp_path, str(atof)).get(
         "/turns/turn/s9/2020000000").get_data(as_text=True)
-    summary = page[page.index("mem0_delete"):page.index('class="mem-id"')]
+    summary = page[page.index("mem0_delete"):page.index('class="detail-id"')]
     assert "list-compact" not in summary
 
 
@@ -844,7 +844,7 @@ def test_update_summary_line_still_leads_with_its_own_new_text(tmp_path):
         {"memory_id": "aaa11111", "text": "the new fact"}))
     page = _change_client(tmp_path, str(atof)).get(
         "/turns/turn/s9/2020000000").get_data(as_text=True)
-    summary = page[page.index("mem0_update"):page.index('class="mem-id"')]
+    summary = page[page.index("mem0_update"):page.index('class="detail-id"')]
     assert "the new fact" in summary
     assert "the old fact" not in summary
 

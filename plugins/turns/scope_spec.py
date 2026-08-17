@@ -318,9 +318,9 @@ class Full:
 
 # --- the four axes ---------------------------------------------------
 
-_DECO_CLS = {"tag": "mode-tag", "key": "gen-key", "id": "mem-id",
+_DECO_CLS = {"tag": "mode-tag", "key": "gen-key", "id": "detail-id",
              "action": "skill-action", "cat": "skill-cat",
-             "score": "mem-score", "omitted": "gen-omitted", "plain": ""}
+             "score": "detail-score", "omitted": "gen-omitted", "plain": ""}
 
 _CLIP_CLS = {None: "", "tail": "tail", "wrap": "wrap-detail",
              "wide": "wide", "wide-wrap": "wide wrap-detail"}
