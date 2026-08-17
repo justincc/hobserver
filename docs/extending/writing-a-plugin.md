@@ -48,7 +48,7 @@ def index():
 Add it to `hobserver.toml`:
 
 ```toml
-[[tabs]]
+[[plugins]]
 plugin = "my_tail_tab"          # or "plugins.tail" if it lives in this tree
 settings = { path = "~/logs/app.log" }
 ```
@@ -83,7 +83,7 @@ without touching either.
 
 ## Settings
 
-`settings` is whatever your `[[tabs]]` entry carried, passed through untouched.
+`settings` is whatever your `[[plugins]]` entry carried, passed through untouched.
 The shell expands `~` and `$VARS` in string values and does nothing else — it
 never inspects your keys. Supply your own defaults, and validate what you are
 given.

@@ -7,7 +7,7 @@
 # ---------------------------------------------------------------------------
 # How hobserver is configured: the tabs it serves, and where it binds.
 #
-# The `[[tabs]]` entries below are served in order, and the first serves /.
+# The `[[plugins]]` entries below are served in order, and the first serves /.
 # Each `plugin` is an importable module path: `plugins.turns` from this tree
 # and `hobserver_zep` from site-packages load the same way, so a tab written
 # elsewhere needs no fork. See docs/extending/writing-a-plugin.md for the contract.
@@ -18,7 +18,7 @@
 # Bind address
 # host = "127.0.0.1"
 
-[[tabs]]
+[[plugins]]
 plugin = "plugins.turns"
 # settings = { atof_log = "$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl" }
 #
@@ -42,6 +42,6 @@ plugin = "plugins.turns"
 # docs/extending/writing-a-provider-spec.md.
 # settings = { provider_specs = ["hobserver_acme.providers"] }
 
-[[tabs]]
+[[plugins]]
 plugin = "plugins.mem0"
 # settings = { db = "$HERMES_HOME/jmem0_logged.db" }

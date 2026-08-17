@@ -4,11 +4,11 @@ Per ADR 5: tabs are declared in a TOML file, in tab order, and loaded by
 module path — `plugins.turns` from this tree and `hobserver_zep` from
 site-packages arrive the same way, so a tab needs no fork to be added.
 
-    [[tabs]]
+    [[plugins]]
     plugin = "plugins.turns"
     settings = { atof_log = "…" }
 
-    [[tabs]]
+    [[plugins]]
     plugin = "plugins.mem0"
     enabled = false
 
@@ -69,7 +69,7 @@ class ConfigError(Exception):
 
 @dataclass(frozen=True)
 class TabSpec:
-    """One `[[tabs]]` entry, before the plugin it names is imported."""
+    """One `[[plugins]]` entry, before the plugin it names is imported."""
 
     plugin: str
     enabled: bool = True
@@ -105,20 +105,20 @@ class Tab:
 
 
 def parse_config(data):
-    """`[[tabs]]` entries → TabSpecs. Raises ConfigError on anything unusable.
+    """`[[plugins]]` entries → TabSpecs. Raises ConfigError on anything unusable.
 
     Errors name the entry by position, since a config file has no other handle
     on an entry that is missing its plugin.
     """
-    entries = data.get("tabs")
+    entries = data.get("plugins")
     if entries is None:
-        raise ConfigError("no [[tabs]] entries — nothing to serve")
+        raise ConfigError("no [[plugins]] entries — nothing to serve")
     if not isinstance(entries, list):
-        raise ConfigError("tabs must be a list of [[tabs]] entries")
+        raise ConfigError("plugins must be a list of [[plugins]] entries")
 
     specs = []
     for i, entry in enumerate(entries, start=1):
-        where = f"[[tabs]] entry {i}"
+        where = f"[[plugins]] entry {i}"
         if not isinstance(entry, dict):
             raise ConfigError(f"{where} is not a table")
         plugin = entry.get("plugin")

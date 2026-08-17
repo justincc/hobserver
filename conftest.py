@@ -28,7 +28,7 @@ def make_app(db=None, atof=None, entries=None):
             {"plugin": "plugins.mem0",
              "settings": {"db": db or "/nonexistent/events.db"}},
         ]
-    specs = tabs_module.parse_config({"tabs": entries})
+    specs = tabs_module.parse_config({"plugins": entries})
     app = create_app(tabs_module.load_tabs(specs))
     app.config["TESTING"] = True
     return app

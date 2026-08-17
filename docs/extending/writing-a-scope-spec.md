@@ -67,7 +67,7 @@ page nobody serves. `plugins/mem0/` is this shape.
 Turns tab's settings in `hobserver.toml`:
 
 ```toml
-[[tabs]]
+[[plugins]]
 plugin = "plugins.turns"
 settings = { scope_specs = ["acme_hermes_specs"] }
 ```

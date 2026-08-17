@@ -66,7 +66,7 @@ USAGE_SHAPES = (ACME_ROUTER,)
 Then in `hobserver.toml`:
 
 ```toml
-[[tabs]]
+[[plugins]]
 plugin = "plugins.turns"
 settings = { provider_specs = ["hobserver_acme.providers"] }
 ```

@@ -14,7 +14,7 @@ from plugins import mem0, turns
 
 def load(entries):
     """Config entries → loaded tabs, the way main() does it."""
-    return tabs_module.load_tabs(tabs_module.parse_config({"tabs": entries}))
+    return tabs_module.load_tabs(tabs_module.parse_config({"plugins": entries}))
 
 
 def test_root_redirects_to_the_first_tab(client):

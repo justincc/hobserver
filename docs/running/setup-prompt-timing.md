@@ -82,7 +82,7 @@ Override a source when it lives elsewhere by setting it for the tab in
 `hobserver.toml`:
 
 ```toml
-[[tabs]]
+[[plugins]]
 plugin = "plugins.turns"
 settings = { atof_log = "/home/<you>/.hermes/nemo-relay/atof/hermes-atof.jsonl" }
 ```

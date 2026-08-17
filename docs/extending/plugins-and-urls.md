@@ -53,11 +53,11 @@ re-addressing the tabs cheap.
 `hobserver.toml` lists the tabs, in tab order:
 
 ```toml
-[[tabs]]
+[[plugins]]
 plugin = "plugins.turns"
 settings = { atof_log = "$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl" }
 
-[[tabs]]
+[[plugins]]
 plugin = "plugins.mem0"
 enabled = false
 ```

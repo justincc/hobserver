@@ -68,12 +68,12 @@ Configuration is done in `hobserver.toml`. Here's a simplified example.
 ```toml
 host = "127.0.0.1"
 
-[[tabs]]
+[[plugins]]
 plugin = "plugins.turns"
 settings = { atof_log = "$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl" }
 settings = { index_db = "/var/tmp/hermes-atof-index.sqlite3" }
 
-[[tabs]]
+[[plugins]]
 plugin = "plugins.mem0"
 enabled = false            # one line to turn a tab off
 ```

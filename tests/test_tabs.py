@@ -52,7 +52,7 @@ def write_plugin(tmp_path, name, label="Extra", prefix=None, api=1,
 
 
 def load(entries):
-    return tabs_module.load_tabs(tabs_module.parse_config({"tabs": entries}))
+    return tabs_module.load_tabs(tabs_module.parse_config({"plugins": entries}))
 
 
 def test_a_plugin_from_outside_the_tree_loads_and_serves(tmp_path, memory_db):
@@ -78,7 +78,7 @@ def test_settings_reach_the_plugin_untouched(tmp_path):
 
 def test_settings_expand_user_and_env(tmp_path, monkeypatch):
     monkeypatch.setenv("SOME_DIR", "/srv/data")
-    specs = tabs_module.parse_config({"tabs": [
+    specs = tabs_module.parse_config({"plugins": [
         {"plugin": "plugins.turns", "settings": {"atof_log": "$SOME_DIR/a.jsonl"}}]})
     assert specs[0].settings["atof_log"] == "/srv/data/a.jsonl"
 
@@ -197,7 +197,7 @@ def test_host_is_read_from_the_top_level_key(tmp_path):
     path.write_text(textwrap.dedent("""
         host = "0.0.0.0"
 
-        [[tabs]]
+        [[plugins]]
         plugin = "plugins.turns"
     """))
     _, _, host = tabs_module.read_config(str(path))
@@ -207,7 +207,7 @@ def test_host_is_read_from_the_top_level_key(tmp_path):
 def test_host_defaults_to_none_when_unset():
     # None, not a bind address: the serving default lives with the server, so
     # the config layer only reports what the file said, which here is nothing
-    assert tabs_module.parse_host({"tabs": []}) is None
+    assert tabs_module.parse_host({"plugins": []}) is None
 
 
 def test_a_non_string_host_is_fatal():
@@ -218,12 +218,12 @@ def test_a_non_string_host_is_fatal():
 
 def test_config_errors_name_the_entry(tmp_path):
     with pytest.raises(tabs_module.ConfigError) as exc:
-        tabs_module.parse_config({"tabs": [{"plugin": "a"}, {"label": "b"}]})
+        tabs_module.parse_config({"plugins": [{"plugin": "a"}, {"label": "b"}]})
     assert "entry 2" in str(exc.value)
 
     with pytest.raises(tabs_module.ConfigError) as exc:
         tabs_module.parse_config({})
-    assert "no [[tabs]]" in str(exc.value)
+    assert "no [[plugins]]" in str(exc.value)
 
 
 def test_a_missing_config_file_falls_back_to_the_built_in_tabs(tmp_path):
@@ -236,11 +236,11 @@ def test_a_missing_config_file_falls_back_to_the_built_in_tabs(tmp_path):
 def test_a_config_file_is_read_in_order(tmp_path):
     path = tmp_path / "hobserver.toml"
     path.write_text(textwrap.dedent("""
-        [[tabs]]
+        [[plugins]]
         plugin = "plugins.mem0"
         settings = { db = "/tmp/x.db" }
 
-        [[tabs]]
+        [[plugins]]
         plugin = "plugins.turns"
         enabled = false
     """))
