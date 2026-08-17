@@ -6,7 +6,7 @@
        width="440">
 </picture>
 
-A small Flask webapp for observing hermes-agent activity. Views are plugins,
+A webapp for observing hermes-agent activity. Views are plugins,
 shown as horizontal tabs:
 
 - **Turns** — per-turn latency waterfalls from the NeMo Relay ATOF
@@ -29,7 +29,7 @@ to point at live files while hermes is writing to them.
 
 ## Philosophy
 
-- **Be useful**. The primary view of Hobserver is to be a useful tool for seeing what Hermes
+- **Be useful**. The primary purpose of Hobserver is to be a useful tool for seeing what Hermes
   is up to. So inferring information (e.g. which memory got changed on a memory operation)
   on top of what appears in logs and through API calls is a good thing to do. Or being able to click
   a link in the turns view and see the memory in full.
@@ -65,23 +65,13 @@ underlying `uv run python app.py` still works too.)
 The argument is optional, and so is setting anything up beforehand, because
 two things are resolved for you:
 
-- **Which tabs to serve** comes from `hobserver.toml` in the repo when no path
-  is given — the `./hobserver` launcher runs from there, so it uses that config
-  wherever you invoke it. With no such file, a built-in list is used and a
-  fresh checkout still runs. Details in [which tabs are served](#which-tabs-are-served).
+- **Which tabs to serve**. By default, Hobserver will run with a default selection of modules. If you want to configure this then copy `hobserver.example.toml` to `hobserver.toml` and edit. Details of the configuration are in (#which-tabs-are-served) below.
 - **Which files each tab reads** are looked up under `$HERMES_HOME`, or under
   `~/.hermes` if it is unset, which is the same fallback hermes-agent itself
   uses. Details in [where the data comes from](#where-the-data-comes-from).
 
 The startup banner prints what each of those resolved to before it serves
-anything, so first runs are worth reading. A source that is not there is not
-an error — the tab says so and names the path it tried.
-
-Then open http://127.0.0.1:5090. By default the server binds loopback, so it
-is reachable only from this machine. To reach it from elsewhere on your
-network, set a `host` in `hobserver.toml` — but read [Security](#security)
-first, because nothing authenticates it. The startup banner names the bind
-address it resolved.
+anything, so first runs are worth reading.
 
 Serving is on [waitress](https://docs.pylonsproject.org/projects/waitress/),
 a production WSGI server, so there is no development-server warning at
@@ -90,22 +80,9 @@ it up ([ADR 14](docs/design/adr/0014-serve-on-waitress-and-keep-one-server-in-de
 It is pure Python: `uv sync` installs it like anything else, and there is
 no separate server command to run.
 
-**Editing this checkout does not change a running Hobserver.** It serves the
-snapshot it started with, so a stray edit cannot alter a tool you are in the
-middle of watching an agent with. To develop against it, add `--dev`:
-
-```bash
-./hobserver --dev
-```
-
-and every edit lands: a template on the next request, a `.py` file by
-restarting in about 0.3 s. That is the Werkzeug reloader around the same
-waitress server — restart-on-edit added, not a different server swapped in
-([ADR 15](docs/design/adr/0015-only-dev-lets-the-checkout-reach-a-running-app.md)).
-
 ### Which tabs are served
 
-`hobserver.toml` lists them, in tab order — the first one is where `/` lands:
+`hobserver.toml` lists them, in tab order. The first one is the root webpage.
 
 ```toml
 [[tabs]]
@@ -120,20 +97,7 @@ enabled = false            # one line to turn a tab off
 alongside is added the same way, with no fork of this repo — see
 [docs/extending/writing-a-plugin.md](docs/extending/writing-a-plugin.md). The config file is taken
 from the first command-line argument, else `$HOBSERVER_CONFIG`, else
-`./hobserver.toml`; with none of them present the two tabs above are served by
-default, so a fresh checkout runs with no setup.
-
-There is no `hobserver.toml` in the repo — the standard tabs are built in, so
-the app runs the moment you check it out. When you want to change something
-(the bind address, a source path, your own tabs), copy the tracked template:
-
-```bash
-cp hobserver.example.toml hobserver.toml
-```
-
-`hobserver.toml` is gitignored, so your settings stay yours and never land in
-a commit. The startup banner points you here on any run that has no config
-file yet.
+`./hobserver.toml`.
 
 ### Where the data comes from
 
