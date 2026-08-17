@@ -13,7 +13,7 @@ import pytest
 
 from conftest import REPO_ROOT
 from plugins.turns.assembler import Span
-from plugins.turns.scope_spec import (FULL_ENDPOINT, FULL_RENDERERS,
+from scope_spec import (FULL_ENDPOINT, FULL_RENDERERS,
                                         RENDER_MACROS, Alt, Diff, Each, Field,
                                         Full, Items, Link, Row, Scope,
                                         SpecTable, accessor, attr,
@@ -584,7 +584,7 @@ def test_a_bad_render_name_reaches_the_banner(tmp_path, monkeypatch):
     from plugins.turns import spec_table
 
     name = write_spec_module(tmp_path, monkeypatch, "badrender_specs", '''
-from plugins.turns.scope_spec import Scope
+from scope_spec import Scope
 SCOPES = {"deploy": Scope(render="my_own_macro")}
 ''')
     built, notes = spec_table({"scope_specs": [name]})
@@ -682,7 +682,7 @@ def test_a_contributed_module_extends_the_table_without_a_fork(tmp_path,
     from plugins.turns import spec_table
 
     name = write_spec_module(tmp_path, monkeypatch, "acme_specs", '''
-from plugins.turns.scope_spec import Field, Row, Scope, payload
+from scope_spec import Field, Row, Scope, payload
 SCOPES = {"acme_widget": Scope(rows=[Row([Field(payload("widget"))])])}
 ''')
     built, notes = spec_table({"scope_specs": [name]})
@@ -704,7 +704,7 @@ def test_a_contributed_override_is_reported_not_silent(tmp_path, monkeypatch):
     from plugins.turns import spec_table
 
     name = write_spec_module(tmp_path, monkeypatch, "override_specs", '''
-from plugins.turns.scope_spec import Field, Row, Scope, payload
+from scope_spec import Field, Row, Scope, payload
 SCOPES = {"terminal": Scope(rows=[Row([Field(payload("cmdline"))])])}
 ''')
     built, notes = spec_table({"scope_specs": [name]})
@@ -721,7 +721,7 @@ def test_a_contributed_module_brings_its_own_payload_reading(tmp_path,
     from plugins.turns import spec_table
 
     name = write_spec_module(tmp_path, monkeypatch, "acme_reader_specs", '''
-from plugins.turns.scope_spec import Field, Row, Scope
+from scope_spec import Field, Row, Scope
 
 def widget_summary(span):
     data = span.start_data or {}
@@ -743,7 +743,7 @@ def test_a_reader_standing_in_front_of_a_property_is_reported(tmp_path,
     from plugins.turns import spec_table
 
     name = write_spec_module(tmp_path, monkeypatch, "shadow_specs", '''
-from plugins.turns.scope_spec import Field, Row, Scope
+from scope_spec import Field, Row, Scope
 SCOPES = {"terminal": Scope(rows=[Row([Field("command")])])}
 SPAN_READERS = {"command": lambda span: "theirs"}
 ''')
@@ -776,7 +776,7 @@ def test_a_bad_reader_table_skips_the_whole_contribution(tmp_path, monkeypatch):
     from plugins.turns import spec_table
 
     name = write_spec_module(tmp_path, monkeypatch, "badreader_specs", '''
-from plugins.turns.scope_spec import Field, Row, Scope
+from scope_spec import Field, Row, Scope
 SCOPES = {"acme_widget": Scope(rows=[Row([Field("widget_summary")])])}
 SPAN_READERS = {"widget_summary": "not a function"}
 ''')
@@ -851,7 +851,7 @@ def test_every_row_parameter_is_documented_on_the_class():
 def test_the_field_docstring_names_every_value_the_code_accepts():
     """A value the code supports but the docstring omits is undiscoverable;
     one the docstring claims but the code drops silently misleads."""
-    from plugins.turns.scope_spec import _CLIP_CLS, _DECO_CLS
+    from scope_spec import _CLIP_CLS, _DECO_CLS
     doc = Field.__doc__
     for deco in _DECO_CLS:
         assert f'"{deco}"' in doc, f"deco {deco}"
@@ -879,7 +879,7 @@ def test_every_class_the_vocabulary_resolves_to_exists_in_base_html():
     """
     import re
 
-    from plugins.turns.scope_spec import _CLIP_CLS, _DECO_CLS
+    from scope_spec import _CLIP_CLS, _DECO_CLS
     css = (REPO_ROOT / "templates" / "base.html").read_text()
     css = re.sub(r"\{#.*?#\}", "", css, flags=re.S)     # drop Jinja comments
     named = set(list(_DECO_CLS.values()) + list(_CLIP_CLS.values()))

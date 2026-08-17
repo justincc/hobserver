@@ -542,7 +542,7 @@ def test_the_same_log_resolves_to_the_same_index(tmp_path):
 # --- contributed provider shapes (ADR 13) ---------------------------------
 
 def _acme_shape():
-    from plugins.turns.providers import COMMON_COUNTS, WHOLE, UsageShape
+    from providers import COMMON_COUNTS, WHOLE, UsageShape
     return UsageShape(
         name="acme_router", convention=WHOLE,
         counts=(("prompt_tokens", ("acme_prompt_total",)),
@@ -558,7 +558,7 @@ ACME_END_USAGE = {"acme_prompt_total": 4000, "acme_cached": 3200,
 def test_a_contributed_shape_reaches_the_stored_counts(tmp_path, log):
     """The whole point: a router this tree has never heard of shows its
     tokens without a fork."""
-    from plugins.turns.providers import USAGE_SHAPES
+    from providers import USAGE_SHAPES
     write(log,
           scope("llm1", 100, name="acme", category="llm",
                 metadata={"session_id": "s"}),
@@ -584,7 +584,7 @@ def test_changing_the_shape_table_invalidates_the_index(tmp_path, log):
     """A contributed shape decides what the stored counts *mean*, so an
     index built under one table must not be served under another — the
     staleness rule ADR 11 applies to this tree's own code."""
-    from plugins.turns.providers import USAGE_SHAPES
+    from providers import USAGE_SHAPES
     write(log, scope("llm1", 100, name="acme", category="llm"),
           scope("llm1", 900, end=True, name="acme", category="llm",
                 data={"choices": [], "usage": ACME_END_USAGE}))
@@ -601,7 +601,7 @@ def test_hydration_reads_a_payload_back_with_the_same_shapes(tmp_path, log):
     disagreeing with the indexed one would be this app contradicting itself
     between two renders of the same span."""
     from plugins.turns.atof_index import hydrate_turn as _hydrate
-    from plugins.turns.providers import USAGE_SHAPES
+    from providers import USAGE_SHAPES
     big = "x" * (PAYLOAD_INLINE_MAX_BYTES * 2)
     shapes = (_acme_shape(),) + USAGE_SHAPES
     write(log,

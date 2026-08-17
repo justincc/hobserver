@@ -236,6 +236,15 @@ uv run pytest plugins/mem0     # one plugin's alone
   gitignored `hobserver.toml` to customise; built-in defaults serve without one
 - `hermes_paths.py` — where hermes-agent keeps things, for the in-tree
   plugins' default paths
+- `scope_spec.py` — the scope-spec vocabulary (ADR 7): the row descriptors
+  (`Field`, `Row`, `Scope`, …) and their resolver, imported by any plugin that
+  paints spans. A shared surface owned by no tab and never touched by the shell
+  (which does not know what a scope spec is); it depends on nothing in the app.
+- `providers.py` — the provider vocabulary (ADR 13): the token-count shapes and
+  per-provider payload reading, imported by any plugin adding a `provider_spec`.
+  Shared the same way as `scope_spec.py`. Both moved out of `plugins/turns/` so
+  a span- or provider-contributing plugin depends on a neutral module, not on
+  the Turns tab's package (ADR 21).
 - `plugins/` — one package per in-tree view, each self-contained: its module
   attributes (`PLUGIN_API`, the Flask blueprint `bp` registered under
   `/<URL_PREFIX>/`, `TAB_LABEL`, `URL_PREFIX`, optional `init_app` and

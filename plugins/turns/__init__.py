@@ -29,8 +29,8 @@ from plugins.turns import fulltext
 from plugins.turns.assembler import assemble
 from plugins.turns.atof_index import (AtofIndex, default_index_path,
                                         hydrate_span, hydrate_turn)
-from plugins.turns.providers import USAGE_SHAPES, check_shapes
-from plugins.turns.scope_spec import (SpecTable, check_readers,
+from providers import USAGE_SHAPES, check_shapes
+from scope_spec import (SpecTable, check_readers,
                                         check_table, full_for, full_link,
                                         render_macro, resolve_full,
                                         resolve_source, rows_for)

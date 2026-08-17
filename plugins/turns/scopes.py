@@ -21,7 +21,7 @@ alphabet and the exception is marked.
 `docs/design/span-rendering.md` narrates what each of these shows and why.
 """
 
-from plugins.turns.scope_spec import (Alt, Diff, Each, Field, Full, Items,
+from scope_spec import (Alt, Diff, Each, Field, Full, Items,
                                         Row, Scope, const, first, item, joined,
                                         mapped)
 

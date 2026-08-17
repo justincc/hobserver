@@ -5,7 +5,7 @@ Responses API, openrouter on Chat Completions, and Anthropic's Messages
 shape, whose input convention is the opposite of the other two.
 """
 
-from plugins.turns.providers import (COMMON_COUNTS, PARTS, USAGE_SHAPES,
+from providers import (COMMON_COUNTS, PARTS, USAGE_SHAPES,
                                        WHOLE, FRESH_INPUT_COUNTS, UsageShape,
                                        canonical_usage, check_shapes,
                                        chunk_usage, shape_for, shape_modules)
@@ -234,7 +234,7 @@ def test_check_shapes_names_the_other_ways_a_shape_can_be_wrong():
 def test_shape_modules_names_where_a_shape_came_from():
     """The index hashes these so editing a contributed shape invalidates an
     index built before the edit (ADR 11's cache rule)."""
-    assert shape_modules(USAGE_SHAPES) == ["plugins.turns.providers"]
+    assert shape_modules(USAGE_SHAPES) == ["providers"]
     assert __name__ in shape_modules((ACME,))
 
 
@@ -248,7 +248,7 @@ def write_provider_module(tmp_path, monkeypatch, name, body):
 
 
 ACME_MODULE = '''
-from plugins.turns.providers import COMMON_COUNTS, WHOLE, UsageShape
+from providers import COMMON_COUNTS, WHOLE, UsageShape
 
 def _is_acme(usage):
     return "acme_prompt_total" in usage
@@ -299,7 +299,7 @@ def test_a_malformed_shape_is_reported_rather_than_reaching_the_parser(
     from plugins.turns import usage_shape_table
 
     name = write_provider_module(tmp_path, monkeypatch, "bad_providers", '''
-from plugins.turns.providers import PARTS, UsageShape
+from providers import PARTS, UsageShape
 USAGE_SHAPES = (UsageShape(name="bad", convention=PARTS,
                            counts=(("prompt_tokens", ("prompt_tokens",)),),
                            matches=lambda u: True),)

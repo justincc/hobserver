@@ -37,7 +37,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, Optional, Sequence
 
-from plugins.turns.providers import normalize_llm_end
+from providers import normalize_llm_end
 
 KINDS = ("scope", "mark")
 SCOPE_CATEGORIES = ("start", "end")

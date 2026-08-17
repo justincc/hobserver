@@ -41,8 +41,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from plugins.turns import assembler as _assembler
 from plugins.turns import atof_reader as _atof_reader
-from plugins.turns import providers as _providers
 from plugins.turns import spans as _spans
+import providers as _providers
 from plugins.turns.assembler import TURN_START_MARK
 from plugins.turns.spans import (AGENT_CATEGORY, LLM_CATEGORY,
                                    request_prompt_from_profile,
@@ -50,7 +50,7 @@ from plugins.turns.spans import (AGENT_CATEGORY, LLM_CATEGORY,
 from plugins.turns.atof_reader import (STREAM_MARK_NAMES, AtofEvent,
                                          AtofParseError, LineRef, ParseError,
                                          parse_line)
-from plugins.turns.providers import chunk_usage
+from providers import chunk_usage
 from plugins.turns.tailer import (file_size, read_at, read_bytes_at,
                                     read_lines)
 

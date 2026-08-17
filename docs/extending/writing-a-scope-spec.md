@@ -25,7 +25,7 @@ Say hermes has been extended with a `deploy` tool whose payload is
 ```python
 """Scope specs for the acme hermes tools."""
 
-from plugins.turns.scope_spec import Field, Row, Scope, payload
+from scope_spec import Field, Row, Scope, payload
 
 DEPLOY = Scope(rows=[
     # The summary line: what was deployed, and where.
@@ -93,7 +93,7 @@ of span and a name spec singles one out. Use a category only when the name
 does not identify the scope — an llm span is named for the provider that
 answered it (`anthropic`), which is why that one is a category spec.
 
-**A spec module imports `plugins.turns.scope_spec`, and nothing else from
+**A spec module imports `scope_spec`, and nothing else from
 hobserver.** That vocabulary is a published surface — one of the few,
 listed in [ADR 8](../design/adr/0008-plugins-may-import-published-host-vocabulary.md) —
 so importing it is the ordinary thing to do, and the names in it change with
@@ -233,7 +233,7 @@ page of its own, reached by an open-in-a-new-tab icon at the end of the
 excerpt ([ADR 12](../design/adr/0012-open-a-whole-value-on-its-own-page.md)):
 
 ```python
-from plugins.turns.scope_spec import Full, const
+from scope_spec import Full, const
 
 SCOPES = {"deploy": Scope(
     rows=[Row([Field(payload("service")),
@@ -338,7 +338,7 @@ directory in your own package — so the tests travel with the thing they test.
 A spec is data, so it resolves without a Flask app or a rendered page:
 
 ```python
-from plugins.turns.scope_spec import SpecTable, rows_for
+from scope_spec import SpecTable, rows_for
 from acme_hermes_specs import SCOPES
 
 def test_deploy_leads_with_the_service(make_span):

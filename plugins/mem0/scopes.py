@@ -16,7 +16,7 @@ ordinary).
 cross-plugin case.
 """
 
-from plugins.turns.scope_spec import (Diff, Each, Field, Link, Row, Scope,
+from scope_spec import (Diff, Each, Field, Link, Row, Scope,
                                         accessor, attr, const, item, payload)
 
 # What the search got back. Only the top hits: whole facts would swamp the

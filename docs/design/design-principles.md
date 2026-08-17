@@ -50,7 +50,7 @@ payload", the knowledge has no owner and will drift.
 |---|---|---|
 | hermes' tools | `plugins/turns/scopes.py` | `scope_specs`, and a tab's own `SCOPES` — [ADR 7](adr/0007-declare-scope-rendering-as-row-specs.md), [ADR 10](adr/0010-a-tab-contributes-its-own-scope-specs.md) |
 | a tool's payload *shape* | whoever owns the tool — `plugins/mem0/spans.py` for mem0's | `SPAN_READERS` beside the specs — [ADR 17](adr/0017-a-payload-reading-is-contributed-beside-the-spec-that-names-it.md) |
-| LLM provider APIs | `plugins/turns/providers.py` | `provider_specs` — [ADR 13](adr/0013-provider-payload-reading-is-its-own-module-and-token-shapes-are-published.md) |
+| LLM provider APIs | `providers.py` | `provider_specs` — [ADR 13](adr/0013-provider-payload-reading-is-its-own-module-and-token-shapes-are-published.md) |
 | another log or store entirely | its own tab | `hobserver.toml` — [ADR 5](adr/0005-tabs-are-configured-plugins-loaded-by-module-path.md) |
 
 The first two rows are one system read at two levels, and the split is the

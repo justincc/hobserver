@@ -20,6 +20,7 @@ adding a fifth: a scope that needs one is usually a scope that wants
 `render=`.
 """
 
+import json
 from dataclasses import dataclass, field as dc_field
 from typing import Any, Callable, Optional, Sequence, Union
 
@@ -209,6 +210,22 @@ def _accessor(span, ctx, name: str, key_source):
         return None
 
 
+def _as_dict(data: Any) -> Optional[dict]:
+    """Payload as a dict when it is one — directly or as a JSON string.
+    Data is opaque per the ATOF spec, so never assume shape.
+
+    A private copy of the same helper in the Turns tab's `spans` module: this
+    vocabulary imports nothing from the app, so it carries its own rather than
+    reach back into a plugin for eight lines.
+    """
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except ValueError:
+            return None
+    return data if isinstance(data, dict) else None
+
+
 def _payload_key(span, which: str, key: str):
     """A payload key, through the same defensive read the generic renderer
     uses: a payload is opaque per the ATOF spec and may be a JSON string, a
@@ -217,8 +234,6 @@ def _payload_key(span, which: str, key: str):
     `which` names the span attribute holding the payload — not `attr`, which
     is now a source helper in this module and would shadow it.
     """
-    from plugins.turns.spans import _as_dict
-
     data = _as_dict(getattr(span, which, None))
     if data is None:
         return None

@@ -55,7 +55,7 @@ audience it serves, not the one whose subject it shares.
   → assembler, and `spans.py` beside it; **which of those two a payload
   reading belongs in**, what the index stores, its staleness checks, and
   hydration
-- [providers.py](plugins/turns/providers.py) + [ADR 13](docs/design/adr/0013-provider-payload-reading-is-its-own-module-and-token-shapes-are-published.md)
+- [providers.py](providers.py) + [ADR 13](docs/design/adr/0013-provider-payload-reading-is-its-own-module-and-token-shapes-are-published.md)
   — where the assistant's words, tool calls and token counts sit per
   provider. **Nothing else in the app knows one provider from another**;
   put new provider knowledge there, not in the reader

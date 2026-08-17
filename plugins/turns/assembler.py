@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable, List, Optional
 
 from plugins.turns.atof_reader import STREAM_MARK_NAMES, AtofEvent
-from plugins.turns.providers import chunk_usage
+from providers import chunk_usage
 from plugins.turns.spans import (AGENT_CATEGORY, LLM_CATEGORY, TOOL_CATEGORY,
                                    Span, _mark_user_message)
 

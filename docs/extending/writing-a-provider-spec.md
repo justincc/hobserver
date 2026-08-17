@@ -4,7 +4,7 @@ How to make the Turns tab read token counts from a router it has never heard
 of.
 
 A provider spec is a Python module holding a `USAGE_SHAPES` tuple. It can
-live in this repo (`plugins/turns/providers.py` is one) or in a package of
+live in this repo (`providers.py` is one) or in a package of
 your own installed alongside — both load the same way, so a new router needs
 no fork and no patch carried on top of this tree.
 
@@ -40,7 +40,7 @@ Say the acme router reports usage as
 ```python
 """Provider specs for the acme router."""
 
-from plugins.turns.providers import COMMON_COUNTS, WHOLE, UsageShape
+from providers import COMMON_COUNTS, WHOLE, UsageShape
 
 
 def _is_acme(usage):
@@ -107,7 +107,7 @@ disagree, rather than letting it derive backwards in silence.
 A `PARTS` shape therefore looks like:
 
 ```python
-from plugins.turns.providers import COMMON_COUNTS, FRESH_INPUT_COUNTS, PARTS
+from providers import COMMON_COUNTS, FRESH_INPUT_COUNTS, PARTS
 
 BESPOKE = UsageShape(
     name="bespoke_messages", convention=PARTS,

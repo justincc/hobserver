@@ -4,7 +4,7 @@ What a span shows, scope by scope.
 
 **Where it is decided** (ADR 7): each scope's rows are declared as data in
 `plugins/turns/scopes.py`, keyed by the hermes tool's own scope name;
-`plugins/turns/scope_spec.py` holds the vocabulary those declarations are
+`scope_spec.py` holds the vocabulary those declarations are
 written in; `plugins/turns/templates/turns/_macros.html` paints whatever they resolve to
 and knows about no particular tool, and `turn.html` is the page around it.
 The values come from `Span` properties in `plugins/turns/spans.py`, from a
@@ -644,7 +644,7 @@ and a scope that seems to need a fifth usually wants `render=` instead:
 | `layer` | `Row` | which layout the row belongs to |
 
 **The values each one takes, and every other parameter, are documented on the
-classes themselves in `plugins/turns/scope_spec.py`** — that is the
+classes themselves in `scope_spec.py`** — that is the
 reference, and it is what an editor shows you while you type. This section is
 the shape; the docstrings are the detail.
 

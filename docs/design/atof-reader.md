@@ -137,7 +137,7 @@ not renamed, and normalization does not invent them.
 
 ### The token counts
 
-> Lives in `plugins/turns/providers.py`, not `atof_reader.py` — everything
+> Lives in `providers.py`, not `atof_reader.py` — everything
 > that depends on *which provider answered* is there, and its token shapes
 > are a published extension point
 > ([ADR 13](adr/0013-provider-payload-reading-is-its-own-module-and-token-shapes-are-published.md),
