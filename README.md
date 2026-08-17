@@ -6,26 +6,14 @@
        width="440">
 </picture>
 
-A webapp for observing hermes-agent activity. Views are plugins,
-shown as horizontal tabs:
+Hobserver is a webapp for observing hermes-agent activity. The currently bundled modules are:
 
 - **Turns** — per-turn latency waterfalls from the NeMo Relay ATOF
   JSONL stream exported by the hermes-agent `observability/nemo_relay`
   plugin: where each turn's time went (llm vs tool vs overhead), with a
-  span timeline per turn. See `docs/design/adr/` for the design.
+  span timeline per turn. This is a live stream that appears as the agent works.
 - **Mem0** — browses `jmem0_logged.db`, the SQLite event log produced by
-  the hermes-agent mem0 logging wrapper.
-
-Tabs read left to right in the order `hobserver.toml` lists them, and the
-first is where `/` lands. Turns leads because a turn is the unit of
-activity — what hermes was asked and everything it did about it, memory
-calls included — while the mem0 log covers one tool. Mem0 is named for the
-provider rather than for memory in general: hermes also keeps its own
-in-prompt stores (MEMORY.md / USER.md), and other external providers may be
-tried, and each of those would arrive as its own tab beside this one.
-
-Every view is read-only over a log another process produces, so it is safe
-to point at live files while hermes is writing to them.
+  justincc's hermes-agent mem0 logging wrapper.
 
 ## Philosophy
 
@@ -48,10 +36,17 @@ reach it.** It binds loopback (`127.0.0.1`) by default; setting a non-loopback
 so do that only on a network you control. Log content is rendered safely
 (HTML-escaped, no raw HTML), so pointing it at real logs is fine.
 
-[SECURITY.md](SECURITY.md) has the full trust model, the XSS mitigations to
-preserve, and what counts as trusted input.
+[SECURITY.md](SECURITY.md) has the full trust model.
 
 ## Running
+
+Unless you already have [Herme's NeMo relay](https://docs.nvidia.com/nemo/relay/v0.5.0/nemo-relay-cli/hermes) configured you'll to set that up first to produce an [Agent Trajectory Observability Format (ATOF)](https://docs.nvidia.com/nemo/relay/configure-plugins/observability/atof) log that Hobserver can consume. See [docs/running/setup-prompt-timing.md](docs/running/setup-prompt-timing.md) for instructions.
+
+By default, Hobserver will run with a default set of modules configured, enough to observer Hermes if logs are in default locations. If you want to configure things any further, copy `hobserver.example.toml` to `hobserver.toml` and edit.
+
+More details on Hobserver settings below.
+
+Then run:
 
 ```bash
 ./hobserver [hobserver.toml]
@@ -59,34 +54,24 @@ preserve, and what counts as trusted input.
 
 `./hobserver` runs the app through uv, which builds the environment on first
 use — so a fresh clone needs no setup step. It resolves its own location, so
-you can run it from any directory, or symlink it onto your `PATH`. (The
-underlying `uv run python app.py` still works too.)
+you can run it from any directory.
 
-The argument is optional, and so is setting anything up beforehand, because
-two things are resolved for you:
-
-- **Which tabs to serve**. By default, Hobserver will run with a default selection of modules. If you want to configure this then copy `hobserver.example.toml` to `hobserver.toml` and edit. Details of the configuration are in (#which-tabs-are-served) below.
-- **Which files each tab reads** are looked up under `$HERMES_HOME`, or under
-  `~/.hermes` if it is unset, which is the same fallback hermes-agent itself
-  uses. Details in [where the data comes from](#where-the-data-comes-from).
+If you don't give a `hobserver.toml` location then it will look for it in the current directory and drop back to built-in defaults if it doesn't find it.
 
 The startup banner prints what each of those resolved to before it serves
 anything, so first runs are worth reading.
 
-Serving is on [waitress](https://docs.pylonsproject.org/projects/waitress/),
-a production WSGI server, so there is no development-server warning at
-startup and no interactive debugger in existence to expose when you do open
-it up ([ADR 14](docs/design/adr/0014-serve-on-waitress-and-keep-one-server-in-development.md)).
-It is pure Python: `uv sync` installs it like anything else, and there is
-no separate server command to run.
+## Configuration
 
-### Which tabs are served
-
-`hobserver.toml` lists them, in tab order. The first one is the root webpage.
+Configuration is done in `hobserver.toml`. Here's a simplified example.
 
 ```toml
+host = "127.0.0.1"
+
 [[tabs]]
 module = "plugins.turns"
+settings = { atof_log = "$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl" }
+settings = { index_db = "/var/tmp/hermes-atof-index.sqlite3" }
 
 [[tabs]]
 module = "plugins.mem0"
@@ -99,16 +84,7 @@ alongside is added the same way, with no fork of this repo — see
 from the first command-line argument, else `$HOBSERVER_CONFIG`, else
 `./hobserver.toml`.
 
-### Where the data comes from
-
-Each tab resolves its own source: its `settings` in the config file, else a
-default under the hermes-agent config directory. That directory is
-`$HERMES_HOME` when it is set, else `~/.hermes` — the same fallback the agent
-itself uses, so a default install needs no configuring either way.
-`HERMES_HOME` is normalized, since the agent conventionally exports it as
-`<checkout>/hermes-agent/../config`. It stays an environment variable
-deliberately: it is hermes-agent's, shared across its tooling, not this app's
-to relocate into a config file.
+Some important settings:
 
 | tab | setting | default |
 | --- | --- | --- |
@@ -116,71 +92,20 @@ to relocate into a config file.
 | Turns | `index_db` | `$XDG_CACHE_HOME/hobserver/atof-index-<hash>.sqlite3` |
 | Mem0 | `db` | `$HERMES_HOME/jmem0_logged.db` |
 
-The Turns source is the events JSONL written by the nemo_relay plugin's ATOF
-exporter. It is allowed to be absent — hermes may simply not have run with the
-exporter on — and the tab says so, naming the path it tried, rather than
-showing an empty page.
+`atof_log` is the events JSONL written by the nemo_relay plugin's ATOF
+exporter.
 
-`index_db` is the one path here that is **not** a source. It is a cache of the
+`index_db` is a cache of the atof
 log — the Turns tab does not hold a multi-gigabyte log in memory, it indexes
 where each event sits and reads payloads back as pages need them
 ([ADR 11](docs/design/adr/0011-index-the-atof-log-rather-than-hold-it-in-memory.md)).
-It holds no fact the log does not, so **deleting it is always safe**: the next
-request rebuilds it, about ten seconds per gigabyte. It is kept in a cache
-directory of hobserver's own rather than beside the log, which is hermes'.
 
-The Mem0 source is checked before the tab is served: the path must exist, be a
-regular file, and yield a row from an `events` table when opened read-only.
-Existence alone was not enough — a stray argument (`app.py .`, the current
-directory) passed an exists check and then failed per request with a bare
-sqlite `disk I/O error`, which reads like a failing disk rather than a wrong
-path. A database that fails the check takes **that tab** out of service: the
-tab is marked in the bar and serves a page naming the problem, while every
-other tab carries on.
+On startup the app prints how the settings were resolved.
 
-On startup the app prints what it resolved — the config file, the hermes
-config directory with what supplied it, and every tab with its sources, each
-marked ok, MISSING or UNUSABLE —
-because a missing source is the usual reason a tab looks empty. It prints once at launch, not on reloader
-restarts.
-
-### Console noise and Hobserver status
+## Status reporting
 
 A **hobserver status** link sits at the right of the tab row on every page,
-opening `/_status` in a new tab — new rather than in place because the tally
-is for checking *while* a page sits there polling. It is deliberately not
-called "requests": every other view in this app shows the agent's LLM and
-tool requests, and this one shows none of that, only HTTP traffic to the web
-app itself. The page repeats the distinction in its own header.
-
-
-The live-poll pages refetch every 2-3 s, which would bury the console. So
-successful (2xx/3xx) responses are **not logged at all**, on any path. Every
-non-2xx/3xx response is logged — a quiet log must never hide an error — by
-the app itself rather than by the server, so the line reads the same in
-either mode:
-
-```
-[18:10:16] WARNING GET /memory/mem0/fragment/renamed?since=42 -> 404
-```
-
-The running tally lives at `/_status` (plain text, so it reads the same
-curled or in a browser): per path, request count, how long since the last
-one, and a status-code breakdown. Fetch it when a page stops updating —
-it separates the three failure modes at a glance. No response means the
-server is down; a stale *last* time means the browser stopped polling;
-non-200 counts mean polls are arriving but failing.
-
-It can be left open: a `Refresh` header re-requests it every 3 s (curl
-ignores the header, so the body stays plain text and needs no template),
-and the header line carries a clock, since counts alone look identical
-whether the page is live or frozen. Its own requests are excluded from the
-tally, so watching the page never looks like traffic or refreshes its own
-last-seen time.
-
-End-to-end setup — enabling the exporter in hermes-agent (producing) and
-pointing this tool at its output (consuming) — is in
-[docs/running/setup-prompt-timing.md](docs/running/setup-prompt-timing.md).
+opening `/_status` in a new tab. This records fetches and other information for diagnostic purposes - successful HTTP calls won't appear on the console.
 
 ## Pages
 
