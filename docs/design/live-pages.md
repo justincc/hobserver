@@ -64,7 +64,7 @@ the turn had been silent for 2 minutes.
 
 ## Follow mode
 
-A "follow new turns" switch (persisted in localStorage) that auto-opens a
+A "switch to new turns" switch (persisted in localStorage) that auto-opens a
 turn's waterfall when a new turn starts, with two guards: never while you are
 watching a turn that is still in flight (concurrent turns just appear in the
 strip for manual switching), and never to a stale entry.
