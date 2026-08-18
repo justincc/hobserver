@@ -247,6 +247,14 @@ statistics separate model and tool latency, while the waterfall places every
 model call, tool call, and other span on a shared timeline. Expandable span
 details expose prompts, token usage, tool inputs, and other diagnostic context.
 
+![Hobserver full model span view showing an annotated request and its rendered prompt content](docs/images/model-span-prompt.png)
+
+The full model span view opens an entire model request without truncation. Its
+message index makes instructions, user and assistant messages, tool calls, and
+tool results directly navigable in wire order, while the header records the
+provider, model, timestamp, request size, message count, and span identifier.
+The exact underlying content is also available through the raw view.
+
 ## Layout
 
 - `app.py` — app shell: app factory `create_app(tabs)`, tab registration, the
