@@ -45,18 +45,6 @@ There are two halves: hermes-agent **produces** the log, hobserver
    treats a shrinking file as a rotation, but append is the mode ADR 2
    assumes day to day.
 
-   **Paths:** use an absolute literal path. dotenv does not expand `~`.
-   `${HERMES_HOME}/nemo-relay/atof` does work — python-dotenv interpolates
-   `${VAR}` references — but **only if `HERMES_HOME` is actually exported**
-   in the process environment; when it is unset (most setups rely on the
-   built-in `~/.hermes` default, which never sets the variable) the
-   reference silently expands to an empty string and the exporter writes to
-   `/nemo-relay/atof`. Given the plugin's fail-open design, nothing will
-   warn you. (The WebUI's `ctl.sh` env parser exports values literally,
-   without interpolation, but the agent's own loader re-reads
-   `~/.hermes/.env` in-process with override, so the interpolated value is
-   what the plugin sees.)
-
 4. **Verify** with a one-shot CLI run:
 
    ```bash
@@ -86,13 +74,3 @@ Override a source when it lives elsewhere by setting it for the tab in
 plugin = "plugins.turns"
 settings = { atof_log = "/home/<you>/.hermes/nemo-relay/atof/hermes-atof.jsonl" }
 ```
-
-Startup prints both resolved paths, whether each exists, and which rule
-supplied it — check that first when a tab looks empty.
-
-The Turns tab lists turns as they land; reload to pick up new
-events (the tailer reads only what the exporter appended since the last
-request). The tab distinguishes two failure states loudly — file missing
-(naming the path tried) and file present but empty — and shows unparseable
-lines and assembly anomalies above the turn list (folded closed) rather than
-dropping them.
