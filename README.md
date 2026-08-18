@@ -15,15 +15,6 @@ Hobserver is a webapp for observing hermes-agent activity. The currently bundled
 - **Mem0** — browses `jmem0_logged.db`, the SQLite event log produced by
   justincc's hermes-agent mem0 logging wrapper.
 
-## Screenshots
-
-### Turns
-
-![Hobserver Turns view showing prompts, sessions, and timing breakdowns](docs/images/turns-overview.png)
-
-The Turns view summarizes recent prompts and their total, model, and tool
-durations, with links to detailed per-turn waterfalls.
-
 ## Philosophy
 
 - **Be useful**. The primary purpose of Hobserver is to be a useful tool for seeing what Hermes
@@ -175,7 +166,8 @@ result), then the query, the result and the context messages as plaintext.
   leftover width and ellipsizes, so nothing else is abbreviated), the session
   (the leading segment of the turn id, which hermes builds as
   `{session}:{task}:{hash}` — the full id is on the turn page), total / model /
-  tool durations, and model-call and span counts. In-flight turns are marked. Parse errors and assembly anomalies are
+  tool durations (rounded to whole seconds for a quick scan — the turn page
+  keeps two decimals), and model-call and span counts. In-flight turns are marked. Parse errors and assembly anomalies are
   shown above the table, folded closed and on this page only — never dropped.
   Updates itself every 3 s.
 - `/turns/turn/<session>/<start_us>` — one turn, described below.
@@ -240,6 +232,20 @@ See [docs/design/live-pages.md](docs/design/live-pages.md) for all of it.
 uv run pytest                      # both roots: tests/ and every plugins/<name>/tests/
 uv run pytest plugins/memory/mem0  # one plugin's alone
 ```
+
+## Screenshots
+
+![Hobserver Turns view showing prompts, sessions, and timing breakdowns](docs/images/turns-overview.png)
+
+The Turns overview summarizes recent prompts and their total, model, and tool
+durations, with links to detailed per-turn waterfalls.
+
+![Hobserver turn detail showing summary statistics and a waterfall of model and tool spans](docs/images/turn-detail-waterfall.png)
+
+The turn detail view shows where an individual turn spent its time. Summary
+statistics separate model and tool latency, while the waterfall places every
+model call, tool call, and other span on a shared timeline. Expandable span
+details expose prompts, token usage, tool inputs, and other diagnostic context.
 
 ## Layout
 
