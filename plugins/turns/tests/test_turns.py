@@ -74,10 +74,11 @@ def test_empty_file_states_no_events_loudly(tmp_path):
 def test_index_lists_turns_with_waterfall_numbers(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/turns/").get_data(as_text=True)
-    # complete turn t1: total 5.5s, model 4s, tool 0.5s
-    assert "5.50 s" in page
-    assert "4.00 s" in page
-    assert "500 ms" in page
+    # the all-turns view rounds to whole seconds: total 5.5s→6s, model 4s→4s,
+    # tool 0.5s→1s
+    assert "6 s" in page
+    assert "4 s" in page
+    assert "1 s" in page
     # in-flight turn t2 has no total yet
     assert "in flight" in page
     assert "/turns/turn/s1/1000000" in page
@@ -654,7 +655,7 @@ def test_turn_detail_renders_with_string_tool_result_data(tmp_path):
     assert resp.status_code == 200
     page = resp.get_data(as_text=True)
     assert "mem0_search" in page
-    assert "500 ms" in page
+    assert "0.50 s" in page
 
 
 def test_turn_detail_shows_top_mem0_results_and_links_to_memory(tmp_path):
@@ -895,7 +896,7 @@ def test_parse_errors_are_shown_not_dropped(tmp_path):
     page = make_client(tmp_path, str(atof)).get("/turns/").get_data(as_text=True)
     assert "unparseable line" in page
     assert "this is not json" in page
-    assert "5.50 s" in page             # good events still render
+    assert "6 s" in page                # good events still render (5.5s → 6s)
     # folded closed by default — details opt-in via the summary click
     assert 'class="problems" open' not in page
 

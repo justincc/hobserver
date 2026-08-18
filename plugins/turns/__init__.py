@@ -358,15 +358,29 @@ def get_index() -> AtofIndex:
 
 @bp.app_template_filter("us_dur")
 def us_dur(us):
-    """Microseconds → compact human duration; em dash when unknown."""
+    """Microseconds → a duration in seconds, two decimals; em dash when unknown.
+
+    Always seconds — never ms or µs — so every turn and span time reads on one
+    scale and the columns line up. Anything under 5 ms rounds to 0.00 s, which
+    is fine when the point is where a turn's time went.
+    """
     if us is None:
         return "—"
-    sign, us = ("-", -us) if us < 0 else ("", us)
-    if us >= 1_000_000:
-        return f"{sign}{us / 1_000_000:.2f} s"
-    if us >= 1_000:
-        return f"{sign}{us / 1_000:.0f} ms"
-    return f"{sign}{us} µs"
+    return f"{us / 1_000_000:.2f} s"
+
+
+@bp.app_template_filter("us_secs")
+def us_secs(us):
+    """Microseconds → whole seconds (rounded); em dash when unknown.
+
+    The all-turns table uses this instead of us_dur: scanning it, you want how
+    long turns roughly took, and fractions of a second are noise. Per-turn
+    pages and everywhere else keep the two-decimal us_dur. Durations here are
+    never negative, so a plain round-half-up is enough.
+    """
+    if us is None:
+        return "—"
+    return f"{int(us / 1_000_000 + 0.5)} s"
 
 
 @bp.app_template_filter("tilde")
