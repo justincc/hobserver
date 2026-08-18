@@ -171,7 +171,7 @@ def test_banner_separates_what_resolved_from_tabs_from_serving(tmp_path):
     banner = app_module.startup_banner(tabs, 5090, "hobserver.toml")
     groups = banner.split("\n\n")
     assert len(groups) == 3
-    assert groups[0].startswith("hobserver")
+    assert groups[0].startswith("CONFIGURATION")
     assert groups[1].startswith("  tab   ")
     assert groups[2].startswith("  reloading")
     # a blank line ends nothing: it only ever comes between two groups

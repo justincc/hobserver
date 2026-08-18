@@ -169,7 +169,7 @@ def startup_banner(tabs, port, config_origin, serving=True, dev=False,
     tab that could not load at all leads with its problem instead.
     """
     home = os.environ.get("HERMES_HOME")
-    resolved = ["hobserver"]
+    resolved = ["CONFIGURATION"]
     if config_origin == tabs_module.BUILTIN_ORIGIN:
         # Fresh checkout: it is already working, on the standard tabs, with no
         # file. Say both — that nothing is required, and where to start if they
