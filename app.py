@@ -264,8 +264,13 @@ def main():
     # supervisor shows the banner once at launch rather than again on every
     # .py edit. Without --dev there is one process and the variable is unset.
     if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+        # A trailing blank line sets the resolved configuration apart from the
+        # per-tab console output that create_app prints next (the ATOF index
+        # line and the like). The banner itself carries no trailing newline —
+        # the separation belongs at the seam between it and what follows, not
+        # inside it.
         print(startup_banner(tabs, PORT, origin, serving=bool(tabs), dev=dev,
-                             host=host), flush=True)
+                             host=host) + "\n", flush=True)
     # A broken tab is that tab's problem; no tab at all leaves nothing to
     # serve, which is worth exiting for.
     if not tabs:
