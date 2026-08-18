@@ -26,7 +26,10 @@ Hobserver is a webapp for observing hermes-agent activity. The currently bundled
   set of plugins that I use, where other people may end up invoking different tools or 
   be using different plugins. So an important value for the code is modularity. For example,
   it should be possible to write a plugin for any of the memory systems out there which can
-  live in a separate git tree and doesn't need any modifications to the core Hobserver files. 
+  live in a separate git tree and doesn't need any modifications to the core Hobserver files.
+- **Be opinionated**. I want to see important information at a glance, not look through a lot 
+  of clutter. Therefore, Hobserver is purposefully opinionated about what it does and doesn't 
+  display and where it does it.
 
 ## Security
 
