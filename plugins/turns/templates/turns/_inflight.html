@@ -1,8 +1,9 @@
 {# In-flight status strip: every running turn, newest first. Lives inside
    the live region so it refreshes each poll. The data attributes drive
-   follow mode in base.html: start_us for new-turn detection, stale to
-   exclude lost-end-mark turns from auto-navigation, current to mark the
-   turn this page is showing. `current` is only set on the turn page. #}
+   follow mode in base.html: start_us for new-turn detection, current to mark
+   the turn this page is showing. `current` is only set on the turn page.
+   Turns silent past STALE_AFTER_US are dropped upstream (_inflight_entries),
+   so every entry here is genuinely active. #}
 {% if inflight %}
 <p class="inflight-strip">
   <span class="strip-label">in flight:</span>
@@ -13,12 +14,10 @@
   <a class="inflight-entry{{ ' current' if is_current }}"
      href="{{ url_for('turns.turn', session_id=e.turn.session_id, start_us=e.turn.start_us) }}"
      data-inflight-start-us="{{ e.turn.start_us }}"
-     {%- if e.stale %} data-stale="1"{% endif %}
      {%- if is_current %} data-inflight-current="1"{% endif %}>
     {%- if e.turn.user_message %}“{{ e.turn.user_message | truncate(40, True) }}” · {% endif %}
     {{- e.turn.turn_id or (e.turn.start_us | us_time) }} · {{ e.turn.session_id | truncate(16) }} ·
-    {% if e.stale %}stale — last event {{ e.turn.last_activity_us | us_time }} UTC
-    {%- else %}{{ e.elapsed_us | us_dur }} · {{ e.turn.spans | length }} span{{ 's' if e.turn.spans | length != 1 }}{% endif %}
+    {{ e.elapsed_us | us_dur }} · {{ e.turn.spans | length }} span{{ 's' if e.turn.spans | length != 1 }}
     {%- if is_current %} (viewing){% endif -%}
   </a>
   {% endfor %}

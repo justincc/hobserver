@@ -42,9 +42,12 @@ bp = Blueprint("turns", __name__, template_folder="templates")
 TAB_LABEL = "Turns"
 URL_PREFIX = "turns"
 
-# An in-flight turn silent this long is probably a lost end mark, not a
-# running prompt: still listed in the strip, but never auto-followed.
-STALE_AFTER_US = 10 * 60 * 1_000_000
+# An in-flight turn silent this long is treated as a lost end mark, not a
+# running prompt, and dropped from the in-flight strip. Two hours: an agentic
+# turn can legitimately go quiet for many minutes — a slow model call or a long
+# tool run emits no ATOF events meanwhile — so a short cutoff would retire turns
+# that are still working.
+STALE_AFTER_US = 2 * 60 * 60 * 1_000_000
 
 
 def atof_path(settings):
@@ -441,22 +444,23 @@ def _assembly():
 def _inflight_entries(assembly):
     """Still-running turns, newest first, dressed for the status strip.
 
-    Two kinds of open turn are not running and are dropped: one superseded
-    by a later turn in its session (Turn.is_live), and a subagent the
-    parent has already reported stopped.
+    Three kinds of open turn are not running and are dropped: one superseded
+    by a later turn in its session (Turn.is_live), a subagent the parent has
+    already reported stopped, and one silent past STALE_AFTER_US — a lost end
+    mark left open, which would otherwise sit in the strip indefinitely.
     """
     now_us = int(time.time() * 1_000_000)
     stopped = assembly.finished_subagent_sessions
     turns = sorted(
         (t for s in assembly.sessions for t in s.turns
-         if t.is_live and t.session_id not in stopped),
+         if t.is_live and t.session_id not in stopped
+         and now_us - t.last_activity_us <= STALE_AFTER_US),
         key=lambda t: t.start_us,
         reverse=True,
     )
     return [{
         "turn": t,
         "elapsed_us": now_us - t.start_us,
-        "stale": now_us - t.last_activity_us > STALE_AFTER_US,
     } for t in turns]
 
 

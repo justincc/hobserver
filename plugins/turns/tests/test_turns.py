@@ -947,7 +947,6 @@ def test_inflight_strip_lists_running_turns(tmp_path):
     assert "in flight:" in page
     assert f'data-inflight-start-us="{inflight_start}"' in page
     assert f"/turns/turn/s9/{inflight_start}" in page
-    assert 'data-stale="1"' not in page  # a fresh turn is never marked stale
 
 
 def subagent_stream():
@@ -1053,14 +1052,14 @@ def test_superseded_turn_is_listed_without_claiming_to_be_in_flight(tmp_path):
     assert "no end mark" in index
 
 
-def test_inflight_strip_marks_stale_turns(tmp_path):
-    # two_turn_stream's in-flight turn has 1970-era stamps: silent far past
-    # the cutoff, so it is listed but flagged and excluded from auto-follow
+def test_inflight_strip_drops_a_stale_turn(tmp_path):
+    # two_turn_stream's in-flight turn has 1970-era stamps: silent far past the
+    # 2h cutoff, so it is a lost end mark and dropped from the strip. It is the
+    # only open turn, so the strip does not render at all.
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/turns/").get_data(as_text=True)
-    assert "in flight:" in page
-    assert 'data-stale="1"' in page
-    assert "stale — last event" in page
+    assert "in flight:" not in page
+    assert 'data-inflight-start-us="10000000"' not in page   # the stale turn is gone
 
 
 def test_turn_page_marks_its_own_inflight_entry(tmp_path):

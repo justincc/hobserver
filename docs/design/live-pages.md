@@ -33,8 +33,11 @@ Both Turns pages show an in-flight strip
 with a short prompt snippet, elapsed time and span count, each linking to its
 waterfall. The turn being viewed is marked.
 
-A turn silent for more than 10 minutes is flagged stale — probably a lost end
-mark, not a running prompt — and stale turns are never auto-followed.
+A turn silent for more than `STALE_AFTER_US` (2 hours) is treated as a lost end
+mark, not a running prompt, and dropped from the strip. The cutoff is generous
+because an agentic turn can legitimately go quiet for many minutes — a slow
+model call or a long tool run emits no ATOF events meanwhile — so a shorter one
+would retire turns that are still working.
 
 ## Liveness — an open turn is not a running turn
 

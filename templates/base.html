@@ -334,7 +334,6 @@
     .inflight-strip { display: flex; gap: 1rem 1.5rem; flex-wrap: wrap; align-items: baseline; background: #fff8e6; border: 1px solid #e6d49a; border-radius: 6px; padding: 0.5rem 0.8rem; font-size: 0.85rem; margin-bottom: 1rem; }
     .inflight-strip .strip-label { color: #8a5a00; font-weight: 600; }
     .inflight-entry.current { font-weight: 600; }
-    .inflight-entry[data-stale] { color: #777; }
     /* A slider switch: a hidden checkbox, a track that draws it, and the
        label text. Both of the page's switches are one — follow mode and the
        span details — so the look is stated once here and each of them adds
@@ -603,8 +602,9 @@
     // a turn's page when an in-flight turn appears whose start_us is newer
     // than anything this page-view has already seen — but never while this
     // page is itself showing an in-flight turn ([data-inflight-current]
-    // present), and never to a stale entry ([data-stale]). Follow keeps an
-    // otherwise-static page polling slowly so the next turn start is noticed.
+    // present). Turns silent past the stale cutoff are already dropped from the
+    // strip, so follow never lands on one. Follow keeps an otherwise-static
+    // page polling slowly so the next turn start is noticed.
     //
     // Tailing ([data-live-tail], the turn page only) is a different thing and
     // has no switch: while the reader is at the bottom, each swap scrolls to
@@ -670,7 +670,9 @@
         seenStartMax = Math.max(seenStartMax, ...entries().map(startOf));
         if (!toggle() || !followOn()) return;
         if (region.querySelector("[data-inflight-current]")) return;
-        const target = fresh.find((el) => !el.dataset.stale);
+        // The newest genuinely-new start; stale turns are already dropped from
+        // the strip upstream, so nothing here needs to skip them.
+        const target = fresh[0];
         if (target) window.location.assign(target.getAttribute("href"));
       }
 
