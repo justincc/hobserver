@@ -2583,7 +2583,7 @@ def _index_state(action, **fields):
 def test_index_report_distinguishes_reuse_from_rebuild():
     from plugins.turns import _index_report
     reused = _index_report(_index_state("unchanged", indexed_lines=1234))
-    assert "reused" in reused and "1,234 lines" in reused
+    assert "reused" in reused and "1,234 ATOF log lines" in reused
 
     rebuilt = _index_report(_index_state(
         "rebuilt", indexed_lines=99, seconds=18.8,

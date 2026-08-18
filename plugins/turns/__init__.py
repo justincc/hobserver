@@ -290,7 +290,9 @@ def _index_report(state) -> str:
     reason a first page can stall, so it names why it happened and how long it
     took. Reuse and a small extend are the fast, ordinary cases.
     """
-    lines = f"{state.indexed_lines:,} lines"
+    # "ATOF log lines" not just "lines": the count is how far through the log
+    # the index reaches, not a number of turns, spans or index rows.
+    lines = f"{state.indexed_lines:,} ATOF log lines"
     if state.action == "rebuilt":
         return (f"ATOF index rebuilt in {state.seconds:.1f}s ({lines}) — "
                 f"{state.reason}")
