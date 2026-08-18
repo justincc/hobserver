@@ -290,7 +290,11 @@ and the whole set costs a `stat` and two small reads.
    between these files the list has to move with it, since a projection
    helper hashed by no module is how a cache goes quietly wrong. It over-invalidates (a docstring edit
    rebuilds), which at seconds per rebuild is the right side to be wrong on.
-   **Expect a rebuild on the next request after any edit to those files.**
+   **Expect a rebuild on the next refresh after any edit to those files** —
+   which the Turns tab now runs once at startup and reports on the console, so
+   under `--dev` the rebuild lands at the restart the edit triggers rather than
+   on the first request (see
+   [startup-and-console.md](../running/startup-and-console.md)).
 
 A failing check deletes the rows and rebuilds. There is no migration path and
 no repair: deleting the SQLite file costs a rebuild and nothing else.

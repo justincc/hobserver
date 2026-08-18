@@ -346,6 +346,15 @@ class AtofIndex:
 
     # --- refreshing ------------------------------------------------------
 
+    def rebuild_pending(self) -> Optional[str]:
+        """Why the next `refresh` would rebuild from scratch, or None when it
+        can reuse the cache. The same staleness check `refresh` runs, exposed
+        on its own — a stat and two small reads — so a caller can say a long
+        rebuild is coming before it goes quiet for it (the startup report)."""
+        with self._lock:
+            with self._db() as conn:
+                return self._staleness(conn, _read_meta(conn))
+
     def refresh(self) -> IndexState:
         with self._lock:
             started = time.time()

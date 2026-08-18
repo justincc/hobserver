@@ -2550,3 +2550,63 @@ def test_the_header_keeps_step_with_the_width_of_what_it_heads(tmp_path):
                  (REPO_ROOT / "templates" / "base.html").read_text(), flags=re.S)
     assert re.search(r"\.full-head \{[^}]*max-width:\s*62rem", css)
     assert re.search(r"\.full-head\.wide \{[^}]*max-width:\s*none", css)
+
+
+# --- the startup index report (reused vs rebuilt on the console) -------------
+
+
+def _index_state(action, **fields):
+    from plugins.turns.atof_index import IndexState
+    state = IndexState()
+    state.action = action
+    for key, value in fields.items():
+        setattr(state, key, value)
+    return state
+
+
+def test_index_report_distinguishes_reuse_from_rebuild():
+    from plugins.turns import _index_report
+    reused = _index_report(_index_state("unchanged", indexed_lines=1234))
+    assert "reused" in reused and "1,234 lines" in reused
+
+    rebuilt = _index_report(_index_state(
+        "rebuilt", indexed_lines=99, seconds=18.8,
+        reason="the reader that derived it has changed"))
+    assert "rebuilt in 18.8s" in rebuilt
+    assert "the reader that derived it has changed" in rebuilt
+
+    extended = _index_report(_index_state(
+        "extended", indexed_lines=100, lines=3, seconds=0.2))
+    assert "extended" in extended and "+3 lines" in extended
+
+
+def _warm_app(tmp_path, atof_path):
+    """A bare app carrying just the config `_warm_index` reads — no tab
+    machinery, so this stays clear of the shared `make_app` fixture."""
+    from flask import Flask
+
+    from providers import USAGE_SHAPES
+    app = Flask(__name__)
+    app.config["ATOF_PATH"] = str(atof_path)
+    app.config["ATOF_INDEX_DB"] = str(tmp_path / "index.sqlite3")
+    app.config["USAGE_SHAPES"] = tuple(USAGE_SHAPES)
+    return app
+
+
+def test_startup_reports_reusing_the_cache(tmp_path, capsys):
+    from plugins.turns import _warm_index
+    atof = write_atof(tmp_path, [mark_line("hermes.turn.start", 1_000_000,
+                                           session="s1", turn="t1")])
+    _warm_index(_warm_app(tmp_path, atof))
+    assert "Turns: ATOF index rebuilt" in capsys.readouterr().out  # first build
+
+    # A second warm over the same, unchanged log reuses what the first built.
+    _warm_index(_warm_app(tmp_path, atof))
+    assert "Turns: ATOF index reused from cache" in capsys.readouterr().out
+
+
+def test_startup_is_silent_when_the_log_is_absent(tmp_path, capsys):
+    from plugins.turns import _warm_index
+    _warm_index(_warm_app(tmp_path, tmp_path / "nope.jsonl"))
+    # No log to index, no line — the tab reports the missing source itself.
+    assert "ATOF index" not in capsys.readouterr().out

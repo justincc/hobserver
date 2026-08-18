@@ -279,6 +279,63 @@ def init_app(app, settings):
     app.config["ATOF_INDEX_DB"] = index_db_path(settings)
     app.config["SCOPE_SPECS"] = spec_table(settings, app)[0]
     app.config["USAGE_SHAPES"] = usage_shape_table(settings)[0]
+    _warm_index(app)
+
+
+def _index_report(state) -> str:
+    """One console line saying what bringing the index up to date came to.
+
+    The distinction the reader is usually after is reused-vs-rebuilt: a
+    rebuild re-reads the whole log (~20 s on a multi-gigabyte one) and is the
+    reason a first page can stall, so it names why it happened and how long it
+    took. Reuse and a small extend are the fast, ordinary cases.
+    """
+    lines = f"{state.indexed_lines:,} lines"
+    if state.action == "rebuilt":
+        return (f"ATOF index rebuilt in {state.seconds:.1f}s ({lines}) — "
+                f"{state.reason}")
+    if state.action == "extended":
+        return (f"ATOF index extended in {state.seconds:.1f}s "
+                f"(+{state.lines:,} lines, {lines} total)")
+    return f"ATOF index reused from cache ({lines})"
+
+
+def _warm_index(app):
+    """Bring the index up to date once at startup, and say on the console
+    whether that reused the cache or rebuilt it.
+
+    The refresh happens on every request anyway (`_assembly`); doing it here
+    as well moves a possible full rebuild out of the first page load — where
+    it looks like a hang — and into startup, where the line below explains the
+    pause. The index is stored under the key `get_index` reads, so the first
+    request finds it already current rather than refreshing a second time.
+
+    Degrades per component (design principle 1): a log that is absent, or an
+    index that will not open, is the tab's own to report at request time, so
+    neither stops the app coming up.
+    """
+    path = app.config["ATOF_PATH"]
+    if not os.path.exists(path):
+        return
+    db_path = app.config.get("ATOF_INDEX_DB") or default_index_path(path)
+    shapes = app.config.get("USAGE_SHAPES")
+    index = AtofIndex(path, db_path, shapes)
+    try:
+        # Said before the work, not after: a from-scratch rebuild is the one
+        # case that goes quiet for many seconds, and a reader watching an
+        # unexplained pause is exactly who this line is for.
+        reason = index.rebuild_pending()
+        if reason is not None:
+            print(f"Turns: ATOF index is stale ({reason}); rebuilding — this "
+                  "can take ~20s on a large log…", flush=True)
+        state = index.refresh()
+    except Exception as exc:  # noqa: BLE001 - a bad index must not stop serving
+        print(f"Turns: could not read the ATOF index "
+              f"({type(exc).__name__}: {exc}); will retry on first request",
+              flush=True)
+        return
+    app.extensions["atof_index"] = index
+    print(f"Turns: {_index_report(state)}", flush=True)
 
 
 def get_index() -> AtofIndex:

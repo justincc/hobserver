@@ -98,6 +98,18 @@ def test_an_unchanged_log_is_a_stat_and_no_work(index, log):
     assert state.indexed_lines == 1
 
 
+def test_rebuild_pending_names_the_reason_then_clears(index, log):
+    write(log, mark("a", 1))
+    # Before anything is built the next refresh is a from-scratch rebuild,
+    # and the peek says so without doing the work.
+    assert index.rebuild_pending() == "no index yet"
+    index.refresh()
+    # Current index: nothing to rebuild, so an appended line would only extend.
+    assert index.rebuild_pending() is None
+    append(log, mark("b", 2))
+    assert index.rebuild_pending() is None
+
+
 def test_a_partial_trailing_line_is_not_indexed_until_complete(index, log):
     complete = mark("a", 1)
     partial = mark("b", 2)

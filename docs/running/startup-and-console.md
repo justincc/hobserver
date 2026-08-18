@@ -37,15 +37,32 @@ It is listed with the sources because that is where a reader looks for "which
 files is this thing touching", but it is not one: it is derived entirely from
 the log and **safe to delete at any time**.
 
-Two things to expect from it while running:
+The Turns tab brings this index up to date once at startup — before it
+serves — and prints a line for what that came to, so a slow start is explained
+rather than felt as a hang on the first page:
 
-- **The first request after a fresh start builds it** — roughly ten seconds
-  per gigabyte of log, once. Later starts reuse it, which is the point of
-  persisting it.
-- **Editing `atof_reader.py`, `assembler.py` or `atof_index.py` forces a
-  rebuild** on the next request, because the stored fields mean whatever those
-  files meant when they wrote them. Under `--dev` this happens during ordinary
-  development, and the pause is the rebuild, not a hang.
+```
+Turns: ATOF index reused from cache (662,786 lines)
+Turns: ATOF index rebuilt in 18.8s (662,786 lines) — the reader that derived it has changed
+```
+
+It is deliberately not indented like the banner: it is a separate line printed
+after the banner, not part of it.
+
+Two things to expect from it:
+
+- **A from-scratch build takes roughly ten seconds per gigabyte of log**, once.
+  When a rebuild is coming the tab says so first (`…rebuilding — this can take
+  ~20s…`), so the pause that follows is accounted for. Later starts reuse the
+  cache, which is the point of persisting it, and report `reused`.
+- **Editing `atof_reader.py`, `spans.py`, `assembler.py` or `atof_index.py`
+  forces a rebuild**, because the stored fields mean whatever those files meant
+  when they wrote them. Under `--dev` each such edit restarts the worker, so
+  the rebuild — and its line — land at that startup rather than on a request.
+
+The startup build does not replace the per-request refresh (the index still
+extends as the log grows on every request); it moves the one expensive case,
+a full rebuild, out of the first page load and onto the console.
 
 ## Checking the db before serving
 
@@ -153,8 +170,9 @@ server's) and a `.py` edit restarts the worker, in about 0.3 s. That restart
 is the Werkzeug reloader as a supervisor around **the same waitress server** —
 it is not a second server.
 
-Note that under `--dev` an edit to `atof_reader.py`, `assembler.py` or
-`atof_index.py` costs an index rebuild on the next request, as above.
+Note that under `--dev` an edit to `atof_reader.py`, `spans.py`,
+`assembler.py` or `atof_index.py` costs an index rebuild at the restart it
+triggers, reported on the console as above.
 
 Being a real WSGI server is not the same as being safe to expose: there is no
 authentication in front of this app, so a `host` that is not loopback puts it
