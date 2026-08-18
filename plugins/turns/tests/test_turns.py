@@ -1146,7 +1146,8 @@ def test_index_shows_prompt_snippet(tmp_path):
     assert SHORT_PROMPT in page                      # short prompts fit whole
     assert "investigate these logging traces" in page
     assert "ZZZ-END" not in page                     # long ones are truncated
-    assert 'class="prompt-line"' in page
+    # the prompt opens the turn in a new tab, so the auto-refreshing list stays put
+    assert re.search(r'class="prompt-line"[^>]*target="_blank"', page)
 
 
 def test_index_shows_placeholder_when_start_mark_has_no_prompt(tmp_path):

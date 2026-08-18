@@ -48,7 +48,7 @@
     <tr class="turn-row">
       <td class="col-start"><a href="{{ url_for('turns.turn', session_id=t.session_id, start_us=t.start_us) }}">{{ t.start_us | us_time }}</a></td>
       <td class="col-prompt">
-        <a class="prompt-line" href="{{ url_for('turns.turn', session_id=t.session_id, start_us=t.start_us) }}">{{ (t.user_message | truncate(300)) if t.user_message else '—' }}</a>
+        <a class="prompt-line" href="{{ url_for('turns.turn', session_id=t.session_id, start_us=t.start_us) }}" target="_blank" rel="noopener">{{ (t.user_message | truncate(300)) if t.user_message else '—' }}</a>
       </td>
       <td class="col-session">{{ t.session_id or '—' }}</td>
       <td class="col-num num">
