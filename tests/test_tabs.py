@@ -12,7 +12,8 @@ import pytest
 
 import tabs as tabs_module
 from app import create_app
-from conftest import make_app
+from testkit import make_app
+from stubs import write_stub
 
 PLUGIN = '''\
 from flask import Blueprint
@@ -55,18 +56,19 @@ def load(entries):
     return tabs_module.load_tabs(tabs_module.parse_config({"plugins": entries}))
 
 
-def test_a_plugin_from_outside_the_tree_loads_and_serves(tmp_path, memory_db):
+def test_a_plugin_from_outside_the_tree_loads_and_serves(tmp_path):
     # the whole point of module paths: nothing in this repo mentions it
     name = write_plugin(tmp_path, "outside_tab", label="Outside")
+    inside = write_stub(tmp_path, "inside_tab", "Inside", "inside")
     client = make_app(entries=[
         {"plugin": name},
-        {"plugin": "plugins.mem0", "settings": {"db": memory_db}},
+        {"plugin": inside},
     ]).test_client()
     assert client.get("/outside_tab/").get_data(as_text=True) == \
         "hello from outside_tab"
-    # and it takes its place in the bar, ahead of the in-tree tab
-    bar = client.get("/memory/mem0/").get_data(as_text=True)
-    assert bar.index("Outside") < bar.index("Mem0")
+    # and it takes its place in the bar, ahead of the other tab
+    bar = client.get("/inside/").get_data(as_text=True)
+    assert bar.index("Outside") < bar.index("Inside")
 
 
 def test_settings_reach_the_plugin_untouched(tmp_path):
@@ -79,8 +81,8 @@ def test_settings_reach_the_plugin_untouched(tmp_path):
 def test_settings_expand_user_and_env(tmp_path, monkeypatch):
     monkeypatch.setenv("SOME_DIR", "/srv/data")
     specs = tabs_module.parse_config({"plugins": [
-        {"plugin": "plugins.turns", "settings": {"atof_log": "$SOME_DIR/a.jsonl"}}]})
-    assert specs[0].settings["atof_log"] == "/srv/data/a.jsonl"
+        {"plugin": "some.tab", "settings": {"path": "$SOME_DIR/a.jsonl"}}]})
+    assert specs[0].settings["path"] == "/srv/data/a.jsonl"
 
 
 def test_disabled_tab_is_not_loaded(tmp_path):
@@ -88,27 +90,27 @@ def test_disabled_tab_is_not_loaded(tmp_path):
     assert load([{"plugin": name, "enabled": False}]) == []
 
 
-def test_config_order_is_tab_order(memory_db):
-    app = make_app(entries=[
-        {"plugin": "plugins.mem0", "settings": {"db": memory_db}},
-        {"plugin": "plugins.turns", "settings": {"atof_log": "/nope.jsonl"}},
-    ])
-    page = app.test_client().get("/memory/mem0/").get_data(as_text=True)
-    assert page.index("Mem0") < page.index("Turns")
+def test_config_order_is_tab_order(tmp_path):
+    first = write_stub(tmp_path, "first_stub", "First", "first")
+    second = write_stub(tmp_path, "second_stub", "Second", "second")
+    app = make_app(entries=[{"plugin": first}, {"plugin": second}])
+    page = app.test_client().get("/first/").get_data(as_text=True)
+    assert page.index("First") < page.index("Second")
     # and the first tab is what / lands on
-    assert app.test_client().get("/").headers["Location"].endswith("/memory/mem0/")
+    assert app.test_client().get("/").headers["Location"].endswith("/first/")
 
 
-def test_a_broken_plugin_does_not_stop_the_others(tmp_path, memory_db):
+def test_a_broken_plugin_does_not_stop_the_others(tmp_path):
     write_plugin(tmp_path, "exploding_tab",
                  body="raise RuntimeError('boom')\n")
+    ok = write_stub(tmp_path, "ok_tab", "OK", "ok")
     app = make_app(entries=[
         {"plugin": "exploding_tab"},
-        {"plugin": "plugins.mem0", "settings": {"db": memory_db}},
+        {"plugin": ok},
     ])
     client = app.test_client()
-    assert client.get("/memory/mem0/").status_code == 200
-    page = client.get("/memory/mem0/").get_data(as_text=True)
+    assert client.get("/ok/").status_code == 200
+    page = client.get("/ok/").get_data(as_text=True)
     assert "exploding_tab" in page          # still in the bar, marked
     assert "⚠" in page
 
@@ -153,17 +155,19 @@ def test_an_optional_source_problem_leaves_the_tab_serving(tmp_path):
     assert tab.problem is None
 
 
-def test_the_mem0_tab_survives_an_unusable_database(tmp_path):
+def test_an_unusable_tab_serves_a_503_while_others_carry_on(tmp_path):
     # was a process exit before ADR 5; now one tab's problem, not the app's
+    ok = write_stub(tmp_path, "ok_tab", "OK", "ok")
+    bad = write_plugin(tmp_path, "bad_tab", prefix="bad", required="True")
     app = make_app(entries=[
-        {"plugin": "plugins.turns", "settings": {"atof_log": "/nope.jsonl"}},
-        {"plugin": "plugins.mem0", "settings": {"db": str(tmp_path)}},
+        {"plugin": ok},
+        {"plugin": bad, "settings": {"problem": "no such file"}},
     ])
     client = app.test_client()
-    assert client.get("/turns/").status_code == 200
-    unavailable = client.get("/memory/mem0/")
+    assert client.get("/ok/").status_code == 200
+    unavailable = client.get("/bad/")
     assert unavailable.status_code == 503
-    assert "not a regular file" in unavailable.get_data(as_text=True)
+    assert "no such file" in unavailable.get_data(as_text=True)
 
 
 def test_two_tabs_at_one_url_prefix_is_fatal(tmp_path):
@@ -198,7 +202,7 @@ def test_host_is_read_from_the_top_level_key(tmp_path):
         host = "0.0.0.0"
 
         [[plugins]]
-        plugin = "plugins.turns"
+        plugin = "some.tab"
     """))
     _, _, host = tabs_module.read_config(str(path))
     assert host == "0.0.0.0"
@@ -237,17 +241,17 @@ def test_a_config_file_is_read_in_order(tmp_path):
     path = tmp_path / "hobserver.toml"
     path.write_text(textwrap.dedent("""
         [[plugins]]
-        plugin = "plugins.mem0"
+        plugin = "alpha.tab"
         settings = { db = "/tmp/x.db" }
 
         [[plugins]]
-        plugin = "plugins.turns"
+        plugin = "beta.tab"
         enabled = false
     """))
     specs, origin, host = tabs_module.read_config(str(path))
     assert origin == str(path)
     assert [(s.plugin, s.enabled) for s in specs] == [
-        ("plugins.mem0", True), ("plugins.turns", False)]
+        ("alpha.tab", True), ("beta.tab", False)]
     assert specs[0].settings == {"db": "/tmp/x.db"}
     assert host is None                      # this file sets no host
 

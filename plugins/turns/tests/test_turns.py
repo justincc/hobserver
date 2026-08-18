@@ -6,8 +6,8 @@ import time
 
 from markupsafe import escape
 
-from conftest import REPO_ROOT, make_app
-from conftest import make_memory_change_db, make_memory_db
+from testkit import REPO_ROOT, make_app
+from mem0_data import make_memory_change_db, make_memory_db, turns_with_mem0_app
 from streams import (mark_line, scope_lines, session_scope_lines,
                      two_turn_stream)
 
@@ -15,7 +15,7 @@ from streams import (mark_line, scope_lines, session_scope_lines,
 def make_client(tmp_path, atof_path):
     db_path = tmp_path / "test.db"
     make_memory_db(db_path)
-    return make_app(db=str(db_path), atof=atof_path).test_client()
+    return turns_with_mem0_app(atof=atof_path, db=str(db_path)).test_client()
 
 
 def write_atof(tmp_path, lines, name="events.jsonl"):
@@ -691,7 +691,7 @@ def test_mem0_spans_lose_both_halves_when_that_tab_is_off(tmp_path):
     lifetime (ADR 10, ADR 17). Without the Mem0 tab, nothing in this tree
     knows what a mem0 search result is, and the span falls back to the
     payload dump any unknown tool gets."""
-    from conftest import make_app
+    from testkit import make_app
 
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
@@ -771,7 +771,7 @@ def _change_client(tmp_path, atof_path):
     turn page can recover what a mem0 memory said before a span changed it."""
     db_path = tmp_path / "changes.db"
     make_memory_change_db(db_path)
-    return make_app(db=str(db_path), atof=atof_path).test_client()
+    return turns_with_mem0_app(atof=atof_path, db=str(db_path)).test_client()
 
 
 def _change_stream(name, memory_id, start_data):
@@ -875,7 +875,7 @@ def test_turn_detail_renders_without_the_memory_plugin_lookup(tmp_path):
     atof = write_atof(tmp_path, _change_stream(
         "mem0_update", "aaa11111",
         {"memory_id": "aaa11111", "text": "the new fact"}))
-    app = make_app(db=str(db_path), atof=str(atof))
+    app = turns_with_mem0_app(atof=str(atof), db=str(db_path))
     app.config["TESTING"] = True
     app.extensions.pop("mem0_prior_text")
     page = app.test_client().get(
@@ -2044,7 +2044,7 @@ def test_the_whole_excerpt_is_the_link_not_just_the_glyph(tmp_path):
 def test_an_excerpt_with_no_page_behind_it_is_not_a_link(tmp_path):
     """A dead link is worse than no link, so the value falls back to a plain
     span — the same rule the icon has always followed."""
-    app = make_app(db="/nonexistent/events.db", atof="/nonexistent/atof.jsonl")
+    app = make_app([{"plugin": "plugins.turns", "settings": {"atof_log": "/nonexistent/atof.jsonl"}}])
     with app.app_context():
         macros = app.jinja_env.get_template("turns/_macros.html").module
         out = str(macros.open_text(None, "just the text", False))
@@ -2550,6 +2550,22 @@ def test_the_header_keeps_step_with_the_width_of_what_it_heads(tmp_path):
                  (REPO_ROOT / "templates" / "base.html").read_text(), flags=re.S)
     assert re.search(r"\.full-head \{[^}]*max-width:\s*62rem", css)
     assert re.search(r"\.full-head\.wide \{[^}]*max-width:\s*none", css)
+
+
+# --- where the ATOF log is resolved from (the Turns tab's own source) --------
+
+
+def test_atof_path_derives_from_hermes_home(monkeypatch):
+    from plugins import turns
+    monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
+    assert turns.atof_path({}) == \
+        "/srv/hermes/config/nemo-relay/atof/hermes-atof.jsonl"
+
+
+def test_a_set_atof_path_wins(monkeypatch):
+    from plugins import turns
+    monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
+    assert turns.atof_path({"atof_log": "/tmp/set.jsonl"}) == "/tmp/set.jsonl"
 
 
 # --- the startup index report (reused vs rebuilt on the console) -------------

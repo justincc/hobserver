@@ -11,7 +11,7 @@ import pathlib
 
 import pytest
 
-from conftest import REPO_ROOT
+from testkit import REPO_ROOT
 from plugins.turns.assembler import Span
 from scope_spec import (FULL_ENDPOINT, FULL_RENDERERS,
                                         RENDER_MACROS, Alt, Diff, Each, Field,

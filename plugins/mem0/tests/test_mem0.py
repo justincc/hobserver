@@ -2,7 +2,7 @@
 
 import sqlite3
 
-from conftest import make_app
+from mem0_data import mem0_app
 from plugins import mem0
 
 
@@ -119,7 +119,7 @@ def test_event_detail_missing_id_returns_404(client):
 
 
 def _change_client(memory_change_db):
-    app = make_app(db=memory_change_db)
+    app = mem0_app(db=memory_change_db)
     app.config["TESTING"] = True
     return app.test_client()
 
@@ -166,7 +166,7 @@ def test_previous_text_says_it_is_local_not_mem0(memory_change_db):
 def test_previous_text_ignores_searches_after_the_change(memory_change_db):
     # event 5 re-reports aaa11111 with its *new* text; the update at event 2
     # must still show what it replaced, not what it produced
-    app = make_app(db=memory_change_db)
+    app = mem0_app(db=memory_change_db)
     with app.test_request_context():
         prior = mem0.prior_memory_text("aaa11111", 2030.0)
     assert prior["text"] == "the old fact"
@@ -174,7 +174,7 @@ def test_previous_text_ignores_searches_after_the_change(memory_change_db):
 
 
 def test_previous_text_absent_when_no_search_surfaced_the_memory(memory_change_db):
-    app = make_app(db=memory_change_db)
+    app = mem0_app(db=memory_change_db)
     with app.test_request_context():
         assert mem0.prior_memory_text("never-seen", 2030.0) is None
         # the only search naming it is later than the change
@@ -198,7 +198,7 @@ def test_gap_text_reads_in_the_right_unit():
 
 def test_prior_text_lookup_is_published_for_other_plugins(memory_change_db):
     # ADR 4: the Turns tab calls this rather than opening the event log
-    app = make_app(db=memory_change_db)
+    app = mem0_app(db=memory_change_db)
     assert app.extensions["mem0_prior_text"] is mem0.prior_memory_text
 
 
@@ -235,7 +235,7 @@ def test_search_event_breaks_a_repeated_query_tie_by_time(tmp_path):
     # the one ambiguity (session_id, query) admits: the same search run twice
     # in a session. The span's start, passed as epoch microseconds, picks the
     # nearer of the two logged calls.
-    from conftest import make_memory_db
+    from mem0_data import make_memory_db
 
     db_path = tmp_path / "dupes.db"
     make_memory_db(db_path)
@@ -247,7 +247,7 @@ def test_search_event_breaks_a_repeated_query_tie_by_time(tmp_path):
     )
     db.commit()
     db.close()
-    app = make_app(db=str(db_path))
+    app = mem0_app(db=str(db_path))
     app.config["TESTING"] = True
     dupe_client = app.test_client()
 
@@ -291,3 +291,29 @@ def test_check_db_rejects_a_database_without_the_events_table(tmp_path):
     conn.close()
     problem = mem0.check_db(str(other))
     assert "not a mem0 event log" in problem and "events" in problem
+
+
+# --- where the event log is resolved from (mem0's own source) ----------------
+
+
+def test_db_path_derives_from_hermes_home(monkeypatch):
+    monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
+    assert mem0.db_path({}) == "/srv/hermes/config/jmem0_logged.db"
+
+
+def test_db_path_falls_back_without_hermes_home(monkeypatch):
+    monkeypatch.delenv("HERMES_HOME", raising=False)
+    assert mem0.db_path({}).endswith("/.hermes/jmem0_logged.db")
+
+
+def test_a_set_db_path_wins(monkeypatch):
+    monkeypatch.setenv("HERMES_HOME", "/srv/hermes/config")
+    assert mem0.db_path({"db": "/tmp/set.db"}) == "/tmp/set.db"
+
+
+def test_a_directory_is_not_a_usable_database(tmp_path):
+    # a path that exists but is not a regular file: a bare per-request sqlite
+    # error once, now the tab's problem, named on the page it serves in place
+    unavailable = mem0_app(db=str(tmp_path)).test_client().get("/memory/mem0/")
+    assert unavailable.status_code == 503
+    assert "not a regular file" in unavailable.get_data(as_text=True)
