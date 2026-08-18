@@ -355,6 +355,9 @@
        two. Splitting the free-text prompt off its own row is what keeps the
        nine narrow columns from being pushed past the viewport. */
     table.turns tr.turn-row > td { border-bottom: none; }
+    /* Keep the start date and time on one line — the space between them is
+       the only place the cell would otherwise break. */
+    table.turns th:first-child, table.turns tr.turn-row > td:first-child { white-space: nowrap; }
     table.turns tr.turn-prompt > td { padding-top: 0.1rem; }
     /* The prompt wraps (never nowrap), so however long it is it can only grow
        downward, never force the table wider; clamped to two lines to keep the
