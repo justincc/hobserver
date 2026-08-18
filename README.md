@@ -73,9 +73,11 @@ plugin = "plugins.turns"
 settings = { atof_log = "$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl" }
 settings = { index_db = "/var/tmp/hermes-atof-index.sqlite3" }
 
+# Mem0 is opt-in — most installs don't produce a mem0 event log, so it isn't
+# served by default. Add it like this when you do.
 [[plugins]]
 plugin = "plugins.mem0"
-enabled = false            # one line to turn a tab off
+# enabled = false          # one line to turn any tab off without removing it
 ```
 
 `plugin` is any importable path, so a tab written elsewhere and installed

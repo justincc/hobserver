@@ -42,9 +42,11 @@ EXAMPLE_CONFIG_FILE = "hobserver.example.toml"
 BUILTIN_ORIGIN = "built-in defaults"
 
 # Used when no config file is found at all, so a fresh checkout runs with no
-# setup. Same two tabs, same order, as hobserver.example.toml — the tracked
-# template a user copies to hobserver.toml only when customising.
-BUILTIN_TABS = ({"plugin": "plugins.turns"}, {"plugin": "plugins.mem0"})
+# setup. Just the Turns tab — the source every install has. Mem0 reads a log
+# most users do not produce, so it is opt-in: named in hobserver.example.toml
+# for a user to uncomment, not served by default. Keep this in step with the
+# active entries in that template.
+BUILTIN_TABS = ({"plugin": "plugins.turns"},)
 
 # What a module must expose to be a tab: `bp` the Flask blueprint (its name
 # keys the template directory and every url_for), `TAB_LABEL` the text in the

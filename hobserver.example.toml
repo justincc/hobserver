@@ -1,6 +1,6 @@
-# A starting point. hobserver runs without any config file — the standard
-# two tabs on loopback — so copy this to `hobserver.toml` (untracked) only when
-# you want to change something: the bind address, a source path, your own tabs.
+# A starting point. hobserver runs without any config file — the Turns tab on
+# loopback — so copy this to `hobserver.toml` (untracked) only when you want to
+# change something: the bind address, a source path, another tab, your own tabs.
 #
 #     cp hobserver.example.toml hobserver.toml
 #
@@ -42,6 +42,8 @@ plugin = "plugins.turns"
 # docs/extending/writing-a-provider-spec.md.
 # settings = { provider_specs = ["hobserver_acme.providers"] }
 
-[[plugins]]
-plugin = "plugins.mem0"
+# The Mem0 tab is opt-in: it reads a mem0 event log most installs do not
+# produce, so it is not served by default. Uncomment this to add it.
+# [[plugins]]
+# plugin = "plugins.mem0"
 # settings = { db = "$HERMES_HOME/jmem0_logged.db" }

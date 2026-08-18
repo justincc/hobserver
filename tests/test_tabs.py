@@ -233,7 +233,8 @@ def test_config_errors_name_the_entry(tmp_path):
 def test_a_missing_config_file_falls_back_to_the_built_in_tabs(tmp_path):
     specs, origin, host = tabs_module.read_config(str(tmp_path / "absent.toml"))
     assert origin == "built-in defaults"
-    assert [s.plugin for s in specs] == ["plugins.turns", "plugins.mem0"]
+    # just Turns — the source every install has; Mem0 is opt-in, not a default
+    assert [s.plugin for s in specs] == ["plugins.turns"]
     assert host is None                      # no file, so no host — app defaults it
 
 
