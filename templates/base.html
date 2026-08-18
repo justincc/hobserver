@@ -361,15 +361,19 @@
     /* A heavier-than-default rule separates one turn from the next. Tune
        #aeb1bd / the width. */
     table.turns tr.turn-row > td { border-bottom: 2px solid #aeb1bd; }
-    /* The prompt is each turn's headline — what the human actually asked. A
-       link, since it is the most recognisable handle on a turn; clicking it
-       opens the same page the timestamp does. One line, ellipsized to the
-       width the other columns leave it. */
+    /* The prompt is each turn's headline — what the human actually asked —
+       and the row's visible link to the turn: the thing worth clicking, so it
+       carries the link colour. One line, ellipsized to the width the other
+       columns leave it. */
     a.prompt-line { display: block; white-space: nowrap; overflow: hidden;
                     text-overflow: ellipsis; text-decoration: none;
-                    color: #555; font-size: 0.95rem; font-weight: 500; }
-    a.prompt-line:hover { text-decoration: underline; text-decoration-color: #2a78d6; }
-    a.prompt-line:visited { color: #555; }
+                    color: #2456c4; font-size: 0.95rem; font-weight: 500; }
+    a.prompt-line:hover { text-decoration: underline; }
+    a.prompt-line:visited { color: #2456c4; }
+    /* The start datetime still navigates to the turn (a second click target),
+       but reads as plain text so each row shows one obvious link, not two. */
+    table.turns .col-start a { color: #1a1a2e; }
+    table.turns .col-start a:hover { text-decoration: none; }
     .span-uuid { color: #bbb; font-size: 0.75rem; font-family: ui-monospace, monospace; white-space: nowrap; }
     .span-detail { display: flex; gap: 0.5rem; align-items: baseline; max-width: 36rem; font-size: 0.8rem; color: #555; margin: 0.15rem 0 0 1.15rem; }
     .span-detail code { font-family: ui-monospace, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
