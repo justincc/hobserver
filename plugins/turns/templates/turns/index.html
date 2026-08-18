@@ -54,10 +54,10 @@
       <td class="col-num num">
         {% if t.is_live %}<span class="badge-inflight">in flight</span>
         {% elif t.superseded %}<span class="badge-noend" title="A later turn started in this session before this one closed, so it is over; its end mark never arrived and its duration was never observed.">no end mark</span>
-        {% else %}{{ t.duration_us | us_secs }}{% endif %}
+        {% else %}{{ t.duration_us | us_mmss }}{% endif %}
       </td>
-      <td class="col-num num">{{ t.llm_us | us_secs }}</td>
-      <td class="col-num num">{{ t.tool_us | us_secs }}</td>
+      <td class="col-num num">{{ t.llm_us | us_mmss }}</td>
+      <td class="col-num num">{{ t.tool_us | us_mmss }}</td>
       <td class="col-num num">{{ t.model_call_count }}</td>
       <td class="col-num num">{{ t.spans | length }}</td>
     </tr>

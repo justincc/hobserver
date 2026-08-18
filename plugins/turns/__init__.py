@@ -369,18 +369,20 @@ def us_dur(us):
     return f"{us / 1_000_000:.2f} s"
 
 
-@bp.app_template_filter("us_secs")
-def us_secs(us):
-    """Microseconds → whole seconds (rounded); em dash when unknown.
+@bp.app_template_filter("us_mmss")
+def us_mmss(us):
+    """Microseconds → m:ss (minutes and whole seconds); em dash when unknown.
 
-    The all-turns table uses this instead of us_dur: scanning it, you want how
-    long turns roughly took, and fractions of a second are noise. Per-turn
-    pages and everywhere else keep the two-decimal us_dur. Durations here are
-    never negative, so a plain round-half-up is enough.
+    The all-turns table uses this instead of us_dur: turns easily run for
+    minutes, and a raw second count ("372 s") is hard to read at a glance where
+    6:12 is not. Per-turn pages and everywhere else keep the two-decimal us_dur.
+    Rounded to the nearest second; durations here are never negative.
     """
     if us is None:
         return "—"
-    return f"{int(us / 1_000_000 + 0.5)} s"
+    total = int(us / 1_000_000 + 0.5)
+    minutes, seconds = divmod(total, 60)
+    return f"{minutes}:{seconds:02d}"
 
 
 @bp.app_template_filter("tilde")
