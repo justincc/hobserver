@@ -139,7 +139,7 @@ def tab_spec_tables(app):
     (ADR 10, ADR 17).
 
     A tab that owns a kind of span describes it itself — mem0's spans are
-    declared in `plugins/mem0/scopes.py` and read in `plugins/mem0/spans.py`,
+    declared in `plugins/memory/mem0/scopes.py` and read in `plugins/memory/mem0/spans.py`,
     not here — and the shell collects them before any tab registers. Reading
     them from `app.extensions` rather than importing anything keeps ADR 4's
     rule intact: this tab knows no other plugin by name.

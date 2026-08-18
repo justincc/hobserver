@@ -2,7 +2,7 @@
 
 Lives with the plugin, not in the shell's root conftest: the events schema and
 its sample rows are mem0's knowledge, and travel with mem0 if it is lifted out
-of this tree. Imported by `plugins/mem0/tests/conftest.py` for the fixtures and
+of this tree. Imported by `plugins/memory/mem0/tests/conftest.py` for the fixtures and
 by the mem0 tests that build an app directly.
 """
 
@@ -20,7 +20,7 @@ NONEXISTENT_DB = "/nonexistent/events.db"
 def mem0_app(db=None):
     """An app serving the Mem0 tab alone, pointed at a test event log."""
     return make_app([
-        {"plugin": "plugins.mem0", "settings": {"db": db or NONEXISTENT_DB}},
+        {"plugin": "plugins.memory.mem0", "settings": {"db": db or NONEXISTENT_DB}},
     ])
 
 
@@ -29,7 +29,7 @@ def turns_with_mem0_app(atof=None, db=None):
     rendered on a turn page and links back into the Mem0 tab (ADR 4, ADR 10)."""
     return make_app([
         {"plugin": "plugins.turns", "settings": {"atof_log": atof or NONEXISTENT_ATOF}},
-        {"plugin": "plugins.mem0", "settings": {"db": db or NONEXISTENT_DB}},
+        {"plugin": "plugins.memory.mem0", "settings": {"db": db or NONEXISTENT_DB}},
     ])
 
 

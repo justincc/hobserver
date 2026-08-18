@@ -177,8 +177,8 @@ Prefix your class names so they cannot collide with another plugin's.
 ## Tests
 
 Keep them in your package, `<your_package>/tests/`. The in-tree plugins are
-laid out that way — `plugins/mem0/tests/`, `plugins/turns/tests/` — and this
-repo's `pyproject.toml` names both `tests` and `plugins` as test roots, so
+laid out that way — `plugins/memory/mem0/tests/`, `plugins/turns/tests/` — and
+this repo's `pyproject.toml` names both `tests` and `plugins` as test roots, so
 `uv run pytest` collects a plugin's tests without being told about it.
 
 Build an app with `from testkit import make_app`, passing the plugin entries
@@ -190,13 +190,13 @@ ambiguous). The root `conftest.py` now names no tab; it carries only one
 autouse fixture.
 
 Own your own test data. A plugin's schema, sample data, and fixtures live with
-the plugin, not in the shell's suite: `plugins/mem0/tests/mem0_data.py` holds
-mem0's event-log schema and app builders, and `plugins/mem0/tests/conftest.py`
-its fixtures. That is what lets a tab be lifted out of this tree without
-breaking anyone else's suite — the same promise the runtime makes. The shell's
-own tests (`tests/`) return the favour: they build apps from neutral stub
-plugins (`tests/stubs.py`), never from an in-tree tab, so adding or removing a
-tab cannot break them.
+the plugin, not in the shell's suite: `plugins/memory/mem0/tests/mem0_data.py`
+holds mem0's event-log schema and app builders, and
+`plugins/memory/mem0/tests/conftest.py` its fixtures. That is what lets a tab
+be lifted out of this tree without breaking anyone else's suite — the same
+promise the runtime makes. The shell's own tests (`tests/`) return the favour:
+they build apps from neutral stub plugins (`tests/stubs.py`), never from an
+in-tree tab, so adding or removing a tab cannot break them.
 
 ## Failure and collisions
 

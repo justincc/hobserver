@@ -61,7 +61,7 @@ written under an older one need not be rewritten to stay true. Two renames
 have happened since:*
 
 - *right after this ADR, `plugins.timing` and `plugins.memory` became
-  `plugins.prompts` and `plugins.mem0`, once the module name became something
+  `plugins.prompts` and `plugins.memory.mem0`, once the module name became something
   a reader meets in the config file;*
 - *on 2026-08-07, the prompts tab became **Turns** — it lists turns, its
   detail page is one turn, and every other tab is named for what it shows

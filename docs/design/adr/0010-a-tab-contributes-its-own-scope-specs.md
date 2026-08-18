@@ -25,7 +25,7 @@ being in-tree without moving the code that had it.
 Two things follow from leaving them there:
 
 - **mem0 still could not move out of this tree intact.** ADR 5's goal was that
-  `plugins.mem0` be replaceable by an installed package; its span rendering
+  `plugins.memory.mem0` be replaceable by an installed package; its span rendering
   would have stayed behind.
 - **A link can outlive its target.** `url_for` raises `BuildError` for an
   endpoint nothing serves — verified, not assumed. With the mem0 tab disabled
@@ -49,12 +49,12 @@ Optional, like `init_app` and `sources`; a tab with no spans of its own
 exposes nothing and is unaffected.
 
 ```python
-# plugins/mem0/__init__.py
+# plugins/memory/mem0/__init__.py
 PLUGIN_API = 1
 bp = Blueprint("mem0", __name__, template_folder="templates")
 TAB_LABEL, URL_PREFIX = "Mem0", "memory/mem0"
 
-from plugins.mem0.scopes import SCOPES    # how its spans show elsewhere
+from plugins.memory.mem0.scopes import SCOPES    # how its spans show elsewhere
 ```
 
 **The shell carries them without understanding them.** `tabs.py` reads the two
@@ -83,8 +83,8 @@ for the ordinary typo.
 
 ## Consequences
 
-- **mem0 becomes a package**, `plugins/mem0/__init__.py` plus
-  `plugins/mem0/scopes.py`, matching `plugins/turns/` file for file. Its rendering now
+- **mem0 becomes a package**, `plugins/memory/mem0/__init__.py` plus
+  `plugins/memory/mem0/scopes.py`, matching `plugins/turns/` file for file. Its rendering now
   travels with it: lifting the directory into an installed package takes the
   tab, its templates, its accessor and its span rendering together. (The
   templates were still in the app's `templates/mem0/` when this was written,

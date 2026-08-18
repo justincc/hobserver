@@ -662,7 +662,7 @@ tree: `payload=` covers the keys, readers cover everything that has to be
 worked out. A reader of the same name stands in front of a `Span` property,
 and the startup line says so.
 
-`plugins/mem0/spans.py` is the worked example: mem0's payload shapes are read
+`plugins/memory/mem0/spans.py` is the worked example: mem0's payload shapes are read
 by the mem0 tab, not by this one, and go away with it.
 
 Row kinds: `Row` (fields on a line), `Diff` (a − / + pair), `Items` (a list as
@@ -707,7 +707,7 @@ because that plugin lives in this tree: what they needed was a link into
 another tab and a value from its published accessor, which
 [ADR 9](adr/0009-scope-specs-may-link-and-read-published-data.md) put in the
 vocabulary as `Link` and `accessor()`. Both scopes are now declared like any
-other — in `plugins/mem0/scopes.py`, the plugin that owns them, contributed to
+other — in `plugins/memory/mem0/scopes.py`, the plugin that owns them, contributed to
 this tab when that one loads
 ([ADR 10](adr/0010-a-tab-contributes-its-own-scope-specs.md)) — and anyone
 can write their own the same way, see
@@ -996,7 +996,7 @@ more often than they succeed — that noticing one must never need a click.
 string ranked by score descending. That shape has been uniform in practice
 and is still read defensively: payloads are opaque per the ATOF spec.
 
-It is a **span reader** in `plugins/mem0/spans.py`, not a `Span` property:
+It is a **span reader** in `plugins/memory/mem0/spans.py`, not a `Span` property:
 the shape is mem0's, so the reading belongs to mem0's tab
 ([ADR 17](adr/0017-a-payload-reading-is-contributed-beside-the-spec-that-names-it.md)).
 Turn the Mem0 tab off and these spans render as a payload dump, rows and

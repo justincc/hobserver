@@ -29,8 +29,8 @@ PLUGIN_API = 1
 # gone the moment this tab is disabled — so a link into a page that is no
 # longer served cannot be left behind. Both halves are mem0's: nothing in the
 # Turns tab knows what a mem0 search result looks like.
-from plugins.mem0.scopes import SCOPES  # noqa: E402  (after PLUGIN_API)
-from plugins.mem0.spans import SPAN_READERS  # noqa: E402  (after PLUGIN_API)
+from plugins.memory.mem0.scopes import SCOPES  # noqa: E402  (after PLUGIN_API)
+from plugins.memory.mem0.spans import SPAN_READERS  # noqa: E402  (after PLUGIN_API)
 bp = Blueprint("mem0", __name__, template_folder="templates")
 TAB_LABEL = "Mem0"
 # Namespaced under memory/ because mem0 is one memory system of several to

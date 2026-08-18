@@ -12,8 +12,8 @@ foothold in this tree can write one.
 
 from types import SimpleNamespace
 
-from plugins import mem0
-from plugins.mem0.spans import SPAN_READERS, mem0_result_count, mem0_results
+from plugins.memory import mem0
+from plugins.memory.mem0.spans import SPAN_READERS, mem0_result_count, mem0_results
 
 RANKED = ('{"count": 3, "results":'
           ' [{"id": "b760576d", "memory": "top fact", "score": 0.8042},'

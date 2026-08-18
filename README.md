@@ -76,7 +76,7 @@ settings = { index_db = "/var/tmp/hermes-atof-index.sqlite3" }
 # Mem0 is opt-in — most installs don't produce a mem0 event log, so it isn't
 # served by default. Add it like this when you do.
 [[plugins]]
-plugin = "plugins.mem0"
+plugin = "plugins.memory.mem0"
 # enabled = false          # one line to turn any tab off without removing it
 ```
 
@@ -224,8 +224,8 @@ See [docs/design/live-pages.md](docs/design/live-pages.md) for all of it.
 ## Tests
 
 ```bash
-uv run pytest                  # both roots: tests/ and every plugins/<name>/tests/
-uv run pytest plugins/mem0     # one plugin's alone
+uv run pytest                      # both roots: tests/ and every plugins/<name>/tests/
+uv run pytest plugins/memory/mem0  # one plugin's alone
 ```
 
 ## Layout

@@ -18,7 +18,7 @@ The dependency runs one way, `assembler` → `spans`, and must keep doing so:
 a span does not know what turn it is in, and a test pins that.
 
 **These readings are hermes' tools, and only hermes'.** Another system's spans
-are read by whoever owns that system — `plugins/mem0/spans.py` is the worked
+are read by whoever owns that system — `plugins/memory/mem0/spans.py` is the worked
 example — and reach a spec as contributed readers (docs/design/adr/0017). A
 `Span` property is this tab reading its own tool, not the place for
 everyone's.
@@ -623,7 +623,7 @@ class Span:
             return self._start_str("query")
         return None
 
-    # mem0's payloads are read in `plugins/mem0/spans.py`, by the plugin that
+    # mem0's payloads are read in `plugins/memory/mem0/spans.py`, by the plugin that
     # owns that tool, and reach a spec as span readers (ADR 17). Nothing here
     # knows what a mem0 search result looks like — the properties that did
     # (`mem0_results`, `mem0_result_count`) moved there whole.

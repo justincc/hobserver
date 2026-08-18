@@ -20,12 +20,12 @@ Two published vocabularies lived inside the Turns tab's package:
   reading a plugin imports to add a `provider_spec` (ADR 13, ADR 8).
 
 So the Turns tab's *package* was a de-facto shared library for the whole
-span-and-provider extension point. `plugins/mem0/scopes.py` does
+span-and-provider extension point. `plugins/memory/mem0/scopes.py` does
 `from plugins.turns.scope_spec import …`, and the provider-spec guide tells an
 author to `from plugins.turns.providers import …`. A plugin could not contribute
 span rendering or a provider shape without importing the turns package — turns
 was load-bearing infrastructure, not a peer tab. The detachability review
-flagged this (its finding #2): move `plugins.mem0` out of the tree and it still
+flagged this (its finding #2): move `plugins.memory.mem0` out of the tree and it still
 needs `plugins.turns` present for the vocabulary.
 
 Neither module is the Turns tab's UI, and neither depends on the tab's ATOF

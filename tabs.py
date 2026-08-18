@@ -9,7 +9,7 @@ site-packages arrive the same way, so a tab needs no fork to be added.
     settings = { atof_log = "…" }
 
     [[plugins]]
-    plugin = "plugins.mem0"
+    plugin = "plugins.memory.mem0"
     enabled = false
 
 Everything here is deliberately tolerant except one case. A tab that will not

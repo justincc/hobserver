@@ -56,12 +56,12 @@ from my_observer_tab.scopes import SCOPES
 ```
 
 `scopes.py` beside your `__init__.py`, holding the table: the same shape as
-`plugins/mem0/` and `plugins/turns/`, and named for the `SCOPES` it
+`plugins/memory/mem0/` and `plugins/turns/`, and named for the `SCOPES` it
 exports.
 
 Nothing else to configure: enabling your tab brings its spans with it, and
 disabling it takes them away again — which is what stops a span linking to a
-page nobody serves. `plugins/mem0/` is this shape.
+page nobody serves. `plugins/memory/mem0/` is this shape.
 
 **If you have no tab**, just hermes tools to render, name the module in the
 Turns tab's settings in `hobserver.toml`:
@@ -146,7 +146,7 @@ Four things to know:
   reason in the banner — rows naming readings that never loaded would fail
   more quietly than that.
 
-`plugins/mem0/spans.py` is the in-tree example, beside the `scopes.py` whose
+`plugins/memory/mem0/spans.py` is the in-tree example, beside the `scopes.py` whose
 rows name it.
 
 ## `render=`, and why it is not for you
@@ -187,7 +187,7 @@ looks up — the two shapes
 [ADR 4](../design/adr/0004-cross-plugin-access-by-link-or-published-accessor.md) allows,
 available to a spec since
 [ADR 9](../design/adr/0009-scope-specs-may-link-and-read-published-data.md). The mem0
-scopes in `plugins/mem0/scopes.py` are written this way and are worth reading
+scopes in `plugins/memory/mem0/scopes.py` are written this way and are worth reading
 as a worked example — they sit in the plugin that owns them, which is
 [the first route above](#wiring-it-up), and nothing about them is privileged
 for being in-tree.

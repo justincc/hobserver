@@ -58,7 +58,7 @@ plugin = "plugins.turns"
 settings = { atof_log = "$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl" }
 
 [[plugins]]
-plugin = "plugins.mem0"
+plugin = "plugins.memory.mem0"
 enabled = false
 ```
 

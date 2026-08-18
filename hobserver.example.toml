@@ -45,5 +45,5 @@ plugin = "plugins.turns"
 # The Mem0 tab is opt-in: it reads a mem0 event log most installs do not
 # produce, so it is not served by default. Uncomment this to add it.
 # [[plugins]]
-# plugin = "plugins.mem0"
+# plugin = "plugins.memory.mem0"
 # settings = { db = "$HERMES_HOME/jmem0_logged.db" }

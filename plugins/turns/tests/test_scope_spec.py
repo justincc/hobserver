@@ -427,13 +427,13 @@ def build_app(mem0=True, turns_settings=None):
     specs = [tabs_module.TabSpec(plugin="plugins.turns",
                                  settings=turns_settings or {})]
     if mem0:
-        specs.append(tabs_module.TabSpec(plugin="plugins.mem0"))
+        specs.append(tabs_module.TabSpec(plugin="plugins.memory.mem0"))
     return app_module.create_app(tabs_module.load_tabs(specs))
 
 
 def test_the_mem0_tab_contributes_its_own_span_rendering():
-    """The specs live in plugins/mem0/scopes.py and arrive because that tab
-    loaded, not because the Turns tab knows about mem0."""
+    """The specs live in plugins/memory/mem0/scopes.py and arrive because that
+    tab loaded, not because the Turns tab knows about mem0."""
     table = build_app(mem0=True).config["SCOPE_SPECS"]
     for name in ("mem0_search", "mem0_add", "mem0_update", "mem0_delete"):
         assert name in table.by_name, name
@@ -483,7 +483,7 @@ def test_contributed_specs_are_collected_before_any_tab_registers():
     for mem0_first in (True, False):
         import app as app_module
         import tabs as tabs_module
-        specs = [tabs_module.TabSpec(plugin="plugins.mem0"),
+        specs = [tabs_module.TabSpec(plugin="plugins.memory.mem0"),
                  tabs_module.TabSpec(plugin="plugins.turns")]
         if not mem0_first:
             specs.reverse()

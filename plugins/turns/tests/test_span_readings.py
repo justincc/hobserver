@@ -1,7 +1,7 @@
 """Span reading tests: one span's payloads, and what they mean.
 
 Named `test_span_readings` rather than `test_spans` because pytest collects
-these modules by bare filename, so `plugins/mem0/tests/test_spans.py` — mem0's
+these modules by bare filename, so `plugins/memory/mem0/tests/test_spans.py` — mem0's
 half of the same idea — already has that name.
 
 The other half of what `test_assembler.py` used to hold. These assert facts a

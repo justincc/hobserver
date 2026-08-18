@@ -42,11 +42,11 @@ far as its payload could be read by lookup alone.
 fn(span) -> value}` — and a spec's bare-string source resolves against those
 readers before the `Span` object.**
 
-    # plugins/mem0/spans.py
+    # plugins/memory/mem0/spans.py
     def mem0_results(span): ...
     SPAN_READERS = {"mem0_results": mem0_results}
 
-    # plugins/mem0/scopes.py — unchanged by this ADR
+    # plugins/memory/mem0/scopes.py — unchanged by this ADR
     Each("mem0_results", [...])
 
 Four decisions inside that.
@@ -80,7 +80,7 @@ In-tree readings stay `Span` properties. The point is not to move them —
 `patch_mode`, `memory_ops` and the rest are the Turns tab reading hermes'
 tools, which is its own job — but that **a foreign system's reading now has
 somewhere else to live**, and mem0's has moved there
-(`plugins/mem0/spans.py`, with its tests).
+(`plugins/memory/mem0/spans.py`, with its tests).
 
 ## Consequences
 

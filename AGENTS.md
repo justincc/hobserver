@@ -66,7 +66,7 @@ audience it serves, not the one whose subject it shares.
   beside its specs. **[plugins/turns/spans.py](plugins/turns/spans.py) is
   this tab's reading of hermes' own tools**, and nothing else's; another
   system's shape goes with that system
-  ([plugins/mem0/spans.py](plugins/mem0/spans.py) is the worked example)
+  ([plugins/memory/mem0/spans.py](plugins/memory/mem0/spans.py) is the worked example)
 - [live-pages.md](docs/design/live-pages.md) — polling, liveness, follow mode,
   item navigation, waterfall colors
 

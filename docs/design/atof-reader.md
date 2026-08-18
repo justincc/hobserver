@@ -32,7 +32,7 @@ span that reached for its turn would put the two back in one knot. It also
 sets where hermes' payload knowledge lives — in the readings, never in the
 assembly, which is design principle 1's ownership test applied in-tree.
 **Another system's spans are read by whoever owns that system**
-(`plugins/mem0/spans.py`, [ADR 17](adr/0017-a-payload-reading-is-contributed-beside-the-spec-that-names-it.md));
+(`plugins/memory/mem0/spans.py`, [ADR 17](adr/0017-a-payload-reading-is-contributed-beside-the-spec-that-names-it.md));
 a reading here is this tab reading hermes' own tools.
 
 ## tailer.py — the line reader

@@ -3,7 +3,7 @@
 import sqlite3
 
 from mem0_data import mem0_app
-from plugins import mem0
+from plugins.memory import mem0
 
 
 def test_index_lists_all_events(client):

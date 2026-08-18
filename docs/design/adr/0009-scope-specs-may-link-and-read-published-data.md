@@ -40,7 +40,7 @@ row: a link into the Mem0 tab, and the text a memory held before a write.
 They are hand-written because ADR 7 found no way to declare them — and they
 are *allowed* to be hand-written only because mem0 is in this tree.
 [ADR 5](0005-tabs-are-configured-plugins-loaded-by-module-path.md) exists so
-that `plugins.mem0` could be replaced by an out-of-tree package. If it were,
+that `plugins.memory.mem0` could be replaced by an out-of-tree package. If it were,
 its span rendering could not come with it.
 
 **So the rule and its own example contradict each other.** Someone
