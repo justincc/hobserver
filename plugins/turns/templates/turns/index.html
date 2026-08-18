@@ -31,20 +31,24 @@
 </p>
 {% else %}
 <p class="meta">Source <code>{{ atof_path }}</code> · last event {{ last_us | us_time }} UTC · updates automatically</p>
-<table>
+<table class="turns">
   <thead>
     <tr>
-      <th>start (UTC)</th><th>session</th><th>turn</th><th>prompt</th><th>total</th>
+      <th>start (UTC)</th><th>session</th><th>turn</th><th>total</th>
       <th>llm</th><th>tool</th><th>overhead</th><th>model calls</th><th>spans</th>
     </tr>
   </thead>
   <tbody>
     {% for t in turns %}
-    <tr>
+    {# Each turn is two rows: a metrics line, then its prompt spanning the full
+       width beneath. Splitting the free-text prompt off its own row keeps the
+       nine narrow columns from being pushed past the viewport, and gives the
+       prompt more room than it had sharing the row. The pair shares one bottom
+       border (see base.html) so it reads as a single entry. #}
+    <tr class="turn-row">
       <td><a href="{{ url_for('turns.turn', session_id=t.session_id, start_us=t.start_us) }}">{{ t.start_us | us_time }}</a></td>
       <td>{{ t.session_id | truncate(24) }}</td>
       <td>{{ t.turn_id or '—' }}</td>
-      <td class="prompt-cell">{{ (t.user_message | truncate(100)) if t.user_message else '—' }}</td>
       <td class="num">
         {% if t.is_live %}<span class="badge-inflight">in flight</span>
         {% elif t.superseded %}<span class="badge-noend" title="A later turn started in this session before this one closed, so it is over; its end mark never arrived and its duration was never observed.">no end mark</span>
@@ -55,6 +59,11 @@
       <td class="num">{{ t.overhead_us | us_dur }}</td>
       <td class="num">{{ t.model_call_count }}</td>
       <td class="num">{{ t.spans | length }}</td>
+    </tr>
+    <tr class="turn-prompt">
+      <td colspan="9">
+        <a class="prompt-line" href="{{ url_for('turns.turn', session_id=t.session_id, start_us=t.start_us) }}">{{ (t.user_message | truncate(300)) if t.user_message else '—' }}</a>
+      </td>
     </tr>
     {% endfor %}
   </tbody>

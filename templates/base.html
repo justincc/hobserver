@@ -349,7 +349,23 @@
     .switch input:checked + .track { background: #2a78d6; }
     .switch input:checked + .track::after { left: 16px; }
     .follow-toggle { display: flex; justify-content: flex-end; font-size: 0.85rem; color: #555; margin-bottom: 0.5rem; }
-    td.prompt-cell { max-width: 22rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* The turns list gives each turn two rows: a metrics line (tr.turn-row)
+       and its prompt on the full width beneath (tr.turn-prompt). Only the
+       prompt row keeps the bottom border, so the pair reads as one entry, not
+       two. Splitting the free-text prompt off its own row is what keeps the
+       nine narrow columns from being pushed past the viewport. */
+    table.turns tr.turn-row > td { border-bottom: none; }
+    table.turns tr.turn-prompt > td { padding-top: 0.1rem; }
+    /* The prompt wraps (never nowrap), so however long it is it can only grow
+       downward, never force the table wider; clamped to two lines to keep the
+       list scannable. A link, since the prompt is the most recognisable handle
+       on a turn — clicking it opens the same page the timestamp does. */
+    a.prompt-line { display: -webkit-box; -webkit-box-orient: vertical;
+                    -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+                    padding-left: 1.2rem; color: #444; text-decoration: none;
+                    overflow-wrap: anywhere; }
+    a.prompt-line:hover { color: #2a78d6; text-decoration: underline; }
+    a.prompt-line:visited { color: #444; }
     .span-uuid { color: #bbb; font-size: 0.75rem; font-family: ui-monospace, monospace; white-space: nowrap; }
     .span-detail { display: flex; gap: 0.5rem; align-items: baseline; max-width: 36rem; font-size: 0.8rem; color: #555; margin: 0.15rem 0 0 1.15rem; }
     .span-detail code { font-family: ui-monospace, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
