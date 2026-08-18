@@ -15,6 +15,15 @@ Hobserver is a webapp for observing hermes-agent activity. The currently bundled
 - **Mem0** — browses `jmem0_logged.db`, the SQLite event log produced by
   justincc's hermes-agent mem0 logging wrapper.
 
+## Screenshots
+
+### Turns
+
+![Hobserver Turns view showing prompts, sessions, and timing breakdowns](docs/images/turns-overview.png)
+
+The Turns view summarizes recent prompts and their total, model, and tool
+durations, with links to detailed per-turn waterfalls.
+
 ## Philosophy
 
 - **Be useful**. The primary purpose of Hobserver is to be a useful tool for seeing what Hermes
