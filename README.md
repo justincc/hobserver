@@ -288,3 +288,7 @@ uv run pytest plugins/memory/mem0  # one plugin's alone
   - [`running/`](docs/running/) — operating it:
     [setup-prompt-timing.md](docs/running/setup-prompt-timing.md),
     [startup-and-console.md](docs/running/startup-and-console.md)
+
+## License
+
+MIT — see [LICENSE](LICENSE). Copyright (c) 2026 Justin Clark-Casey.
