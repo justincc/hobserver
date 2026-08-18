@@ -1139,9 +1139,9 @@ def test_both_switches_are_the_same_switch(tmp_path):
     assert not re.search(r"\.(follow|detail)-toggle[^{,]*\{[^}]*\b(border-radius|opacity)", css)
 
 
-def test_index_shows_prompt_snippet_on_its_own_row(tmp_path):
-    # the prompt is its own full-width row beneath each turn's metrics, so a
-    # long one is bounded (truncate) rather than widening the table
+def test_index_shows_prompt_snippet(tmp_path):
+    # the prompt is a column of its own on each turn's line; a long one is
+    # bounded (truncate + CSS ellipsis) rather than widening the table
     _, _, lines = recent_stream()
     atof = write_atof(tmp_path, lines)
     page = make_client(tmp_path, str(atof)).get("/turns/").get_data(as_text=True)
@@ -1155,6 +1155,23 @@ def test_index_shows_placeholder_when_start_mark_has_no_prompt(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/turns/").get_data(as_text=True)
     assert "prompt-line" in page and "—" in page
+
+
+def test_index_shows_the_session_not_the_full_turn_id(tmp_path):
+    # the turn id is "{session}:{task}:{hash}"; the list shows only the session
+    # (the grouping the reader cares about) — the full id is on the turn page
+    lines = [
+        *session_scope_lines("sess123", start_us=100),
+        mark_line("hermes.turn.start", 1_000_000, session="sess123",
+                  turn="sess123:sa1-abcd:adda3a11", data={"user_message": "hi"}),
+        mark_line("hermes.turn.end", 2_000_000, session="sess123",
+                  turn="sess123:sa1-abcd:adda3a11"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/turns/").get_data(as_text=True)
+    assert 'class="col-session">session<' in page       # the heading is just "session"
+    assert "sess123:sa1-abcd:adda3a11" not in page       # the full id stays off the list
+    assert "sess123" in page                             # the session itself shows
 
 
 def test_turn_page_long_prompt_collapses_but_keeps_full_text(tmp_path):

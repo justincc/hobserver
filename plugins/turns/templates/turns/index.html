@@ -31,39 +31,36 @@
 </p>
 {% else %}
 <p class="meta">Source <code>{{ atof_path }}</code> · last event {{ last_us | us_time }} UTC · updates automatically</p>
+{# One line per turn. Column classes (not position) carry the widths: every
+   column takes its content and the prompt (col-prompt) fills the rest,
+   ellipsized — see base.html. #}
 <table class="turns">
   <thead>
     <tr>
-      <th>start (UTC)</th><th>session</th><th>turn</th><th>total</th>
-      <th>llm</th><th>tool</th><th>overhead</th><th>model calls</th><th>spans</th>
+      <th class="col-start">start (UTC)</th>
+      <th class="col-prompt">prompt</th><th class="col-session">session</th>
+      <th class="col-num">total</th><th class="col-num">llm</th><th class="col-num">tool</th>
+      <th class="col-num">overhead</th><th class="col-num">model calls</th><th class="col-num">spans</th>
     </tr>
   </thead>
   <tbody>
     {% for t in turns %}
-    {# Each turn is two rows: a metrics line, then its prompt spanning the full
-       width beneath. Splitting the free-text prompt off its own row keeps the
-       nine narrow columns from being pushed past the viewport, and gives the
-       prompt more room than it had sharing the row. The pair shares one bottom
-       border (see base.html) so it reads as a single entry. #}
     <tr class="turn-row">
-      <td><a href="{{ url_for('turns.turn', session_id=t.session_id, start_us=t.start_us) }}">{{ t.start_us | us_time }}</a></td>
-      <td>{{ t.session_id | truncate(24) }}</td>
-      <td>{{ t.turn_id or '—' }}</td>
-      <td class="num">
+      <td class="col-start"><a href="{{ url_for('turns.turn', session_id=t.session_id, start_us=t.start_us) }}">{{ t.start_us | us_time }}</a></td>
+      <td class="col-prompt">
+        <a class="prompt-line" href="{{ url_for('turns.turn', session_id=t.session_id, start_us=t.start_us) }}">{{ (t.user_message | truncate(300)) if t.user_message else '—' }}</a>
+      </td>
+      <td class="col-session">{{ t.session_id or '—' }}</td>
+      <td class="col-num num">
         {% if t.is_live %}<span class="badge-inflight">in flight</span>
         {% elif t.superseded %}<span class="badge-noend" title="A later turn started in this session before this one closed, so it is over; its end mark never arrived and its duration was never observed.">no end mark</span>
         {% else %}{{ t.duration_us | us_dur }}{% endif %}
       </td>
-      <td class="num">{{ t.llm_us | us_dur }}</td>
-      <td class="num">{{ t.tool_us | us_dur }}</td>
-      <td class="num">{{ t.overhead_us | us_dur }}</td>
-      <td class="num">{{ t.model_call_count }}</td>
-      <td class="num">{{ t.spans | length }}</td>
-    </tr>
-    <tr class="turn-prompt">
-      <td colspan="9">
-        <a class="prompt-line" href="{{ url_for('turns.turn', session_id=t.session_id, start_us=t.start_us) }}">{{ (t.user_message | truncate(300)) if t.user_message else '—' }}</a>
-      </td>
+      <td class="col-num num">{{ t.llm_us | us_dur }}</td>
+      <td class="col-num num">{{ t.tool_us | us_dur }}</td>
+      <td class="col-num num">{{ t.overhead_us | us_dur }}</td>
+      <td class="col-num num">{{ t.model_call_count }}</td>
+      <td class="col-num num">{{ t.spans | length }}</td>
     </tr>
     {% endfor %}
   </tbody>

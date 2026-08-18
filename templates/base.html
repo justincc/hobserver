@@ -349,35 +349,27 @@
     .switch input:checked + .track { background: #2a78d6; }
     .switch input:checked + .track::after { left: 16px; }
     .follow-toggle { display: flex; justify-content: flex-end; font-size: 0.85rem; color: #555; margin-bottom: 0.5rem; }
-    /* The turns list gives each turn two rows: a metrics line (tr.turn-row)
-       and its prompt on the full width beneath (tr.turn-prompt). Only the
-       prompt row keeps the bottom border, so the pair reads as one entry, not
-       two. Splitting the free-text prompt off its own row is what keeps the
-       nine narrow columns from being pushed past the viewport. */
-    table.turns tr.turn-row > td { border-bottom: none; }
-    /* Keep the start date and time on one line — the space between them is
-       the only place the cell would otherwise break. */
-    table.turns th:first-child, table.turns tr.turn-row > td:first-child { white-space: nowrap; }
-    table.turns tr.turn-prompt > td { padding-top: 0.1rem; }
-    /* The prompt is each turn's headline — what the human actually asked — so
-       it reads darker, a touch larger and medium-weight against the muted
-       metrics, led by a short accent rule like a quote marker. A link, since
-       the prompt is the most recognisable handle on a turn; clicking it opens
-       the same page the timestamp does.
-
-       Clamped to one line with `-webkit-line-clamp`, not `white-space: nowrap`:
-       nowrap would make the cell's min-content the whole prompt and push the
-       table back past the viewport — the very thing this layout fixed. The
-       text still wraps (overflow-wrap: anywhere), so it can only grow
-       downward; the clamp then shows just the first line, ellipsized. */
-    a.prompt-line { display: -webkit-box; -webkit-box-orient: vertical;
-                    -webkit-line-clamp: 1; line-clamp: 1; overflow: hidden;
-                    overflow-wrap: anywhere; text-decoration: none;
-                    margin-left: 0.4rem; padding-left: 0.7rem;
-                    border-left: 3px solid #2a78d6;
-                    color: #1a1a2e; font-size: 0.95rem; font-weight: 500; }
+    /* The turns list: one line per turn. Every column takes just its content
+       and the prompt fills whatever is left, ellipsized — so the prompt is the
+       only thing ever abbreviated, and a long session id never crowds it.
+       Widths hang off column classes. */
+    table.turns { table-layout: auto; }
+    table.turns .col-start,
+    table.turns .col-session,
+    table.turns .col-num { white-space: nowrap; width: 1%; }
+    table.turns td.col-prompt { max-width: 0; }   /* fill the rest, then clip */
+    /* A heavier-than-default rule separates one turn from the next. Tune
+       #aeb1bd / the width. */
+    table.turns tr.turn-row > td { border-bottom: 2px solid #aeb1bd; }
+    /* The prompt is each turn's headline — what the human actually asked. A
+       link, since it is the most recognisable handle on a turn; clicking it
+       opens the same page the timestamp does. One line, ellipsized to the
+       width the other columns leave it. */
+    a.prompt-line { display: block; white-space: nowrap; overflow: hidden;
+                    text-overflow: ellipsis; text-decoration: none;
+                    color: #555; font-size: 0.95rem; font-weight: 500; }
     a.prompt-line:hover { text-decoration: underline; text-decoration-color: #2a78d6; }
-    a.prompt-line:visited { color: #1a1a2e; }
+    a.prompt-line:visited { color: #555; }
     .span-uuid { color: #bbb; font-size: 0.75rem; font-family: ui-monospace, monospace; white-space: nowrap; }
     .span-detail { display: flex; gap: 0.5rem; align-items: baseline; max-width: 36rem; font-size: 0.8rem; color: #555; margin: 0.15rem 0 0 1.15rem; }
     .span-detail code { font-family: ui-monospace, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
