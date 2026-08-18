@@ -359,16 +359,25 @@
        the only place the cell would otherwise break. */
     table.turns th:first-child, table.turns tr.turn-row > td:first-child { white-space: nowrap; }
     table.turns tr.turn-prompt > td { padding-top: 0.1rem; }
-    /* The prompt wraps (never nowrap), so however long it is it can only grow
-       downward, never force the table wider; clamped to two lines to keep the
-       list scannable. A link, since the prompt is the most recognisable handle
-       on a turn — clicking it opens the same page the timestamp does. */
+    /* The prompt is each turn's headline — what the human actually asked — so
+       it reads darker, a touch larger and medium-weight against the muted
+       metrics, led by a short accent rule like a quote marker. A link, since
+       the prompt is the most recognisable handle on a turn; clicking it opens
+       the same page the timestamp does.
+
+       Clamped to one line with `-webkit-line-clamp`, not `white-space: nowrap`:
+       nowrap would make the cell's min-content the whole prompt and push the
+       table back past the viewport — the very thing this layout fixed. The
+       text still wraps (overflow-wrap: anywhere), so it can only grow
+       downward; the clamp then shows just the first line, ellipsized. */
     a.prompt-line { display: -webkit-box; -webkit-box-orient: vertical;
-                    -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
-                    padding-left: 1.2rem; color: #444; text-decoration: none;
-                    overflow-wrap: anywhere; }
-    a.prompt-line:hover { color: #2a78d6; text-decoration: underline; }
-    a.prompt-line:visited { color: #444; }
+                    -webkit-line-clamp: 1; line-clamp: 1; overflow: hidden;
+                    overflow-wrap: anywhere; text-decoration: none;
+                    margin-left: 0.4rem; padding-left: 0.7rem;
+                    border-left: 3px solid #2a78d6;
+                    color: #1a1a2e; font-size: 0.95rem; font-weight: 500; }
+    a.prompt-line:hover { text-decoration: underline; text-decoration-color: #2a78d6; }
+    a.prompt-line:visited { color: #1a1a2e; }
     .span-uuid { color: #bbb; font-size: 0.75rem; font-family: ui-monospace, monospace; white-space: nowrap; }
     .span-detail { display: flex; gap: 0.5rem; align-items: baseline; max-width: 36rem; font-size: 0.8rem; color: #555; margin: 0.15rem 0 0 1.15rem; }
     .span-detail code { font-family: ui-monospace, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }

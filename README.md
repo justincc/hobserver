@@ -161,11 +161,10 @@ result), then the query, the result and the context messages as plaintext.
 - `/turns/` — all turns, newest first. Each turn is two rows: a metrics line
   (start time, session, turn, total / llm / tool / overhead durations —
   overhead is the residual — and model-call and span counts), then its prompt
-  on the full width beneath (from the turn-start mark's `user_message`; it
-  wraps, clamped to two lines and truncated, so however long it is it only
-  grows downward, never widening the table — em dash when absent). Splitting
-  the prompt onto its own row is what keeps the narrow columns inside the
-  viewport. In-flight turns are marked. Parse errors and assembly anomalies are
+  on the full width beneath as the turn's headline (from the turn-start mark's
+  `user_message`; clamped to one line and truncated, so a long one never
+  widens the table — em dash when absent). Splitting the prompt onto its own
+  row is what keeps the narrow columns inside the viewport. In-flight turns are marked. Parse errors and assembly anomalies are
   shown above the table, folded closed and on this page only — never dropped.
   Updates itself every 3 s.
 - `/turns/turn/<session>/<start_us>` — one turn, described below.
