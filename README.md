@@ -10,7 +10,7 @@ Hobserver is a webapp for observing hermes-agent activity. The currently bundled
 
 - **Turns** — per-turn latency waterfalls from the NeMo Relay ATOF
   JSONL stream exported by the hermes-agent `observability/nemo_relay`
-  plugin: where each turn's time went (model vs tool vs overhead), with a
+  plugin: where each turn's time went (model vs tool), with a
   span timeline per turn. This is a live stream that appears as the agent works.
 - **Mem0** — browses `jmem0_logged.db`, the SQLite event log produced by
   justincc's hermes-agent mem0 logging wrapper.
@@ -163,8 +163,7 @@ result), then the query, the result and the context messages as plaintext.
   leftover width and ellipsizes, so nothing else is abbreviated), the session
   (the leading segment of the turn id, which hermes builds as
   `{session}:{task}:{hash}` — the full id is on the turn page), total / model /
-  tool / overhead durations (overhead is the residual), and model-call and span
-  counts. In-flight turns are marked. Parse errors and assembly anomalies are
+  tool durations, and model-call and span counts. In-flight turns are marked. Parse errors and assembly anomalies are
   shown above the table, folded closed and on this page only — never dropped.
   Updates itself every 3 s.
 - `/turns/turn/<session>/<start_us>` — one turn, described below.
@@ -260,8 +259,7 @@ uv run pytest plugins/memory/mem0  # one plugin's alone
   another's data source — ADR 4).
 - `plugins/turns/` — a package holding the full ATOF reader (ADR 2):
   `tailer.py` (incremental read), `atof_reader.py` (JSONL line → typed event,
-  fail-soft) and `assembler.py` (events → sessions → turns → waterfall, with
-  overhead as the residual of turn duration minus model and tool time). See
+  fail-soft) and `assembler.py` (events → sessions → turns → waterfall). See
   [docs/design/atof-reader.md](docs/design/atof-reader.md).
 - `templates/` — only what the shell owns and every tab shares: `base.html`
   (chrome, tab bar, the CSS classes plugins render against), `_item_nav.html`

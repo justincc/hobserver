@@ -417,7 +417,7 @@ needs two things the scope does not carry:
 **`hermes.turn` and `hermes.logical_llm_call` are containers, never spans.**
 Both have category `function`, so they count as neither llm nor tool time
 while wrapping something that does. Left in, every turn double-counts its
-model time and the wrapper's duration lands wholly in overhead.
+model time.
 
 Still gone, and not recoverable by any of this: subagent marks (delegation
 tracking, `child_goal` / `child_status`), approval marks, and

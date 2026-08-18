@@ -74,11 +74,10 @@ def test_empty_file_states_no_events_loudly(tmp_path):
 def test_index_lists_turns_with_waterfall_numbers(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/turns/").get_data(as_text=True)
-    # complete turn t1: total 5.5s = llm 4s + tool 0.5s + overhead 1s
+    # complete turn t1: total 5.5s, model 4s, tool 0.5s
     assert "5.50 s" in page
     assert "4.00 s" in page
     assert "500 ms" in page
-    assert "1.00 s" in page
     # in-flight turn t2 has no total yet
     assert "in flight" in page
     assert "/turns/turn/s1/1000000" in page
@@ -95,7 +94,7 @@ def test_turn_detail_renders_waterfall_bars(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/turns/turn/s1/1000000").get_data(as_text=True)
     # summary stats
-    assert "5.50 s" in page and "overhead" in page
+    assert "5.50 s" in page and "model" in page
     # spans with identity in text, not color alone
     assert "anthropic" in page and "terminal" in page
     assert "claude-sonnet-4-6" in page

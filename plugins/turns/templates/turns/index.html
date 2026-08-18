@@ -40,7 +40,7 @@
       <th class="col-start">start (UTC)</th>
       <th class="col-prompt">prompt</th><th class="col-session">session</th>
       <th class="col-num">total</th><th class="col-num">model</th><th class="col-num">tool</th>
-      <th class="col-num">overhead</th><th class="col-num" title="model calls">calls</th><th class="col-num">spans</th>
+      <th class="col-num" title="model calls">calls</th><th class="col-num">spans</th>
     </tr>
   </thead>
   <tbody>
@@ -58,7 +58,6 @@
       </td>
       <td class="col-num num">{{ t.llm_us | us_dur }}</td>
       <td class="col-num num">{{ t.tool_us | us_dur }}</td>
-      <td class="col-num num">{{ t.overhead_us | us_dur }}</td>
       <td class="col-num num">{{ t.model_call_count }}</td>
       <td class="col-num num">{{ t.spans | length }}</td>
     </tr>

@@ -27,7 +27,6 @@ def test_waterfall_numbers_for_a_complete_turn():
     assert turn.duration_us == 5_500_000
     assert turn.llm_us == 4_000_000
     assert turn.tool_us == 500_000
-    assert turn.overhead_us == 1_000_000       # the residual we set out to find
     assert turn.model_call_count == 2
     assert [s.uuid for s in turn.spans] == ["L1", "T1", "L2"]
 
@@ -38,7 +37,6 @@ def test_in_flight_turn_has_no_duration_but_keeps_spans():
     assert turn.turn_id == "t2"
     assert turn.end_us is None
     assert turn.duration_us is None
-    assert turn.overhead_us is None
     assert turn.llm_us == 1_000_000
     assert [s.uuid for s in turn.spans] == ["L3"]
 
@@ -309,7 +307,6 @@ def test_out_of_order_lines_assemble_identically():
     reordered = list(reversed(events))
     turn = assemble(reordered).sessions[0].turns[0]
     assert turn.duration_us == 5_500_000
-    assert turn.overhead_us == 1_000_000
     assert [s.uuid for s in turn.spans] == ["L1", "T1", "L2"]
 
 
@@ -391,8 +388,7 @@ def relay_stream(*, turn_end=6_000_000, prompt="please produce a jobs report"):
 
 
 def test_a_turn_scope_becomes_a_turn_with_an_observed_duration():
-    """The extent is read off the scope pair, not inferred from its spans —
-    which is what makes the overhead residual mean something again."""
+    """The extent is read off the scope pair, not inferred from its spans."""
     session = assemble_lines(relay_stream()).sessions[0]
     assert session.session_id == RELAY_SESSION
     turn, = session.turns
@@ -412,7 +408,6 @@ def test_model_time_is_not_double_counted_through_the_wrapper():
     turn, = assemble_lines(relay_stream()).sessions[0].turns
     assert turn.llm_us == 2_000_000          # the llm scope alone
     assert turn.tool_us == 500_000
-    assert turn.overhead_us == 5_000_000 - 2_000_000 - 500_000
 
 
 def test_spans_reach_their_turn_through_the_parent_chain():
@@ -458,7 +453,6 @@ def test_an_open_turn_scope_is_live():
     turn, = assemble_lines(relay_stream(turn_end=None)).sessions[0].turns
     assert turn.end_us is None
     assert turn.duration_us is None      # never observed, never guessed
-    assert turn.overhead_us is None
     assert turn.is_live
 
 

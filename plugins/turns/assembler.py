@@ -15,10 +15,7 @@ Takes parsed AtofEvents and builds the per-turn waterfall model:
   tree (see TURN_SCOPE below). Spans reach their turn by walking that tree,
   which is the only thing that places an llm span — those carry no turn_id.
   A turn scope is merged into the Turn its marks already built rather than
-  becoming a second one;
-- overhead is the residual: turn duration minus provider (llm) time minus
-  tool time. It is reported as-is, even negative — a negative residual
-  means spans overlap and should be seen, not clamped away.
+  becoming a second one.
 
 Anything that does not assemble cleanly (end without start, turn.end
 without turn.start, spans outside any turn) is kept and surfaced, never
@@ -57,8 +54,8 @@ UNKNOWN_SESSION = "(unknown session)"
 #           │     └── llm scope             …and its physical attempt
 #           └── tool scopes
 #
-# So a turn's extent is observed again rather than inferred, and with it the
-# overhead residual. Two consequences the assembler has to honour:
+# So a turn's extent is observed again rather than inferred. Two consequences
+# the assembler has to honour:
 #
 # - `hermes.logical_llm_call` has category "function", so it counts as
 #   neither llm nor tool time while wrapping something that does. Left in,
@@ -127,12 +124,6 @@ class Turn:
     @property
     def tool_us(self) -> int:
         return self._category_us(TOOL_CATEGORY)
-
-    @property
-    def overhead_us(self) -> Optional[int]:
-        if self.duration_us is None:
-            return None
-        return self.duration_us - self.llm_us - self.tool_us
 
     @property
     def model_call_count(self) -> int:
@@ -523,8 +514,8 @@ def assemble(events: Iterable[AtofEvent],
     # one file, so these are simply empty when only the plugin wrote it.
     turn_uuids = {u for u, s in spans.items() if s.name == TURN_SCOPE}
     # Containers, not work: a wrapper's duration is its child's, counted
-    # twice if it is left in, and its category is neither llm nor tool so it
-    # would land wholly in overhead.
+    # twice if it is left in, and its category is neither llm nor tool, so it
+    # must not be rendered or summed as a span of its own.
     container_uuids = turn_uuids | {
         u for u, s in spans.items() if s.name == LOGICAL_LLM_SCOPE}
 
