@@ -44,14 +44,14 @@
 
 <div class="stats">
   <div><span class="v">{{ turn.duration_us | us_dur }}</span><span class="l">total</span></div>
-  <div><span class="v">{{ turn.llm_us | us_dur }}</span><span class="l">llm</span></div>
+  <div><span class="v">{{ turn.llm_us | us_dur }}</span><span class="l">model</span></div>
   <div><span class="v">{{ turn.tool_us | us_dur }}</span><span class="l">tool</span></div>
   <div><span class="v">{{ turn.overhead_us | us_dur }}</span><span class="l">overhead</span></div>
   <div><span class="v">{{ turn.model_call_count }}</span><span class="l">model calls</span></div>
 </div>
 
 <div class="legend">
-  <span><span class="chip cat-llm"></span>llm</span>
+  <span><span class="chip cat-llm"></span>model</span>
   <span><span class="chip cat-tool"></span>tool</span>
   <span><span class="chip cat-other"></span>other</span>
   {# `.switch` draws it; `.detail-toggle` only says where it sits. The follow
@@ -190,7 +190,7 @@
 </table>
 {% if not turn.spans %}
 <p class="notice warn">No spans landed in this turn — the turn marks arrived
-but no llm/tool scopes were assigned to it.</p>
+but no model/tool scopes were assigned to it.</p>
 {% endif %}
 </div>
 {% endblock %}
