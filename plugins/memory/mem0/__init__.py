@@ -1,5 +1,7 @@
 """The Mem0 view (blueprint `mem0`) — browses jmem0_logged.db, the mem0
-event log.
+event log written by the jmem0-logged hermes plugin
+(https://github.com/justincc/jmem0-logged). Without that plugin producing the
+log, this tab has nothing to read.
 
 The database is always opened read-only, so it is safe to point at the live
 log while hermes is writing.

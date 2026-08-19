@@ -8,28 +8,35 @@
 
 Hobserver is a webapp for observing hermes-agent activity. The currently bundled plugins are:
 
-- **Turns** — per-turn latency waterfalls from the NeMo Relay ATOF
+- **Turns** — the main plugin. Per-session-turn latency waterfalls from the NeMo Relay ATOF
   JSONL stream exported by the hermes-agent `observability/nemo_relay`
-  plugin: where each turn's time went (model vs tool), with a
-  span timeline per turn. This is a live stream that appears as the agent works.
-- **Mem0** — browses `jmem0_logged.db`, the SQLite event log produced by
-  justincc's hermes-agent mem0 logging wrapper.
+  plugin. 
+  - Live stream that appears as the agent works.
+  - Shows where where each turn's time went (model vs tool) with a
+  span timeline. 
+  - Shows relevant details for each model or tool call (e.g. how many cached tokens were used on a model call, the script a model ran when invoking the terminal tool, the web searches and extractions it carries out).
+  - Link to show full details of a model call, including system prompt and tool call results.
+  
+- **Mem0** — browses `jmem0_logged.db`, an SQLite event log produced by
+  [jmem0-logged](https://github.com/justincc/jmem0-logged), a hermes-agent
+  plugin that logs mem0 activity.
+  - Shows all Hermes Mem0 operations, such as the prefetch for relevant memories at the start of the turn.
 
-## Philosophy
+## Project Philosophy
 
 - **Be useful**. The primary purpose of Hobserver is to be a useful tool for seeing what Hermes
   is up to. So inferring information (e.g. which memory got changed on a memory operation)
   on top of what appears in logs and through API calls is a good thing to do. Or being able to click
   a link in the turns view and see the memory in full.
+- **Be opinionated**. At the same time I want to see important information at a glance, not look through a lot 
+  of clutter. Therefore, Hobserver is purposefully opinionated about what it does and doesn't display and where it does it. I hope people share my taste in relevant information but pull requests to include extra fields or tool calls not covered are very welcome.
 - **Be modular**. I started off making this because I was very curious about what Hermes
   was doing under the hood. But I have a particular way of using Hermes and a particular
   set of plugins that I use, where other people may end up invoking different tools or 
   be using different plugins. So an important value for the code is modularity. For example,
   it should be possible to write a plugin for any of the memory systems out there which can
   live in a separate git tree and doesn't need any modifications to the core Hobserver files.
-- **Be opinionated**. I want to see important information at a glance, not look through a lot 
-  of clutter. Therefore, Hobserver is purposefully opinionated about what it does and doesn't 
-  display and where it does it.
+
 
 ## Security
 
@@ -38,6 +45,8 @@ reach it.** It binds loopback (`127.0.0.1`) by default; setting a non-loopback
 `host` in `hobserver.toml` puts it on your network with nothing in front of it,
 so do that only on a network you control. Log content is rendered safely
 (HTML-escaped, no raw HTML), so pointing it at real logs is fine.
+
+If usecases comes up where authentication is necessary then very happy to look at adding this.
 
 [SECURITY.md](SECURITY.md) has the full trust model.
 
@@ -166,8 +175,8 @@ result), then the query, the result and the context messages as plaintext.
   leftover width and ellipsizes, so nothing else is abbreviated), the session
   (the leading segment of the turn id, which hermes builds as
   `{session}:{task}:{hash}` — the full id is on the turn page), total / model /
-  tool durations (rounded to whole seconds for a quick scan — the turn page
-  keeps two decimals), and model-call and span counts. In-flight turns are marked. Parse errors and assembly anomalies are
+  tool durations (as `m:ss` for a quick scan — the turn page keeps two-decimal
+  seconds), and model-call and span counts. In-flight turns are marked. Parse errors and assembly anomalies are
   shown above the table, folded closed and on this page only — never dropped.
   Updates itself every 3 s.
 - `/turns/turn/<session>/<start_us>` — one turn, described below.
