@@ -110,8 +110,20 @@ and the raw payloads are the fallback.
 | `assistant_message.tool_calls` | `annotated_response.tool_calls`; else `data.output[type=function_call]` (responses) or `data.choices[].message.tool_calls`, whose name and arguments nest under `function` (chat). Arguments arrive as a JSON *string* on both raw routes |
 | `finish_reason` | `annotated_response.finish_reason` |
 | `usage.*` | see [the token counts](#the-token-counts) below |
-| `metadata.session_id` | the leading segment of the composite `turn_id`, else the llm request's `extra_headers.session_id` |
+| `metadata.session_id` | the leading segment of the composite `turn_id`, else the llm request's `extra_headers.session_id`, else the leading segment of the composite `api_request_id` |
 | `metadata.status` | `"error"` when the end payload carries an error string |
+
+**Session recovery has three routes because an llm-only turn can lose the
+first two.** A turn with tool calls recovers its session from a tool span's
+composite `turn_id`; a turn whose provider route stamps `extra_headers.session_id`
+recovers it from there. A turn that is *only* llm calls on a route that stamps
+no such header (a cloud qwen over `chat_completions` seen leaving the header
+empty) has neither — and with no session, the core runtime's scope-tree copy
+of the turn strands in `(unknown session)` instead of merging into the
+mark-built turn, so every such turn renders **twice**. The composite
+`api_request_id` (`<session>:<task>:<hash>:api:N`) leads with the session on
+every span in both eras, so it is the last resort that keeps those turns
+single.
 
 Three of these are traps worth keeping written down:
 

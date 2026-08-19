@@ -513,6 +513,39 @@ def test_the_turn_id_wins_over_the_request_headers():
     assert e.session_id == "eb8e54f7a700"
 
 
+def test_llm_session_is_recovered_from_the_composite_api_request_id():
+    """A cloud qwen over chat_completions stamps no session_id header, and an
+    llm-only turn has no tool span to borrow a composite turn_id from. The
+    composite api_request_id — "<session>:<task>:<hash>:api:N" — is the last
+    place the session survived; without it the turn's scope-tree copy strands
+    in (unknown session) and duplicates the mark-built turn."""
+    e = parse_line(relay_llm_end(
+        profile={"model_name": "qwen3.5-9b", "annotated_request": {}},
+        metadata={"api_mode": "chat_completions",
+                  "api_request_id": RELAY_TURN_ID + ":api:1",
+                  "call_role": "primary"}))
+    assert e.session_id == "eb8e54f7a700"
+
+
+def test_session_id_is_not_invented_from_a_plain_api_request_id():
+    """A non-composite api_request_id names no session — recovering one from it
+    would group unrelated turns under a made-up id."""
+    e = parse_line(relay_llm_end(
+        profile={"model_name": "qwen3.5-9b", "annotated_request": {}},
+        metadata={"api_request_id": "req-1"}))
+    assert e.session_id is None
+
+
+def test_the_request_headers_win_over_the_api_request_id():
+    """The api_request_id is the last resort: a header session is the one the
+    request was actually sent under, so it leads where both are present."""
+    e = parse_line(relay_llm_end(
+        profile={"model_name": "qwen3.5-9b",
+                 "annotated_request": {"extra_headers": {"session_id": "header-sess"}}},
+        metadata={"api_request_id": RELAY_TURN_ID + ":api:1"}))
+    assert e.session_id == "header-sess"
+
+
 def test_request_headers_without_a_session_invent_nothing():
     e = parse_line(relay_llm_end(profile={
         "annotated_request": {"extra_headers": {"authorization": "Bearer x"}}}))

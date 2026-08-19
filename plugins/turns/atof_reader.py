@@ -245,18 +245,26 @@ def normalize_relay_runtime(data, metadata, category_profile,
     """
     metadata = dict(metadata)
 
-    # Session grouping, from whichever of the two places it survived.
+    # Session grouping, from whichever of the three places it survived.
     #
     # Tool spans keep a composite turn_id that leads with the session —
     # "<session>:<task>:<hash>". llm spans carry neither turn_id nor
     # session_id, and their parents do not help: the logical_llm_call scope
     # above them has no correlation keys, and the agent scope above that
     # carries an empty payload. What they do have is the session the request
-    # was sent under, in the provider request's own headers.
+    # was sent under, in the provider request's own headers — but a route
+    # that does not stamp that header (a cloud qwen over chat_completions
+    # left extra_headers empty) leaves an llm-only turn with nowhere to
+    # recover the session, so its scope-tree copy strands in (unknown
+    # session) and duplicates the mark-built turn. The composite
+    # api_request_id — "<session>:<task>:<hash>:api:N" — leads with the
+    # session on every span in both eras, so it is the last resort.
     if not metadata.get("session_id"):
         session_id = _session_from_turn_id(metadata.get("turn_id"))
         if not session_id:
             session_id = _session_from_request_headers(category_profile)
+        if not session_id:
+            session_id = _session_from_turn_id(metadata.get("api_request_id"))
         if session_id:
             metadata["session_id"] = session_id
 
