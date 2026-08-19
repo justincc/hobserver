@@ -76,7 +76,8 @@ carried as data rather than trusting cross-machine timestamps.
 - Timing granularity is capped at what the hooks emit. Sub-request detail
   such as time-to-first-token lives only in `agent/stream_diag.py` logging,
   not in ATOF; if needed later it must be added via extra marks.
-- This repository currently only browses `jmem0_logged.db` (mem0 event log).
+- This repository currently only browses `jmem0_logged.db` (a SQLite database
+  of mem0 events).
   Adopting this decision means restructuring it into a more general browser
   where mem0 browsing and the new prompt-timing view are separate plugins.
   That restructuring is deliberately sequenced after this record.
