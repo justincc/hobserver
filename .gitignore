@@ -4,6 +4,11 @@ __pycache__/
 .pytest_cache/
 *.swp
 
+# Per-machine agent state. settings.local.json is personal by convention;
+# RESUME.md is working notes, not for the published repo.
+.claude/settings.local.json
+.claude/RESUME.md
+
 # Your live config. hobserver.example.toml is the tracked template; the app
 # also runs with no file at all, so this is only here once you customise.
 /hobserver.toml

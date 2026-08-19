@@ -1,7 +1,8 @@
 [project]
 name = "hobserver"
 version = "0.1.0"
-description = "Web UI for observing hermes-agent: mem0 event logs and prompt timing"
+description = "Web UI for observing Hermes Agent activity in live and recent sessions (e.g. assistant conversations)"
+readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Justin Clark-Casey" }]
@@ -22,6 +23,11 @@ dependencies = [
     # so it costs nothing at install time and runs wherever this app does.
     "waitress>=3.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/justincc/hobserver"
+Repository = "https://github.com/justincc/hobserver"
+Issues = "https://github.com/justincc/hobserver/issues"
 
 [dependency-groups]
 dev = ["pytest>=8"]
