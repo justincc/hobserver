@@ -150,65 +150,29 @@ tool results directly navigable in wire order, while the header records the
 provider, model, timestamp, request size, message count, and span identifier.
 The exact underlying content is also available through the raw view.
 
-## Layout
+## Documentation
 
-- `app.py` — app shell: app factory `create_app(tabs)`, tab registration, the
-  tab bar, the root redirect, CLI entry. Imports no plugin.
-- `tabs.py` — reads `hobserver.toml` and loads the modules it names; the
-  collision check and the per-tab failure handling live here
-- `hobserver.example.toml` — the tracked config template, copied to a
-  gitignored `hobserver.toml` to customise; built-in defaults serve without one
-- `hermes_paths.py` — where hermes-agent keeps things, for the in-tree
-  plugins' default paths
-- `scope_spec.py` — the scope-spec vocabulary (ADR 7): the row descriptors
-  (`Field`, `Row`, `Scope`, …) and their resolver, imported by any plugin that
-  paints spans. A shared surface owned by no tab and never touched by the shell
-  (which does not know what a scope spec is); it depends on nothing in the app.
-- `providers.py` — the provider vocabulary (ADR 13): the token-count shapes and
-  per-provider payload reading, imported by any plugin adding a `provider_spec`.
-  Shared the same way as `scope_spec.py`. Both moved out of `plugins/turns/` so
-  a span- or provider-contributing plugin depends on a neutral module, not on
-  the Turns tab's package (ADR 21).
-- `plugins/` — one package per in-tree view, each self-contained: its module
-  attributes (`PLUGIN_API`, the Flask blueprint `bp` registered under
-  `/<URL_PREFIX>/`, `TAB_LABEL`, `URL_PREFIX`, optional `init_app` and
-  `sources`), its own `templates/<name>/`, and a `scopes.py` where it
-  describes how its own spans render elsewhere (ADR 10). A plugin is one
-  directory, so lifting it into an installed package takes all of it. See [docs/extending/writing-a-plugin.md](docs/extending/writing-a-plugin.md) for the
-  contract, [docs/extending/plugins-and-urls.md](docs/extending/plugins-and-urls.md) for how
-  plugins reach each other (by link or published accessor, never by opening
-  another's data source — ADR 4).
-- `plugins/turns/` — a package holding the full ATOF reader (ADR 2):
-  `tailer.py` (incremental read), `atof_reader.py` (JSONL line → typed event,
-  fail-soft) and `assembler.py` (events → sessions → turns → waterfall). See
-  [docs/design/atof-reader.md](docs/design/atof-reader.md).
-- `templates/` — only what the shell owns and every tab shares: `base.html`
-  (chrome, tab bar, the CSS classes plugins render against), `_item_nav.html`
-  (the `item_nav` macro every detail page uses), and `unavailable.html` for a
-  tab that could not load. Each plugin's own pages live with the plugin.
-- `static/` — the shell's brand assets, served by Flask at `/static/`: the
-  wordmark shown in the masthead and the hob icon used as the SVG favicon
-  (both referenced from `base.html`). The README's own header pairs the black
-  wordmark with a white variant through `<picture>`, so it stays legible on
-  GitHub's light and dark themes.
-- `conftest.py` — fixtures every test can reach, and `REPO_ROOT` for the
-  ones that read a file out of the tree
-- `tests/` — the shell's own: `test_app.py`, `test_tabs.py`,
-  `test_request_log.py`. A plugin's tests live with the plugin, in
-  `plugins/<name>/tests/`, and `uv run pytest` collects both roots
-- `docs/` — split by who reads it:
-  - [`design/`](docs/design/) — why the app is shaped as it is, for anyone
-    changing it: [design-principles.md](docs/design/design-principles.md),
-    [`adr/`](docs/design/adr/), [atof-reader.md](docs/design/atof-reader.md),
-    [span-rendering.md](docs/design/span-rendering.md),
-    [live-pages.md](docs/design/live-pages.md)
-  - [`extending/`](docs/extending/) — writing against it from outside:
-    [writing-a-plugin.md](docs/extending/writing-a-plugin.md),
-    [writing-a-scope-spec.md](docs/extending/writing-a-scope-spec.md),
-    [plugins-and-urls.md](docs/extending/plugins-and-urls.md)
-  - [`running/`](docs/running/) — operating it:
-    [setup-prompt-timing.md](docs/running/setup-prompt-timing.md),
-    [startup-and-console.md](docs/running/startup-and-console.md)
+Each bundled plugin has a README describing its own pages:
+
+- [plugins/turns/README.md](plugins/turns/README.md) — the Turns tab
+- [plugins/memory/mem0/README.md](plugins/memory/mem0/README.md) — the Mem0 tab
+
+Other than that, `docs/` is the main documentation directory. It's organized by role:
+
+- [`running/`](docs/running/) — for operators of Hobserver:
+  - [setup-prompt-timing.md](docs/running/setup-prompt-timing.md) — producer-side setup in hermes-agent, so there is an ATOF log to read at all.
+  - [startup-and-console.md](docs/running/startup-and-console.md) — source resolution, the db check, the startup banner, console noise and `/_status`.
+- [`extending/`](docs/extending/) — for plugin writers:
+  - [writing-a-plugin.md](docs/extending/writing-a-plugin.md) — the main extension document: how to add a tab, with a whole worked plugin and the contract in full.
+  - [writing-a-scope-spec.md](docs/extending/writing-a-scope-spec.md) — make the Turns tab display your own hermes tool and read its payload.
+  - [writing-a-provider-spec.md](docs/extending/writing-a-provider-spec.md) — make the Turns tab read your own router's token counts.
+  - [plugins-and-urls.md](docs/extending/plugins-and-urls.md) — the plugin contract, the config file, what happens when a tab can't load, URL naming and crossing between plugins.
+- [`design/`](docs/design/) — documents for engineers. To be honest, I accidentally let Opus 5 get its hook into these so they may need clean up and removal of obtuse and redundant parts :D.
+  - [design-principles.md](docs/design/design-principles.md) — the standing commitments the app is built on.
+  - [atof-reader.md](docs/design/atof-reader.md) — how the ATOF log is read: line reader → parser → index → assembler, and the span readings beside them.
+  - [span-rendering.md](docs/design/span-rendering.md) — what each tool scope shows on the turn page, scope by scope.
+  - [live-pages.md](docs/design/live-pages.md) — polling, liveness, follow mode, item navigation and waterfall colours.
+  - [`adr/`](docs/design/adr/). Architectural Decision Records. Almost entirely AI written. An experiment to see if ADRs are helpful for AI-driven engineering. I suspect maybe not since all the ADRs on early decisions that have now been entirely superseded. This may just end up polluting context.
 
 ## License
 
