@@ -20,9 +20,9 @@ so the history here begins at 0.3.0.
   timeline per turn, and per-span detail drawn from each tool's payload. The
   whole request or response of any model call — including hermes' own
   background ones — opens on its own page.
-- **Mem0 tab** — browses `jmem0_logged.db`, the mem0 event log, newest first,
-  with per-event detail and recovery of what an updated or deleted memory said
-  before the change.
+- **Mem0 tab** — browses `jmem0_logged.db`, the SQLite database of mem0 events,
+  newest first, with per-event detail and recovery of what an updated or deleted
+  memory said before the change.
 - **Plugin architecture** — every view is a plugin loaded by module path from
   `hobserver.toml`, so a new tab (another memory system, another log) can live
   in a separate tree with no fork of this repo.

@@ -18,9 +18,9 @@ activity. The currently bundled plugins are:
   - Shows relevant details for each model or tool call (e.g. how many cached tokens were used on a model call, the script a model ran when invoking the terminal tool, the web searches and extractions it carries out).
   - Link to show full details of a model call, including system prompt and tool call results.
   
-- **Mem0** — browses `jmem0_logged.db`, an SQLite event log produced by
+- **Mem0** — browses `jmem0_logged.db`, the SQLite database that
   [jmem0-logged](https://github.com/justincc/jmem0-logged), a hermes-agent
-  plugin that logs mem0 activity.
+  plugin, populates with mem0 events.
   - Shows all Hermes Mem0 operations, such as the prefetch for relevant memories at the start of the turn.
 
 Pull requests for additional plugins are very welcome - I want to take a "batteries -included" approach wherever reasonable.
@@ -95,7 +95,7 @@ plugin = "plugins.turns"
 settings = { atof_log = "$HERMES_HOME/nemo-relay/atof/hermes-atof.jsonl" }
 settings = { index_db = "/var/tmp/hermes-atof-index.sqlite3" }
 
-# Mem0 is opt-in — most installs don't produce a mem0 event log, so it isn't
+# Mem0 is opt-in — most installs don't record mem0 events, so it isn't
 # served by default. Add it like this when you do.
 [[plugins]]
 plugin = "plugins.memory.mem0"
