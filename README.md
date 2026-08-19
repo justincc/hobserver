@@ -6,7 +6,8 @@
        width="440">
 </picture>
 
-Hobserver is a webapp for observing Hermes Agent activity. The currently bundled plugins are:
+Hobserver is a webapp for observing [Hermes Agent](https://github.com/NousResearch/hermes-agent)
+activity. The currently bundled plugins are:
 
 - **Turns** — the main plugin. Per-session-turn latency waterfalls from the NeMo Relay ATOF
   JSONL stream exported by the hermes-agent `observability/nemo_relay`
