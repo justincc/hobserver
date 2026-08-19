@@ -6,7 +6,7 @@
        width="440">
 </picture>
 
-Hobserver is a webapp for observing hermes-agent activity. The currently bundled plugins are:
+Hobserver is a webapp for observing Hermes Agent activity. The currently bundled plugins are:
 
 - **Turns** — the main plugin. Per-session-turn latency waterfalls from the NeMo Relay ATOF
   JSONL stream exported by the hermes-agent `observability/nemo_relay`
@@ -22,14 +22,23 @@ Hobserver is a webapp for observing hermes-agent activity. The currently bundled
   plugin that logs mem0 activity.
   - Shows all Hermes Mem0 operations, such as the prefetch for relevant memories at the start of the turn.
 
+Pull requests for additional plugins are very welcome - I want to take a "batteries -included" approach wherever reasonable.
+
 ## Project Philosophy
+
+I'm very curious as to what Hermes is doing under the hood. What prompts is it sending in model requests? What memories is it recalling and making? What tools is it calling? What skills does it use?
+
+I looked around but didn't find anything obviously met my needs. There are some great observability tools out there (e.g. Langfuse) but they're built for general agent observability. I wanted something closely fitted to Hermes, so that I can see the most relevant Hermes detail at a glance without any other clutter. And of course, it's fun to build your own :D.
+
+Below are the project principles. Pull requests in tune with these are very welcome. Hobserver starts out as my tool but I want to make it also useful to others who are looking for the same kind of information.
 
 - **Be useful**. The primary purpose of Hobserver is to be a useful tool for seeing what Hermes
   is up to. So inferring information (e.g. which memory got changed on a memory operation)
   on top of what appears in logs and through API calls is a good thing to do. Or being able to click
   a link in the turns view and see the memory in full.
 - **Be opinionated**. At the same time I want to see important information at a glance, not look through a lot 
-  of clutter. Therefore, Hobserver is purposefully opinionated about what it does and doesn't display and where it does it. I hope people share my taste in relevant information but pull requests to include extra fields or tool calls not covered are very welcome.
+  of clutter. Therefore, Hobserver is purposefully opinionated about what it does and doesn't display and where and how it does it. I hope people share my taste in relevant information but pull requests to include extra fields or tool calls not covered are very welcome.
+- **Be pragmatic**. An example. Rather than hook into Hermes events like Langfuse, for its main Turns tab Hobserver currently reads the NeMo ATOF log that the Hermes builtin plugin `observability/nemo_relay` produces. This has the pro of simplicity (no need to store events) and the con of poor scalability (ATOF logs grow very large). As Hobserver was built for looking at live and recent activity this seems a pragmatic choice. But if compelling usecases come along for longer-term storage this decision can be revisited.
 - **Be modular**. I started off making this because I was very curious about what Hermes
   was doing under the hood. But I have a particular way of using Hermes and a particular
   set of plugins that I use, where other people may end up invoking different tools or 
