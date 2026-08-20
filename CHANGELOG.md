@@ -8,6 +8,14 @@ While the major version is `0`, the public surfaces (the plugin, scope-spec,
 and provider-spec vocabularies) may still change between releases — see
 `docs/design/design-principles.md`.
 
+## [Unreleased]
+
+### Changed
+
+- Console lines printed after the startup banner (the ATOF index report and
+  the like) now carry a `[HH:MM:SS]` clock, the same one the error lines
+  already have.
+
 ## [0.3.0] - 2026-08-19
 
 First public release. Earlier `0.x` development happened before publication,

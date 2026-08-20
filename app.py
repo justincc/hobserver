@@ -25,6 +25,7 @@ from waitress import serve
 
 import hermes_paths
 import tabs as tabs_module
+from console import CLOCK_FORMAT
 from request_log import (REFRESH_SECONDS, STATUS_PATH, RequestStats,
                          QuietWerkzeugFilter, format_status,
                          log_error_response)
@@ -285,7 +286,7 @@ def main():
     # be matched against the page that produced it. WARNING as the level is
     # also what keeps waitress's own "Serving on ..." (INFO) out of a console
     # the banner has already told where to look.
-    logging.basicConfig(level=logging.WARNING, datefmt="%H:%M:%S",
+    logging.basicConfig(level=logging.WARNING, datefmt=CLOCK_FORMAT,
                         format="[%(asctime)s] %(levelname)s %(message)s")
 
     def start():

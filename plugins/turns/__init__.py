@@ -25,6 +25,7 @@ from flask import (Blueprint, abort, current_app, render_template, request,
 from werkzeug.routing import BuildError
 
 import hermes_paths
+from console import console
 from plugins.turns import fulltext
 from plugins.turns.assembler import assemble
 from plugins.turns.atof_index import (AtofIndex, default_index_path,
@@ -331,16 +332,15 @@ def _warm_index(app):
         # unexplained pause is exactly who this line is for.
         reason = index.rebuild_pending()
         if reason is not None:
-            print(f"Turns: ATOF index is stale ({reason}); rebuilding — this "
-                  "can take ~20s on a large log…", flush=True)
+            console(f"Turns: ATOF index is stale ({reason}); rebuilding — this "
+                    "can take ~20s on a large log…")
         state = index.refresh()
     except Exception as exc:  # noqa: BLE001 - a bad index must not stop serving
-        print(f"Turns: could not read the ATOF index "
-              f"({type(exc).__name__}: {exc}); will retry on first request",
-              flush=True)
+        console(f"Turns: could not read the ATOF index "
+                f"({type(exc).__name__}: {exc}); will retry on first request")
         return
     app.extensions["atof_index"] = index
-    print(f"Turns: {_index_report(state)}", flush=True)
+    console(f"Turns: {_index_report(state)}")
 
 
 def get_index() -> AtofIndex:
