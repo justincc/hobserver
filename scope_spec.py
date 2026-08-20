@@ -574,6 +574,9 @@ class Link:
     before     fields rendered before the link on the same row, for a
                provenance line that reads as a sentence.
     after      fields rendered after it.
+    new_tab    open the target in a new tab (`target="_blank"`), for a link to
+               a whole thing opened to be read on its own — like the full-value
+               icon's page. Default same-tab.
 
     Resolves to an endpoint and its parameters, not to a URL — `url_for` is
     the template's to call, so a spec stays data and this module stays
@@ -589,6 +592,7 @@ class Link:
     cls: Optional[str] = None
     before: Sequence[Any] = ()
     after: Sequence[Any] = ()
+    new_tab: bool = False
 
     def rows(self, span, ctx):
         if not self.endpoint:
@@ -614,7 +618,7 @@ class Link:
                                        for f in getattr(self, side))
                            if c is not None]
         return [{"kind": "link", "endpoint": self.endpoint, "params": params,
-                 "text": str(text), "title": title,
+                 "text": str(text), "title": title, "new_tab": self.new_tab,
                  "before": sides["before"], "after": sides["after"],
                  "cls": _row_cls(self.layer, self.cls)}]
 

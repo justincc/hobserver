@@ -265,7 +265,7 @@ def test_a_link_resolves_to_an_endpoint_and_params_not_a_url():
                             text=const("open →"))]).resolve(span)
     assert rows == [{"kind": "link", "endpoint": "mem0.search_event",
                      "params": {"query": "tea", "ts": 0},
-                     "text": "open →", "title": None,
+                     "text": "open →", "title": None, "new_tab": False,
                      "before": [], "after": [], "cls": ""}]
 
 

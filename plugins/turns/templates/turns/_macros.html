@@ -144,7 +144,7 @@
 {%- if href %}
 <div class="span-detail{{ row.cls }}">
   {%- for c in row.before %}{{ spec_cell(c) }} {% endfor -%}
-  <a href="{{ href }}"{% if row.title %} title="{{ row.title }}"{% endif %}>{{ row.text }}</a>
+  <a href="{{ href }}"{% if row.title %} title="{{ row.title }}"{% endif %}{% if row.new_tab %} target="_blank" rel="noopener"{% endif %}>{{ row.text }}</a>
   {%- for c in row.after %} {{ spec_cell(c) }}{% endfor %}
 </div>
 {%- endif %}

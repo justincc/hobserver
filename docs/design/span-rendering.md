@@ -976,7 +976,8 @@ optional patch target) is middot-separated from the skill name and
 left-ellipsized (`.tail`, like the file tools' path).
 
 A detail-only **"view skill"** link (a `Link` to `turns.skill`, ADR 22) opens
-the skill on disk — its SKILL.md, with the skill's files down the left. It is
+the skill on disk in a new tab — its SKILL.md, with the skill's files down the
+left, and a link back to the turn. It is
 keyed on `name`/`file_path`, gated on the scope naming a skill, and confined to
 the configured skill roots; a skill outside them, or roots unconfigured, is
 refused rather than read.

@@ -159,7 +159,7 @@ SKILL = Scope(rows=[
                  "span": "uuid"},
          text="skill_name", transform=_view_skill_label,
          title=const("Open this skill's SKILL.md and files."),
-         layer="detail"),
+         layer="detail", new_tab=True),
 ])
 
 # The command runs in monospace and keeps its line breaks in detail mode, so

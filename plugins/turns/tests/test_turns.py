@@ -237,6 +237,8 @@ def test_skill_scope_links_to_the_skill_view(tmp_path):
     assert "/turns/skill?" in page and "name=github-pr-workflow" in page
     # the span uuid rides along so the skill page can link back to this turn
     assert "span=S1" in page
+    # opened in its own tab, like the full-value page
+    assert 'target="_blank" rel="noopener">view skill</a>' in page
 
 
 def test_skill_page_links_back_to_its_turn(tmp_path):
