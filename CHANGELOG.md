@@ -8,7 +8,7 @@ While the major version is `0`, the public surfaces (the plugin, scope-spec,
 and provider-spec vocabularies) may still change between releases — see
 `docs/design/design-principles.md`.
 
-## [Unreleased]
+## [0.3.2] - 2026-08-20
 
 ### Added
 
@@ -76,5 +76,6 @@ so the history here begins at 0.3.0.
   only where trusted parties can reach it. Log content is HTML-escaped and
   rendered without raw HTML. See `SECURITY.md` for the full trust model.
 
+[0.3.2]: https://github.com/justincc/hobserver/releases/tag/v0.3.2
 [0.3.1]: https://github.com/justincc/hobserver/releases/tag/v0.3.1
 [0.3.0]: https://github.com/justincc/hobserver/releases/tag/v0.3.0
