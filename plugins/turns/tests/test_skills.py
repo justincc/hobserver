@@ -222,3 +222,34 @@ def test_skill_viewing_off_when_no_roots_configured(tmp_path):
     resp = skill_client(tmp_path, []).get("/turns/skill?name=alpha")
     assert resp.status_code == 404
     assert "not available" in resp.get_data(as_text=True)
+
+
+# --- frontmatter ------------------------------------------------------------
+
+def test_split_frontmatter_keeps_the_fences_and_returns_the_body():
+    fm, body = skills.split_frontmatter(
+        "---\nname: maps\nversion: 1.2.0\n---\n\n# Maps\n\nbody\n")
+    assert fm == "---\nname: maps\nversion: 1.2.0\n---"
+    assert body.lstrip().startswith("# Maps")
+
+
+def test_split_frontmatter_is_none_when_there_is_none():
+    fm, body = skills.split_frontmatter("# Maps\n\nno frontmatter here\n")
+    assert fm is None and body.startswith("# Maps")
+
+
+def test_frontmatter_is_shown_verbatim_not_as_a_heading(tmp_path):
+    # The bug this fixes: CommonMark reads `name: maps` closed by `---` as a
+    # setext heading, so the whole block rendered as one bold heading.
+    root = tmp_path / "root"
+    d = root / "maps"
+    d.mkdir(parents=True)
+    (d / "SKILL.md").write_text(
+        "---\nname: maps\nversion: 1.2.0\n---\n\n# Maps\n\nGeocoding.\n",
+        encoding="utf-8")
+    page = skill_client(tmp_path, [root]).get(
+        "/turns/skill?name=maps").get_data(as_text=True)
+    assert 'class="blob skill-frontmatter"' in page   # shown as text
+    assert "version: 1.2.0" in page
+    assert "<h1" in page and "Geocoding." in page      # body still markdown
+    assert "<h2>name: maps" not in page                # not swallowed into one

@@ -73,6 +73,9 @@
     {%- elif raw or rendered.kind != "markdown" %}
     <pre class="blob full-blob">{{ rendered.text }}</pre>
     {%- else %}
+    {#- Frontmatter shown as the text it is: markdown would read it as one big
+        heading (ADR 22). Autoescaped in a <pre>, never as markup. #}
+    {%- if frontmatter %}<pre class="blob skill-frontmatter">{{ frontmatter }}</pre>{% endif %}
     <div class="md-body">{{ rendered.html | safe }}</div>
     {%- endif %}
   </div>

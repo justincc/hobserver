@@ -721,7 +721,8 @@ def skill():
 
     # Which file to show: an explicit sidebar pick (validated), else the
     # scope's own file when it is one inside this skill, else the manifest.
-    target, rel, text, problem, rendered = None, None, None, None, None
+    target, rel, text, problem = None, None, None, None
+    rendered, frontmatter = None, None
     if sel is not None:
         target = skills.safe_target(skill_dir, sel)
         if target is None:
@@ -736,9 +737,14 @@ def skill():
     if target is not None:
         rel = os.path.relpath(target, skill_dir)
         text, problem = skills.read_text(target)
-        how = "markdown" if skills.is_markdown(target) and not raw else "text"
-        if text is not None:
-            rendered = fulltext.render(text, how)
+        if text is not None and skills.is_markdown(target) and not raw:
+            # Held out of the markdown and shown verbatim: a `key:` line closed
+            # by `---` is a setext heading to CommonMark, so the frontmatter
+            # would otherwise render as one bold heading (ADR 22).
+            frontmatter, body = skills.split_frontmatter(text)
+            rendered = fulltext.render(body, "markdown")
+        elif text is not None:
+            rendered = fulltext.render(text, "text")
 
     return render_template(
         "turns/skill.html",
@@ -748,6 +754,7 @@ def skill():
         files=skills.list_skill_files(skill_dir),
         current=rel,
         rendered=rendered,
+        frontmatter=frontmatter,
         read_problem=problem,
         nav_params={"name": name, "path": path},
         raw=raw,

@@ -236,6 +236,23 @@ def is_markdown(path: str) -> bool:
     return os.path.splitext(path)[1].lower() in MARKDOWN_SUFFIXES
 
 
+# A leading YAML frontmatter block: `---`, content, a closing `---` line.
+_FRONTMATTER = re.compile(r"\A---[ \t]*\r?\n.*?\r?\n---[ \t]*(?:\r?\n|\Z)",
+                          re.DOTALL)
+
+
+def split_frontmatter(text: str):
+    """`(frontmatter, body)` if `text` opens with a `--- … ---` block, else
+    `(None, text)`. The fences are kept on the frontmatter so it can be shown
+    verbatim: CommonMark reads a `key:` line closed by `---` as a setext
+    heading, so a skill's whole frontmatter renders as one bold heading unless
+    it is held out of the markdown and shown as the text it is."""
+    match = _FRONTMATTER.match(text)
+    if not match:
+        return None, text
+    return text[:match.end()].rstrip("\n"), text[match.end():]
+
+
 def _viewable(path: str) -> bool:
     return os.path.splitext(path)[1].lower() in TEXT_SUFFIXES
 
