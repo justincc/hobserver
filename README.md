@@ -9,19 +9,17 @@
 Hobserver is a webapp for observing live and recent sesssion-oriented [Hermes Agent](https://github.com/NousResearch/hermes-agent)
 activity. The currently bundled plugins are:
 
-- **Turns** — the main plugin. Per-session-turn latency waterfalls from the NeMo Relay ATOF
-  JSONL stream exported by the hermes-agent `observability/nemo_relay`
-  plugin. 
+- **Turns** — the main plugin. Live and recent per-session turn waterfalls from the NVIDIA NeMo Relay ATOF
+  JSONL stream, as exported by the `observability/nemo_relay` bundled by Hermes Agent.
   - Live stream that appears as the agent works.
-  - Shows where where each turn's time went (model vs tool) with a
-  span timeline. 
+  - Shows where where each turn's time went (model vs tool) with a span timeline. 
   - Shows relevant details for each model or tool call (e.g. how many cached tokens were used on a model call, the script a model ran when invoking the terminal tool, the web searches and extractions it carries out).
   - Link to show full details of a model call, including system prompt and tool call results.
   
 - **Mem0** — browses `jmem0_logged.db`, the SQLite database that
   [jmem0-logged](https://github.com/justincc/jmem0-logged), a hermes-agent
-  plugin, populates with mem0 events.
-  - Shows all Hermes Mem0 operations, such as the prefetch for relevant memories at the start of the turn.
+  plugin, populates with Mem0 events triggered by Hermes.
+  - Shows all Hermes Mem0 operations, such as what memories were fetched during the prefetch part of the session turn.
 
 Pull requests for additional plugins are very welcome - I want to take a "batteries -included" approach wherever reasonable.
 
