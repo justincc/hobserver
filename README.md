@@ -15,6 +15,7 @@ activity. The currently bundled plugins are:
   - Shows where where each turn's time went (model vs tool) with a span timeline. 
   - Shows relevant details for each model or tool call (e.g. how many cached tokens were used on a model call, the script a model ran when invoking the terminal tool, the web searches and extractions it carries out).
   - Link to show full details of a model call, including system prompt and tool call results.
+  - Link from a skill call to view the skill itself — its SKILL.md and files — read from the configured skill roots.
   
 - **Mem0** — browses `jmem0_logged.db`, the SQLite database that
   [jmem0-logged](https://github.com/justincc/jmem0-logged), a hermes-agent

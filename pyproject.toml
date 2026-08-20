@@ -22,6 +22,12 @@ dependencies = [
     # written to face a network; waitress is pure Python and dependency-free,
     # so it costs nothing at install time and runs wherever this app does.
     "waitress>=3.0",
+    # The skill view reads hermes' skill roots from config.yaml (ADR 22), and
+    # YAML — unlike the TOML of hobserver.toml — has no standard-library
+    # reader. Behind a degradation path like markdown-it-py: plugins/turns/
+    # skills.py falls back to the standard roots alone if it is not importable,
+    # so skill viewing narrows rather than the app failing.
+    "pyyaml>=6",
 ]
 
 [project.urls]

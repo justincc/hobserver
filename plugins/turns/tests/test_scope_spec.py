@@ -820,12 +820,16 @@ def test_contributed_modules_appear_in_the_startup_sources(tmp_path,
     failed import is visible in the banner beside what it renders."""
     from plugins.turns import sources
 
+    # Explicit skill_roots so the banner's skill-root entries (ADR 22) are one
+    # known row rather than whatever this machine's config.yaml resolves to.
     entries = sources({"atof_log": str(tmp_path / "nope.jsonl"),
                        "index_db": str(tmp_path / "index.sqlite3"),
-                       "scope_specs": ["no_such_module_anywhere"]})
+                       "scope_specs": ["no_such_module_anywhere"],
+                       "skill_roots": [str(tmp_path)]})
     labels = [e["label"] for e in entries]
-    assert labels == ["ATOF log", "ATOF index", "scope spec"]
-    assert entries[-1]["problem"].startswith("ModuleNotFoundError")
+    assert labels == ["ATOF log", "ATOF index", "scope spec", "skill root"]
+    spec = next(e for e in entries if e["label"] == "scope spec")
+    assert spec["problem"].startswith("ModuleNotFoundError")
 
 
 # --- the docstrings are the reference, so they have to stay true ------

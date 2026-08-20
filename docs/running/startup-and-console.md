@@ -23,7 +23,14 @@ installation that keeps hermes in the conventional place needs nothing either.
 | --- | --- |
 | Turns | `atof_log` |
 | Turns | `index_db` |
+| Turns | `skill_roots` |
 | Mem0 | `db` |
+
+The Turns tab also lists its **skill roots** on the banner — the directories the
+skill view is confined to (ADR 22), derived from hermes' `config.yaml`
+`skills.external_dirs` and the standard hermes skill dirs, or an explicit
+`skill_roots` in the config. Each is marked ok / MISSING like any source; a
+missing one simply holds no skills to open.
 
 A plugin reports what it resolved through its `sources` hook, which is what
 the banner prints — the shell knows none of the above.

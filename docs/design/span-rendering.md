@@ -975,6 +975,12 @@ covered by test alone.
 optional patch target) is middot-separated from the skill name and
 left-ellipsized (`.tail`, like the file tools' path).
 
+A detail-only **"view skill"** link (a `Link` to `turns.skill`, ADR 22) opens
+the skill on disk — its SKILL.md, with the skill's files down the left. It is
+keyed on `name`/`file_path`, gated on the scope naming a skill, and confined to
+the configured skill roots; a skill outside them, or roots unconfigured, is
+refused rather than read.
+
 ## Failures
 
 Every hermes tool reports a failure the same two ways: `metadata.status` is

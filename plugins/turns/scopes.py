@@ -21,9 +21,16 @@ alphabet and the exception is marked.
 `docs/design/span-rendering.md` narrates what each of these shows and why.
 """
 
-from scope_spec import (Alt, Diff, Each, Field, Full, Items,
+from scope_spec import (Alt, Diff, Each, Field, Full, Items, Link,
                                         Row, Scope, const, first, item, joined,
                                         mapped)
+
+
+def _view_skill_label(_name):
+    """The 'view skill' link's text is fixed; the source it reads
+    (`skill_name`) is only there to gate it — a skill scope that names no skill
+    resolves to nothing and gets no link (ADR 22)."""
+    return "view skill"
 
 
 def tilde(path):
@@ -145,6 +152,13 @@ SKILL = Scope(rows=[
     # a skill_manage patch replaces text; it never carries a V4A patch the
     # way the file tools' patch scope does, so it renders as a replace pair
     Diff("skill_old_string", "skill_new_string"),
+    # To the skill on disk (ADR 22): name and file_path are what the route
+    # resolves against the configured roots. Detail-only, like the pair above.
+    Link(endpoint="turns.skill",
+         params={"name": "skill_name", "path": "skill_file_path"},
+         text="skill_name", transform=_view_skill_label,
+         title=const("Open this skill's SKILL.md and files."),
+         layer="detail"),
 ])
 
 # The command runs in monospace and keeps its line breaks in detail mode, so

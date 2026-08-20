@@ -26,7 +26,7 @@ from werkzeug.routing import BuildError
 
 import hermes_paths
 from console import console
-from plugins.turns import fulltext
+from plugins.turns import fulltext, skills
 from plugins.turns.assembler import assemble, containing_turn
 from plugins.turns.atof_index import (AtofIndex, default_index_path,
                                         hydrate_span, hydrate_turn)
@@ -268,6 +268,14 @@ def sources(settings):
                     "required": False, "problem": None})
     entries.extend(spec_table(settings)[1])
     entries.extend(usage_shape_table(settings)[1])
+    # The skill roots the skill view (ADR 22) is confined to. Not required —
+    # a root that is absent simply holds no skills to open — but named here
+    # because they are files this tab now reads, and a reader looking for
+    # "what does this touch" should find them.
+    for root in skills.skill_roots(settings):
+        entries.append({"label": "skill root", "path": root, "required": False,
+                        "problem": None if os.path.isdir(root)
+                        else "no such directory"})
     return entries
 
 
@@ -283,6 +291,10 @@ def init_app(app, settings):
     app.config["ATOF_INDEX_DB"] = index_db_path(settings)
     app.config["SCOPE_SPECS"] = spec_table(settings, app)[0]
     app.config["USAGE_SHAPES"] = usage_shape_table(settings)[0]
+    # Resolved once, like the sources above: the skill view (ADR 22) confines
+    # every read to these, and reading config.yaml on each request is startup
+    # work a polling page must not pay for.
+    app.config["SKILL_ROOTS"] = skills.skill_roots(settings)
     _warm_index(app)
 
 
@@ -676,4 +688,67 @@ def span_full(span_uuid, key):
         note=resolve_source(full.note, span, accessors, readers),
         rendered=rendered,
         raw=request.args.get("raw") is not None,
+    )
+
+
+@bp.route("/skill")
+def skill():
+    """A skill on disk, on a page of its own (ADR 22).
+
+    Reached from a `skill_view`/`skill_manage` row. The `name` and `path` a
+    scope carries come from the log and are not trusted: `path` is admitted
+    only when it resolves inside a configured root, and everything served —
+    the manifest, a sidebar file, a chosen `sel` — is held to the same
+    containment. A skill outside every root, or no roots at all, is refused
+    rather than read.
+    """
+    roots = current_app.config.get("SKILL_ROOTS") or []
+    name = request.args.get("name") or None
+    path = request.args.get("path") or None
+    sel = request.args.get("sel") or None
+    raw = request.args.get("raw") is not None
+
+    # No roots configured (or pyyaml/config.yaml unreadable and no standard
+    # root on disk): the feature is simply unavailable, said on its own page
+    # rather than as a 404 that reads like a missing skill.
+    if not roots:
+        return render_template("turns/skill.html", available=False,
+                               skill_name=name), 404
+
+    skill_dir = skills.resolve_skill_dir(roots, name, path)
+    if skill_dir is None:
+        abort(404)
+
+    # Which file to show: an explicit sidebar pick (validated), else the
+    # scope's own file when it is one inside this skill, else the manifest.
+    target, rel, text, problem, rendered = None, None, None, None, None
+    if sel is not None:
+        target = skills.safe_target(skill_dir, sel)
+        if target is None:
+            abort(404)
+    elif path and skills.containing_root(path, [skill_dir]) \
+            and os.path.isfile(os.path.realpath(path)):
+        target = os.path.realpath(path)
+    else:
+        manifest = os.path.join(skill_dir, skills.MANIFEST)
+        target = manifest if os.path.isfile(manifest) else None
+
+    if target is not None:
+        rel = os.path.relpath(target, skill_dir)
+        text, problem = skills.read_text(target)
+        how = "markdown" if skills.is_markdown(target) and not raw else "text"
+        if text is not None:
+            rendered = fulltext.render(text, how)
+
+    return render_template(
+        "turns/skill.html",
+        available=True,
+        skill_name=name or os.path.basename(skill_dir),
+        skill_dir=skill_dir,
+        files=skills.list_skill_files(skill_dir),
+        current=rel,
+        rendered=rendered,
+        read_problem=problem,
+        nav_params={"name": name, "path": path},
+        raw=raw,
     )

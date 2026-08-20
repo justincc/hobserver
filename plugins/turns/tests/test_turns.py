@@ -219,6 +219,39 @@ def test_skill_scope_details_shown_inline(tmp_path):
     assert "remove_file" in page and "references/stale.md" in page
 
 
+def test_skill_scope_links_to_the_skill_view(tmp_path):
+    # A skill row carries a "view skill" link to the skill page (ADR 22),
+    # keyed by the name and file_path the scope named.
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("S1", "tool", 1_100_000, 1_300_000, name="skill_view",
+                     session="s1", turn="t1",
+                     start_data={"name": "github-pr-workflow",
+                                 "file_path": "references/hygiene.md"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        "/turns/turn/s1/1000000").get_data(as_text=True)
+    assert ">view skill</a>" in page
+    assert "/turns/skill?" in page and "name=github-pr-workflow" in page
+
+
+def test_a_skill_scope_naming_no_skill_gets_no_link(tmp_path):
+    # The link is gated on the scope naming a skill: a payload without a name
+    # resolves to nothing and the row drops (ADR 22).
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("S1", "tool", 1_100_000, 1_300_000, name="skill_view",
+                     session="s1", turn="t1", start_data={}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        "/turns/turn/s1/1000000").get_data(as_text=True)
+    assert "view skill" not in page
+
+
 def test_session_search_discover_query_inline_and_stats_detail_only(tmp_path):
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),

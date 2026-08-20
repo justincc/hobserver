@@ -8,6 +8,18 @@ While the major version is `0`, the public surfaces (the plugin, scope-spec,
 and provider-spec vocabularies) may still change between releases — see
 `docs/design/design-principles.md`.
 
+## [Unreleased]
+
+### Added
+
+- **View a skill from its turn.** A `skill_view` / `skill_manage` row now
+  carries a "view skill" link that opens the skill on disk — its SKILL.md
+  rendered as markdown, with the skill's files listed down the left. Reading is
+  confined to the configured skill roots (hermes' `config.yaml`
+  `skills.external_dirs` and the standard hermes skill dirs, or a `skill_roots`
+  override in `hobserver.toml`), so a path from the log can never reach a file
+  outside them. See ADR 22 and SECURITY.md.
+
 ## [0.3.1] - 2026-08-20
 
 ### Fixed

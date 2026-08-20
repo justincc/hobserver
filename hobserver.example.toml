@@ -34,6 +34,13 @@ plugin = "plugins.turns"
 # vocabulary itself.
 # settings = { scope_specs = ["hobserver_acme.specs"] }
 #
+# `skill_roots` overrides the directories the "view skill" link is allowed to
+# read from (ADR 22). By default they are derived from hermes' config.yaml
+# (`skills.external_dirs`) and the standard hermes skill dirs, so nothing is
+# needed here. Set it to pin the roots yourself — or to `[]` to turn skill
+# viewing off entirely.
+# settings = { skill_roots = ["~/my-skills"] }
+#
 # `provider_specs` names modules declaring how your own router reports token
 # counts — one entry per provider payload shape, no fork of this tree. Yours
 # are tried before the built-in ones, and the banner names them at startup.

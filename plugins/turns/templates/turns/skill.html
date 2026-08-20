@@ -1,0 +1,81 @@
+{# A skill on disk (ADR 22): its SKILL.md, and its files down the left.
+
+   Every path here has already been confined to a configured root by the route
+   (plugins/turns/skills.py) — the file list is the skill's own directory
+   scanned on disk, not anything the log said. Nothing is marked |safe except
+   `rendered.html`, the markdown renderer's output with raw HTML disabled, the
+   same single trusted string as the full-value page. #}
+{% extends "base.html" %}
+{% from "turns/_macros.html" import copy_btn %}
+{% block title %}{{ skill_name or "skill" }} · skill — Hobserver{% endblock %}
+{# No tab bar: opened from a skill row to read one thing, like the full-value
+   page. The heading still goes home. #}
+{% block tabbar %}{% endblock %}
+{% block content %}
+
+<nav class="event-nav">
+  <span>
+    <a href="{{ url_for('turns.index') }}">&larr; all turns</a>
+    <span class="nav-steps">
+      {%- if rendered and rendered.kind == "markdown" %}
+      {%- if raw %}
+      <a href="{{ url_for('turns.skill', name=nav_params.name, path=nav_params.path, sel=current) }}" title="Back to the rendered markdown.">rendered</a>
+      {%- else %}
+      <a href="{{ url_for('turns.skill', name=nav_params.name, path=nav_params.path, sel=current, raw=1) }}" title="The characters underneath, unrendered.">raw</a>
+      {%- endif %}
+      {%- endif %}
+    </span>
+  </span>
+</nav>
+
+{% if not available %}
+<header class="full-head">
+  <h2>Skill viewing is not available</h2>
+  <p class="meta">No skill roots are configured or readable, so hobserver has
+    nowhere it is allowed to read a skill from. The startup banner lists the
+    roots it resolved (ADR 22).</p>
+</header>
+{% else %}
+<header class="full-head">
+  <h2>{{ skill_name }}</h2>
+  <p class="meta">
+    skill{% if current %} · {{ current }}{% endif %}
+    · {{ files | length }} file{{ "" if files | length == 1 else "s" }}
+    <span class="span-uuid">· {{ skill_dir }}{{ copy_btn(skill_dir, "copy skill path") }}</span>
+  </p>
+</header>
+
+<div class="full-body">
+  <nav class="msg-nav" aria-label="Skill files">
+    <ul>
+      {%- for f in files %}
+      <li>
+        {%- if f.viewable %}
+        <a href="{{ url_for('turns.skill', name=nav_params.name, path=nav_params.path, sel=f.rel) }}"{% if f.rel == current %} class="nav-current" aria-current="true"{% endif %}>{{ f.rel }}</a>
+        {%- else %}
+        <span class="nav-inert" title="Not a text file — listed but not shown.">{{ f.rel }}</span>
+        {%- endif %}
+      </li>
+      {%- endfor %}
+    </ul>
+  </nav>
+  <div class="full-sections">
+    {%- if read_problem %}
+    <p class="notice warn">{{ read_problem }}</p>
+    {%- endif %}
+    {%- if rendered is none %}
+    <p class="notice warn">
+      {%- if current %}This file cannot be shown here.
+      {%- else %}This skill has no SKILL.md to show.{% endif %}</p>
+    {%- elif rendered.problem %}
+    <p class="notice warn">{{ rendered.problem }}</p>
+    <pre class="blob full-blob">{{ rendered.text }}</pre>
+    {%- elif raw or rendered.kind != "markdown" %}
+    <pre class="blob full-blob">{{ rendered.text }}</pre>
+    {%- else %}
+    <div class="md-body">{{ rendered.html | safe }}</div>
+    {%- endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

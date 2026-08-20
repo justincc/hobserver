@@ -322,9 +322,13 @@ def test_contributed_modules_appear_in_the_startup_sources(tmp_path, monkeypatch
     visible in the banner beside what it would have read."""
     from plugins.turns import sources
 
+    # Explicit skill_roots so the banner's skill-root entries (ADR 22) are one
+    # known row rather than whatever this machine's config.yaml resolves to.
     entries = sources({"atof_log": str(tmp_path / "nope.jsonl"),
                        "index_db": str(tmp_path / "index.sqlite3"),
-                       "provider_specs": ["no_such_module"]})
+                       "provider_specs": ["no_such_module"],
+                       "skill_roots": [str(tmp_path)]})
     assert [e["label"] for e in entries] == [
-        "ATOF log", "ATOF index", "provider spec"]
-    assert entries[-1]["problem"].startswith("ModuleNotFoundError")
+        "ATOF log", "ATOF index", "provider spec", "skill root"]
+    spec = next(e for e in entries if e["label"] == "provider spec")
+    assert spec["problem"].startswith("ModuleNotFoundError")
