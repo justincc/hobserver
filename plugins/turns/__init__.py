@@ -20,14 +20,14 @@ import os
 import time
 from datetime import datetime, timezone
 
-from flask import (Blueprint, abort, current_app, render_template, request,
-                   url_for)
+from flask import (Blueprint, abort, current_app, redirect, render_template,
+                   request, url_for)
 from werkzeug.routing import BuildError
 
 import hermes_paths
 from console import console
 from plugins.turns import fulltext
-from plugins.turns.assembler import assemble
+from plugins.turns.assembler import assemble, containing_turn
 from plugins.turns.atof_index import (AtofIndex, default_index_path,
                                         hydrate_span, hydrate_turn)
 from providers import USAGE_SHAPES, check_shapes
@@ -537,12 +537,23 @@ def _accessors():
 
 
 def _find_turn(assembly, session_id, start_us):
-    """The turn a URL names, or None. The pair is what identifies one."""
-    return next(
-        (t for s in assembly.sessions if s.session_id == session_id
-         for t in s.turns if t.start_us == start_us),
-        None,
-    )
+    """The turn a URL names, or None. The pair is what identifies one.
+
+    A turn's `start_us` is its URL key, but assembly can revise it earlier: a
+    `hermes.turn` scope and its prompt boundary mark are seen a few ms apart
+    (the two exporters race), the scope merges into the mark-built turn, and
+    the start is pulled back to the earliest of the two (assembler `min`). A
+    URL captured before that revision — follow mode navigating to a turn the
+    strip showed mid-race — then names a start no turn has any more. So match
+    exactly first, and otherwise fall back to the turn whose interval now holds
+    that instant; the route redirects a fallback hit to the turn's live key.
+    """
+    session = next((s for s in assembly.sessions
+                    if s.session_id == session_id), None)
+    if session is None:
+        return None
+    exact = next((t for t in session.turns if t.start_us == start_us), None)
+    return exact or containing_turn(session, start_us)
 
 
 @bp.route("/turn/<session_id>/<int:start_us>")
@@ -554,6 +565,12 @@ def turn(session_id, start_us):
     found = _find_turn(assembly, session_id, start_us)
     if found is None:
         abort(404)
+    # Matched by the interval fallback, not exactly: the key in the URL is a
+    # start this turn no longer carries. Send the reader to its live key so the
+    # address bar settles and the page's own polling stops chasing the old one.
+    if found.start_us != start_us:
+        return redirect(url_for("turns.turn", session_id=session_id,
+                                start_us=found.start_us))
     # The payloads live in the log; read back the ones this turn needs and
     # no others (ADR 11). Hydrating into the cached assembly means a reload
     # of the same turn costs nothing, and the next append drops the lot.

@@ -115,6 +115,39 @@ def test_turn_detail_renders_waterfall_bars(tmp_path):
     assert "call-1" not in page
 
 
+def test_a_stale_start_us_redirects_to_the_turns_live_key(tmp_path):
+    # Follow mode captures a URL whose start_us a later assembly revised
+    # earlier (the scope/mark race). t1 runs [1_000_000, 6_500_000]; a start
+    # from inside it that no turn now carries resolves to t1, and the route
+    # sends the reader to its live key rather than 404ing.
+    atof = write_atof(tmp_path, two_turn_stream())
+    resp = make_client(tmp_path, str(atof)).get("/turns/turn/s1/1500000")
+    assert resp.status_code == 302
+    assert resp.headers["Location"].endswith("/turns/turn/s1/1000000")
+
+
+def test_the_redirect_lands_on_the_turn(tmp_path):
+    atof = write_atof(tmp_path, two_turn_stream())
+    page = make_client(tmp_path, str(atof)).get(
+        "/turns/turn/s1/1500000", follow_redirects=True).get_data(as_text=True)
+    assert "anthropic" in page and "terminal" in page
+
+
+def test_a_start_us_in_no_turns_interval_still_404s(tmp_path):
+    # 8_000_000 sits in the gap between t1's end (6_500_000) and t2's start
+    # (10_000_000): the fallback finds no containing turn, so it is a real 404,
+    # not a turn silently mis-served.
+    atof = write_atof(tmp_path, two_turn_stream())
+    assert make_client(tmp_path, str(atof)).get(
+        "/turns/turn/s1/8000000").status_code == 404
+
+
+def test_an_unknown_session_still_404s(tmp_path):
+    atof = write_atof(tmp_path, two_turn_stream())
+    assert make_client(tmp_path, str(atof)).get(
+        "/turns/turn/nope/1500000").status_code == 404
+
+
 def test_workdir_under_home_collapses_to_tilde(tmp_path):
     home_proj = os.path.join(os.path.expanduser("~"), "proj")
     lines = [

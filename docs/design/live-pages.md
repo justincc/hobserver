@@ -91,6 +91,16 @@ the first poll and the switch dies silently.
 
 On the index the toggle stands alone above the live region.
 
+A turn's URL key is its `start_us`, which a later assembly can revise earlier:
+when a `hermes.turn` scope and its prompt boundary mark are read a few ms apart
+(the two exporters race), the scope merges into the mark-built turn and its
+start is pulled back to the earlier of the two. Follow mode can capture the
+strip's link mid-race, so the URL it opens names a start no turn carries by the
+time the page loads. The turn route matches `start_us` exactly, then falls back
+to the turn whose interval now holds that instant, and **redirects a fallback
+hit to the turn's live key** so the address bar settles and polling stops
+chasing the old one. A start inside no turn's interval is still a real 404.
+
 ## Tailing — following the newest spans within a turn
 
 A region marked `data-live-tail` scrolls to its new bottom after each swap,

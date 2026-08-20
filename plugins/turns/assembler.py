@@ -453,11 +453,12 @@ def _build_scope_turns(spans: dict, turn_uuids, session_for, anomalies) -> dict:
     return turns
 
 
-def _containing_turn(session: Session, timestamp_us: int) -> Optional[Turn]:
+def containing_turn(session: Session, timestamp_us: int) -> Optional[Turn]:
     """The turn whose interval holds the timestamp.
 
     An unended turn's interval runs until the next turn's start (or forever
-    if it is the last one).
+    if it is the last one). Also serves the turn route's fallback lookup, for
+    a URL whose start_us a later assembly has since revised (see `_find_turn`).
     """
     for i, turn in enumerate(session.turns):
         if timestamp_us < turn.start_us:
@@ -479,7 +480,7 @@ def _turn_for(session: Session, turn_id: Optional[str], timestamp_us: int) -> Op
         for turn in session.turns:
             if turn.turn_id == turn_id:
                 return turn
-    return _containing_turn(session, timestamp_us)
+    return containing_turn(session, timestamp_us)
 
 
 def assemble(events: Iterable[AtofEvent],

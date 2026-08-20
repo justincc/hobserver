@@ -10,6 +10,14 @@ and provider-spec vocabularies) may still change between releases — see
 
 ## [Unreleased]
 
+### Fixed
+
+- Follow mode no longer 404s when it opens a turn mid-race. A turn's `start_us`
+  can be revised earlier once its scope and prompt mark are both read, so a URL
+  captured before that named a start no turn still carried. The turn route now
+  falls back to the turn whose interval holds that instant and redirects to its
+  live key.
+
 ### Changed
 
 - Console lines printed after the startup banner (the ATOF index report and
