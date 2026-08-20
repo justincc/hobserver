@@ -20,6 +20,11 @@ and provider-spec vocabularies) may still change between releases — see
 
 ### Changed
 
+- The "switch to new turns" follow toggle now defaults off — a page stays put
+  unless the reader asks it to chase new turns.
+- The follow toggle is now remembered per browser tab (sessionStorage) rather
+  than across the whole browser (localStorage), so one tab can sit pinned to a
+  turn while another follows new ones.
 - Console lines printed after the startup banner (the ATOF index report and
   the like) now carry a `[HH:MM:SS]` clock, the same one the error lines
   already have.

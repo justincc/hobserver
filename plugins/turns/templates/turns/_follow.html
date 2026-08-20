@@ -1,4 +1,4 @@
-{# Follow-mode toggle. State lives in localStorage, wired up in base.html —
+{# Follow-mode toggle. State lives in sessionStorage, wired up in base.html —
    which re-resolves this element and its checked state after every live-poll
    swap, so it works either inside the live region (turn page, in the nav row)
    or outside it (index). Never hold a reference to it across a swap.
@@ -9,11 +9,11 @@
    it is a sibling selector that paints the checkbox's state. #}
 <label class="switch follow-toggle"
        title="Automatically open a turn's waterfall when a new turn starts (never while already watching one in flight)">
-  {# Checked in the markup because follow mode defaults on: the switch must
-     already read "on" when the page paints, or a page that is following
-     shows an off switch until the script resyncs it. base.html unchecks it
-     for anyone who has switched it off. #}
-  <input type="checkbox" data-follow-toggle checked>
+  {# Unchecked in the markup because follow mode defaults off: the switch must
+     already read "off" when the page paints, or a static page shows an on
+     switch until the script resyncs it. base.html checks it for a tab that
+     has switched it on. #}
+  <input type="checkbox" data-follow-toggle>
   <span class="track"></span>
   switch to new turns
 </label>

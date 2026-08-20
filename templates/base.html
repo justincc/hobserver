@@ -598,8 +598,8 @@
     // selected (see `selecting`) — a swap would drop the selection, so
     // copying anything off a live page was impossible before.
     //
-    // Follow mode ([data-follow-toggle], persisted in localStorage) auto-opens
-    // a turn's page when an in-flight turn appears whose start_us is newer
+    // Follow mode ([data-follow-toggle], persisted per tab in sessionStorage)
+    // auto-opens a turn's page when an in-flight turn appears whose start_us is newer
     // than anything this page-view has already seen — but never while this
     // page is itself showing an in-flight turn ([data-inflight-current]
     // present). Turns silent past the stale cutoff are already dropped from the
@@ -618,10 +618,12 @@
     (function () {
       const FOLLOW_KEY = "hobserver.follow";
       let region = document.querySelector("[data-live-poll]");
-      // On unless it has been switched off: opening the app and watching the
-      // next turn arrive is what it is for. Only an explicit "0" opts out, so
-      // a first visit (nothing stored) follows.
-      const followOn = () => localStorage.getItem(FOLLOW_KEY) !== "0";
+      // Off until switched on: a page stays put unless the reader asks it to
+      // chase new turns. Only an explicit "1" opts in, so a new tab (nothing
+      // stored) does not follow. Per tab, not per browser: sessionStorage is
+      // scoped to this tab/window, so turning follow on in one tab leaves
+      // every other tab put.
+      const followOn = () => sessionStorage.getItem(FOLLOW_KEY) === "1";
       // Looked up on each use, never captured: on a turn page the toggle
       // sits in the nav *inside* the live region, so the swap replaces the
       // element. A held reference would go stale and silently stop working.
@@ -634,7 +636,7 @@
       // would not survive the swap.
       document.addEventListener("change", (e) => {
         if (e.target.matches("[data-follow-toggle]")) {
-          localStorage.setItem(FOLLOW_KEY, e.target.checked ? "1" : "0");
+          sessionStorage.setItem(FOLLOW_KEY, e.target.checked ? "1" : "0");
         }
       });
       syncToggle();

@@ -1122,17 +1122,26 @@ def test_follow_toggle_rendered_on_both_pages(tmp_path):
         f"/turns/turn/s9/{inflight_start}").get_data(as_text=True)
 
 
-def test_follow_toggle_defaults_on(tmp_path):
-    """Follow mode is on until switched off, so the switch ships checked and
-    the script only unchecks it for a stored "0"."""
+def test_follow_toggle_defaults_off(tmp_path):
+    """Follow mode is off until switched on, so the switch ships unchecked and
+    the script only checks it for a stored "1"."""
     _, inflight_start, lines = recent_stream()
     atof = write_atof(tmp_path, lines)
     client = make_client(tmp_path, str(atof))
     for url in ("/turns/", f"/turns/turn/s9/{inflight_start}"):
-        assert re.search(r'<input type="checkbox" data-follow-toggle checked>',
+        assert re.search(r'<input type="checkbox" data-follow-toggle>',
                          client.get(url).get_data(as_text=True)), url
     js = (REPO_ROOT / "templates" / "base.html").read_text()
-    assert 'localStorage.getItem(FOLLOW_KEY) !== "0"' in js
+    assert 'sessionStorage.getItem(FOLLOW_KEY) === "1"' in js
+
+
+def test_follow_toggle_is_persisted_per_tab(tmp_path):
+    """Per tab, not per browser: the switch is written to and read from
+    sessionStorage (tab-scoped), so turning it off in one tab leaves others
+    following. localStorage would leak the choice across every tab."""
+    js = (REPO_ROOT / "templates" / "base.html").read_text()
+    assert "sessionStorage.setItem(FOLLOW_KEY" in js
+    assert "localStorage" not in js
 
 
 def test_a_selection_inside_a_live_region_holds_the_poll():

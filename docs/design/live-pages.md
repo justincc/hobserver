@@ -64,15 +64,19 @@ the turn had been silent for 2 minutes.
 
 ## Follow mode
 
-A "switch to new turns" switch (persisted in localStorage) that auto-opens a
-turn's waterfall when a new turn starts, with two guards: never while you are
-watching a turn that is still in flight (concurrent turns just appear in the
-strip for manual switching), and never to a stale entry.
+A "switch to new turns" switch (persisted per tab in sessionStorage) that
+auto-opens a turn's waterfall when a new turn starts, with two guards: never
+while you are watching a turn that is still in flight (concurrent turns just
+appear in the strip for manual switching), and never to a stale entry.
 
-**On by default.** Only an explicit "0" in localStorage turns it off, so a
-browser that has never touched the switch follows. The checkbox therefore
-carries `checked` in the markup as well — the switch has to read "on" before
-the script runs, or a following page shows an off switch until it resyncs.
+**Per tab, not per browser.** sessionStorage is scoped to the tab/window, so
+turning follow on in one tab leaves every other tab put — one tab chasing new
+turns, another pinned to a turn you are reading.
+
+**Off by default.** Only an explicit "1" in sessionStorage turns it on, so a
+tab that has never touched the switch stays put. The checkbox therefore ships
+unchecked — the switch has to read "off" before the script runs, or a static
+page shows an on switch until it resyncs.
 
 It is the same slider as **show all span details** on the turn page: both are
 a persistent on/off for the page, so they are one control drawn once by
