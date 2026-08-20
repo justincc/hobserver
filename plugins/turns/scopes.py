@@ -155,7 +155,8 @@ SKILL = Scope(rows=[
     # To the skill on disk (ADR 22): name and file_path are what the route
     # resolves against the configured roots. Detail-only, like the pair above.
     Link(endpoint="turns.skill",
-         params={"name": "skill_name", "path": "skill_file_path"},
+         params={"name": "skill_name", "path": "skill_file_path",
+                 "span": "uuid"},
          text="skill_name", transform=_view_skill_label,
          title=const("Open this skill's SKILL.md and files."),
          layer="detail"),

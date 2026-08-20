@@ -10,6 +10,17 @@
 {% macro copy_btn(text, label) -%}
 <button class="copy-btn" data-copy="{{ text }}" title="{{ label }}" aria-label="{{ label }}"><svg class="ic-copy" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="ic-check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
 {%- endmacro %}
+{# The way back from a page opened off one span — the full-value page and the
+   skill page alike. `turn` is the turn that span ran in, or none for a span
+   that landed in no turn (an llm call parented to the session), which is
+   reachable by uuid and nowhere else. #}
+{% macro back_to_turn(turn) -%}
+{%- if turn %}
+<a href="{{ url_for('turns.turn', session_id=turn.session_id, start_us=turn.start_us) }}">&larr; back to the turn</a>
+{%- else %}
+<span class="disabled" title="This span landed in no turn — it is reachable by uuid and nowhere else.">&larr; no turn holds this span</span>
+{%- endif %}
+{%- endmacro %}
 {# The whole of a value, in a new tab (ADR 12). Drawn whether or not what is
    on the row was cut short: a reader cannot see that a value fits, only that
    it ends, and an icon that comes and goes is one to hunt for rather than

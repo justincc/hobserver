@@ -706,14 +706,23 @@ def skill():
     name = request.args.get("name") or None
     path = request.args.get("path") or None
     sel = request.args.get("sel") or None
+    span_uuid = request.args.get("span") or None
     raw = request.args.get("raw") is not None
+
+    # The turn this skill was opened from, for the "back to the turn" link —
+    # found by span uuid the same way the full-value page finds it. Best-effort:
+    # if the log is absent the skill still reads, the link just cannot point
+    # at a turn it could not assemble.
+    turn = None
+    if span_uuid and _source_problem() is None:
+        turn, _ = _find_span(_assembly()[0], span_uuid)
 
     # No roots configured (or pyyaml/config.yaml unreadable and no standard
     # root on disk): the feature is simply unavailable, said on its own page
     # rather than as a 404 that reads like a missing skill.
     if not roots:
         return render_template("turns/skill.html", available=False,
-                               skill_name=name), 404
+                               skill_name=name, turn=turn), 404
 
     skill_dir = skills.resolve_skill_dir(roots, name, path)
     if skill_dir is None:
@@ -756,6 +765,7 @@ def skill():
         rendered=rendered,
         frontmatter=frontmatter,
         read_problem=problem,
-        nav_params={"name": name, "path": path},
+        turn=turn,
+        nav_params={"name": name, "path": path, "span": span_uuid},
         raw=raw,
     )

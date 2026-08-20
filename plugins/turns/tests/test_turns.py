@@ -235,6 +235,29 @@ def test_skill_scope_links_to_the_skill_view(tmp_path):
         "/turns/turn/s1/1000000").get_data(as_text=True)
     assert ">view skill</a>" in page
     assert "/turns/skill?" in page and "name=github-pr-workflow" in page
+    # the span uuid rides along so the skill page can link back to this turn
+    assert "span=S1" in page
+
+
+def test_skill_page_links_back_to_its_turn(tmp_path):
+    # A skill resolvable under a root, opened from a real turn: the page shows
+    # "back to the turn" pointing at it, the same as the full-value page.
+    root = tmp_path / "skills"
+    (root / "alpha").mkdir(parents=True)
+    (root / "alpha" / "SKILL.md").write_text("# Alpha\n\nbody\n", encoding="utf-8")
+    atof = write_atof(tmp_path, [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("S1", "tool", 1_100_000, 1_300_000, name="skill_view",
+                     session="s1", turn="t1", start_data={"name": "alpha"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ])
+    app = make_app([{"plugin": "plugins.turns",
+                     "settings": {"atof_log": str(atof),
+                                  "skill_roots": [str(root)]}}])
+    page = app.test_client().get(
+        "/turns/skill?name=alpha&span=S1").get_data(as_text=True)
+    assert "back to the turn" in page
+    assert 'href="/turns/turn/s1/1000000"' in page
 
 
 def test_a_skill_scope_naming_no_skill_gets_no_link(tmp_path):

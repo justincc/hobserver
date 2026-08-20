@@ -67,7 +67,13 @@ check.
 SKILL.md renders through `fulltext.render` with raw HTML off, exactly as a
 prompt or a response does, and `?raw=1` shows its characters. A skill with no
 SKILL.md, or a render that raises, degrades to the text form and says why rather
-than failing — the same degradation path fulltext already has.
+than failing — the same degradation path fulltext already has. The link also
+carries the originating span's uuid, so the page finds the turn that span ran in
+(the same `_find_span` the full-value page uses) and links back to it through a
+shared `back_to_turn` macro — one "back to the turn" for both pages, not two.
+YAML frontmatter is held out of the markdown and shown verbatim: CommonMark
+reads a `key:` line closed by `---` as a setext heading, so the whole block
+would otherwise render as one bold heading.
 
 **The left-hand file list is built from the filesystem, not from the log.** Like
 ADR 12's `sections` contents list, the skill page carries a sidebar; unlike it,

@@ -8,7 +8,7 @@
    renderer's output with raw HTML disabled — see plugins/turns/fulltext.py
    for why that is the only trusted string on the page. #}
 {% extends "base.html" %}
-{% from "turns/_macros.html" import copy_btn %}
+{% from "turns/_macros.html" import copy_btn, back_to_turn %}
 {% block title %}{{ title }} · {{ span.name }} — Hobserver{% endblock %}
 {# No tab bar. This page is opened from a span, in its own tab, to read one
    thing; a row of tabs offering to navigate away from it is chrome for a
@@ -22,11 +22,7 @@
    fixed at prev/next, which this page has neither of. #}
 <nav class="event-nav">
   <span>
-    {%- if turn %}
-    <a href="{{ url_for('turns.turn', session_id=turn.session_id, start_us=turn.start_us) }}">&larr; back to the turn</a>
-    {%- else %}
-    <span class="disabled" title="This span landed in no turn — it is reachable by uuid and nowhere else.">&larr; no turn holds this span</span>
-    {%- endif %}
+    {{ back_to_turn(turn) }}
     <span class="nav-steps">
       {# No "all turns". This page is opened in its own tab from one span, so
          the only two places it owes a reader are where that span was and

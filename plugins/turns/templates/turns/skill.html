@@ -6,7 +6,7 @@
    `rendered.html`, the markdown renderer's output with raw HTML disabled, the
    same single trusted string as the full-value page. #}
 {% extends "base.html" %}
-{% from "turns/_macros.html" import copy_btn %}
+{% from "turns/_macros.html" import copy_btn, back_to_turn %}
 {% block title %}{{ skill_name or "skill" }} · skill — Hobserver{% endblock %}
 {# No tab bar: opened from a skill row to read one thing, like the full-value
    page. The heading still goes home. #}
@@ -15,13 +15,13 @@
 
 <nav class="event-nav">
   <span>
-    <a href="{{ url_for('turns.index') }}">&larr; all turns</a>
+    {{ back_to_turn(turn) }}
     <span class="nav-steps">
       {%- if rendered and rendered.kind == "markdown" %}
       {%- if raw %}
-      <a href="{{ url_for('turns.skill', name=nav_params.name, path=nav_params.path, sel=current) }}" title="Back to the rendered markdown.">rendered</a>
+      <a href="{{ url_for('turns.skill', name=nav_params.name, path=nav_params.path, span=nav_params.span, sel=current) }}" title="Back to the rendered markdown.">rendered</a>
       {%- else %}
-      <a href="{{ url_for('turns.skill', name=nav_params.name, path=nav_params.path, sel=current, raw=1) }}" title="The characters underneath, unrendered.">raw</a>
+      <a href="{{ url_for('turns.skill', name=nav_params.name, path=nav_params.path, span=nav_params.span, sel=current, raw=1) }}" title="The characters underneath, unrendered.">raw</a>
       {%- endif %}
       {%- endif %}
     </span>
@@ -51,7 +51,7 @@
       {%- for f in files %}
       <li>
         {%- if f.viewable %}
-        <a href="{{ url_for('turns.skill', name=nav_params.name, path=nav_params.path, sel=f.rel) }}"{% if f.rel == current %} class="nav-current" aria-current="true"{% endif %}>{{ f.rel }}</a>
+        <a href="{{ url_for('turns.skill', name=nav_params.name, path=nav_params.path, span=nav_params.span, sel=f.rel) }}"{% if f.rel == current %} class="nav-current" aria-current="true"{% endif %}>{{ f.rel }}</a>
         {%- else %}
         <span class="nav-inert" title="Not a text file — listed but not shown.">{{ f.rel }}</span>
         {%- endif %}
