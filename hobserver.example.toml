@@ -42,10 +42,8 @@ plugin = "plugins.turns"
 # docs/extending/writing-a-provider-spec.md.
 # settings = { provider_specs = ["hobserver_acme.providers"] }
 
-# The Mem0 tab is opt-in: it reads a mem0 event log most installs do not
-# produce, so it is not served by default. The log comes from the jmem0-logged
-# hermes plugin (https://github.com/justincc/jmem0-logged); uncomment this to
-# add the tab once you have it.
+# The Mem0 tab is opt-in: it reads a mem0 event log created by the jmem0-logged
+# hermes plugin (https://github.com/justincc/jmem0-logged).
 # [[plugins]]
 # plugin = "plugins.memory.mem0"
 # settings = { db = "$HERMES_HOME/jmem0_logged.db" }
