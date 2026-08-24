@@ -1677,11 +1677,12 @@ def test_unknown_mark_shows_its_payload(tmp_path):
 # payload, and none of it rendered before.
 
 
-def _llm_turn(tmp_path, end_data):
+def _llm_turn(tmp_path, end_data, start_data=None):
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
         *scope_lines("L1", "llm", 1_100_000, 1_600_000, name="openai-codex",
-                     session="s1", turn="t1", start_data={"headers": {}},
+                     session="s1", turn="t1",
+                     start_data=start_data or {"headers": {}},
                      end_data=end_data),
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
@@ -1854,6 +1855,52 @@ def test_llm_span_shows_short_text_whole_without_an_ellipsis(tmp_path):
     assert "Short reply." in page
     assert "Short reply.…" not in page
     assert "start of" not in page            # no size note anywhere any more
+
+
+# The reasoning effort is the one llm row read from the *request*, not the
+# response: `content.reasoning.effort` on the start payload — how hard the
+# model was asked to think.
+REASONING_ROW = (r'<div class="span-detail list-item">\s*'
+                 r'<span class="gen-key key-col"[^>]*>reasoning</span>\s*'
+                 r'<span class="row-value">([a-z]+)</span>\s*</div>')
+
+
+def _reasoning(effort):
+    """A start payload carrying the reasoning effort, as the codex route sends
+    it — `content.reasoning.effort` beside the rest of the request."""
+    return {"headers": {}, "content": {"reasoning": {"effort": effort}}}
+
+
+def test_llm_span_shows_the_reasoning_effort(tmp_path):
+    page = _llm_turn(tmp_path, {**_assistant("done"), "finish_reason": "stop"},
+                     start_data=_reasoning("medium"))
+    assert re.search(REASONING_ROW, page).group(1) == "medium"
+
+
+def test_llm_reasoning_effort_carries_its_key_in_the_key_column(tmp_path):
+    """It reads down with `response`, `prompt` and the finish reason, so it
+    reserves the same column — a value that started at its own edge would
+    break the group it belongs to."""
+    page = _llm_turn(tmp_path, {**_assistant("done"), "finish_reason": "stop"},
+                     start_data=_reasoning("high"))
+    assert re.search(r'<span class="gen-key key-col"[^>]*>reasoning</span>', page)
+
+
+def test_llm_reasoning_effort_is_detail_only(tmp_path):
+    """It sits under `response`, which is detail-only, so the row carries
+    `.list-item` and stays off the collapsed summary line."""
+    page = _llm_turn(tmp_path, {**_assistant("done"), "finish_reason": "stop"},
+                     start_data=_reasoning("low"))
+    assert re.search(REASONING_ROW, page), "reasoning row missing or not detail-only"
+
+
+def test_llm_reasoning_effort_is_absent_when_the_request_named_none(tmp_path):
+    """A request that carried no `reasoning` gets no row: the value is shown
+    as sent, never inferred, so nothing-said is not rendered as a level."""
+    page = _llm_turn(tmp_path, {**_assistant("done"), "finish_reason": "stop"})
+    # the token tree has its own `reasoning` row (a .mode-tag under `out`), so
+    # match the effort row by its key column rather than the bare word
+    assert not re.search(r'gen-key key-col"[^>]*>reasoning</span>', page)
 
 
 def test_llm_span_reports_tokens_including_cache_reads(tmp_path):

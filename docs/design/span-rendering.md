@@ -66,18 +66,22 @@ Payloads are opaque and read defensively even where the log has been uniform.
 
 ## llm scopes
 
-An llm span carries what the model decided, said and cost — all of it in the
-**end** event. The start payload is an empty `headers` dict and a `content`
-that is usually empty, so the generic fallback below has nothing to work with.
-This is one of the three scopes that keeps hand-written Jinja (`render="llm"`)
-— its token tree runs a separator state machine the spec vocabulary should not
-grow to absorb.
+An llm span carries what the model decided, said and cost — nearly all of it
+in the **end** event. The one thing read from the **start** event is the
+`reasoning` effort below: it is a request parameter, and the codex route
+carries the whole request in the start payload's `content`. The rest of the
+start payload is an empty `headers` dict and, on routes that send no request
+body, an empty `content` — so the generic fallback below has nothing to work
+with. This is one of the three scopes that keeps hand-written Jinja
+(`render="llm"`) — its token tree runs a separator state machine the spec
+vocabulary should not grow to absorb.
 
 The rows split by where the value comes from. `call_role` and `retry` are the
 span's **metadata** and stay `.mode-tag` chips on one line — faint monospace,
-no keys, because each is a word that names itself. The four below them are the
-**payload's** own values, and share the key column: `finish_reason`, `prompt`,
-`response`, `tool_calls`.
+no keys, because each is a word that names itself. The keyed rows below them
+share the key column: `finish_reason`, `prompt`, `response`, `reasoning`,
+`tool_calls` — the payload's own values, whether from the end event or, for
+`reasoning`, the start.
 
 **One rule holds down the whole span: a key is faint monospace, a value reads
 in the row's own font.** `.mode-tag` and `.gen-key` are keys; `.row-value` is
@@ -258,6 +262,20 @@ what it means is left to the tooltip that was always carrying it.
 
   It is not part of the spec vocabulary: a declared `Field` cannot ask for
   it, and the hand-written macro is its only user.
+- **How hard it was asked to think** — `reasoning`, detail-only, under
+  `response` and the **one row read from the start payload** rather than the
+  end: it is a request parameter, `content.reasoning.effort`
+  (`Span.reasoning_effort`). Shown verbatim — `low`, `medium`, `high` on the
+  codex route — and takes `.key-col` like the rows around it, but not `.wide`:
+  it is a short word like the finish reason, not one of the three long values
+  that share a right edge.
+
+  **Absent is not a level.** A request that named no `reasoning` gets no row,
+  not an inferred one. hermes-ui offers `None` and `Minimal` generically, but
+  a model like gpt-5.6 has neither effort, so both reach it as an omitted (or
+  `low`) reasoning — and a label here would claim a distinction the payload
+  does not carry. Across the whole log `effort` is only ever `low`, `medium`
+  or `high`; `minimal` and `none` never appear on the wire.
 - **The whole of either** — an open-in-a-new-tab icon at the end of both
   rows, leading to `/turns/span/<uuid>/prompt` and `…/response`
   ([ADR 12](adr/0012-open-a-whole-value-on-its-own-page.md)). The request

@@ -8,6 +8,17 @@ While the major version is `0`, the public surfaces (the plugin, scope-spec,
 and provider-spec vocabularies) may still change between releases — see
 `docs/design/design-principles.md`.
 
+## [Unreleased]
+
+### Added
+
+- **An llm span shows the reasoning effort it was asked for.** A `reasoning`
+  row under `response` names the request's `reasoning.effort` — `low`, `medium`
+  or `high` on the codex route — the one llm row read from the call's start
+  payload rather than its response. A request that named no reasoning level has
+  no row: the value is shown as sent, never as an inferred level. See
+  docs/design/span-rendering.md.
+
 ## [0.3.2] - 2026-08-20
 
 ### Added

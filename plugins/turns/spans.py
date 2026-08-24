@@ -422,6 +422,33 @@ class Span:
         prompt = self.request_prompt
         return _preview(prompt) if prompt else None
 
+    @property
+    def reasoning_effort(self) -> Optional[str]:
+        """How hard this call asked the model to think, e.g. "low".
+
+        A *request* parameter, so it is read from the call's own start
+        payload (`content.reasoning.effort`) rather than from what came
+        back — unlike everything else on the llm span, which is in the end
+        event. hermes sends it on the codex route as OpenAI's
+        `reasoning.effort`, and the values seen are "low", "medium" and
+        "high".
+
+        Absent is left absent: a request that named no `reasoning` at all
+        gets no value here, and the row does not render. hermes-ui's "None"
+        and "Minimal" both reach a model like gpt-5.6 — which has no such
+        effort — as an omitted (or "low") reasoning, so an inferred level
+        would claim a distinction the payload does not carry. What is shown
+        is what was sent.
+        """
+        content = _as_dict((_as_dict(self.start_data) or {}).get("content"))
+        if content is None:
+            return None
+        reasoning = _as_dict(content.get("reasoning"))
+        if reasoning is None:
+            return None
+        effort = reasoning.get("effort")
+        return effort if isinstance(effort, str) and effort else None
+
     # The two values the excerpts above are excerpts *of*, whole and
     # untruncated, for the page that shows one on its own (ADR 12). Both are
     # in the payloads the index leaves in the log, so both read as nothing

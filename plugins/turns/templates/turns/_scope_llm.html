@@ -110,6 +110,24 @@
     now the ellipsis says there is more and the text itself opens it, and a
     figure nobody acts on is a row that costs a line and returns nothing. #}
 {% endif %}
+{# How hard the call asked the model to think. Unlike everything around it
+   this is a *request* value — `content.reasoning.effort` on the start
+   payload — so it sits under `response` as the one thing here read from the
+   call's input rather than its output. Shown verbatim, never as an inferred
+   level: a request that named no reasoning has no row, because "None" and
+   "Minimal" in hermes-ui both reach a model like gpt-5.6 as an omitted or
+   "low" reasoning, and a label here would claim a distinction the payload
+   does not carry. Detail-only, like `response` above it. #}
+{% if s.reasoning_effort %}
+<div class="span-detail list-item">
+  <span class="gen-key key-col" title="The reasoning effort this call was sent — `reasoning.effort` on its request, how hard the model was asked to think. Shown as the payload gives it (`low`, `medium`, `high` on the codex route); a request that named no reasoning level has no row rather than an inferred one.">reasoning</span>
+  {#- .row-value, not .mode-tag: a payload value like `finish_reason`, reading
+      in the row's own font rather than the faint monospace the metadata chips
+      take. No .wide — it is a short word like the finish reason, not one of
+      the three long values that share a right edge. #}
+  <span class="row-value">{{ s.reasoning_effort }}</span>
+</div>
+{% endif %}
 {# What the model asked to run, under `response` because both are what came
    back — the words and the calls, in that order.
 
