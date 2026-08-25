@@ -16,6 +16,14 @@
   <code>hobserver.toml</code>.
 </p>
 {% else %}
+<table class="source-meta">
+  <tr><th>Source</th><th>Last event</th><th>Size</th></tr>
+  <tr>
+    <td class="path"><span title="{{ atof_path }}">&lrm;{{ atof_path }}&lrm;</span></td>
+    <td>{{ last_us | us_time }} UTC</td>
+    <td>{{ atof_size | bytes_human }} · {{ "{:,}".format(atof_entries) }} entries</td>
+  </tr>
+</table>
 {% include "turns/_problems.html" %}
 {% include "turns/_inflight.html" %}
 {% if not turns %}
@@ -30,14 +38,6 @@
   {% endif %}
 </p>
 {% else %}
-<table class="source-meta">
-  <tr><th>Source</th><th>Last event</th><th>Size</th></tr>
-  <tr>
-    <td class="path"><span title="{{ atof_path }}">&lrm;{{ atof_path }}&lrm;</span></td>
-    <td>{{ last_us | us_time }} UTC</td>
-    <td>{{ atof_size | bytes_human }} · {{ "{:,}".format(atof_entries) }} entries</td>
-  </tr>
-</table>
 {# One line per turn. Column classes (not position) carry the widths: every
    column takes its content and the prompt (col-prompt) fills the rest,
    ellipsized — see base.html. #}
