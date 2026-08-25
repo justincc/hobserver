@@ -418,31 +418,42 @@ def test_a_render_scope_yields_no_rows_and_names_its_macro():
 # --- a tab contributes its own specs (ADR 10) ------------------------
 
 
-def build_app(mem0=True, turns_settings=None):
+def isolated_turns_settings(tmp_path):
+    """Turns settings that point at an empty log in a tmp dir. These tests
+    build the *real* app to exercise the spec-contribution path, but the tab
+    warms its index at registration — so without this each one would re-read
+    the operator's actual (multi-GB, live) ATOF log, tens of seconds apiece.
+    A path that does not exist is a source problem, not an index to build."""
+    return {"atof_log": str(tmp_path / "empty.jsonl"),
+            "index_db": str(tmp_path / "index.sqlite3")}
+
+
+def build_app(tmp_path, mem0=True, turns_settings=None):
     """An app with the real tabs, so the contribution path is exercised end
     to end rather than mocked."""
     import app as app_module
     import tabs as tabs_module
 
-    specs = [tabs_module.TabSpec(plugin="plugins.turns",
-                                 settings=turns_settings or {})]
+    specs = [tabs_module.TabSpec(
+        plugin="plugins.turns",
+        settings=turns_settings or isolated_turns_settings(tmp_path))]
     if mem0:
         specs.append(tabs_module.TabSpec(plugin="plugins.memory.mem0"))
     return app_module.create_app(tabs_module.load_tabs(specs))
 
 
-def test_the_mem0_tab_contributes_its_own_span_rendering():
+def test_the_mem0_tab_contributes_its_own_span_rendering(tmp_path):
     """The specs live in plugins/memory/mem0/scopes.py and arrive because that
     tab loaded, not because the Turns tab knows about mem0."""
-    table = build_app(mem0=True).config["SCOPE_SPECS"]
+    table = build_app(tmp_path, mem0=True).config["SCOPE_SPECS"]
     for name in ("mem0_search", "mem0_add", "mem0_update", "mem0_delete"):
         assert name in table.by_name, name
 
 
-def test_disabling_the_tab_takes_its_specs_with_it():
+def test_disabling_the_tab_takes_its_specs_with_it(tmp_path):
     """The reason spec lifetime is tied to the tab: a link into a page nobody
     serves must not be left behind."""
-    table = build_app(mem0=False).config["SCOPE_SPECS"]
+    table = build_app(tmp_path, mem0=False).config["SCOPE_SPECS"]
     assert not [n for n in table.by_name if n.startswith("mem0")]
     assert "terminal" in table.by_name          # the rest is unaffected
 
@@ -477,14 +488,15 @@ def test_the_turns_tab_depends_on_no_other_plugin():
                 assert "mem0" not in node.value, f"line {node.lineno}: {node.value!r}"
 
 
-def test_contributed_specs_are_collected_before_any_tab_registers():
+def test_contributed_specs_are_collected_before_any_tab_registers(tmp_path):
     """A painting tab resolves its table in init_app, during registration —
     so collection has to happen first, whatever order the config lists."""
     for mem0_first in (True, False):
         import app as app_module
         import tabs as tabs_module
         specs = [tabs_module.TabSpec(plugin="plugins.memory.mem0"),
-                 tabs_module.TabSpec(plugin="plugins.turns")]
+                 tabs_module.TabSpec(plugin="plugins.turns",
+                                     settings=isolated_turns_settings(tmp_path))]
         if not mem0_first:
             specs.reverse()
         app = app_module.create_app(tabs_module.load_tabs(specs))
