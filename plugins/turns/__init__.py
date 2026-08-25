@@ -426,6 +426,24 @@ def spec_link(endpoint, params):
         return None
 
 
+@bp.app_template_filter("bytes_human")
+def bytes_human(n):
+    """A byte count in the largest unit that keeps it short: 3.2 GB, 48 MB,
+    900 KB, 512 B. Decimal (1000-based) units, and one decimal place only
+    where it adds information — below 10 in the chosen unit."""
+    if n is None:
+        return "—"
+    size = float(n)
+    units = ("B", "KB", "MB", "GB", "TB", "PB")
+    for unit in units:
+        if size < 1000 or unit == units[-1]:
+            if unit == "B":
+                return f"{int(size)} {unit}"
+            return f"{size:.1f} {unit}" if size < 10 else f"{size:.0f} {unit}"
+        size /= 1000
+    return f"{size:.0f} {units[-1]}"
+
+
 @bp.app_template_filter("us_time")
 def us_time(us):
     if us is None:
@@ -523,10 +541,16 @@ def index():
     )
     last_us = max((s.last_us for s in assembly.sessions
                    if s.last_us is not None), default=None)
+    atof_path = current_app.config["ATOF_PATH"]
+    # refresh() is the same cheap call _assembly just made; it carries the
+    # count of log lines the index has read — one entry per JSONL line.
+    index_state = get_index().refresh()
     return render_template(
         "turns/index.html",
         state="ok",
-        atof_path=current_app.config["ATOF_PATH"],
+        atof_path=atof_path,
+        atof_size=os.path.getsize(atof_path),
+        atof_entries=index_state.indexed_lines,
         turns=turns,
         last_us=last_us,
         inflight=_inflight_entries(assembly),

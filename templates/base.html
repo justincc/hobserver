@@ -98,7 +98,7 @@
     table.source-meta { width: auto; font-size: 0.85rem; margin-bottom: 0.75rem; }
     table.source-meta th, table.source-meta td { border: 0; padding: 0.1rem 0; text-align: left; vertical-align: baseline; }
     table.source-meta th { font-weight: 600; color: #555; white-space: nowrap; }
-    table.source-meta tr > :first-child { padding-right: 1.5rem; }
+    table.source-meta th:not(:last-child), table.source-meta td:not(:last-child) { padding-right: 2rem; }
     /* The path clips to at most a quarter of the viewport, keeping its end: the
        inner inline-block bounds the width (a td's max-width is unreliable under
        table layout), and rtl + the template's &lrm; guards put the ellipsis on

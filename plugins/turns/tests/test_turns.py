@@ -90,6 +90,26 @@ def test_index_orders_turns_newest_first(tmp_path):
     assert page.index('/turns/turn/s1/10000000"') < page.index('/turns/turn/s1/1000000"')
 
 
+def test_bytes_human_picks_a_sensible_unit():
+    from plugins.turns import bytes_human
+    assert bytes_human(512) == "512 B"
+    assert bytes_human(900_000) == "900 KB"
+    assert bytes_human(48_000_000) == "48 MB"
+    assert bytes_human(3_200_000_000) == "3.2 GB"     # one decimal below 10
+    assert bytes_human(None) == "—"
+
+
+def test_index_reports_log_size_and_entry_count(tmp_path):
+    from plugins.turns import bytes_human
+    atof = write_atof(tmp_path, two_turn_stream())
+    page = make_client(tmp_path, str(atof)).get("/turns/").get_data(as_text=True)
+    # one entry per JSONL line, and the file's size in a human unit
+    n = len(atof.read_text().splitlines())
+    assert f"{n:,} entries" in page
+    assert bytes_human(atof.stat().st_size) in page
+    assert "<th>Size</th>" in page
+
+
 def test_turn_detail_renders_waterfall_bars(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/turns/turn/s1/1000000").get_data(as_text=True)

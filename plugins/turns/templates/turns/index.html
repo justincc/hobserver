@@ -31,10 +31,11 @@
 </p>
 {% else %}
 <table class="source-meta">
-  <tr><th>Source</th><th>Last event</th></tr>
+  <tr><th>Source</th><th>Last event</th><th>Size</th></tr>
   <tr>
     <td class="path"><span title="{{ atof_path }}">&lrm;{{ atof_path }}&lrm;</span></td>
     <td>{{ last_us | us_time }} UTC</td>
+    <td>{{ atof_size | bytes_human }} · {{ "{:,}".format(atof_entries) }} entries</td>
   </tr>
 </table>
 {# One line per turn. Column classes (not position) carry the widths: every
