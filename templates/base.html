@@ -91,6 +91,21 @@
     p.notice { background: #f4f5f8; padding: 1rem; border-radius: 6px; }
     p.notice.warn { background: #fdf0ef; border: 1px solid #e0b4b4; }
     p.meta { color: #555; font-size: 0.85rem; }
+    /* An invisible source line: keys across the top row, their values beneath.
+       Sizes to its content (not the full-width table default). No cell borders
+       (the global th,td rule draws them) — this is a layout aid, not a data
+       table. Values inherit the keys' font; a gap sets the columns apart. */
+    table.source-meta { width: auto; font-size: 0.85rem; margin-bottom: 0.75rem; }
+    table.source-meta th, table.source-meta td { border: 0; padding: 0.1rem 0; text-align: left; vertical-align: baseline; }
+    table.source-meta th { font-weight: 600; color: #555; white-space: nowrap; }
+    table.source-meta tr > :first-child { padding-right: 1.5rem; }
+    /* The path clips to at most a quarter of the viewport, keeping its end: the
+       inner inline-block bounds the width (a td's max-width is unreliable under
+       table layout), and rtl + the template's &lrm; guards put the ellipsis on
+       the left while the path still reads left-to-right. Full path is in the title. */
+    table.source-meta td.path span { display: inline-block; max-width: 25vw;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        direction: rtl; text-align: left; vertical-align: bottom; }
     details.problems { background: #fdf0ef; border: 1px solid #e0b4b4; border-radius: 6px; padding: 0.6rem 1rem; margin-bottom: 1rem; font-size: 0.9rem; }
     details.problems summary { cursor: pointer; font-weight: 600; }
     /* prompt-timing waterfall. Series colors validated (dataviz six checks,

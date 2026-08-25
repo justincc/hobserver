@@ -30,7 +30,13 @@
   {% endif %}
 </p>
 {% else %}
-<p class="meta">Source <code>{{ atof_path }}</code> · last event {{ last_us | us_time }} UTC</p>
+<table class="source-meta">
+  <tr><th>Source</th><th>Last event</th></tr>
+  <tr>
+    <td class="path"><span title="{{ atof_path }}">&lrm;{{ atof_path }}&lrm;</span></td>
+    <td>{{ last_us | us_time }} UTC</td>
+  </tr>
+</table>
 {# One line per turn. Column classes (not position) carry the widths: every
    column takes its content and the prompt (col-prompt) fills the rest,
    ellipsized — see base.html. #}
