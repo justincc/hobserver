@@ -194,30 +194,59 @@ def _identity(skill_dir: str) -> Optional[str]:
 
 
 def _find_by_name(roots, name: str) -> Optional[str]:
-    """A skill directory whose declared name, or failing that whose directory
-    basename, equals `name`. Identity wins so a namespaced skill is found even
-    where its directory is called `src` or `skill`."""
-    fallback = None
+    """A skill directory matched to `name`, by one of three keys in order of
+    reliability: its declared identity, its path relative to the root it sits
+    under, or its directory basename.
+
+    Identity wins so a namespaced skill is found even where its directory is
+    called `src` or `skill`. The relative path is what hermes writes when a
+    skill lives under a category dir — `skill_view(name='finance/crypto-analysis')`
+    for `<root>/finance/crypto-analysis`, whose declared name is only
+    `crypto-analysis` — and it is preferred over the basename so that form
+    reaches the skill under `finance/` rather than a same-named skill
+    elsewhere."""
+    by_relpath = None
+    by_basename = None
     for root in roots:
         for skill_dir in _skill_dirs(root):
             if _identity(skill_dir) == name:
                 return skill_dir
-            if fallback is None and os.path.basename(skill_dir) == name:
-                fallback = skill_dir
-    return fallback
+            if by_relpath is None and os.path.relpath(skill_dir, root) == name:
+                by_relpath = skill_dir
+            if by_basename is None and os.path.basename(skill_dir) == name:
+                by_basename = skill_dir
+    return by_relpath or by_basename
+
+
+def _dir_for_contained_path(cand: str, roots) -> Optional[str]:
+    """The skill directory holding `cand`, or None if it is inside no root.
+    `cand` names a skill's tree (or a file within it) directly, so it resolves
+    by containment: its manifest dir, or the child of the root on the way to
+    it."""
+    root = containing_root(cand, roots)
+    if root is None:
+        return None
+    real = _real(cand)
+    return _manifest_dir(real, root) or _child_of_root(real, root)
 
 
 def resolve_skill_dir(roots, name: Optional[str],
                       path: Optional[str]) -> Optional[str]:
     """The skill directory a scope points at, or None if it is not inside any
-    root. A contained `path` is the reliable key — it names the skill's tree
-    directly; a bare `name` is the fallback, resolved by scanning the roots."""
-    if path:
-        root = containing_root(path, roots)
-        if root is not None:
-            real = _real(path)
-            return _manifest_dir(real, root) or _child_of_root(real, root)
-    if name:
+    root.
+
+    A contained `path` is the reliable key — it names the skill's tree
+    directly. An absolute `name` is really a path too: the model sometimes puts
+    the skill's location where its name belongs, so it is resolved by
+    containment as well, and thus never lands on a same-named skill elsewhere
+    that a bare-name scan would match by basename. A relative `name` is the
+    fallback, resolved by scanning the roots."""
+    for cand in (path, name if name and os.path.isabs(name) else None):
+        if cand:
+            found = _dir_for_contained_path(cand, roots)
+            if found is not None:
+                return found
+    if name and not os.path.isabs(name):
         return _find_by_name(roots, name)
     return None
 

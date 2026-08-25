@@ -106,6 +106,48 @@ def test_resolve_by_name_falls_back_to_basename(tmp_path):
     assert skills.resolve_skill_dir(roots, "events-hunter", None) == os.path.realpath(d)
 
 
+def test_resolve_by_a_category_qualified_name_finds_the_skill(tmp_path):
+    # hermes writes `category/skill` for a skill under a category dir, whose
+    # own declared name is only the last part — matching that alone would 404.
+    root = tmp_path / "root"
+    d = make_skill(root / "finance", "crypto-analysis", identity="crypto-analysis")
+    roots = [os.path.realpath(root)]
+    assert skills.resolve_skill_dir(
+        roots, "finance/crypto-analysis", None) == os.path.realpath(d)
+
+
+def test_resolve_prefers_the_qualified_path_over_a_same_named_basename(tmp_path):
+    # Two skills share the basename; the category-qualified name must reach the
+    # one under `finance/`, not the bare one it would match by basename.
+    root = tmp_path / "root"
+    make_skill(root, "crypto-analysis", identity="other")
+    want = make_skill(root / "finance", "crypto-analysis", identity="declared")
+    roots = [os.path.realpath(root)]
+    assert skills.resolve_skill_dir(
+        roots, "finance/crypto-analysis", None) == os.path.realpath(want)
+
+
+def test_resolve_treats_an_absolute_name_as_a_contained_path(tmp_path):
+    # The model sometimes passes a skill's location where its name belongs. An
+    # absolute name must resolve by containment to the skill at that location,
+    # not to a same-named skill matched by basename.
+    root = tmp_path / "root"
+    make_skill(root, "crypto-analysis", identity="bare")
+    want = make_skill(root / "vendor", "crypto-analysis", identity="declared")
+    roots = [os.path.realpath(root)]
+    assert skills.resolve_skill_dir(
+        roots, str(want), None) == os.path.realpath(want)
+
+
+def test_resolve_refuses_an_absolute_name_outside_every_root(tmp_path):
+    # An absolute name pointing outside the roots is a 404, never a fall-through
+    # to a same-named skill that happens to sit inside one.
+    root = tmp_path / "root"
+    make_skill(root, "crypto-analysis")
+    outside = tmp_path / "outside" / "crypto-analysis"
+    assert skills.resolve_skill_dir([os.path.realpath(root)], str(outside), None) is None
+
+
 def test_resolve_returns_none_for_a_path_outside_every_root(tmp_path):
     root = tmp_path / "root"
     make_skill(root, "alpha")
