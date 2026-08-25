@@ -9,6 +9,10 @@
    for why that is the only trusted string on the page. #}
 {% extends "base.html" %}
 {% from "turns/_macros.html" import copy_btn, back_to_turn %}
+{# The very macro the turn page renders this call's row with, so the facts here
+   and there are one piece of code and cannot drift (the request that asked for
+   this page). #}
+{% from "turns/_scope_llm.html" import llm_rows %}
 {% block title %}{{ title }} · {{ span.name }} — Hobserver{% endblock %}
 {# No tab bar. This page is opened from a span, in its own tab, to read one
    thing; a row of tabs offering to navigate away from it is chrome for a
@@ -44,30 +48,69 @@
   </span>
 </nav>
 
-{# Boxed, so none of it can be mistaken for the value below — which opens on
-   a heading of its own, written by the model. The heading, the facts and the
-   provenance are all this app talking, and they say so by sitting in a panel
-   the rendered markdown never uses. #}
-<header class="full-head{% if rendered.sections %} wide{% endif %}">
-  <h2>{{ title }}</h2>
+{# The page's own words, captured once and placed with the value below rather
+   than above the whole two-column layout — so on a sections page they sit in
+   the same column as the messages, with the contents list running up their
+   left, instead of stretching across both. Two panels, because the page is
+   about two things: the value the reader opened it for, and the call it came
+   from. #}
+{% set lead %}
+{# The value leads — its own name, size and provenance, because it is what the
+   page is. "Full prompt" / "Full response", not just "Prompt": the Summary box
+   below holds an *excerpt* named `prompt`, and this is the whole of it, so the
+   two need telling apart. Its own panel, warm-shaded rather than the blue
+   every other piece of chrome uses (the Summary box, the message boxes, their
+   labels), so it stands out as the one thing about the value and not the
+   call. #}
+<div class="full-value-head">
+  <h2>Full {{ title | lower }}</h2>
+  {%- set facts = [] %}
+  {%- if rendered.chars %}{% set _ = facts.append('{:,}'.format(rendered.chars) + ' chars') %}{% endif %}
+  {#- "messages" rather than a neutral word for a section: the one sections
+      value this tab has is a request, and its parts are messages. #}
+  {%- if rendered.sections %}{% set _ = facts.append((rendered.sections | length) | string + ' message' + ('' if rendered.sections | length == 1 else 's')) %}{% endif %}
+  {%- if rendered.kind in ("json", "text") and rendered.text is not none %}{% set _ = facts.append('shown as ' + rendered.kind) %}{% endif %}
+  {%- if facts %}<p class="meta">{{ facts | join(' · ') }}</p>{% endif %}
+  {# Where this came from and whether this app reshaped it on the way (design
+     principle 2). Always shown: a page of prose with no provenance reads as
+     something hermes wrote, which for a reconstruction would be untrue. #}
+  {% if note %}<p class="meta prov">{{ note }}</p>{% endif %}
+</div>
+
+{# Then the CALL — its identity, then the very detail strip the turn page
+   shows on its row (`llm_rows`), so the two views can never say different
+   things about one call. Boxed in the app's blue, chrome like everything but
+   the value's own heading above. `id="summary"` is the anchor the contents
+   list's own entry lands on. #}
+<header class="full-head" id="summary">
+  <h2>Summary</h2>
   <p class="meta">
     {{ span.name }}{% if span.model_name %} · {{ span.model_name }}{% endif %}
-    {%- if span.call_role %} · <span class="mode-tag" title="What this call was for, when it was not the ordinary one.">{{ span.call_role }}</span>{% endif %}
+    {#- call_role is llm metadata, and for an llm span the summary strip below
+        carries it (with retry, and fuller tooltips) — so it is shown here only
+        for a span that has no such strip. #}
+    {%- if span.call_role and not span.is_llm %} · <span class="mode-tag" title="What this call was for, when it was not the ordinary one.">{{ span.call_role }}</span>{% endif %}
     · {{ span.start_us | us_time }} UTC
-    {%- if rendered.chars %} · {{ '{:,}'.format(rendered.chars) }} chars{% endif %}
-    {#- "messages" rather than a neutral word for a section: the one sections
-        value this tab has is a request, and its parts are messages. A scope
-        of someone else's whose sections are something else reads slightly
-        oddly here — the labels on the boxes say what they really are. #}
-    {%- if rendered.sections %} · {{ rendered.sections | length }} message{{ "" if rendered.sections | length == 1 else "s" }}{% endif %}
-    {%- if rendered.kind in ("json", "text") and rendered.text is not none %} · shown as {{ rendered.kind }}{% endif %}
     <span class="span-uuid">· {{ span.uuid }}{{ copy_btn(span.uuid, "copy span uuid") }}</span>
   </p>
-  {# Where this came from and whether this app reshaped it on the way (design
-     principle 2). It is one line and it is always shown: a page of prose with
-     no provenance reads as something hermes wrote, which for a
-     reconstruction would be untrue. #}
-  {% if note %}<p class="meta prov">{{ note }}</p>{% endif %}
+  {# The same facts the turn page shows on this call's own waterfall row —
+     finish_reason, the reasoning effort, the token tree, the tool calls —
+     from the same `llm_rows` macro, so the two views can never say different
+     things about one call. Only for an llm span: no other scope declares a
+     `Full` today, but a contributed one might, and its page has no such strip
+     to show.
+
+     `full=none`: on the turn page each excerpt carries an open-in-a-new-tab
+     icon to *this* page, because a row can only excerpt. Here the whole value
+     is already below, so the excerpts are context, not links onward.
+
+     `.llm-summary` is what adapts the row to a page with no waterfall: outside
+     the table the detail layout is already the default, so all it has to undo
+     is the summary-line separators, which have no collapsed row to belong to
+     (see base.html). #}
+  {% if span.is_llm %}
+  <div class="llm-summary">{{ llm_rows(span) }}</div>
+  {% endif %}
 </header>
 
 {# The payload lives in the log and was read back for this one span (ADR 11).
@@ -77,10 +120,10 @@
 <p class="notice warn">The payload could not be re-read from the log, so this
   may be only the part the index kept — {{ span.payload_problem }}</p>
 {% endif %}
-
 {% if rendered.problem %}
 <p class="notice warn">{{ rendered.problem }}</p>
 {% endif %}
+{% endset %}
 
 {# A value made of labelled parts — the messages of a request. Each label is
    this app's and each body is not, so the label is drawn as chrome above a
@@ -113,7 +156,7 @@
 {% if rendered.sections %}
 <div class="full-body">
   {%- if rendered.sections | length > 1 %}
-  <nav class="msg-nav" aria-label="Messages">
+  <nav class="msg-nav" aria-label="Contents">
     {#- Named for where it goes, not for what is there. The page's title was
         tried and is wrong: every entry below is a part of the Prompt, so a
         "Prompt" entry among them reads as one more part rather than as the
@@ -126,6 +169,11 @@
         below that heading, which is short of the top and reads as a bug. #}
     <a class="nav-top" href="#top">&uarr; top</a>
     <ul>
+      {#- The Summary box is in the column too, above the messages, so the
+          list leads with it. Mixed case, not the messages' upper — it is this
+          app's own section, not a wire message, and reads as a different kind
+          of thing. `#summary` is on the box. #}
+      <li class="nav-summary"><a href="#summary">Summary</a></li>
       {%- for part in rendered.sections %}
       <li{% if part.nested %} class="nav-nested"{% endif %}><a href="#m{{ loop.index }}">{{ part.label }}</a></li>
       {%- endfor %}
@@ -133,6 +181,7 @@
   </nav>
   {%- endif %}
   <div class="full-sections">
+{{ lead }}
 {% for part in rendered.sections %}
 <section id="m{{ loop.index }}" class="msg{% if part.nests %} msg-nests{% endif %}{% if part.nested %} msg-nested{% endif %}">
   <div class="msg-label">{{ part.label }}</div>
@@ -148,12 +197,15 @@
   </div>
 </div>
 {% elif rendered.text is none %}
+{{ lead }}
 <p class="notice warn">Nothing under this key in the payload. The span carried
   no <code>{{ full.key }}</code> — an in-flight call whose end has not arrived
   yet, or a payload that never held one.</p>
 {% elif raw or rendered.kind != "markdown" %}
+{{ lead }}
 <pre class="blob full-blob">{{ rendered.text }}</pre>
 {% else %}
+{{ lead }}
 <div class="md-body">{{ rendered.html | safe }}</div>
 {% endif %}
 {% endblock %}

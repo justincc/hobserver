@@ -411,6 +411,50 @@ what it means is left to the tooltip that was always carrying it.
   `Full`s on the llm scope, which is keyed by *category*, so a compaction, a
   delegated subagent call and a fallback retry each carry the same pair.
 
+  **The page carries two headings, because it is about two things.** The value
+  came from a call, and the two are different subjects: the page splits them
+  into two stacked panels rather than piling both into one. The value leads,
+  because it is what the reader opened the page for.
+
+  **The panels sit in the value's column, not across the page.** On a sections
+  page (the request) they are inside `.full-sections`, above the messages, so
+  the contents list runs up their left from the top of the page and the panels
+  fill the column beside it as the message boxes do — rather than stretching
+  across both. The contents list leads with a **Summary** entry pointing at the
+  Summary box (`#summary`), set in mixed case where the message entries are
+  upper, because it is this app's own section and not a wire message. Over one
+  document (the response page, which has no column) the panels keep reading
+  width above the prose.
+
+  - **The value heading** (`.full-value-head`) leads — the *value*: "Full
+    prompt" / "Full response", named apart from the `prompt` excerpt in the
+    Summary box below because this is the whole of it, and carrying its size
+    and provenance, which describe the value and not the call. It is
+    **warm-shaded**, the one panel that is not blue: the Summary box, the
+    message boxes and their labels are all blue chrome, so the warm tint sets
+    the value's own heading apart from every part of the page that is about the
+    call.
+  - **The Summary box** (`.full-head`) follows — the *call*: its identity on
+    one meta line (span name, model, time, uuid), then the whole detail strip
+    the turn page shows on this call's row. That strip is the same `llm_rows`
+    macro, so the two views can never disagree about one call: finish_reason,
+    the reasoning effort, the token tree, the tool calls, the prompt and
+    response excerpts. Rendered with `full=none` — on the turn row each
+    excerpt's icon opens *this* page, but here the whole value is already
+    below, so the excerpts are context, not links onward. Shown for any
+    `Span.is_llm` page (no other scope declares a `Full` today, but a
+    contributed one might, and its page has no such strip); the box withholds
+    its own `call_role` line for an llm span, since the strip carries it with
+    `retry`. A `.llm-summary` wrapper is all that adapts the row to a page with
+    no waterfall — the collapse rules are scoped to the table, so the detail
+    layout is already the default outside it, and the only thing to undo is the
+    summary-line separators (base.html).
+
+  Neither panel is boxed away from the value by accident: the response value
+  can open on a heading the model wrote, and the blue Summary box directly
+  above it is unmistakably chrome, so that heading is never read as the box's
+  continuation.
+
   The icon does not wait for a value to be truncated: a reader cannot see
   that a value fits, only that it ends. The response icon is absent only
   when the model said nothing at all, since then there is nothing behind it.

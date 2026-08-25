@@ -2162,13 +2162,13 @@ REQUEST = {"annotated_request": {
 
 
 def _llm_client(tmp_path, *, profile=REQUEST, end_data=None, metadata_role=None,
-                uuid="L1"):
+                uuid="L1", start_data=None):
     """A client over one turn holding one llm span."""
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
         *scope_lines(uuid, "llm", 1_100_000, 1_600_000, name="openai-codex",
                      session="s1", turn="t1", profile=profile,
-                     start_data={"headers": {}},
+                     start_data=start_data or {"headers": {}},
                      end_data=end_data or _assistant("## Done\n\nall of it")),
         mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
     ]
@@ -2249,7 +2249,7 @@ def test_the_full_page_renders_the_response_as_markdown(tmp_path):
         "/turns/span/L1/response").get_data(as_text=True)
     assert '<div class="md-body">' in page
     assert "<h2>Done</h2>" in page          # rendered, not the literal ##
-    assert "<h2>Response</h2>" in page      # …and the page's own heading
+    assert "<h2>Full response</h2>" in page  # …and the value's own heading
 
 
 def test_the_full_page_renders_the_whole_request(tmp_path):
@@ -2348,6 +2348,63 @@ def test_a_full_page_carries_no_live_poll(tmp_path):
         "/turns/span/L1/response").get_data(as_text=True)
     # in a tag, not in base.html's script explaining the attribute
     assert not re.search(r"<[a-z][^>]*\sdata-live-poll=", page)
+
+
+# The full-value page carries the same facts the turn row does, from the same
+# `llm_rows` macro, so the two can never drift about one call.
+
+
+def _facts_end_data():
+    return {**_assistant("## Done\n\nall of it", "read_file", "terminal"),
+            "finish_reason": "complete",
+            "usage": {"prompt_tokens": 20897, "output_tokens": 719,
+                      "cache_read_tokens": 18432, "reasoning_tokens": 124,
+                      "request_count": 1}}
+
+
+def test_the_full_page_shows_the_calls_facts(tmp_path):
+    """finish_reason, the reasoning effort, the token tree and the tool calls
+    — the row's information, at the top of the page its icon opens."""
+    page = _llm_client(tmp_path, end_data=_facts_end_data(),
+                       start_data=_reasoning("high")).get(
+        "/turns/span/L1/prompt").get_data(as_text=True)
+    # the value body uses .msg / .md-body, so every .span-detail row on this
+    # page is the summary block — the facts can be asserted on the page itself
+    assert '<div class="llm-summary">' in page
+    assert re.search(FIN_ROW, page).group(1) == "complete"
+    assert re.search(REASONING_ROW, page).group(1) == "high"
+    figures = _token_figures(page)                          # the token tree
+    assert "prompt 20,897" in figures and "reasoning 124" in figures
+    assert "read_file" in page and "terminal" in page       # the tool calls
+
+
+def test_the_full_page_facts_are_the_same_markup_as_the_turn_row(tmp_path):
+    """One macro renders both, so the reasoning row is byte-for-byte the same
+    on the turn page and here — the guarantee that they cannot disagree."""
+    client = _llm_client(tmp_path, end_data=_facts_end_data(),
+                         start_data=_reasoning("medium"))
+    turn = client.get("/turns/turn/s1/1000000").get_data(as_text=True)
+    full = client.get("/turns/span/L1/prompt").get_data(as_text=True)
+    on_turn = re.search(REASONING_ROW, turn).group(0)
+    on_full = re.search(REASONING_ROW, full).group(0)
+    assert on_turn == on_full
+
+
+def test_the_full_page_does_not_repeat_the_call_role(tmp_path):
+    """The role is llm metadata the summary block carries; the generic header
+    withholds it for an llm span so it is not printed twice."""
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L1", "llm", 1_100_000, 1_600_000, name="openai-codex",
+                     session="s1", turn="t1", profile=REQUEST,
+                     start_data={"headers": {}}, end_data=_assistant("done")),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    lines[1] = lines[1].replace(
+        '"metadata": {', '"metadata": {"call_role": "delegated", ')
+    client = make_client(tmp_path, str(write_atof(tmp_path, lines)))
+    page = client.get("/turns/span/L1/prompt").get_data(as_text=True)
+    assert page.count(">delegated<") == 1       # in the block, not also the head
 
 
 def test_a_span_no_turn_claimed_is_still_readable(tmp_path):
@@ -2455,33 +2512,52 @@ def test_the_raw_link_leads_back_to_the_rendered_view(tmp_path):
 
 
 def test_the_pages_own_words_are_boxed_apart_from_the_value(tmp_path):
-    """The value opens on a heading the model wrote. Everything this app says
-    — the title, the facts, the provenance — sits in a panel above it, so
-    none of it can be read as the value's own first lines."""
+    """Everything this app says sits in a marked container — the Summary box
+    (the call) or the value's own heading (`.full-value-head`) — never bare
+    above the value, which can open on a heading the model wrote. The two
+    containers split by subject: the call's identity in the box, the value's
+    name and provenance in the heading."""
     page = _llm_client(tmp_path).get(
         "/turns/span/L1/prompt").get_data(as_text=True)
-    head = re.search(r'<header class="full-head[^"]*">.*?</header>', page, re.S)
-    assert head, "the header panel is missing"
-    head = head.group(0)
-    assert "<h2>Prompt</h2>" in head             # the heading
-    assert "openai-codex" in head                # the facts
-    assert "annotated_request" in head           # the provenance
-    # and nothing of ours loose between the panel and the first message box.
-    # The contents list is allowed there: it is a <nav> of links, structured
-    # chrome rather than prose, and cannot be read as the value's own words.
+    box = re.search(r'<header class="full-head[^"]*"[^>]*>.*?</header>', page, re.S)
+    assert box, "the Summary box is missing"
+    box = box.group(0)
+    assert "<h2>Summary</h2>" in box             # the call, named
+    assert "openai-codex" in box                 # its identity
+    vhead = re.search(r'<div class="full-value-head[^"]*">.*?</div>', page, re.S)
+    assert vhead, "the value heading is missing"
+    vhead = vhead.group(0)
+    assert "<h2>Full prompt</h2>" in vhead        # the value, named apart
+    assert "2 message" in vhead                   # its size
+    assert "annotated_request" in vhead           # its provenance
+    # and nothing of ours loose between the value heading and the first message
+    # box. The value heading and the contents-list <nav> are allowed — both are
+    # marked chrome that cannot be read as the value's own words.
     between = page[page.index("</header>"):
                    re.search(r'<section id="m\d+" class="msg">', page).start()]
+    between = re.sub(r'<div class="full-value-head.*?</div>', "", between, flags=re.S)
     between = re.sub(r'<nav class="msg-nav".*?</nav>', "", between, flags=re.S)
     assert re.sub(r"<[^>]+>|\s", "", between) == ""
 
 
-def test_the_header_panel_is_styled_apart_from_the_rendered_markdown(tmp_path):
+def test_the_pages_own_words_are_styled_apart_from_the_rendered_markdown(tmp_path):
     """Class names carry the distinction, so a rename that lost it would
-    leave the page looking like the value titled itself."""
+    leave the page looking like the value titled itself. The Summary box and
+    the value heading are both panels; the value heading is warm-shaded, so it
+    stands apart from the blue the Summary box and everything else uses."""
     css = (REPO_ROOT / "templates" / "base.html").read_text()
     css = re.sub(r"\{#.*?#\}", "", css, flags=re.S)     # drop Jinja comments
-    for selector in (r"\.full-head\b", r"\.full-head h2\b", r"\.md-body\b"):
+    for selector in (r"\.full-head\b", r"\.full-head h2\b",
+                     r"\.full-value-head\b", r"\.full-value-head h2\b",
+                     r"\.md-body\b"):
         assert re.search(rf"{selector}[^{{}}\n]*\{{", css), selector
+    # the value heading is its own shaded panel, and not the Summary box's blue
+    vhead = re.search(r"\.full-value-head \{([^}]*)\}", css).group(1)
+    box = re.search(r"\.full-head \{([^}]*)\}", css).group(1)
+    assert "background" in vhead and "border-left" in vhead
+    box_bg = re.search(r"background:\s*(#[0-9a-fA-F]+)", box).group(1)
+    vhead_bg = re.search(r"background:\s*(#[0-9a-fA-F]+)", vhead).group(1)
+    assert vhead_bg.lower() != box_bg.lower()           # a different tint
 
 
 
@@ -2650,6 +2726,36 @@ def test_the_contents_list_offers_a_way_back_to_the_top(tmp_path):
     assert "nav-top" not in nav[nav.index("<ul>"):]
 
 
+def test_the_contents_list_leads_with_a_summary_bookmark(tmp_path):
+    """The Summary box is in the column too, above the messages, so the list
+    leads with it — mixed case where the messages are upper, because it is this
+    app's own section and not a wire message — and it lands on the box."""
+    page = _full_page(tmp_path)
+    nav = re.search(r'<nav class="msg-nav".*?</nav>', page, re.S).group(0)
+    entry = re.search(r'<li class="nav-summary"><a href="#summary">([^<]*)</a>', nav)
+    assert entry, "no Summary bookmark"
+    assert entry.group(1) == "Summary"                 # the mixed case, verbatim
+    # above the messages, and pointing at a box that carries the anchor
+    assert nav.index("nav-summary") < nav.index('href="#m1"')
+    assert 'id="summary"' in page
+    css = re.sub(r"\{#.*?#\}", "",
+                 (REPO_ROOT / "templates" / "base.html").read_text(), flags=re.S)
+    assert re.search(r"\.nav-summary a \{[^}]*text-transform:\s*none", css)
+
+
+def test_the_header_panels_sit_in_the_value_column(tmp_path):
+    """On a sections page the two panels sit inside `.full-sections`, in the
+    same column as the messages with the contents list up their left — not
+    stretched across the whole page above both."""
+    page = _full_page(tmp_path)
+    col = page.index('<div class="full-sections">')
+    nav = page.index('class="msg-nav"')
+    assert nav < col                                   # the list is the left column
+    # both panels are inside the column, after it opens
+    assert page.index('class="full-value-head"') > col
+    assert page.index('class="full-head"') > col
+
+
 def test_the_way_back_to_the_top_lands_at_the_actual_top(tmp_path):
     """`#top` with nothing carrying that id is a link that silently does
     nothing. Landing *nearly* at the top is the subtler bug: an anchor on
@@ -2702,20 +2808,13 @@ def test_message_boxes_fill_the_column_beside_the_contents_list(tmp_path):
     assert "min-width: 0" in sections
 
 
-def test_the_header_keeps_step_with_the_width_of_what_it_heads(tmp_path):
-    """A panel narrower than the messages under it reads as a mistake; over
-    a value that is one document, both keep the reading measure."""
-    client = _llm_client(tmp_path, profile=TOOL_REQUEST)
-    sectioned = client.get("/turns/span/L1/prompt").get_data(as_text=True)
-    assert re.search(r'<header class="full-head wide">', sectioned)
-
-    one_document = client.get("/turns/span/L1/response").get_data(as_text=True)
-    assert re.search(r'<header class="full-head">', one_document)
-
-    css = re.sub(r"\{#.*?#\}", "",
-                 (REPO_ROOT / "templates" / "base.html").read_text(), flags=re.S)
-    assert re.search(r"\.full-head \{[^}]*max-width:\s*62rem", css)
-    assert re.search(r"\.full-head\.wide \{[^}]*max-width:\s*none", css)
+def test_the_value_heading_leads_the_page_above_the_summary(tmp_path):
+    """The value is what the reader opened the page for, so its heading leads —
+    above the Summary box, which is the call it came from."""
+    page = _llm_client(tmp_path).get(
+        "/turns/span/L1/prompt").get_data(as_text=True)
+    assert (page.index('class="full-value-head')
+            < page.index('class="full-head"')), "the value heading is not first"
 
 
 # --- where the ATOF log is resolved from (the Turns tab's own source) --------

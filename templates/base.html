@@ -162,26 +162,42 @@
     /* The raw view of the same value: pre.blob already wraps, and this keeps
        a 250 KB request from running the page off the bottom in one block. */
     .full-blob { max-height: 80vh; overflow-y: auto; }
-    /* Everything this app says about a full value, boxed together and
-       accented. The value below is prose a model wrote, with a heading of
-       its own on its first line, so a bare `<h2>` above it would read as
-       that prose's title. This must be unmistakably the page talking, not
-       the value — hence a panel, an accent rule and a colour, none of which
-       the rendered markdown ever uses. Same shade as `p.prompt`, which is
-       the app's existing way of saying "quoted text lives here". */
-    .full-head { background: #f4f5f8; border-left: 3px solid #2456c4; border-radius: 6px; padding: 0.7rem 1rem; margin: 0 0 1.75rem; max-width: 62rem; }
-    /* The header keeps step with what it heads. On a sections page the
-       messages below run the full width, and a narrower panel above them
-       reads as a mistake rather than as a measure; on a value that is one
-       document the prose keeps its 62rem and so does the header. */
-    .full-head.wide { max-width: none; }
+    /* The value's own heading, leading the page — the value is what the reader
+       opened it for. A panel like the Summary box, but warm-shaded instead of
+       blue: every other piece of chrome here (the Summary box, the message
+       boxes, their labels) is blue, so the warm tint sets this apart as the one
+       heading that is about the value and not the call. */
+    .full-value-head { background: #faf6ec; border-left: 3px solid #d0a24a; border-radius: 6px; padding: 0.7rem 1rem; margin: 0 0 1.5rem; max-width: 62rem; }
+    .full-value-head h2 { margin: 0; font-size: 1.15rem; color: #6b5320; }
+    .full-value-head p.meta { margin: 0.35rem 0 0; }
+    /* The Summary box: what this app says about the call, below the value's own
+       heading. A panel, an accent rule and a colour — none of which the
+       rendered value ever uses — so it is unmistakably the page talking. Same
+       shade as `p.prompt`, the app's existing way of saying "quoted text lives
+       here". `scroll-margin` so the contents list's "Summary" entry lands it
+       below the viewport edge, not flush against it, as the messages do. */
+    .full-head { background: #f4f5f8; border-left: 3px solid #2456c4; border-radius: 6px; padding: 0.7rem 1rem; margin: 0 0 1.5rem; max-width: 62rem; scroll-margin-top: 1rem; }
     .full-head h2 { margin: 0; font-size: 1.15rem; color: #33406b; }
     .full-head p.meta { margin: 0.35rem 0 0; }
+    /* Both header panels sit in the value's column: on a sections page inside
+       `.full-sections`, where they fill the column beside the contents list
+       like the messages do, rather than the reading width they keep over one
+       document (the response page, where there is no column to fill). */
+    .full-sections > .full-value-head, .full-sections > .full-head { max-width: none; }
     /* Provenance under a full value's heading — quieter than the metadata
        line above it, because it is a sentence rather than a set of facts. */
     .meta.prov { font-style: italic; max-width: 62rem; }
-    /* The value's own first heading sits right under the panel; its usual
-       top margin would leave the two looking unrelated. */
+    /* The Summary box transplants the turn page's llm detail rows (`llm_rows`)
+       so the two can never drift about one call. Every collapse rule for
+       `.span-detail` is scoped to `tr:not(.detail-open)`; outside the waterfall
+       table none of them fire, so the rows are already in their expanded detail
+       layout. The one thing left is the summary-line separators — the `·`
+       between the two token buckets — which show only because there is no
+       collapsed row for them to hide against. */
+    .full-head .llm-summary { margin-top: 0.5rem; }
+    .llm-summary .inline-only { display: none; }
+    /* The value's own first heading sits right under the Summary box; its
+       usual top margin would leave the two looking unrelated. */
     .md-body > :first-child { margin-top: 0; }
     /* One message of a request. The label is this app's and the box holds
        nothing but wire content, so they are drawn as two different kinds of
@@ -229,6 +245,13 @@
                  color: #4a5578; text-decoration: none;
                  overflow-wrap: anywhere; }
     .msg-nav a:hover { background: #eceff5; color: #1a1a2e; }
+    /* The Summary box's own entry, above the messages. Mixed case where the
+       message entries are upper — it is this app's section, not a wire
+       message, and the case is what says so — and ruled off beneath, so the
+       app's furniture (top, Summary) reads apart from the messages it lists. */
+    .msg-nav .nav-summary a { text-transform: none; letter-spacing: 0; }
+    .msg-nav .nav-summary { border-bottom: 1px solid #e2e5ec;
+                            margin-bottom: 0.4rem; padding-bottom: 0.4rem; }
     /* The skill file the page is showing, and the files it lists but will not
        open (an image, a wheel) — shown for context, not a dead link. */
     .msg-nav a.nav-current { background: #e6ebf5; color: #1a1a2e; font-weight: 600; }

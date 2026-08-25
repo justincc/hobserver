@@ -18,6 +18,13 @@ and provider-spec vocabularies) may still change between releases — see
   payload rather than its response. A request that named no reasoning level has
   no row: the value is shown as sent, never as an inferred level. See
   docs/design/span-rendering.md.
+- **The full prompt/response page now has a two-panel header.** A whole-value
+  page (ADR 12) leads with a warm-shaded **Full prompt** / **Full response**
+  heading for the value itself (its size and provenance), then a blue
+  **Summary** box for the call — its identity and the same detail strip the
+  turn row shows (finish_reason, reasoning effort, token tree, tool calls),
+  from the same `llm_rows` macro so the two can never drift. See
+  docs/design/span-rendering.md.
 
 ## [0.3.2] - 2026-08-20
 
