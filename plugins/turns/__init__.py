@@ -575,21 +575,34 @@ def _accessors():
 def _find_turn(assembly, session_id, start_us):
     """The turn a URL names, or None. The pair is what identifies one.
 
-    A turn's `start_us` is its URL key, but assembly can revise it earlier: a
-    `hermes.turn` scope and its prompt boundary mark are seen a few ms apart
-    (the two exporters race), the scope merges into the mark-built turn, and
-    the start is pulled back to the earliest of the two (assembler `min`). A
-    URL captured before that revision — follow mode navigating to a turn the
-    strip showed mid-race — then names a start no turn has any more. So match
-    exactly first, and otherwise fall back to the turn whose interval now holds
-    that instant; the route redirects a fallback hit to the turn's live key.
+    Assembly can revise a turn's key out from under a URL two ways, and both
+    are follow mode navigating to a turn the strip showed mid-race:
+
+    - Its `session_id` changes. A turn whose spans have not yet named a session
+      is filed under `(unknown session)`; once a later span names it, the turn
+      moves to its real session — its `start_us` unchanged. A link built while
+      it was unknown then names a session it has left (often gone entirely).
+    - Its `start_us` changes. A `hermes.turn` scope and its prompt boundary
+      mark are seen a few ms apart (the two exporters race); the scope merges
+      into the mark-built turn and the start is pulled back to the earliest of
+      the two (assembler `min`), within the one session.
+
+    So match exactly in the named session, else by start across every session
+    (the session-changed case), else by interval within the named session (the
+    start-revised case). The route redirects any inexact hit to the turn's
+    canonical `session_id`/`start_us`.
     """
     session = next((s for s in assembly.sessions
                     if s.session_id == session_id), None)
-    if session is None:
-        return None
-    exact = next((t for t in session.turns if t.start_us == start_us), None)
-    return exact or containing_turn(session, start_us)
+    if session is not None:
+        exact = next((t for t in session.turns if t.start_us == start_us), None)
+        if exact is not None:
+            return exact
+    cross = next((t for s in assembly.sessions for t in s.turns
+                  if t.start_us == start_us), None)
+    if cross is not None:
+        return cross
+    return containing_turn(session, start_us) if session is not None else None
 
 
 @bp.route("/turn/<session_id>/<int:start_us>")
@@ -601,11 +614,12 @@ def turn(session_id, start_us):
     found = _find_turn(assembly, session_id, start_us)
     if found is None:
         abort(404)
-    # Matched by the interval fallback, not exactly: the key in the URL is a
-    # start this turn no longer carries. Send the reader to its live key so the
-    # address bar settles and the page's own polling stops chasing the old one.
-    if found.start_us != start_us:
-        return redirect(url_for("turns.turn", session_id=session_id,
+    # Matched by a fallback, not exactly: the URL names a session or a start
+    # this turn no longer carries (see _find_turn). Send the reader to its
+    # canonical key so the address bar settles and the page's own polling stops
+    # chasing the old one.
+    if found.session_id != session_id or found.start_us != start_us:
+        return redirect(url_for("turns.turn", session_id=found.session_id,
                                 start_us=found.start_us))
     # The payloads live in the log; read back the ones this turn needs and
     # no others (ADR 11). Hydrating into the cached assembly means a reload

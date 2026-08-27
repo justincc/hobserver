@@ -10,6 +10,14 @@ and provider-spec vocabularies) may still change between releases — see
 
 ## [Unreleased]
 
+### Fixed
+
+- Following a newly started turn no longer 404s when the turn's session is
+  still uncorrelated. A turn whose spans have not yet named a session is filed
+  under `(unknown session)`; a follow link built then named a session the turn
+  had left by the time it was opened. The turn route now finds the turn by its
+  (unchanged) start across every session and redirects to its real URL.
+
 ### Changed
 
 - An in-flight turn in the "in flight" strip now opens in a new tab, like a

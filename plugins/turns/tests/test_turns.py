@@ -168,6 +168,19 @@ def test_an_unknown_session_still_404s(tmp_path):
         "/turns/turn/nope/1500000").status_code == 404
 
 
+def test_a_turn_addressed_by_a_stale_session_redirects_to_its_real_one(tmp_path):
+    # A follow link built while a turn was still `(unknown session)` — its spans
+    # had not yet named a session. By the time it is followed the turn has
+    # correlated to its real session (s1) and left the unknown one, which is
+    # usually gone. Its start_us is unchanged, so the route finds it across
+    # sessions and redirects to the canonical URL rather than 404ing.
+    atof = write_atof(tmp_path, two_turn_stream())
+    resp = make_client(tmp_path, str(atof)).get(
+        "/turns/turn/(unknown%20session)/1000000")
+    assert resp.status_code == 302
+    assert resp.headers["Location"].endswith("/turns/turn/s1/1000000")
+
+
 def test_workdir_under_home_collapses_to_tilde(tmp_path):
     home_proj = os.path.join(os.path.expanduser("~"), "proj")
     lines = [
