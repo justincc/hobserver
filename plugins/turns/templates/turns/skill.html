@@ -36,18 +36,19 @@
     roots it resolved (ADR 22).</p>
 </header>
 {% else %}
-<header class="full-head">
-  <h2>{{ skill_name }}</h2>
-  <p class="meta">
-    skill{% if current %} · {{ current }}{% endif %}
-    · {{ files | length }} file{{ "" if files | length == 1 else "s" }}
-    <span class="span-uuid">· {{ skill_dir }}{{ copy_btn(skill_dir, "copy skill path") }}</span>
-  </p>
-</header>
-
+{# Same two-column shape as the full-value page (ADR 12): the file list runs
+   up the left, sticky and full-height, while the skill's own boxes and the
+   file being read fill the column beside it. The heading and the Summary go
+   inside `.full-sections` (not above the row) so the list runs the whole
+   height rather than only beside the file body. #}
 <div class="full-body">
   <nav class="msg-nav" aria-label="Skill files">
+    {# `#top` is the hobserver heading (base.html), the first thing on the
+       page — the same "top" the full-value contents list offers. #}
+    <a class="nav-top" href="#top">&uarr; top</a>
     <ul>
+      {# The Summary box leads the column, so the list leads with it. #}
+      <li class="nav-summary"><a href="#summary">Summary</a></li>
       {%- for f in files %}
       <li>
         {%- if f.viewable %}
@@ -60,6 +61,34 @@
     </ul>
   </nav>
   <div class="full-sections">
+    {# The skill itself — its name, warm-shaded like the full-value page's
+       heading, so it reads as the thing the page is about rather than chrome. #}
+    <div class="full-value-head">
+      <h2>{{ skill_name }}</h2>
+      <p class="meta">
+        skill{% if current %} · {{ current }}{% endif %}
+        · {{ files | length }} file{{ "" if files | length == 1 else "s" }}
+      </p>
+      <p class="meta prov"><span class="span-uuid">{{ skill_dir }}{{ copy_btn(skill_dir, "copy skill path") }}</span></p>
+    </div>
+
+    {# The provenance box — where this skill came from, read from hermes'
+       sidecars (ADR 23), boxed in the app's blue like the full-value Summary.
+       The origin leads the fields as its own "Origin" row; it is a record we
+       found, never inferred, and an unreadable sidecar shows "Unknown". #}
+    {% if provenance %}
+    <header class="full-head" id="summary">
+      <h2>Summary</h2>
+      <dl class="metadata">
+        <dt>Origin</dt>
+        <dd>{{ provenance.origin }}{% if provenance.note %} <span class="origin-note" tabindex="0" role="note" title="{{ provenance.note }}">&#9432;</span>{% endif %}</dd>
+        {%- if provenance.created %}<dt>Created</dt><dd>{{ provenance.created }}</dd>{% endif %}
+        {%- if provenance.modified %}<dt>Last modified</dt><dd>{{ provenance.modified }}</dd>{% endif %}
+        {%- for label, value in provenance.rows %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
+      </dl>
+    </header>
+    {% endif %}
+
     {%- if read_problem %}
     <p class="notice warn">{{ read_problem }}</p>
     {%- endif %}

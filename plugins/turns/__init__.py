@@ -26,7 +26,7 @@ from werkzeug.routing import BuildError
 
 import hermes_paths
 from console import console
-from plugins.turns import fulltext, skills
+from plugins.turns import fulltext, skills, skill_provenance
 from plugins.turns.assembler import assemble, containing_turn
 from plugins.turns.atof_index import (AtofIndex, default_index_path,
                                         hydrate_span, hydrate_turn)
@@ -784,6 +784,7 @@ def skill():
         available=True,
         skill_name=name or os.path.basename(skill_dir),
         skill_dir=skill_dir,
+        provenance=skill_provenance.classify(skill_dir, roots),
         files=skills.list_skill_files(skill_dir),
         current=rel,
         rendered=rendered,

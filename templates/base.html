@@ -91,6 +91,9 @@
     p.notice { background: #f4f5f8; padding: 1rem; border-radius: 6px; }
     p.notice.warn { background: #fdf0ef; border: 1px solid #e0b4b4; }
     p.meta { color: #555; font-size: 0.85rem; }
+    /* The note glyph beside a skill's Origin field (ADR 23), holding the
+       caveat that "user-added" is a wider bucket than it reads. */
+    .origin-note { cursor: help; color: #777; }
     /* An invisible source line: keys across the top row, their values beneath.
        Sizes to its content (not the full-width table default). No cell borders
        (the global th,td rule draws them) — this is a layout aid, not a data
@@ -185,6 +188,10 @@
     .full-value-head { background: #faf6ec; border-left: 3px solid #d0a24a; border-radius: 6px; padding: 0.7rem 1rem; margin: 0 0 1.5rem; max-width: 62rem; }
     .full-value-head h2 { margin: 0; font-size: 1.15rem; color: #6b5320; }
     .full-value-head p.meta { margin: 0.35rem 0 0; }
+    /* The skill path here can be long; wrap it at the box edge rather than let
+       it break out. Scoped to this box so the table's fixed-length span uuids
+       keep their nowrap. */
+    .full-value-head .span-uuid { white-space: normal; overflow-wrap: anywhere; }
     /* The Summary box: what this app says about the call, below the value's own
        heading. A panel, an accent rule and a colour — none of which the
        rendered value ever uses — so it is unmistakably the page talking. Same

@@ -95,6 +95,13 @@ path cannot become an arbitrary-file read:
 A skill outside every root, a traversal, or a symlink out is a 404; with no
 roots configured the view says it is unavailable rather than reading anything.
 
+The skill page also reads hermes' provenance sidecars — `.bundled_manifest`,
+`.hub/lock.json` and `.usage.json` at the skill root — to label where a skill
+came from (ADR 23). This widens the read but not the trust boundary: the
+sidecars sit inside a root the view already reads, are read-only, and every
+read is best-effort — an unreadable or unexpected file yields an "Unknown"
+origin, never an error or a wider read.
+
 ## Redaction
 
 The generic renderer drops values whose key name looks secret — `token`,
