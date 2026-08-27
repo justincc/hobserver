@@ -185,5 +185,6 @@ Being a real WSGI server is not the same as being safe to expose: there is no
 authentication in front of this app, so a `host` that is not loopback puts it
 on the network unguarded. That is why the bind defaults to loopback.
 
-Producer-side setup (nemo-relay install, plugin enable, `HERMES_NEMO_RELAY_*`
-in `~/.hermes/.env`) is in [setup-prompt-timing.md](setup-prompt-timing.md).
+Producer-side setup (nemo-relay install, then a Relay `plugins.toml` — or the
+bundled plugin and `HERMES_NEMO_RELAY_ATOF_*` on hermes before v0.20.5) is in
+[setup-prompt-timing.md](setup-prompt-timing.md).

@@ -24,12 +24,13 @@ point landed in `(unknown session)`, which had no turns, so all of them were
 filed as anomalies. 0 parse errors — the reader understood every line, it
 just could not correlate them.
 
-**The core runtime did not replace the plugin. It landed beside it**, and
-both have been emitting ever since. This was not obvious: the new exporter
-also emits an `llm.chunk` per streamed token, which pushed consecutive turn
-marks thousands of lines apart and made a sampled window look as though the
-marks had stopped. They had not. Every turn is described twice — once as a
-pair of marks, once as a scope tree, milliseconds apart.
+**The core runtime did not at first replace the plugin. It landed beside
+it**, and both emitted together from 2026-07-19 until the plugin was removed
+on 2026-08-10. This was not obvious while it lasted: the new exporter also
+emits an `llm.chunk` per streamed token, which pushed consecutive turn marks
+thousands of lines apart and made a sampled window look as though the marks
+had stopped. They had not. Through that window every turn was described twice
+— once as a pair of marks, once as a scope tree, milliseconds apart.
 
 What actually broke was narrower than "the plugin stopped": spans lost their
 `session_id`. Tool spans kept a `turn_id` that still matched the marks, but
@@ -37,9 +38,12 @@ with no session to look it up in they fell to `(unknown session)`; llm spans
 carry no `turn_id` at all and had nothing left to correlate on.
 
 Both dialects are in one file and will stay that way: the log is append-only
-and holds months of history. So this is not a migration with a cutover. It
-is two dialects to be read side by side, indefinitely — and for now, two
-accounts of every single turn.
+and holds months of history. The plugin's removal on 2026-08-10 was a cutover
+for what hermes *writes* — new spans are the core dialect alone — but not for
+what this app *reads*: the plugin era is still in the log and always will be.
+So the reader carries both dialects indefinitely. Only the overlap window
+(2026-07-19 to 2026-08-10) has two accounts of every turn; before it there is
+only the plugin's marks, after it only the core runtime's scope tree.
 
 Three facts shaped the decision:
 

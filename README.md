@@ -10,7 +10,7 @@ Hobserver is a webapp for observing live and recent sesssion-oriented [Hermes Ag
 activity. The currently bundled plugins are:
 
 - **Turns** — the main plugin. Live and recent per-session turn waterfalls from the NVIDIA NeMo Relay ATOF
-  JSONL stream, as exported by the `observability/nemo_relay` bundled by Hermes Agent.
+  JSONL stream that Hermes Agent's NeMo Relay integration exports.
   - Live stream that appears as the agent works.
   - Shows where where each turn's time went (model vs tool) with a span timeline. 
   - Shows relevant details for each model or tool call (e.g. how many cached tokens were used on a model call, the script a model ran when invoking the terminal tool, the web searches and extractions it carries out).
@@ -38,7 +38,7 @@ Below are the project principles. Pull requests in tune with these are very welc
   a link in the turns view and see the memory in full.
 - **Be opinionated**. At the same time I want to see important information at a glance, not look through a lot 
   of clutter. Therefore, Hobserver is purposefully opinionated about what it does and doesn't display and where and how it does it. I hope people share my taste in relevant information but pull requests to include extra fields or tool calls not covered are very welcome.
-- **Be pragmatic**. An example. Rather than hook into Hermes events like Langfuse, for its main Turns tab Hobserver currently reads the NeMo ATOF log that the Hermes builtin plugin `observability/nemo_relay` produces. This has the pro of simplicity (no need to store events) and the con of poor scalability (ATOF logs grow very large). As Hobserver was built for looking at live and recent activity this seems a pragmatic choice. But if compelling usecases come along for longer-term storage this decision can be revisited.
+- **Be pragmatic**. An example. Rather than hook into Hermes events like Langfuse, for its main Turns tab Hobserver currently reads the NeMo ATOF log that Hermes Agent's NeMo Relay integration produces. This has the pro of simplicity (no need to store events) and the con of poor scalability (ATOF logs grow very large). As Hobserver was built for looking at live and recent activity this seems a pragmatic choice. But if compelling usecases come along for longer-term storage this decision can be revisited.
 - **Be modular**. I started off making this because I was very curious about what Hermes
   was doing under the hood. But I have a particular way of using Hermes and a particular
   set of plugins that I use, where other people may end up invoking different tools or 
@@ -115,7 +115,7 @@ Some important settings:
 | Turns | `index_db` | `$XDG_CACHE_HOME/hobserver/atof-index-<hash>.sqlite3` |
 | Mem0 | `db` | `$HERMES_HOME/jmem0_logged.db` |
 
-`atof_log` is the events JSONL written by the nemo_relay plugin's ATOF
+`atof_log` is the events JSONL written by Hermes Agent's NeMo Relay ATOF
 exporter.
 
 `index_db` is a cache of the atof
