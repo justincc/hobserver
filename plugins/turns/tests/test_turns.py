@@ -1057,6 +1057,10 @@ def test_inflight_strip_lists_running_turns(tmp_path):
     assert "in flight:" in page
     assert f'data-inflight-start-us="{inflight_start}"' in page
     assert f"/turns/turn/s9/{inflight_start}" in page
+    # The in-flight entry opens in a new tab, like a turn clicked in the main
+    # list — checked within the strip so it is the entry's own attribute.
+    strip = page[page.index("inflight-strip"):page.index("</p>", page.index("inflight-strip"))]
+    assert 'target="_blank" rel="noopener"' in strip
 
 
 def subagent_stream():

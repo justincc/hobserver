@@ -10,6 +10,11 @@ and provider-spec vocabularies) may still change between releases — see
 
 ## [Unreleased]
 
+### Changed
+
+- An in-flight turn in the "in flight" strip now opens in a new tab, like a
+  turn clicked in the main list.
+
 ### Added
 
 - **A skill page shows where the skill came from.** A Summary box, boxed like

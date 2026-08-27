@@ -13,6 +13,7 @@
      and e.turn.start_us == current.start_us %}
   <a class="inflight-entry{{ ' current' if is_current }}"
      href="{{ url_for('turns.turn', session_id=e.turn.session_id, start_us=e.turn.start_us) }}"
+     target="_blank" rel="noopener"
      data-inflight-start-us="{{ e.turn.start_us }}"
      {%- if is_current %} data-inflight-current="1"{% endif %}>
     {%- if e.turn.user_message %}“{{ e.turn.user_message | truncate(40, True) }}” · {% endif %}
