@@ -188,10 +188,6 @@
     .full-value-head { background: #faf6ec; border-left: 3px solid #d0a24a; border-radius: 6px; padding: 0.7rem 1rem; margin: 0 0 1.5rem; max-width: 62rem; }
     .full-value-head h2 { margin: 0; font-size: 1.15rem; color: #6b5320; }
     .full-value-head p.meta { margin: 0.35rem 0 0; }
-    /* The skill path here can be long; wrap it at the box edge rather than let
-       it break out. Scoped to this box so the table's fixed-length span uuids
-       keep their nowrap. */
-    .full-value-head .span-uuid { white-space: normal; overflow-wrap: anywhere; }
     /* The Summary box: what this app says about the call, below the value's own
        heading. A panel, an accent rule and a colour — none of which the
        rendered value ever uses — so it is unmistakably the page talking. Same
@@ -243,6 +239,10 @@
        from pushing the column wider than the page. */
     .msg { border: 1px solid #e2e5ec; border-left: 3px solid #2456c4; border-radius: 6px; margin: 0 0 1rem; overflow: hidden; }
     .msg-label { background: #33406b; color: #eceff5; font-family: ui-monospace, monospace; font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.4rem 0.7rem; }
+    /* A skill file's name titling its content (ADR 22). Same band as a message
+       label, but a filename is not a wire-message type: keep its case, and set
+       it off from the content below with a rounded band and a gap. */
+    .file-label { text-transform: none; letter-spacing: 0.02em; border-radius: 6px; margin-bottom: 0.9rem; }
     /* The messages and their contents list, side by side. The list is
        `sticky` rather than `fixed` so it scrolls out with the page it
        belongs to instead of hanging over the header above it, and it holds

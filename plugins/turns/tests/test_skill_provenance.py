@@ -64,6 +64,7 @@ def test_agent_created_skill_is_read_from_usage(tmp_path):
     p = prov.classify(str(d), _roots(root))
     assert p.origin_key == "agent"
     assert p.created == "2026-08-01 12:00 UTC"
+    assert p.last_used == "2026-08-20 09:30 UTC"
     assert ("Times used", "4") in p.rows
 
 
@@ -114,6 +115,30 @@ def test_last_modified_reflects_the_skill_md(tmp_path):
     _write_sidecars(root, usage={})
     p = prov.classify(str(d), _roots(root))
     assert p.modified and p.modified.endswith("UTC")
+
+
+def test_times_modified_reads_patch_count(tmp_path):
+    root = tmp_path / "skills"
+    d = make_skill(root, "edited")
+    _write_sidecars(root, usage={"edited": {"created_by": None, "patch_count": 6}})
+    assert prov.classify(str(d), _roots(root)).modified_count == 6
+
+
+def test_times_modified_is_none_without_a_usage_record(tmp_path):
+    root = tmp_path / "skills"
+    d = make_skill(root, "no-record")
+    _write_sidecars(root, bundled=["something-else"], usage={})
+    assert prov.classify(str(d), _roots(root)).modified_count is None
+
+
+def test_times_modified_renders_below_last_modified(tmp_path):
+    root = tmp_path / "skills"
+    make_skill(root, "edited")
+    _write_sidecars(root, usage={"edited": {"created_by": None, "patch_count": 3}})
+    body = skill_client(tmp_path, [root]).get(
+        "/turns/skill?name=edited").get_data(as_text=True)
+    assert "Times modified" in body
+    assert body.index("Last modified") < body.index("Times modified")
 
 
 def test_unreadable_usage_json_degrades_to_user_not_crash(tmp_path):

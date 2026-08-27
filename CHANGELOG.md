@@ -15,8 +15,8 @@ and provider-spec vocabularies) may still change between releases — see
 - **A skill page shows where the skill came from.** A Summary box, boxed like
   the full prompt/response page's, labels the skill's origin — bundled with
   hermes, hub/URL-installed, agent-created, an external (user-configured) dir,
-  or user-added/manually authored — with its creation and last-modified dates
-  and any usage the record carries. Origin is read from hermes' own provenance
+  or user-added/manually authored — with its creation and last-modified dates,
+  how many times hermes has edited it, and any usage the record carries. Origin is read from hermes' own provenance
   sidecars (`.bundled_manifest`, `.hub/lock.json`, `.usage.json`), best-effort:
   an unreadable or unexpected file yields an "Unknown" origin rather than an
   error. hermes marks agent authorship only for its autonomous curator, so a

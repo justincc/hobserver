@@ -65,6 +65,8 @@ class Provenance:
     note: Optional[str] = None
     created: Optional[str] = None       # display string, UTC
     modified: Optional[str] = None      # display string, UTC (SKILL.md mtime)
+    last_used: Optional[str] = None     # display string, UTC (usage last_used_at)
+    modified_count: Optional[int] = None  # hermes' patch_count, edits via skill_manage
     rows: List[Tuple[str, str]] = field(default_factory=list)  # extra facts
 
 
@@ -100,6 +102,16 @@ def classify(skill_dir: str, roots) -> Provenance:
     )
 
     created = _fmt(usage.get("created_at")) if usage else None
+    last_used = _fmt(usage.get("last_used_at")) if usage else None
+    # patch_count is hermes' tally of edits made through skill_manage. It sits
+    # beside the SKILL.md mtime the box already shows ("Last modified") because
+    # the two answer different questions: when it last changed vs. how many
+    # times hermes has edited it.
+    modified_count = None
+    if usage is not None:
+        pc = usage.get("patch_count")
+        if isinstance(pc, int) and pc >= 0:
+            modified_count = pc
     rows = _usage_rows(usage) if usage else []
 
     # Precedence mirrors hermes' own (tools/skill_usage.py): a hub install wins
@@ -119,7 +131,8 @@ def classify(skill_dir: str, roots) -> Provenance:
         key, label, note = (*UNKNOWN, _UNKNOWN_NOTE)
 
     return Provenance(origin_key=key, origin=label, note=note,
-                      created=created, modified=modified, rows=rows)
+                      created=created, modified=modified, last_used=last_used,
+                      modified_count=modified_count, rows=rows)
 
 
 # --- reading the sidecars, all best-effort -------------------------------
@@ -170,9 +183,6 @@ def _usage_record(root: str, name: str) -> Optional[dict]:
 
 def _usage_rows(rec: dict) -> List[Tuple[str, str]]:
     rows: List[Tuple[str, str]] = []
-    last_used = _fmt(rec.get("last_used_at"))
-    if last_used:
-        rows.append(("Last used", last_used))
     count = rec.get("use_count")
     if isinstance(count, int) and count > 0:
         rows.append(("Times used", str(count)))

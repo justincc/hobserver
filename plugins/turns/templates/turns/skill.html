@@ -65,11 +65,6 @@
        heading, so it reads as the thing the page is about rather than chrome. #}
     <div class="full-value-head">
       <h2>{{ skill_name }}</h2>
-      <p class="meta">
-        skill{% if current %} · {{ current }}{% endif %}
-        · {{ files | length }} file{{ "" if files | length == 1 else "s" }}
-      </p>
-      <p class="meta prov"><span class="span-uuid">{{ skill_dir }}{{ copy_btn(skill_dir, "copy skill path") }}</span></p>
     </div>
 
     {# The provenance box — where this skill came from, read from hermes'
@@ -82,13 +77,24 @@
       <dl class="metadata">
         <dt>Origin</dt>
         <dd>{{ provenance.origin }}{% if provenance.note %} <span class="origin-note" tabindex="0" role="note" title="{{ provenance.note }}">&#9432;</span>{% endif %}</dd>
+        <dt>Files</dt><dd>{{ files | length }}</dd>
         {%- if provenance.created %}<dt>Created</dt><dd>{{ provenance.created }}</dd>{% endif %}
         {%- if provenance.modified %}<dt>Last modified</dt><dd>{{ provenance.modified }}</dd>{% endif %}
+        {%- if provenance.last_used %}<dt>Last used</dt><dd>{{ provenance.last_used }}</dd>{% endif %}
+        {%- if provenance.modified_count is not none %}<dt>Times modified</dt><dd>{{ provenance.modified_count }}</dd>{% endif %}
         {%- for label, value in provenance.rows %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
+        {# The path last: it is the one long, wrapping value, kept out of the
+           tidy rows above and left as the reference datum at the foot. #}
+        <dt>Path</dt><dd>{{ skill_dir }}{{ copy_btn(skill_dir, "copy skill path") }}</dd>
       </dl>
     </header>
     {% endif %}
 
+    {# The file being shown, titled above its content the way the full-value
+       page labels a section — so SKILL.md names itself above its frontmatter,
+       and a reference file above its body. Case kept (a filename, not one of
+       the wire messages the uppercase `msg-label` is for). #}
+    {%- if current %}<div class="msg-label file-label">{{ current }}</div>{% endif %}
     {%- if read_problem %}
     <p class="notice warn">{{ read_problem }}</p>
     {%- endif %}
