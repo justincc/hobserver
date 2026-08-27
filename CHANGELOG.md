@@ -10,6 +10,8 @@ and provider-spec vocabularies) may still change between releases — see
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-08-27
+
 ### Added
 
 - **An llm span shows the reasoning effort it was asked for.** A `reasoning`
@@ -25,6 +27,30 @@ and provider-spec vocabularies) may still change between releases — see
   turn row shows (finish_reason, reasoning effort, token tree, tool calls),
   from the same `llm_rows` macro so the two can never drift. See
   docs/design/span-rendering.md.
+- **The turns index source line reports the log's size and entry count.** A
+  column on the source line shows how large the ATOF log is and how many
+  entries it holds.
+
+### Changed
+
+- **The turns source line is laid out as a keys-over-values table** and now
+  sits above the assembly-anomalies boxout; the "updates automatically" note
+  has been dropped from the turns index.
+- **The prompt-timing setup docs now cover hermes' NeMo Relay native-plugin
+  cutover** (shipped in Hermes Agent v0.20.5 / v2026.8.19): the ATOF exporter
+  is configured by a Relay `plugins.toml` selected with
+  `HERMES_NEMO_RELAY_PLUGINS_TOML`, and the old `HERMES_NEMO_RELAY_ATOF_*` env
+  vars are ignored. The pre-v0.20.5 bundled-plugin method is kept for older
+  hermes. See docs/running/setup-prompt-timing.md.
+
+### Fixed
+
+- **Category-qualified and absolute skill names now resolve** for the "view
+  skill" link. A category-qualified name (a skill's path relative to its root,
+  e.g. `finance/crypto-analysis`) and an absolute path handed in as a name
+  both used to 404 or land on a same-named skill elsewhere; the resolver now
+  matches the root-relative path (preferred over the basename) and treats an
+  absolute name as a path resolved by containment. See ADR 22.
 
 ## [0.3.2] - 2026-08-20
 

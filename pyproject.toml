@@ -1,6 +1,6 @@
 [project]
 name = "hobserver"
-version = "0.3.2"
+version = "0.3.3"
 description = "Web UI for observing Hermes Agent activity in live and recent sessions (e.g. assistant conversations)"
 readme = "README.md"
 license = "MIT"
