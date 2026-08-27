@@ -8,7 +8,7 @@ Accepted, implemented 2026-08-27
 
 Builds on [ADR 22](0022-view-a-skills-files-confined-to-the-configured-skill-roots.md)
 — the skill view and the root containment it reads within — and reuses the
-Summary chrome of [ADR 12](0012-open-a-whole-value-on-its-own-page.md).
+Metadata-box chrome of [ADR 12](0012-open-a-whole-value-on-its-own-page.md).
 
 ## Context
 
@@ -70,7 +70,7 @@ is the one place that changes, and its failure mode is already a shrug, not a
 crash. This is the shape the design principles ask of any hermes read — the
 coupling is admitted, named, and quarantined behind a degradation path.
 
-**The box is ADR 12's chrome.** A "Summary" header on the skill page, boxed like
+**The box is ADR 12's chrome.** A "Metadata" header on the skill page, boxed like
 the full-value page's, carrying the origin badge, the created and last-modified
 dates, and whatever extra the usage record offers (last used, times used, state,
 hub source). Last-modified is the SKILL.md's own mtime — a filesystem fact, not
@@ -98,7 +98,7 @@ a hermes claim — so it is present even when the sidecars say nothing.
 - [ADR 22](0022-view-a-skills-files-confined-to-the-configured-skill-roots.md) —
   the skill view and the containment this reads within
 - [ADR 12](0012-open-a-whole-value-on-its-own-page.md) — the page-per-thing
-  whose Summary chrome this reuses
+  whose Metadata-box chrome this reuses
 - [SECURITY.md](../../../SECURITY.md) — the skills-off-disk read this widens
 - [docs/design/design-principles.md](../design-principles.md) — reading a hermes
   source without treating it as a contract

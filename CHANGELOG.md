@@ -20,12 +20,16 @@ and provider-spec vocabularies) may still change between releases — see
 
 ### Changed
 
+- The full prompt/response page and the skill page now title their facts box
+  **Metadata** rather than **Summary** — it holds facts about the value or the
+  skill (identity, dates, tokens, provenance), not a précis of it; for a skill
+  the descriptive summary is the SKILL.md frontmatter shown below.
 - An in-flight turn in the "in flight" strip now opens in a new tab, like a
   turn clicked in the main list.
 
 ### Added
 
-- **A skill page shows where the skill came from.** A Summary box, boxed like
+- **A skill page shows where the skill came from.** A Metadata box, boxed like
   the full prompt/response page's, labels the skill's origin — bundled with
   hermes, hub/URL-installed, agent-created, an external (user-configured) dir,
   or user-added/manually authored — with its creation and last-modified dates,

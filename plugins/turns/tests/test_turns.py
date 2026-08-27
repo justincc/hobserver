@@ -2549,7 +2549,7 @@ def test_the_raw_link_leads_back_to_the_rendered_view(tmp_path):
 
 
 def test_the_pages_own_words_are_boxed_apart_from_the_value(tmp_path):
-    """Everything this app says sits in a marked container — the Summary box
+    """Everything this app says sits in a marked container — the Metadata box
     (the call) or the value's own heading (`.full-value-head`) — never bare
     above the value, which can open on a heading the model wrote. The two
     containers split by subject: the call's identity in the box, the value's
@@ -2557,9 +2557,9 @@ def test_the_pages_own_words_are_boxed_apart_from_the_value(tmp_path):
     page = _llm_client(tmp_path).get(
         "/turns/span/L1/prompt").get_data(as_text=True)
     box = re.search(r'<header class="full-head[^"]*"[^>]*>.*?</header>', page, re.S)
-    assert box, "the Summary box is missing"
+    assert box, "the Metadata box is missing"
     box = box.group(0)
-    assert "<h2>Summary</h2>" in box             # the call, named
+    assert "<h2>Metadata</h2>" in box            # the call, named
     assert "openai-codex" in box                 # its identity
     vhead = re.search(r'<div class="full-value-head[^"]*">.*?</div>', page, re.S)
     assert vhead, "the value heading is missing"
@@ -2579,16 +2579,16 @@ def test_the_pages_own_words_are_boxed_apart_from_the_value(tmp_path):
 
 def test_the_pages_own_words_are_styled_apart_from_the_rendered_markdown(tmp_path):
     """Class names carry the distinction, so a rename that lost it would
-    leave the page looking like the value titled itself. The Summary box and
+    leave the page looking like the value titled itself. The Metadata box and
     the value heading are both panels; the value heading is warm-shaded, so it
-    stands apart from the blue the Summary box and everything else uses."""
+    stands apart from the blue the Metadata box and everything else uses."""
     css = (REPO_ROOT / "templates" / "base.html").read_text()
     css = re.sub(r"\{#.*?#\}", "", css, flags=re.S)     # drop Jinja comments
     for selector in (r"\.full-head\b", r"\.full-head h2\b",
                      r"\.full-value-head\b", r"\.full-value-head h2\b",
                      r"\.md-body\b"):
         assert re.search(rf"{selector}[^{{}}\n]*\{{", css), selector
-    # the value heading is its own shaded panel, and not the Summary box's blue
+    # the value heading is its own shaded panel, and not the Metadata box's blue
     vhead = re.search(r"\.full-value-head \{([^}]*)\}", css).group(1)
     box = re.search(r"\.full-head \{([^}]*)\}", css).group(1)
     assert "background" in vhead and "border-left" in vhead
@@ -2764,14 +2764,14 @@ def test_the_contents_list_offers_a_way_back_to_the_top(tmp_path):
 
 
 def test_the_contents_list_leads_with_a_summary_bookmark(tmp_path):
-    """The Summary box is in the column too, above the messages, so the list
+    """The Metadata box is in the column too, above the messages, so the list
     leads with it — mixed case where the messages are upper, because it is this
     app's own section and not a wire message — and it lands on the box."""
     page = _full_page(tmp_path)
     nav = re.search(r'<nav class="msg-nav".*?</nav>', page, re.S).group(0)
     entry = re.search(r'<li class="nav-summary"><a href="#summary">([^<]*)</a>', nav)
-    assert entry, "no Summary bookmark"
-    assert entry.group(1) == "Summary"                 # the mixed case, verbatim
+    assert entry, "no Metadata bookmark"
+    assert entry.group(1) == "Metadata"                # the mixed case, verbatim
     # above the messages, and pointing at a box that carries the anchor
     assert nav.index("nav-summary") < nav.index('href="#m1"')
     assert 'id="summary"' in page
@@ -2847,7 +2847,7 @@ def test_message_boxes_fill_the_column_beside_the_contents_list(tmp_path):
 
 def test_the_value_heading_leads_the_page_above_the_summary(tmp_path):
     """The value is what the reader opened the page for, so its heading leads —
-    above the Summary box, which is the call it came from."""
+    above the Metadata box, which is the call it came from."""
     page = _llm_client(tmp_path).get(
         "/turns/span/L1/prompt").get_data(as_text=True)
     assert (page.index('class="full-value-head')

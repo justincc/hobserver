@@ -56,10 +56,10 @@
    from. #}
 {% set lead %}
 {# The value leads — its own name, size and provenance, because it is what the
-   page is. "Full prompt" / "Full response", not just "Prompt": the Summary box
+   page is. "Full prompt" / "Full response", not just "Prompt": the Metadata box
    below holds an *excerpt* named `prompt`, and this is the whole of it, so the
    two need telling apart. Its own panel, warm-shaded rather than the blue
-   every other piece of chrome uses (the Summary box, the message boxes, their
+   every other piece of chrome uses (the Metadata box, the message boxes, their
    labels), so it stands out as the one thing about the value and not the
    call. #}
 <div class="full-value-head">
@@ -83,7 +83,7 @@
    the value's own heading above. `id="summary"` is the anchor the contents
    list's own entry lands on. #}
 <header class="full-head" id="summary">
-  <h2>Summary</h2>
+  <h2>Metadata</h2>
   <p class="meta">
     {{ span.name }}{% if span.model_name %} · {{ span.model_name }}{% endif %}
     {#- call_role is llm metadata, and for an llm span the summary strip below
@@ -169,11 +169,11 @@
         below that heading, which is short of the top and reads as a bug. #}
     <a class="nav-top" href="#top">&uarr; top</a>
     <ul>
-      {#- The Summary box is in the column too, above the messages, so the
+      {#- The Metadata box is in the column too, above the messages, so the
           list leads with it. Mixed case, not the messages' upper — it is this
           app's own section, not a wire message, and reads as a different kind
           of thing. `#summary` is on the box. #}
-      <li class="nav-summary"><a href="#summary">Summary</a></li>
+      <li class="nav-summary"><a href="#summary">Metadata</a></li>
       {%- for part in rendered.sections %}
       <li{% if part.nested %} class="nav-nested"{% endif %}><a href="#m{{ loop.index }}">{{ part.label }}</a></li>
       {%- endfor %}

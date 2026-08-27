@@ -38,7 +38,7 @@
 {% else %}
 {# Same two-column shape as the full-value page (ADR 12): the file list runs
    up the left, sticky and full-height, while the skill's own boxes and the
-   file being read fill the column beside it. The heading and the Summary go
+   file being read fill the column beside it. The heading and the Metadata box go
    inside `.full-sections` (not above the row) so the list runs the whole
    height rather than only beside the file body. #}
 <div class="full-body">
@@ -47,8 +47,8 @@
        page — the same "top" the full-value contents list offers. #}
     <a class="nav-top" href="#top">&uarr; top</a>
     <ul>
-      {# The Summary box leads the column, so the list leads with it. #}
-      <li class="nav-summary"><a href="#summary">Summary</a></li>
+      {# The Metadata box leads the column, so the list leads with it. #}
+      <li class="nav-summary"><a href="#summary">Metadata</a></li>
       {%- for f in files %}
       <li>
         {%- if f.viewable %}
@@ -68,12 +68,12 @@
     </div>
 
     {# The provenance box — where this skill came from, read from hermes'
-       sidecars (ADR 23), boxed in the app's blue like the full-value Summary.
+       sidecars (ADR 23), boxed in the app's blue like the full-value Metadata box.
        The origin leads the fields as its own "Origin" row; it is a record we
        found, never inferred, and an unreadable sidecar shows "Unknown". #}
     {% if provenance %}
     <header class="full-head" id="summary">
-      <h2>Summary</h2>
+      <h2>Metadata</h2>
       <dl class="metadata">
         <dt>Origin</dt>
         <dd>{{ provenance.origin }}{% if provenance.note %} <span class="origin-note" tabindex="0" role="note" title="{{ provenance.note }}">&#9432;</span>{% endif %}</dd>
