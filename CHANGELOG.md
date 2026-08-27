@@ -10,6 +10,18 @@ and provider-spec vocabularies) may still change between releases — see
 
 ## [Unreleased]
 
+### Added
+
+- **A skill page shows the effective description hermes routes on.** hermes
+  truncates a long skill description in the system-prompt index, and the model
+  routes on that snippet unless it opens the full skill — so a trigger past the
+  cut is invisible to routing. The Metadata box leads with an **Effective
+  description** field showing the actual truncated entry, read from a recent
+  system prompt in the log and recognised by prefix-matching the full
+  description (no truncation length is hardcoded, so it cannot drift out of
+  step with hermes). Shown only when the description is genuinely cut. See
+  ADR 24.
+
 ### Fixed
 
 - Following a newly started turn no longer 404s when the turn's session is

@@ -26,7 +26,7 @@ from werkzeug.routing import BuildError
 
 import hermes_paths
 from console import console
-from plugins.turns import fulltext, skills, skill_provenance
+from plugins.turns import fulltext, skills, skill_provenance, skill_index
 from plugins.turns.assembler import assemble, containing_turn
 from plugins.turns.atof_index import (AtofIndex, default_index_path,
                                         hydrate_span, hydrate_turn)
@@ -747,13 +747,12 @@ def skill():
     span_uuid = request.args.get("span") or None
     raw = request.args.get("raw") is not None
 
-    # The turn this skill was opened from, for the "back to the turn" link —
-    # found by span uuid the same way the full-value page finds it. Best-effort:
-    # if the log is absent the skill still reads, the link just cannot point
-    # at a turn it could not assemble.
+    # The assembly, when there is a log to read one from, serves both the
+    # "back to the turn" link and the effective-description lookup below.
+    assembly = _assembly()[0] if _source_problem() is None else None
     turn = None
-    if span_uuid and _source_problem() is None:
-        turn, _ = _find_span(_assembly()[0], span_uuid)
+    if span_uuid and assembly is not None:
+        turn, _ = _find_span(assembly, span_uuid)
 
     # No roots configured (or pyyaml/config.yaml unreadable and no standard
     # root on disk): the feature is simply unavailable, said on its own page
@@ -799,6 +798,10 @@ def skill():
         skill_name=name or os.path.basename(skill_dir),
         skill_dir=skill_dir,
         provenance=skill_provenance.classify(skill_dir, roots),
+        effective_description=skill_index.effective_description_for_skill(
+            skill_dir, skills._identity(skill_dir) or os.path.basename(skill_dir),
+            assembly, current_app.config.get("ATOF_PATH"),
+            current_app.config.get("USAGE_SHAPES")),
         files=skills.list_skill_files(skill_dir),
         current=rel,
         rendered=rendered,

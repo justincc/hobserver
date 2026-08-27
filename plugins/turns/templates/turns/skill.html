@@ -75,6 +75,11 @@
     <header class="full-head" id="summary">
       <h2>Metadata</h2>
       <dl class="metadata">
+        {# What hermes' router actually sees for this skill: the truncated
+           index entry from a recent system prompt (ADR 24), shown only when
+           it is genuinely cut — the full description is in the frontmatter
+           below. Leads the box: it is the fact most likely to surprise. #}
+        {%- if effective_description %}<dt>Effective description</dt><dd>{{ effective_description }}</dd>{% endif %}
         <dt>Origin</dt>
         <dd>{{ provenance.origin }}{% if provenance.note %} <span class="origin-note" tabindex="0" role="note" title="{{ provenance.note }}">&#9432;</span>{% endif %}</dd>
         <dt>Files</dt><dd>{{ files | length }}</dd>
