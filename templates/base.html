@@ -75,6 +75,9 @@
     td.num { text-align: right; white-space: nowrap; }
     dl.metadata { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; font-size: 0.9rem; background: #f4f5f8; padding: 1rem; border-radius: 6px; }
     dl.metadata dt { font-weight: 600; color: #555; }
+    /* A key that carries an explanatory tooltip (the skill Metadata box) reads
+       as hoverable rather than inert. */
+    dl.metadata dt[title] { cursor: help; }
     dl.metadata dd { margin: 0; font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
     pre.blob { white-space: pre-wrap; overflow-wrap: anywhere; background: #f4f5f8; padding: 1rem; border-radius: 6px; font-size: 0.9rem; }
     nav.event-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }

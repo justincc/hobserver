@@ -74,23 +74,43 @@
     {% if provenance %}
     <header class="full-head" id="summary">
       <h2>Metadata</h2>
+      {# One tooltip per key, keyed on the label so the static rows and the
+         dynamic `provenance.rows` loop draw from the same text. The values
+         mix filesystem facts (Files, Last modified, Path) with hermes' own
+         telemetry (the counts, State, Pinned), so the key alone does not
+         always say which — the tooltip does. #}
+      {%- set tips = {
+        "Effective description": "The truncated description Hermes Agent sees for this skill unless it decides to view it in full.",
+        "Origin": "Where this skill came from.",
+        "Files": "How many files in the skill's directory.",
+        "Created": "When hermes first recorded this skill.",
+        "Last modified": "When the skill's SKILL.md was last written on disk.",
+        "Last used": "When hermes last used this skill.",
+        "Times modified": "How many times hermes has edited this skill.",
+        "Times used": "How many times hermes has used this skill.",
+        "State": "The skill's lifecycle state in hermes' curator (e.g. active, stale, archived).",
+        "Pinned": "Whether the skill is pinned against curator pruning.",
+        "Hub source": "The skills hub identifier for this skill, if applicable.",
+        "Version": "The version installed from the skills hub (if applicable).",
+        "Path": "The skill's directory on disk.",
+      } %}
       <dl class="metadata">
         {# What hermes' router actually sees for this skill: the truncated
            index entry from a recent system prompt (ADR 24), shown only when
            it is genuinely cut — the full description is in the frontmatter
            below. Leads the box: it is the fact most likely to surprise. #}
-        {%- if effective_description %}<dt>Effective description</dt><dd>{{ effective_description }}</dd>{% endif %}
-        <dt>Origin</dt>
+        {%- if effective_description %}<dt title="{{ tips['Effective description'] }}">Effective description</dt><dd>{{ effective_description }}</dd>{% endif %}
+        <dt title="{{ tips['Origin'] }}">Origin</dt>
         <dd>{{ provenance.origin }}{% if provenance.note %} <span class="origin-note" tabindex="0" role="note" title="{{ provenance.note }}">&#9432;</span>{% endif %}</dd>
-        <dt>Files</dt><dd>{{ files | length }}</dd>
-        {%- if provenance.created %}<dt>Created</dt><dd>{{ provenance.created }}</dd>{% endif %}
-        {%- if provenance.modified %}<dt>Last modified</dt><dd>{{ provenance.modified }}</dd>{% endif %}
-        {%- if provenance.last_used %}<dt>Last used</dt><dd>{{ provenance.last_used }}</dd>{% endif %}
-        {%- if provenance.modified_count is not none %}<dt>Times modified</dt><dd>{{ provenance.modified_count }}</dd>{% endif %}
-        {%- for label, value in provenance.rows %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
+        <dt title="{{ tips['Files'] }}">Files</dt><dd>{{ files | length }}</dd>
+        {%- if provenance.created %}<dt title="{{ tips['Created'] }}">Created</dt><dd>{{ provenance.created }}</dd>{% endif %}
+        {%- if provenance.modified %}<dt title="{{ tips['Last modified'] }}">Last modified</dt><dd>{{ provenance.modified }}</dd>{% endif %}
+        {%- if provenance.last_used %}<dt title="{{ tips['Last used'] }}">Last used</dt><dd>{{ provenance.last_used }}</dd>{% endif %}
+        {%- if provenance.modified_count is not none %}<dt title="{{ tips['Times modified'] }}">Times modified</dt><dd>{{ provenance.modified_count }}</dd>{% endif %}
+        {%- for label, value in provenance.rows %}{% set tip = tips.get(label) %}<dt{% if tip %} title="{{ tip }}"{% endif %}>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
         {# The path last: it is the one long, wrapping value, kept out of the
            tidy rows above and left as the reference datum at the foot. #}
-        <dt>Path</dt><dd>{{ skill_dir }}{{ copy_btn(skill_dir, "copy skill path") }}</dd>
+        <dt title="{{ tips['Path'] }}">Path</dt><dd>{{ skill_dir }}{{ copy_btn(skill_dir, "copy skill path") }}</dd>
       </dl>
     </header>
     {% endif %}
