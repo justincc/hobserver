@@ -2711,12 +2711,14 @@ def test_the_contents_labels_are_the_section_labels_themselves(tmp_path):
     assert [label for _, _, label in _nav_items(page)] == labels
 
 
-def test_a_single_message_gets_no_contents_list(tmp_path):
-    """A list of one names the thing the reader is already looking at."""
+def test_a_single_message_still_gets_a_contents_list(tmp_path):
+    """The list always leads with the Metadata box, so one section still
+    makes a two-entry contents that earns the column."""
     page = _full_page(tmp_path, profile={"annotated_request": {
         "messages": [{"role": "user", "content": "just the one"}]}})
-    assert _nav_items(page) == []
-    assert 'class="msg-nav"' not in page
+    assert 'class="msg-nav"' in page
+    assert [label for _, _, label in _nav_items(page)] == ["user"]
+    assert 'href="#summary">Metadata</a>' in page
 
 
 def test_a_value_that_is_not_sections_gets_no_contents_list(tmp_path):

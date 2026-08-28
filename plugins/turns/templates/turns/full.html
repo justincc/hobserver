@@ -141,8 +141,9 @@
    call's card needs no name or number to say which call it answers. #}
 {# A request runs to a dozen messages and a system prompt alone can be
    thousands of lines, so the way to the one a reader wants is a list of all
-   of them rather than the scrollbar. Only past a couple: a contents list of
-   one entry names the thing the reader is already looking at.
+   of them rather than the scrollbar. Shown even for a single section: the
+   list always leads with the Metadata box, so one section still makes a
+   two-entry contents — Metadata and the message — that earns the column.
 
    The labels are the section labels verbatim — the nav says exactly what
    the band it lands on says, so the two cannot drift into two vocabularies
@@ -155,7 +156,6 @@
    would need disambiguating with the position anyway. #}
 {% if rendered.sections %}
 <div class="full-body">
-  {%- if rendered.sections | length > 1 %}
   <nav class="msg-nav" aria-label="Contents">
     {#- Named for where it goes, not for what is there. The page's title was
         tried and is wrong: every entry below is a part of the Prompt, so a
@@ -179,7 +179,6 @@
       {%- endfor %}
     </ul>
   </nav>
-  {%- endif %}
   <div class="full-sections">
 {{ lead }}
 {% for part in rendered.sections %}
