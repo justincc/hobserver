@@ -59,9 +59,9 @@ after the banner, not part of it.
 Two things to expect from it:
 
 - **A from-scratch build takes roughly ten seconds per gigabyte of log**, once.
-  When a rebuild is coming the tab says so first (`…rebuilding — this can take
-  ~20s…`), so the pause that follows is accounted for. Later starts reuse the
-  cache, which is the point of persisting it, and report `reused`.
+  When a rebuild is coming the tab says so first, so the pause that follows is
+  accounted for. Later starts reuse the cache, which is the point of persisting
+  it, and report `reused`.
 - **Editing `atof_reader.py`, `spans.py`, `assembler.py` or `atof_index.py`
   forces a rebuild**, because the stored fields mean whatever those files meant
   when they wrote them. Under `--dev` each such edit restarts the worker, so
