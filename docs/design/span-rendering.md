@@ -1058,6 +1058,16 @@ plus an `.err` row.
 Both stay out of detail mode: failures are common enough — some tools fail
 more often than they succeed — that noticing one must never need a click.
 
+A skill scope (`skill_view`/`skill_manage`) that failed because a bare name
+matched more than one skill is the one failure that carries more than the
+`error` string: its end payload lists every colliding `SKILL.md` in a `matches`
+array, and the error text names only the count, not the paths. `Span.skill_ambiguous_matches`
+reads that array and the paths render on detail-only rows beside the error, each
+home-collapsed to `~` with the full path in the title — so the reader can see
+which two skills collided, and by which categorized path to load the one they
+meant. Detail-only because it is the outcome's fine print, not the failure
+itself; empty (and so absent) for every other scope and every other failure.
+
 ## mem0_search results
 
 `mem0_results` reads the end payload —

@@ -1032,6 +1032,24 @@ class Span:
         return (self._start_str("absorbed_into")
                 if self.name == "skill_manage" else None)
 
+    # a skill scope that failed on a bare name matching more than one skill
+    # names every colliding SKILL.md in a "matches" list on its end payload
+    # (checked against skill_view/skill_manage's ambiguity error in
+    # $HERMES_SOURCE/tools/skill_tool.py). The error string itself does not
+    # carry the paths, so they would be lost without this. Detail mode only,
+    # like memory's current_entries: it is the outcome, not the request.
+    @property
+    def skill_ambiguous_matches(self) -> list:
+        if not self._is_skill_scope:
+            return []
+        end = _as_dict(self.end_data)
+        if end is None:
+            return []
+        matches = end.get("matches")
+        if not isinstance(matches, list):
+            return []
+        return [m for m in matches if isinstance(m, str) and m]
+
     # vision_analyze start payloads carry the image looked at (a URL or local
     # path) and the question asked of it; keys are too generic to trust
     # outside the scope, so gate on the span name

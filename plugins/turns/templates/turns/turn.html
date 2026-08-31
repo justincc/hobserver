@@ -152,6 +152,14 @@
           <span class="path wide wrap-detail" title="{{ s.error }}">{{ s.error }}</span>
         </div>
         {% endif %}
+        {# The colliding skills an ambiguity error refused to pick between: the
+           error names the count, these name the paths so the reader can see
+           which is which. Outcome rows, so they sit with the error above. #}
+        {% for match in s.skill_ambiguous_matches %}
+        <div class="span-detail list-item">
+          <span class="path wide wrap-detail" title="{{ match }}">{{ match | tilde }}</span>
+        </div>
+        {% endfor %}
         {# Detail-only, like session_search's counts: the collapsed line
            belongs to the entry written and, when it failed, to why. These are
            outcome rows, so they sit with the error row rather than in the

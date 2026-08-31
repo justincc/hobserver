@@ -189,6 +189,36 @@ def test_skill_scope_details_from_start_payload():
     assert other.skill_new_string is None
 
 
+def test_skill_ambiguous_matches_from_end_payload():
+    # a bare name matching two skills fails with the colliding SKILL.md paths
+    # in a "matches" list; the error string alone does not name them.
+    ambiguous = ("/roots/config/skills/finance/crypto-analysis/SKILL.md",
+                 "/roots/justincc/crypto-analysis/SKILL.md")
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("F1", "tool", 1_100_000, 1_200_000, name="skill_view",
+                     session="s1", turn="t1", end_status="error",
+                     start_data={"name": "crypto-analysis"},
+                     end_data=json.dumps({
+                         "success": False,
+                         "error": "Ambiguous skill name 'crypto-analysis'.",
+                         "matches": list(ambiguous)})),
+        *scope_lines("F2", "tool", 1_300_000, 1_400_000, name="skill_view",
+                     session="s1", turn="t1",
+                     start_data={"name": "job-seeker"},
+                     end_data=json.dumps({"success": True})),
+        *scope_lines("F3", "tool", 1_500_000, 1_600_000, name="terminal",
+                     session="s1", turn="t1", end_status="error",
+                     end_data=json.dumps({"matches": ["x", "y"]})),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    ambig, ok, other = assemble_lines(lines).sessions[0].turns[0].spans
+    assert ambig.skill_ambiguous_matches == list(ambiguous)
+    assert ok.skill_ambiguous_matches == []      # a resolved view has no matches
+    assert other.skill_ambiguous_matches == []   # the key is ignored off a skill scope
+
+
 def test_skill_patch_keeps_an_empty_new_string():
     # "" is a real patch — it deletes the matched text — so it must not fold
     # into None the way an absent key does
