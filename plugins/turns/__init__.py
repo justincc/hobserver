@@ -345,7 +345,7 @@ def _warm_index(app):
         reason = index.rebuild_pending()
         if reason is not None:
             console(f"Turns: ATOF index is stale ({reason}); rebuilding — this "
-                    "can take ~20s on a large log…")
+                    "can take some time on a large log…")
         state = index.refresh()
     except Exception as exc:  # noqa: BLE001 - a bad index must not stop serving
         console(f"Turns: could not read the ATOF index "
