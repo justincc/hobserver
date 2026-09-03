@@ -26,7 +26,9 @@
 
 {% include "turns/_inflight.html" %}
 
-<h2>Turn {{ turn.turn_id or '(no id)' }}{% if turn.turn_id %}{{ copy_btn(turn.turn_id, "copy turn id") }}{% endif %} · session {{ turn.session_id }}</h2>
+<h2>Turn {{ turn.turn_id or '(no id)' }}{% if turn.turn_id %}{{ copy_btn(turn.turn_id, "copy turn id") }}{% endif %} · session {{ turn.session_id }}{{ copy_btn(turn.session_id, "copy session id") }}{# The raw microsecond start: the second segment of this turn's URL (the
+   session above is the first), shown so the address's composition is legible. #}
+   · timestamp {{ turn.start_us }}{{ copy_btn(turn.start_us, "copy start timestamp") }}</h2>
 <p class="meta">started {{ turn.start_us | us_time }} UTC
   {%- if turn.is_live %} · <span class="badge-inflight">in flight</span>
   {%- elif turn.superseded %} · <span class="badge-noend" title="A later turn started in this session before this one closed, so it is over; its end mark never arrived and its duration was never observed.">no end mark</span>{% endif %}</p>

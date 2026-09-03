@@ -135,6 +135,16 @@ def test_turn_detail_renders_waterfall_bars(tmp_path):
     assert "call-1" not in page
 
 
+def test_turn_header_carries_session_and_raw_start_us_each_copyable(tmp_path):
+    # The header names both segments of the turn's URL — the session and the
+    # raw microsecond start — so the address's composition is legible on the
+    # page. Both get a copy button (as the turn id does), for symmetry.
+    atof = write_atof(tmp_path, two_turn_stream())
+    page = make_client(tmp_path, str(atof)).get("/turns/turn/s1/1000000").get_data(as_text=True)
+    assert "· session s1<button class=\"copy-btn\" data-copy=\"s1\"" in page
+    assert "· timestamp 1000000<button class=\"copy-btn\" data-copy=\"1000000\"" in page
+
+
 def test_a_stale_start_us_redirects_to_the_turns_live_key(tmp_path):
     # Follow mode captures a URL whose start_us a later assembly revised
     # earlier (the scope/mark race). t1 runs [1_000_000, 6_500_000]; a start
