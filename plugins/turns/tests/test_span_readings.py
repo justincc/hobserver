@@ -729,6 +729,57 @@ def test_failed_spans_carry_the_tools_own_error():
     assert not open_.failed and open_.error is None
 
 
+def test_llm_call_that_errored_before_returning_is_flagged():
+    """An llm call whose provider backend errors leaves no end payload — the
+    observability wrapper stamps OpenTelemetry's ERROR status and the
+    exception instead. Without this it renders as a bare call (no finish
+    reason, no tokens, nothing saying why), which is what a run of retried
+    calls with no spans between them looks like. `failed` and `error` surface
+    it the same way a tool's own failure is surfaced, so the badge and the
+    message row both appear."""
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        # the backend erroring: no end payload, ERROR status, exception stamped
+        *scope_lines("E1", "llm", 1_100_000, 1_200_000, name="openai.responses",
+                     session="s1", turn="t1", end_data=None,
+                     end_metadata={
+                         "otel.status_code": "ERROR",
+                         "otel.status_description": "internal error: APIError: "
+                             "Our servers are currently overloaded. Please try "
+                             "again later.",
+                         "exception.type": "APIError",
+                         "error.type": "internal_error"}),
+        # a successful llm call carries OK, and is not flagged
+        *scope_lines("OK", "llm", 1_250_000, 1_300_000, name="openai.responses",
+                     session="s1", turn="t1",
+                     end_data={"finish_reason": "complete"},
+                     end_metadata={"otel.status_code": "OK"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    errored, ok = assemble_lines(lines).sessions[0].turns[0].spans
+    assert errored.failed
+    assert errored.error == ("internal error: APIError: Our servers are "
+                             "currently overloaded. Please try again later.")
+    assert not ok.failed and ok.error is None
+
+
+def test_transport_error_falls_back_to_the_exception_type():
+    """When the wrapper stamps ERROR but no description, the exception type is
+    the message — better a bare `APIError` on the row than a silent failure."""
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("E1", "llm", 1_100_000, 1_200_000, name="openai.responses",
+                     session="s1", turn="t1", end_data=None,
+                     end_metadata={"otel.status_code": "ERROR",
+                                   "exception.type": "APIConnectionError"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    errored, = assemble_lines(lines).sessions[0].turns[0].spans
+    assert errored.failed and errored.error == "APIConnectionError"
+
+
 def test_memory_results_report_the_char_budget():
     lines = [
         *session_scope_lines("s1"),

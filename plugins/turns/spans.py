@@ -267,17 +267,49 @@ class Span:
     # successful one here.
     @property
     def failed(self) -> bool:
-        return self.metadata.get("status") == "error"
+        return (self.metadata.get("status") == "error"
+                or self.transport_error is not None)
+
+    # A call that failed before it returned a payload of its own. hermes'
+    # observability wrapper stamps OpenTelemetry's ERROR status and the
+    # exception onto the span's end event, and there is no end payload to
+    # carry a message the way a tool's does. This is how an llm call surfaces
+    # a failure: a provider backend erroring (an `APIError: servers
+    # overloaded`, say) leaves `end_data` null, so finish_reason, tokens and
+    # text are all absent and the row would otherwise read as a bare call
+    # with nothing saying why — which is exactly a run of retried calls with
+    # no spans between them.
+    #
+    # Distinct from `error` below: that is a call that *ran* and reported its
+    # own failure string; this one never ran to completion. `otel.status_code`
+    # is read only as the positive ERROR signal, never inverted to mean
+    # success — it reads OK on failing hermes tool calls (see
+    # atof_reader.normalize_relay_runtime), where the tool's own error string
+    # is the signal instead. So a tool failure still comes through `error`,
+    # and this adds the transport failure a payload string cannot express.
+    @property
+    def transport_error(self) -> Optional[str]:
+        if self.metadata.get("otel.status_code") != "ERROR":
+            return None
+        for key in ("otel.status_description", "exception.type", "error.type"):
+            value = self.metadata.get(key)
+            if isinstance(value, str) and value:
+                return value
+        return "the call failed before it returned"
 
     @property
     def error(self) -> Optional[str]:
-        """The tool's own failure message. Shown whenever it is present,
-        even if the status did not say error — ADR 2's loud-failure rule."""
+        """The call's failure message. A tool's own error string from its end
+        payload, or — when the call failed before returning one — the
+        transport error the observability wrapper stamped (`transport_error`).
+        Shown whenever it is present, even if the status did not say error —
+        ADR 2's loud-failure rule."""
         end = _as_dict(self.end_data)
-        if end is None:
-            return None
-        value = end.get("error")
-        return value if isinstance(value, str) and value else None
+        if end is not None:
+            value = end.get("error")
+            if isinstance(value, str) and value:
+                return value
+        return self.transport_error
 
     def _start_str(self, key: str) -> Optional[str]:
         data = _as_dict(self.start_data)

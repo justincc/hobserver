@@ -119,7 +119,7 @@
         {%- if s.model_name %} · {{ s.model_name }}{% endif %}
         <span class="span-uuid">· {{ s.uuid }}{{ copy_btn(s.uuid, "copy span uuid") }}</span>
         {%- if s.is_open %} · <span class="badge-inflight">open</span>{% endif %}
-        {%- if s.failed %} · <span class="badge-error" title="The tool reported an error; its message is below.">failed</span>{% endif %}
+        {%- if s.failed %} · <span class="badge-error" title="This call reported an error — a tool's own failure, or an llm call that errored before it returned (a provider backend failing, say). Its message is below.">failed</span>{% endif %}
         {# What this scope shows is declared in plugins/turns/scopes.py and
            looked up by name (ADR 7). One scope, llm, keeps hand-written Jinja
            and is reached through `render=`; everything else paints its

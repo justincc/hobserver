@@ -12,6 +12,17 @@ and provider-spec vocabularies) may still change between releases — see
 
 ### Added
 
+- **A failed llm call is now flagged instead of rendering as a bare call.** A
+  call whose provider backend errors before returning (`APIError: Our servers
+  are currently overloaded`, say) carries no end payload — no finish reason, no
+  tokens, no text — so a run of retried calls read as a mysterious sequence of
+  identical calls with no spans between them. The failure lives in the end
+  event's OpenTelemetry envelope metadata (`otel.status_code == "ERROR"`, with
+  the message in `otel.status_description`), which `Span.transport_error` reads
+  and `Span.failed`/`Span.error` fold in — so such a call takes the same
+  `failed` badge on the summary line and `error` message row in the detail that
+  a failing tool already does. See `docs/design/span-rendering.md`.
+
 - **A skill page shows the effective description hermes routes on.** hermes
   truncates a long skill description in the system-prompt index, and the model
   routes on that snippet unless it opens the full skill — so a trigger past the

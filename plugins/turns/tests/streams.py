@@ -28,9 +28,12 @@ def _metadata(session=None, turn=None):
 
 def scope_lines(uuid, category, start_us, end_us=None, *, name="span", session=None,
                 turn=None, parent=SESSION_SCOPE_UUID, profile=None,
-                start_data=None, end_data=None, end_status=None):
+                start_data=None, end_data=None, end_status=None,
+                end_metadata=None):
     """A scope's start (and end) lines. end_status stamps metadata.status,
-    which hermes sets to "ok" or "error" on the end event only."""
+    which hermes sets to "ok" or "error" on the end event only. end_metadata
+    stamps further keys onto the end event — the OpenTelemetry `otel.*` and
+    `exception.*` a call carries when it errors before returning a payload."""
     common = {
         "kind": "scope", "atof_version": "0.1", "uuid": uuid, "parent_uuid": parent,
         "name": name, "category": category, "category_profile": profile,
@@ -39,7 +42,7 @@ def scope_lines(uuid, category, start_us, end_us=None, *, name="span", session=N
     lines = [json.dumps({**common, "scope_category": "start",
                          "timestamp": start_us, "data": start_data})]
     if end_us is not None:
-        end_metadata = {**(common["metadata"] or {})}
+        end_metadata = {**(common["metadata"] or {}), **(end_metadata or {})}
         if end_status:
             end_metadata["status"] = end_status
         lines.append(json.dumps({**common, "scope_category": "end",

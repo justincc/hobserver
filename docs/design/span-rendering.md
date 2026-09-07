@@ -350,6 +350,22 @@ what it means is left to the tooltip that was always carrying it.
   The page's `note` states the regrouping in words; see "the source's order
   is the default, not a vow" in
   [design-principles.md](design-principles.md) and ADR 12's amendment.
+- **A call that failed before it returned** — the same `failed` badge and
+  `error` row a failing tool takes, on the summary line and in the detail. An
+  llm call whose provider backend errors (`APIError: Our servers are currently
+  overloaded`, say) has no end payload: `finish_reason`, the tokens and the
+  text are all absent, so the row would otherwise read as a bare call with
+  nothing saying why — which is exactly what a run of retried calls with no
+  spans between them looks like (`retry` stays 0, since the layer that reissues
+  the request is not the one that counts fallback attempts). The failure lives
+  in the end event's envelope metadata, not a payload of its own:
+  `otel.status_code == "ERROR"` with the message in `otel.status_description`
+  (`exception.type`, then `error.type`, as fallbacks). `Span.transport_error`
+  reads it and `Span.failed`/`Span.error` fold it in, so a transport failure on
+  any scope is flagged, not only an llm one. This reads `otel.status_code` only
+  as the positive ERROR signal — it says `OK` on a *tool* that ran and failed
+  (see [atof-reader.md](atof-reader.md)), where the tool's own error string is
+  the signal instead.
 
   **A contents list runs down the left**, one entry per message, sticky so
   it stays with what it lists. A request is a dozen messages and a system
