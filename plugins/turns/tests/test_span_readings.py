@@ -1185,8 +1185,10 @@ def test_the_tools_trail_the_request_as_a_contained_group():
     assert tool["grouped"] is True
     assert tool["summary"] == "Read a file."          # the description
     assert '"read_file"' in tool["text"]              # the raw schema, in text
-    assert tool["facts"] == [{"label": "type", "value": "function"},
-                             {"label": "strict", "value": "yes"}]
+    facts = tool["facts"]
+    assert facts[0] == {"label": "type", "value": "function"}
+    assert facts[1]["label"] == "strict" and facts[1]["value"] == "yes"
+    assert "schema" in facts[1]["title"]              # strict carries its gloss
     assert tool["params"] == [
         {"name": "path", "type": "string", "required": True,
          "description": "The path."},

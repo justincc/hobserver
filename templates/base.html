@@ -375,6 +375,9 @@
     .tool-desc.md-body > :last-child { margin-bottom: 0; }
     .tool-facts { margin: 0; padding: 0.5rem 0.9rem; }
     .tool-fact { margin-right: 0.9rem; font-size: 0.76rem; color: #6b7392; }
+    /* A flag that carries an explanation reads as hoverable, like a skill
+       Metadata key (dl.metadata dt[title]). */
+    .tool-fact[title] { cursor: help; }
     .tool-fact-k { font-family: ui-monospace, monospace; color: #55608c; }
     /* A tool's parameters, broken out of its schema: a row each, the name in
        mono, then a faint type and a `required` tag, then the description on

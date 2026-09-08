@@ -203,7 +203,7 @@
 {%- if part.facts %}
 <div class="tool-section-head">properties</div>
 <p class="tool-facts">
-  {%- for f in part.facts %}<span class="tool-fact"><span class="tool-fact-k">{{ f.label }}</span> {{ f.value }}</span>{% endfor %}
+  {%- for f in part.facts %}<span class="tool-fact"{% if f.title %} title="{{ f.title }}"{% endif %}><span class="tool-fact-k">{{ f.label }}</span> {{ f.value }}</span>{% endfor %}
 </p>
 {%- endif %}
 {%- if part.params %}

@@ -1426,8 +1426,9 @@ def _tool_facts(tool: dict) -> tuple:
 
     `flags` are the tool-level attributes beside those — `type` (the wire
     envelope, ordinarily `function`) and `strict` (whether the model must
-    match the schema exactly) — each a `{label, value}` for the page to list.
-    A flag absent from the schema is absent from the list rather than guessed.
+    match the schema exactly) — each a `{label, value}`, and a `title` where
+    the attribute is worth explaining. A flag absent from the schema is absent
+    from the list rather than guessed.
     """
     fn = tool.get("function")
     holder = fn if isinstance(fn, dict) else tool
@@ -1442,7 +1443,16 @@ def _tool_facts(tool: dict) -> tuple:
         flags.append({"label": "type", "value": ttype})
     strict = holder.get("strict")
     if isinstance(strict, bool):
-        flags.append({"label": "strict", "value": "yes" if strict else "no"})
+        flags.append({
+            "label": "strict", "value": "yes" if strict else "no",
+            "title": (
+                "OpenAI structured-outputs flag. On: the provider constrains "
+                "the model's arguments to match this schema exactly while "
+                "decoding — every required field present, no unlisted keys, "
+                "types and enums obeyed — rather than only supplying the "
+                "schema and trusting the model to follow it; it needs a closed "
+                "schema (additionalProperties false). Off or absent: the "
+                "schema is advisory and the caller must validate.")})
     return (name if isinstance(name, str) and name else None,
             description if isinstance(description, str) and description
             else None,
