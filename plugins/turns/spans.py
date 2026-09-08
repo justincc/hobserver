@@ -1440,7 +1440,15 @@ def _tool_facts(tool: dict) -> tuple:
     flags = []
     ttype = tool.get("type")
     if isinstance(ttype, str) and ttype:
-        flags.append({"label": "type", "value": ttype})
+        flags.append({
+            "label": "type", "value": ttype,
+            "title": (
+                "The kind of tool. hermes runs its own tools, so it declares "
+                "them all as `function` (a name and a JSON-schema signature it "
+                "calls itself). The API's type space is wider — provider-hosted "
+                "tools like web_search, file_search, code_interpreter or "
+                "computer_use carry other types and shapes — so this is shown "
+                "rather than assumed.")})
     strict = holder.get("strict")
     if isinstance(strict, bool):
         flags.append({

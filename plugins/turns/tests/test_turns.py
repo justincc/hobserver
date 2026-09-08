@@ -2381,11 +2381,13 @@ def test_the_full_page_trails_with_the_tools_as_a_contained_group(tmp_path):
     # the description, rendered as markdown, leads the formatted tab
     assert '<div class="md-body tool-desc">' in fmt
     assert "<code>goal</code>" in fmt and "<li>" in fmt          # markdown, not flat
-    # the tool-level flags, strict carrying a tooltip that explains it
+    # the tool-level flags, each carrying a tooltip that explains it
     assert '<span class="tool-fact-k">strict</span> yes' in fmt
     assert '<span class="tool-fact-k">type</span> function' in fmt
     assert re.search(r'<span class="tool-fact" title="[^"]*schema[^"]*">'
                      r'<span class="tool-fact-k">strict</span>', fmt)
+    assert re.search(r'<span class="tool-fact" title="[^"]*function[^"]*">'
+                     r'<span class="tool-fact-k">type</span>', fmt)
     # the parameter itself, broken out — not lumped into one JSON block
     assert '<code class="tool-pname">goal</code>' in fmt
     assert '<span class="tool-ptype">string</span>' in fmt
