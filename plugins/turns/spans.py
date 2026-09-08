@@ -1494,16 +1494,46 @@ def _param_type(prop: dict) -> str:
     return ""
 
 
-def _tool_params(parameters: Optional[dict]) -> list:
+def _enum_values(prop: dict) -> list:
+    """The allowed values of a parameter, if it is constrained to a set.
+
+    The `enum` sits on the property for a scalar (`action`) and on the items
+    for an array of a fixed set. Values are stringified for display — most are
+    strings already; a non-string one is shown as its JSON so it reads as the
+    literal it is.
+    """
+    enum = prop.get("enum")
+    if not isinstance(enum, list):
+        items = prop.get("items")
+        if isinstance(items, dict) and isinstance(items.get("enum"), list):
+            enum = items["enum"]
+    if not isinstance(enum, list):
+        return []
+    return [v if isinstance(v, str)
+            else json.dumps(v, ensure_ascii=False, default=str) for v in enum]
+
+
+def _tool_params(parameters: Optional[dict], _depth: int = 0) -> list:
     """A tool's parameters broken out of its schema, one row each.
 
     `parameters` is a JSON schema of the call's arguments — an object whose
     `properties` are the parameters and whose `required` names the ones that
-    must be given. This turns that into `{name, type, required, description}`
-    rows so the page can list them instead of printing the schema as a block
-    of JSON. Order is the schema's own (`properties` is an object, and its key
-    order is what the producer wrote). A schema this cannot read as that shape
-    yields no rows, and the tool falls back to showing its raw schema.
+    must be given. This turns that into rows so the page can list them instead
+    of printing the schema as a block of JSON. Each row carries `name`, `type`,
+    `required` and `description`, plus the two facts most often wanted next:
+    `enum` (the allowed values, when the parameter is a fixed set) and
+    `default`.
+
+    It also goes **one level deep**: an object parameter's own properties, or
+    the fields of the objects in an array parameter, are read out as `children`
+    — the same rows again — so a shape like delegate_task's array-of-tasks
+    shows its `goal`/`context`/… fields rather than collapsing to `object[]`.
+    Deeper nesting and the long tail of JSON-schema constraints (`minItems`,
+    `pattern`, `format`, …) are left to the raw schema, which the tool's Raw
+    tab shows in full: this is a reading for the eye, not a second copy of the
+    schema. Order is the schema's own (`properties` key order is what the
+    producer wrote). A schema this cannot read as that shape yields no rows,
+    and the tool falls back to showing its raw schema.
     """
     if not isinstance(parameters, dict):
         return []
@@ -1516,12 +1546,25 @@ def _tool_params(parameters: Optional[dict]) -> list:
     for name, prop in properties.items():
         prop = prop if isinstance(prop, dict) else {}
         description = prop.get("description")
+        # One level of nesting: an object's own properties, or the object
+        # `items` of an array. Not deeper — the raw schema holds the rest.
+        children = []
+        if _depth < 1:
+            nested = prop
+            if prop.get("type") == "array" and isinstance(prop.get("items"), dict):
+                nested = prop["items"]
+            if isinstance(nested.get("properties"), dict):
+                children = _tool_params(nested, _depth + 1)
         rows.append({
             "name": str(name),
             "type": _param_type(prop),
             "required": name in required,
             "description": (description if isinstance(description, str)
                             and description else None),
+            "enum": _enum_values(prop),
+            "default": (json.dumps(prop["default"], ensure_ascii=False,
+                                   default=str) if "default" in prop else None),
+            "children": children,
         })
     return rows
 

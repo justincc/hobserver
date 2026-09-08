@@ -1193,9 +1193,10 @@ def test_the_tools_trail_the_request_as_a_contained_group():
     assert "schema" in facts[1]["title"]
     assert tool["params"] == [
         {"name": "path", "type": "string", "required": True,
-         "description": "The path."},
+         "description": "The path.", "enum": [], "default": None,
+         "children": []},
         {"name": "limit", "type": "integer", "required": False,
-         "description": None}]
+         "description": None, "enum": [], "default": None, "children": []}]
 
 
 def test_a_request_without_tools_has_no_tools_group():
@@ -1229,9 +1230,53 @@ def test_an_array_parameter_names_what_it_holds():
                 "globs": {"type": "array", "items": {"type": "string"}},
                 "mode": {"enum": ["files", "content"]}}}}}]}})
     params = span.llm_request_messages[2]["params"]
-    assert params[0] == {"name": "globs", "type": "string[]",
-                         "required": False, "description": None}
+    assert params[0]["name"] == "globs" and params[0]["type"] == "string[]"
     assert params[1]["type"] == "enum"
+
+
+def test_a_parameters_allowed_values_and_default_are_read_out():
+    """The two facts most often wanted after the type: the allowed values of a
+    fixed-set parameter and its default. An enum on a scalar sits on the
+    property; on an array of a fixed set it sits on the items."""
+    span = llm_span(profile={"annotated_request": {
+        "messages": [{"role": "user", "content": "hi"}],
+        "tools": [{"type": "function", "function": {"name": "act",
+            "parameters": {"type": "object", "properties": {
+                "action": {"type": "string", "enum": ["spawn", "stop"],
+                           "default": "spawn"},
+                "tags": {"type": "array",
+                         "items": {"enum": ["a", "b"]}}}}}}]}})
+    params = span.llm_request_messages[2]["params"]
+    assert params[0]["enum"] == ["spawn", "stop"]
+    assert params[0]["default"] == '"spawn"'          # JSON, so it reads as a literal
+    assert params[1]["enum"] == ["a", "b"]             # from the array items
+    assert params[1]["default"] is None
+
+
+def test_an_array_of_objects_reads_out_its_item_fields_one_level_deep():
+    """delegate_task's shape: an array whose objects have their own fields. The
+    reading goes one level in — the item fields become the parameter's
+    `children` — rather than collapsing to `object[]` and losing them. It stops
+    at one level: a field that is itself an object has no children of its own,
+    the raw schema holding the rest."""
+    span = llm_span(profile={"annotated_request": {
+        "messages": [{"role": "user", "content": "hi"}],
+        "tools": [{"type": "function", "function": {"name": "delegate", "parameters": {
+            "type": "object", "properties": {"tasks": {
+                "type": "array", "items": {
+                    "type": "object",
+                    "properties": {
+                        "goal": {"type": "string", "description": "Do this."},
+                        "output_schema": {"type": "object", "properties": {
+                            "answer": {"type": "string"}}}},
+                    "required": ["goal"]}}}}}}]}})
+    tasks = span.llm_request_messages[2]["params"][0]
+    assert tasks["name"] == "tasks" and tasks["type"] == "object[]"
+    assert [c["name"] for c in tasks["children"]] == ["goal", "output_schema"]
+    goal = tasks["children"][0]
+    assert goal["required"] is True and goal["description"] == "Do this."
+    # one level only: the nested object's own fields are not expanded again
+    assert tasks["children"][1]["children"] == []
 
 
 def test_a_tool_of_an_unknown_shape_keeps_its_place_as_raw_schema():

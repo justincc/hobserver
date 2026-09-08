@@ -2343,7 +2343,15 @@ REQUEST_WITH_TOOLS = {"annotated_request": {
                             "strict": True,
                             "parameters": {"type": "object", "properties": {
                                 "goal": {"type": "string",
-                                         "description": "What to do."}},
+                                         "description": "What to do."},
+                                "action": {"type": "string",
+                                           "enum": ["spawn", "list"],
+                                           "default": "spawn",
+                                           "description": "What to do."},
+                                "tasks": {"type": "array", "items": {
+                                    "type": "object", "properties": {
+                                        "context": {"type": "string",
+                                                    "description": "Background."}}}}},
                                 "required": ["goal"]}}}],
     "tool_choice": "auto",
     "parallel_tool_calls": True,
@@ -2388,11 +2396,21 @@ def test_the_full_page_trails_with_the_tools_as_a_contained_group(tmp_path):
                      r'<span class="tool-fact-k">strict</span>', fmt)
     assert re.search(r'<span class="tool-fact" title="[^"]*function[^"]*">'
                      r'<span class="tool-fact-k">type</span>', fmt)
-    # the parameter itself, broken out — not lumped into one JSON block
+    # the parameters, broken out — not lumped into one JSON block
     assert '<code class="tool-pname">goal</code>' in fmt
     assert '<span class="tool-ptype">string</span>' in fmt
     assert '<span class="tool-preq">required</span>' in fmt
     assert "What to do." in fmt
+    # a fixed-set parameter shows its allowed values and its default
+    assert '<span class="tool-pmeta-k">one of</span> spawn · list' in fmt
+    assert re.search(r'<span class="tool-pmeta-k">default</span>\s*'
+                     r'<code>&#34;spawn&#34;</code>', fmt)
+    # an array of objects reads out its item fields, indented one level deep
+    assert '<code class="tool-pname">tasks</code>' in fmt
+    assert '<span class="tool-ptype">object[]</span>' in fmt
+    children = re.search(r'tool-pchildren.*?</dl>', fmt, re.S).group(0)
+    assert '<code class="tool-pname">context</code>' in children
+    assert "Background." in children
     # the raw schema rides the other tab, whole
     assert '<div class="tool-panel tool-panel-raw">' in tool
     assert 'class="language-json"' in tool

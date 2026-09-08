@@ -183,6 +183,12 @@
       {%- if p.type %} <span class="tool-ptype">{{ p.type }}</span>{% endif %}
       {%- if p.required %} <span class="tool-preq">required</span>{% endif %}</dt>
     {%- if p.description %}<dd class="tool-pdesc">{{ p.description }}</dd>{% endif %}
+    {%- if p.enum %}<dd class="tool-pmeta"><span class="tool-pmeta-k">one of</span> {{ p.enum | join(' · ') }}</dd>{% endif %}
+    {%- if p.default is not none %}<dd class="tool-pmeta"><span class="tool-pmeta-k">default</span> <code>{{ p.default }}</code></dd>{% endif %}
+    {#- One level of nesting: an object's fields, or an array's object items'
+       fields. The macro calls itself, indented by .tool-pchildren; the reader
+       stops the recursion at one level, so this cannot run away. #}
+    {%- if p.children %}<dd class="tool-pchildren">{{ tool_params(p.children) }}</dd>{% endif %}
   </div>
 {%- endfor %}
 </dl>

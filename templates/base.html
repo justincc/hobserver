@@ -394,6 +394,19 @@
       letter-spacing: 0.04em; color: #a23; background: #fdeaea;
       padding: 0.02rem 0.3rem; border-radius: 3px; vertical-align: 0.05rem; }
     .tool-pdesc { margin: 0.1rem 0 0; color: #444; font-size: 0.86rem; }
+    /* A parameter's extra facts — its allowed values, its default — each on
+       its own faint line under the description, led by a small key. */
+    .tool-pmeta { margin: 0.1rem 0 0; font-size: 0.78rem; color: #55608c; }
+    .tool-pmeta-k { font-size: 0.68rem; text-transform: uppercase;
+      letter-spacing: 0.04em; color: #8890a8; }
+    .tool-pmeta code { font-family: ui-monospace, monospace; color: #1a1a2e; }
+    /* An object parameter's fields, or an array's object items' fields, read
+       out one level deep (spans.py `_tool_params`): the nested list indented
+       under a rule so it reads as belonging to the row above. The nested list
+       drops the outer list's own padding, the indent standing in for it. */
+    .tool-pchildren { margin: 0.35rem 0 0.1rem; padding-left: 0.8rem;
+      border-left: 2px solid #e2e5ec; }
+    .tool-pchildren > .tool-params { padding: 0; }
     /* A tool call and the result it answers are drawn as ONE card: the
        call's box runs into the result's with no gap and no border between
        them, so the pair is a single object on the page rather than two
