@@ -178,15 +178,17 @@
     <a class="nav-top" href="#top">&uarr; top</a>
     <ul>
       {#- The Metadata box is in the column too, above the messages, so the
-          list leads with it. Mixed case, not the messages' upper — it is this
-          app's own section, not a wire message, and reads as a different kind
-          of thing. `#summary` is on the box. #}
+          list leads with it. Plain mixed case, where the wire entries are the
+          wire's own lowercase — it is this app's own section, not a wire
+          message, and reads as a different kind of thing. `#summary` is on the
+          box. #}
       <li class="nav-summary"><a href="#summary">Metadata</a></li>
       {%- for part in rendered.sections %}
-      {#- A divider (the tools band's heading) reads as its own kind of thing
-          in the list, like the Metadata entry; the tools under it are indented
-          the way a nested result is, so the grouping shows in the list too. #}
-      <li{% if part.divider %} class="nav-summary"{% elif part.grouped or part.nested %} class="nav-nested"{% endif %}><a href="#m{{ loop.index }}">{{ part.label }}</a></li>
+      {#- The `tools` heading sits in the list like any band (a plain entry);
+          the tools under it are indented (`nav-tool`), and a nested tool
+          result under its call (`nav-nested`), so the grouping shows in the
+          list the way it does on the page. #}
+      <li{% if part.grouped %} class="nav-tool"{% elif part.nested %} class="nav-nested"{% endif %}><a href="#m{{ loop.index }}">{{ part.label }}</a></li>
       {%- endfor %}
     </ul>
   </nav>

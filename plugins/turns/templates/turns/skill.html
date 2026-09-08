@@ -117,8 +117,9 @@
 
     {# The file being shown, titled above its content the way the full-value
        page labels a section — so SKILL.md names itself above its frontmatter,
-       and a reference file above its body. Case kept (a filename, not one of
-       the wire messages the uppercase `msg-label` is for). #}
+       and a reference file above its body. `file-label` sets it off with a
+       rounded band and a gap; the case, like a message label's, is the name's
+       own. #}
     {%- if current %}<div class="msg-label file-label">{{ current }}</div>{% endif %}
     {%- if read_problem %}
     <p class="notice warn">{{ read_problem }}</p>

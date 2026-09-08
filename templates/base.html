@@ -241,11 +241,15 @@
        instead, and its `min-width: 0` is what keeps a long unbroken line
        from pushing the column wider than the page. */
     .msg { border: 1px solid #e2e5ec; border-left: 3px solid #2456c4; border-radius: 6px; margin: 0 0 1rem; overflow: hidden; }
-    .msg-label { background: #33406b; color: #eceff5; font-family: ui-monospace, monospace; font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.4rem 0.7rem; }
+    /* The label is kept in the wire's own case — `user`, `tool_call`,
+       `instructions`, `tools` are the field and role names as sent, and the
+       band mirrors them rather than restyling them into headings of its own.
+       Its being a mono band on colour is what marks it as this app's chrome;
+       the case is the wire's. */
+    .msg-label { background: #33406b; color: #eceff5; font-family: ui-monospace, monospace; font-size: 0.75rem; letter-spacing: 0.04em; padding: 0.4rem 0.7rem; }
     /* A skill file's name titling its content (ADR 22). Same band as a message
-       label, but a filename is not a wire-message type: keep its case, and set
-       it off from the content below with a rounded band and a gap. */
-    .file-label { text-transform: none; letter-spacing: 0.02em; border-radius: 6px; margin-bottom: 0.9rem; }
+       label, set off from the content below with a rounded band and a gap. */
+    .file-label { letter-spacing: 0.02em; border-radius: 6px; margin-bottom: 0.9rem; }
     /* The messages and their contents list, side by side. The list is
        `sticky` rather than `fixed` so it scrolls out with the page it
        belongs to instead of hanging over the header above it, and it holds
@@ -264,17 +268,21 @@
                         margin-bottom: 0.4rem; padding-bottom: 0.35rem; }
     .msg-nav ul { list-style: none; margin: 0; padding: 0; }
     .msg-nav li { margin: 0 0 0.15rem; }
+    /* The entries mirror the bands they point at, in the wire's own case (see
+       .msg-label) — no case restyling here either, so the nav says exactly
+       what the band says. */
     .msg-nav a { display: block; padding: 0.2rem 0.35rem; border-radius: 4px;
                  font-family: ui-monospace, monospace; font-size: 0.72rem;
-                 letter-spacing: 0.03em; text-transform: uppercase;
+                 letter-spacing: 0.03em;
                  color: #4a5578; text-decoration: none;
                  overflow-wrap: anywhere; }
     .msg-nav a:hover { background: #eceff5; color: #1a1a2e; }
-    /* The Metadata box's own entry, above the messages. Mixed case where the
-       message entries are upper — it is this app's section, not a wire
-       message, and the case is what says so — and ruled off beneath, so the
-       app's furniture (top, Metadata) reads apart from the messages it lists. */
-    .msg-nav .nav-summary a { text-transform: none; letter-spacing: 0; }
+    /* The Metadata box's own entry, above the messages. Named in plain mixed
+       case where the wire entries are the wire's own lowercase — it is this
+       app's section, not a wire message, and the case is what says so — and
+       ruled off beneath, so the app's furniture (top, Metadata) reads apart
+       from the messages it lists. */
+    .msg-nav .nav-summary a { letter-spacing: 0; }
     .msg-nav .nav-summary { border-bottom: 1px solid #e2e5ec;
                             margin-bottom: 0.4rem; padding-bottom: 0.4rem; }
     /* The skill file the page is showing, and the files it lists but will not
@@ -290,6 +298,11 @@
     .msg-nav .nav-nested a { margin-left: 0.9rem; color: #6b7392; }
     .msg-nav .nav-nested a::before { content: "↳"; margin-right: 0.3rem;
                                      opacity: 0.7; }
+    /* A tool under the `tools` heading: indented the way the tools are on the
+       page (inside the group box), but with no `↳` — that mark says "answers
+       the call above" and belongs to a result, where a tool merely sits in
+       the group. */
+    .msg-nav .nav-tool a { margin-left: 0.9rem; color: #6b7392; }
     /* Breathing room above a message a jump landed on, rather than sitting
        flush against the viewport edge. The page has no sticky header, so
        this is spacing and not a correction.
@@ -333,7 +346,7 @@
       border-left: 2px solid #aab3c9; background: #fff; }
     .msg-group .msg-grouped:last-child { margin-bottom: 0.1rem; }
     .msg-group .msg-grouped > .msg-label { background: #55608c;
-      text-transform: none; letter-spacing: 0; }
+      letter-spacing: 0; }
     /* Two tabs per tool — the formatted definition (shown first) and the raw schema — on a
        pair of radios, no script (the page is a still view of the value). The
        radios are visually hidden but stay keyboard-reachable; the label after

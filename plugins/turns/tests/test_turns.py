@@ -2872,8 +2872,9 @@ def test_the_contents_list_offers_a_way_back_to_the_top(tmp_path):
 
 def test_the_contents_list_leads_with_a_summary_bookmark(tmp_path):
     """The Metadata box is in the column too, above the messages, so the list
-    leads with it — mixed case where the messages are upper, because it is this
-    app's own section and not a wire message — and it lands on the box."""
+    leads with it — plain mixed case where the wire entries are the wire's own
+    lowercase, because it is this app's own section and not a wire message —
+    and it lands on the box."""
     page = _full_page(tmp_path)
     nav = re.search(r'<nav class="msg-nav".*?</nav>', page, re.S).group(0)
     entry = re.search(r'<li class="nav-summary"><a href="#summary">([^<]*)</a>', nav)
@@ -2882,9 +2883,21 @@ def test_the_contents_list_leads_with_a_summary_bookmark(tmp_path):
     # above the messages, and pointing at a box that carries the anchor
     assert nav.index("nav-summary") < nav.index('href="#m1"')
     assert 'id="summary"' in page
+
+
+def test_the_bands_and_the_nav_keep_the_wires_own_case(tmp_path):
+    """The labels are the wire's field and role names — `user`, `tool_call`,
+    `instructions`, `tools` — shown in their own case rather than restyled into
+    headings. So neither the band nor its contents-list entry forces a case:
+    the two verbatim `tools` labels below prove it end to end."""
+    page = _full_page(tmp_path, profile=REQUEST_WITH_TOOLS)
+    assert '<div class="msg-label">tools</div>' in page          # the band, lower
+    assert '<a href="#m3">tools</a>' in page                     # its nav entry
     css = re.sub(r"\{#.*?#\}", "",
                  (REPO_ROOT / "templates" / "base.html").read_text(), flags=re.S)
-    assert re.search(r"\.nav-summary a \{[^}]*text-transform:\s*none", css)
+    band = re.search(r"\.msg-label \{[^}]*\}", css).group(0)
+    nav_a = re.search(r"\.msg-nav a \{[^}]*\}", css).group(0)
+    assert "text-transform" not in band and "text-transform" not in nav_a
 
 
 def test_the_header_panels_sit_in_the_value_column(tmp_path):
