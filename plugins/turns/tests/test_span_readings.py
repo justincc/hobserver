@@ -1253,12 +1253,11 @@ def test_a_parameters_allowed_values_and_default_are_read_out():
     assert params[1]["default"] is None
 
 
-def test_an_array_of_objects_reads_out_its_item_fields_one_level_deep():
+def test_an_array_of_objects_reads_out_its_item_fields():
     """delegate_task's shape: an array whose objects have their own fields. The
-    reading goes one level in — the item fields become the parameter's
-    `children` — rather than collapsing to `object[]` and losing them. It stops
-    at one level: a field that is itself an object has no children of its own,
-    the raw schema holding the rest."""
+    reading goes in — the item fields become the parameter's `children` —
+    rather than collapsing to `object[]` and losing them, and keeps following
+    an object field's own fields (here `output_schema.answer`)."""
     span = llm_span(profile={"annotated_request": {
         "messages": [{"role": "user", "content": "hi"}],
         "tools": [{"type": "function", "function": {"name": "delegate", "parameters": {
@@ -1275,8 +1274,31 @@ def test_an_array_of_objects_reads_out_its_item_fields_one_level_deep():
     assert [c["name"] for c in tasks["children"]] == ["goal", "output_schema"]
     goal = tasks["children"][0]
     assert goal["required"] is True and goal["description"] == "Do this."
-    # one level only: the nested object's own fields are not expanded again
-    assert tasks["children"][1]["children"] == []
+    # the object field's own field is read out too, a level further in
+    assert [c["name"] for c in tasks["children"][1]["children"]] == ["answer"]
+
+
+def test_the_nested_reading_stops_at_the_depth_cap():
+    """A schema nested deeper than the cap — or a self-referential one — is
+    followed only so far, then left to the raw tab, so the reading cannot walk
+    forever. The chain here is deeper than _MAX_PARAM_DEPTH."""
+    from plugins.turns.spans import _MAX_PARAM_DEPTH, _tool_params
+
+    # a > b > c > … object chain longer than the cap
+    schema = {"type": "object", "properties": {}}
+    leaf = schema
+    for i in range(_MAX_PARAM_DEPTH + 3):
+        child = {"type": "object", "properties": {}}
+        leaf["properties"][f"n{i}"] = child
+        leaf = child
+    rows = _tool_params(schema)
+    # walk the single child chain and count how deep the reading went
+    depth = 0
+    node = rows
+    while node:
+        depth += 1
+        node = node[0]["children"]
+    assert depth == _MAX_PARAM_DEPTH
 
 
 def test_a_tool_of_an_unknown_shape_keeps_its_place_as_raw_schema():

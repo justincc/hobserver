@@ -302,11 +302,13 @@ what it means is left to the tooltip that was always carrying it.
     each** — name, type, whether required, description, and the two facts most
     often wanted next: the allowed values of a fixed-set parameter (`enum`) and
     its `default`. A parameter that is an object, or an array of objects, has
-    its fields read out one level deep and indented beneath it (delegate_task's
-    array of tasks shows its `goal`/`context`/… rather than collapsing to
-    `object[]`); deeper nesting and the long tail of schema constraints stay in
-    the Raw tab, which is the whole truth. A section whose fact the schema did
-    not carry is left out rather than shown empty.
+    its fields read out and indented beneath it (delegate_task's array of tasks
+    shows its `goal`/`context`/… rather than collapsing to `object[]`),
+    following the nesting down to a small depth cap (`_MAX_PARAM_DEPTH`) — well
+    past what any tool actually reaches, but bounded so a self-referential
+    schema cannot walk forever; beyond it, and for the long tail of schema
+    constraints, the Raw tab is the whole truth. A section whose fact the
+    schema did not carry is left out rather than shown empty.
   - **Raw** — the verbatim wire schema, the characters as they are.
 
   The Formatted tab is this app's reading of the schema; the Raw tab is the

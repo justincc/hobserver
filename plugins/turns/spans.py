@@ -1513,7 +1513,16 @@ def _enum_values(prop: dict) -> list:
             else json.dumps(v, ensure_ascii=False, default=str) for v in enum]
 
 
-def _tool_params(parameters: Optional[dict], _depth: int = 0) -> list:
+# How many levels of parameters the reading shows — the top-level parameters
+# are level 1, an object's own fields level 2, and so on. Beyond this the raw
+# schema is left to say the rest. Headroom over what the tools actually reach
+# (no hermes tool nests past two): deep enough that the eye rarely meets the
+# raw tab for structure, shallow enough that a pathological or self-referential
+# schema cannot walk forever.
+_MAX_PARAM_DEPTH = 4
+
+
+def _tool_params(parameters: Optional[dict], _depth: int = 1) -> list:
     """A tool's parameters broken out of its schema, one row each.
 
     `parameters` is a JSON schema of the call's arguments — an object whose
@@ -1524,16 +1533,16 @@ def _tool_params(parameters: Optional[dict], _depth: int = 0) -> list:
     `enum` (the allowed values, when the parameter is a fixed set) and
     `default`.
 
-    It also goes **one level deep**: an object parameter's own properties, or
-    the fields of the objects in an array parameter, are read out as `children`
-    — the same rows again — so a shape like delegate_task's array-of-tasks
-    shows its `goal`/`context`/… fields rather than collapsing to `object[]`.
-    Deeper nesting and the long tail of JSON-schema constraints (`minItems`,
-    `pattern`, `format`, …) are left to the raw schema, which the tool's Raw
-    tab shows in full: this is a reading for the eye, not a second copy of the
-    schema. Order is the schema's own (`properties` key order is what the
-    producer wrote). A schema this cannot read as that shape yields no rows,
-    and the tool falls back to showing its raw schema.
+    It also follows nesting: an object parameter's own properties, or the
+    fields of the objects in an array parameter, are read out as `children` —
+    the same rows again — so a shape like delegate_task's array-of-tasks shows
+    its `goal`/`context`/… fields rather than collapsing to `object[]`. It
+    follows this down to `_MAX_PARAM_DEPTH` levels; beyond that, and for the
+    long tail of JSON-schema constraints (`minItems`, `pattern`, `format`, …),
+    the raw schema is left to say the rest — this is a reading for the eye, not
+    a second copy of the schema. Order is the schema's own (`properties` key
+    order is what the producer wrote). A schema this cannot read as that shape
+    yields no rows, and the tool falls back to showing its raw schema.
     """
     if not isinstance(parameters, dict):
         return []
@@ -1546,10 +1555,10 @@ def _tool_params(parameters: Optional[dict], _depth: int = 0) -> list:
     for name, prop in properties.items():
         prop = prop if isinstance(prop, dict) else {}
         description = prop.get("description")
-        # One level of nesting: an object's own properties, or the object
-        # `items` of an array. Not deeper — the raw schema holds the rest.
+        # Nested fields: an object's own properties, or the object `items` of
+        # an array. Followed to _MAX_PARAM_DEPTH; the raw schema holds the rest.
         children = []
-        if _depth < 1:
+        if _depth < _MAX_PARAM_DEPTH:
             nested = prop
             if prop.get("type") == "array" and isinstance(prop.get("items"), dict):
                 nested = prop["items"]
