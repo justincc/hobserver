@@ -35,7 +35,7 @@ Pull requests for additional plugins are very welcome - I want to take a "batter
 
 I'm very curious as to what Hermes is doing under the hood. What prompts is it sending in model requests? What memories is it recalling and making? What tools is it calling? What skills does it use?
 
-I looked around but didn't find anything obviously met my needs. There are some great observability tools out there (e.g. Langfuse) but they're built for general agent observability. I wanted something closely fitted to Hermes, so that I can see the most relevant Hermes detail at a glance without any other clutter. And of course, it's fun to build your own :D.
+I looked around but didn't find anything obviously met my needs. There are some great observability tools out there (e.g. Langfuse) but they're built for general agent observability. I wanted something closely fitted to Hermes, so that I can see the most relevant Hermes detail on a second monitor whilst it's happening, preferably with as little clutter as possible. And of course, it's fun to build your own toosls :D.
 
 Below are the project principles. Pull requests in tune with these are very welcome. Hobserver starts out as my tool but I want to make it also useful to others who are looking for the same kind of information.
 
