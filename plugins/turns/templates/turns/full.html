@@ -8,7 +8,7 @@
    renderer's output with raw HTML disabled — see plugins/turns/fulltext.py
    for why that is the only trusted string on the page. #}
 {% extends "base.html" %}
-{% from "turns/_macros.html" import copy_btn, back_to_turn %}
+{% from "turns/_macros.html" import copy_btn, back_to_turn, full_section_body, tool_tabs %}
 {# The very macro the turn page renders this call's row with, so the facts here
    and there are one piece of code and cannot drift (the request that asked for
    this page). #}
@@ -67,8 +67,16 @@
   {%- set facts = [] %}
   {%- if rendered.chars %}{% set _ = facts.append('{:,}'.format(rendered.chars) + ' chars') %}{% endif %}
   {#- "messages" rather than a neutral word for a section: the one sections
-      value this tab has is a request, and its parts are messages. #}
-  {%- if rendered.sections %}{% set _ = facts.append((rendered.sections | length) | string + ' message' + ('' if rendered.sections | length == 1 else 's')) %}{% endif %}
+      value this tab has is a request, and its parts are messages. A folded
+      section is a tool and a divider heads a group, so neither is a message —
+      counting them in would inflate the figure past what a reader means by
+      it. Told apart by the generic flags, not by knowing what a tool is. #}
+  {%- if rendered.sections %}
+  {%- set msgs = rendered.sections | rejectattr('divider') | rejectattr('grouped') | list %}
+  {%- set tools = rendered.sections | selectattr('grouped') | list %}
+  {%- if msgs %}{% set _ = facts.append((msgs | length) | string + ' message' + ('' if msgs | length == 1 else 's')) %}{% endif %}
+  {%- if tools %}{% set _ = facts.append((tools | length) | string + ' tool' + ('' if tools | length == 1 else 's')) %}{% endif %}
+  {%- endif %}
   {%- if rendered.kind in ("json", "text") and rendered.text is not none %}{% set _ = facts.append('shown as ' + rendered.kind) %}{% endif %}
   {%- if facts %}<p class="meta">{{ facts | join(' · ') }}</p>{% endif %}
   {# Where this came from and whether this app reshaped it on the way (design
@@ -175,24 +183,48 @@
           of thing. `#summary` is on the box. #}
       <li class="nav-summary"><a href="#summary">Metadata</a></li>
       {%- for part in rendered.sections %}
-      <li{% if part.nested %} class="nav-nested"{% endif %}><a href="#m{{ loop.index }}">{{ part.label }}</a></li>
+      {#- A divider (the tools band's heading) reads as its own kind of thing
+          in the list, like the Metadata entry; the tools under it are indented
+          the way a nested result is, so the grouping shows in the list too. #}
+      <li{% if part.divider %} class="nav-summary"{% elif part.grouped or part.nested %} class="nav-nested"{% endif %}><a href="#m{{ loop.index }}">{{ part.label }}</a></li>
       {%- endfor %}
     </ul>
   </nav>
   <div class="full-sections">
 {{ lead }}
+{#- The tools trail as one contiguous group: a divider opens the box and every
+   section after it is a tool drawn inside (see spans.py `_tools_sections`), so
+   the box opens at the divider and closes after the loop. `ns` carries that
+   one bit of state across iterations, since Jinja has no other way to keep a
+   tag open from one section to the next. #}
+{% set ns = namespace(grouped=false) %}
 {% for part in rendered.sections %}
-<section id="m{{ loop.index }}" class="msg{% if part.nests %} msg-nests{% endif %}{% if part.nested %} msg-nested{% endif %}">
+{%- if part.divider and not ns.grouped %}
+<div class="msg-group">
+{%- set ns.grouped = true %}
+{%- endif %}
+<section id="m{{ loop.index }}" class="msg{% if part.divider %} msg-divider{% endif %}{% if part.grouped %} msg-grouped{% endif %}{% if part.nests %} msg-nests{% endif %}{% if part.nested %} msg-nested{% endif %}">
   <div class="msg-label">{{ part.label }}</div>
-  {%- if raw or part.html is none %}
-  <pre class="blob full-blob">{{ part.text }}</pre>
-  {%- elif part.text %}
-  <div class="md-body">{{ part.html | safe }}</div>
+  {%- if part.divider %}
+  {#- The group's heading: a label-only band whose summary is the group's own
+     metadata — the tool count and the choice settings — faint beneath it. No
+     body box: it names what follows, it is not one of them. Shown in the raw
+     view too, so it still heads the schemas there. #}
+  {%- if part.summary %}<p class="meta">{{ part.summary }}</p>{% endif %}
+  {%- elif part.grouped and (part.params or part.summary) and not raw %}
+  {#- A tool, default view: two tabs — its formatted definition (description,
+     flags, parameters), shown first, and the raw wire schema. A tool this app
+     could read nothing formatted from (an unfamiliar schema) has nothing to
+     tab between, so it shows its whole schema plainly. The page-wide raw view
+     (below) skips the tabs and shows every tool's verbatim schema, the
+     characters as they are. #}
+  {{ tool_tabs(part, loop.index) }}
   {%- else %}
-  <p class="meta msg-empty">(no content on this message)</p>
+  {{ full_section_body(part, raw) }}
   {%- endif %}
 </section>
-{% endfor %}
+{%- endfor %}
+{%- if ns.grouped %}</div>{% endif %}
   </div>
 </div>
 {% elif rendered.text is none %}

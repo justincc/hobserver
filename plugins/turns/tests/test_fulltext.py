@@ -150,6 +150,60 @@ def test_an_unlabelled_section_is_named_rather_than_left_blank():
     assert out.sections[0].label == "(unlabelled)"
 
 
+def test_a_section_carries_its_tool_group_fields_through_to_the_page():
+    """A group heading rides as `divider` (a label-only band, no body); a tool
+    inside rides as `grouped` with its description in `summary`, its flags in
+    `facts` and its parameters in `params`, which the page draws as its two
+    tabs. All are the source's word, carried through for the template to draw;
+    a part naming none gets the defaults."""
+    out = render([{"label": "tools", "text": "", "divider": True,
+                   "summary": "2 available"},
+                  {"label": "read_file", "text": "x", "grouped": True,
+                   "summary": "Read a file.",
+                   "facts": [{"label": "strict", "value": "yes"}],
+                   "params": [{"name": "path", "type": "string",
+                               "required": True, "description": "The path."}]},
+                  {"label": "user", "text": "y"}], "sections")
+    assert out.sections[0].divider is True
+    assert out.sections[0].summary == "2 available"
+    tool = out.sections[1]
+    assert tool.grouped is True and tool.summary == "Read a file."
+    assert tool.facts == ({"label": "strict", "value": "yes"},)
+    assert tool.params == ({"name": "path", "type": "string",
+                            "required": True, "description": "The path."},)
+    msg = out.sections[2]
+    assert msg.divider is False and msg.grouped is False
+    assert msg.summary is None and msg.params == () and msg.facts == ()
+
+
+def test_a_tool_description_is_rendered_to_markdown_beside_the_plain_text():
+    """A tool's description is prose the model was sent, so it is rendered to
+    markdown the way a message body is — `summary_html` beside the plain
+    `summary`. HTML inside it is shown, not run (raw HTML is disabled)."""
+    out = render([{"label": "browser", "text": "x", "grouped": True,
+                   "summary": "Drive a browser.\n\n- `js(expr)` evaluates\n"
+                              "- <script>alert(1)</script>"}], "sections")
+    tool = out.sections[0]
+    assert tool.summary == ("Drive a browser.\n\n- `js(expr)` evaluates\n"
+                            "- <script>alert(1)</script>")   # plain kept
+    assert "<code>js(expr)</code>" in tool.summary_html      # rendered
+    assert "<li>" in tool.summary_html
+    assert "<script>" not in tool.summary_html               # not run
+    assert "&lt;script&gt;" in tool.summary_html
+
+
+def test_a_missing_renderer_leaves_a_tool_description_as_plain_text(monkeypatch):
+    """The description degrades the way a message body does: no renderer means
+    no `summary_html`, and the page falls back to the plain `summary`."""
+    monkeypatch.setattr(fulltext, "_MD", None)
+    monkeypatch.setattr(fulltext, "_MD_PROBLEM", "ImportError: no markdown_it")
+    out = render([{"label": "browser", "text": "x", "grouped": True,
+                   "summary": "Drive a browser."}], "sections")
+    assert out.sections[0].summary_html is None
+    assert out.sections[0].summary == "Drive a browser."
+    assert "no markdown_it" in out.problem
+
+
 def test_html_inside_a_section_is_shown_not_run():
     out = render(sections(("user", "<script>alert(1)</script>")), "sections")
     assert "<script>" not in out.sections[0].html

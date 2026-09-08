@@ -1152,6 +1152,100 @@ def test_a_whole_request_leads_with_the_system_instructions():
     assert bodies(span) == ["You are Hermes Agent.", "hello"]
 
 
+def test_the_tools_trail_the_request_as_a_contained_group():
+    """`tools` sits beside `messages` in the request — the function schemas
+    the model could call — so it belongs on this page as the other half of
+    what the call was sent. It trails the messages as reference the call could
+    reach, led by a `divider` carrying the count and the tool_choice/parallel
+    settings (this app's reading of the array, so out of any box), then one
+    `grouped` section per tool: the tool named, its `summary` the description,
+    its tool-level `facts`, its parameters broken out, and its whole schema
+    still carried in `text`."""
+    span = llm_span(profile={"annotated_request": {
+        "messages": [{"role": "user", "content": "hello"}],
+        "tools": [{"type": "function",
+                   "function": {"name": "read_file",
+                                "description": "Read a file.",
+                                "strict": True,
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "path": {"type": "string",
+                                                 "description": "The path."},
+                                        "limit": {"type": "integer"}},
+                                    "required": ["path"]}}}],
+        "tool_choice": "auto",
+        "parallel_tool_calls": True}})
+    assert labels(span) == ["user", "tools", "read_file"]   # trails the messages
+    divider = span.llm_request_messages[1]
+    assert divider["divider"] is True
+    assert divider["summary"] == ("1 available · tool_choice=auto "
+                                  "· parallel_tool_calls=yes")
+    tool = span.llm_request_messages[2]
+    assert tool["grouped"] is True
+    assert tool["summary"] == "Read a file."          # the description
+    assert '"read_file"' in tool["text"]              # the raw schema, in text
+    assert tool["facts"] == [{"label": "type", "value": "function"},
+                             {"label": "strict", "value": "yes"}]
+    assert tool["params"] == [
+        {"name": "path", "type": "string", "required": True,
+         "description": "The path."},
+        {"name": "limit", "type": "integer", "required": False,
+         "description": None}]
+
+
+def test_a_request_without_tools_has_no_tools_group():
+    """No `tools` key (or an empty one) means no trailing group — the page is
+    unchanged for a call that was offered nothing."""
+    span = llm_span(profile={"annotated_request": {
+        "tools": [], "messages": [{"role": "user", "content": "hi"}]}})
+    assert labels(span) == ["user"]
+
+
+def test_a_dict_tool_choice_is_shown_compact_on_the_divider():
+    """`tool_choice` can pin one tool as a dict rather than name a mode; the
+    divider carries it as compact JSON so the group header stays one line."""
+    span = llm_span(profile={"annotated_request": {
+        "tools": [{"type": "function", "function": {"name": "x"}}],
+        "tool_choice": {"type": "function", "function": {"name": "x"}},
+        "messages": [{"role": "user", "content": "hi"}]}})
+    summary = span.llm_request_messages[1]["summary"]
+    assert 'tool_choice={"type": "function"' in summary
+    assert "parallel_tool_calls" not in summary   # absent key, absent from group
+
+
+def test_an_array_parameter_names_what_it_holds():
+    """A parameter's type is a reading for the eye — an array says its item
+    type (`string[]`), an enum or a combinator is named rather than left
+    blank — while the raw view still carries the schema in full."""
+    span = llm_span(profile={"annotated_request": {
+        "messages": [{"role": "user", "content": "hi"}],
+        "tools": [{"type": "function", "function": {
+            "name": "grep", "parameters": {"type": "object", "properties": {
+                "globs": {"type": "array", "items": {"type": "string"}},
+                "mode": {"enum": ["files", "content"]}}}}}]}})
+    params = span.llm_request_messages[2]["params"]
+    assert params[0] == {"name": "globs", "type": "string[]",
+                         "required": False, "description": None}
+    assert params[1]["type"] == "enum"
+
+
+def test_a_tool_of_an_unknown_shape_keeps_its_place_as_raw_schema():
+    """The openai function shape is not a contract (design principle 3), and a
+    provider route naming its tools another way must still render. A tool this
+    does not recognise keeps its place with its whole schema in the box and no
+    formatted reading — degraded, not dropped (design principle 1)."""
+    span = llm_span(profile={"annotated_request": {
+        "messages": [{"role": "user", "content": "hi"}],
+        "tools": [{"nom": "surprise", "shape": "not ours"}]}})
+    assert labels(span) == ["user", "tools", "(tool)"]
+    tool = span.llm_request_messages[2]
+    assert tool["summary"] is None                 # no description to show
+    assert tool["params"] == []                    # …no rows to break out
+    assert tool["facts"] == []                     # …and no tool-level flags
+    assert '"surprise"' in tool["text"]            # the schema is still there
+
+
 def test_a_label_is_never_written_into_the_message_it_labels():
     """The whole reason this is a list of sections: a `## user` written into
     the markdown is one more heading among the model's own — a system prompt

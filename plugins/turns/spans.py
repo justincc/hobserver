@@ -1412,6 +1412,152 @@ def _message_sections(messages: list) -> list:
     return sections
 
 
+def _tool_facts(tool: dict) -> tuple:
+    """`(name, description, parameters, flags)` for one tool schema.
+
+    The relay's annotator writes the openai function shape — `{type:
+    "function", function: {name, description, parameters, strict}}` — but this
+    is not a hermes tool signature to check against (design principle 3), and
+    another provider route names the same facts differently (anthropic puts
+    them at the top level, with the schema under `input_schema`). So this
+    reaches for each in the places it is known to sit and reports what it
+    found; a tool matching neither shape comes back with no name, description
+    or parameters and is shown as its raw schema rather than dropped.
+
+    `flags` are the tool-level attributes beside those — `type` (the wire
+    envelope, ordinarily `function`) and `strict` (whether the model must
+    match the schema exactly) — each a `{label, value}` for the page to list.
+    A flag absent from the schema is absent from the list rather than guessed.
+    """
+    fn = tool.get("function")
+    holder = fn if isinstance(fn, dict) else tool
+    name = holder.get("name")
+    description = holder.get("description")
+    parameters = holder.get("parameters")
+    if not isinstance(parameters, dict):
+        parameters = holder.get("input_schema")
+    flags = []
+    ttype = tool.get("type")
+    if isinstance(ttype, str) and ttype:
+        flags.append({"label": "type", "value": ttype})
+    strict = holder.get("strict")
+    if isinstance(strict, bool):
+        flags.append({"label": "strict", "value": "yes" if strict else "no"})
+    return (name if isinstance(name, str) and name else None,
+            description if isinstance(description, str) and description
+            else None,
+            parameters if isinstance(parameters, dict) else None,
+            flags)
+
+
+def _param_type(prop: dict) -> str:
+    """A JSON-schema property's type, as a short phrase for a reader.
+
+    `{type: "string"}` → `string`; an array says what it holds
+    (`string[]`); a property given by `enum` or `anyOf`/`oneOf` rather than a
+    plain `type` is named as that instead of coming back blank. This is a
+    reading for the eye — the raw view carries the schema in full — so it
+    stays one line and does not recurse into nested objects.
+    """
+    kind = prop.get("type")
+    if isinstance(kind, list):                       # e.g. ["string", "null"]
+        kind = "|".join(str(k) for k in kind)
+    if kind == "array":
+        items = prop.get("items")
+        inner = _param_type(items) if isinstance(items, dict) else ""
+        return f"{inner}[]" if inner else "array"
+    if kind:
+        return str(kind)
+    if isinstance(prop.get("enum"), list):
+        return "enum"
+    for combinator in ("anyOf", "oneOf", "allOf"):
+        if isinstance(prop.get(combinator), list):
+            return combinator.lower()
+    return ""
+
+
+def _tool_params(parameters: Optional[dict]) -> list:
+    """A tool's parameters broken out of its schema, one row each.
+
+    `parameters` is a JSON schema of the call's arguments — an object whose
+    `properties` are the parameters and whose `required` names the ones that
+    must be given. This turns that into `{name, type, required, description}`
+    rows so the page can list them instead of printing the schema as a block
+    of JSON. Order is the schema's own (`properties` is an object, and its key
+    order is what the producer wrote). A schema this cannot read as that shape
+    yields no rows, and the tool falls back to showing its raw schema.
+    """
+    if not isinstance(parameters, dict):
+        return []
+    properties = parameters.get("properties")
+    if not isinstance(properties, dict):
+        return []
+    required = parameters.get("required")
+    required = set(required) if isinstance(required, list) else set()
+    rows = []
+    for name, prop in properties.items():
+        prop = prop if isinstance(prop, dict) else {}
+        description = prop.get("description")
+        rows.append({
+            "name": str(name),
+            "type": _param_type(prop),
+            "required": name in required,
+            "description": (description if isinstance(description, str)
+                            and description else None),
+        })
+    return rows
+
+
+def _tools_sections(request: dict) -> list:
+    """The tools this call was offered, as a trailing `tools` band.
+
+    `tools` sits beside `messages` in `annotated_request`: the function
+    schemas the model could call this turn, the other half of what it was
+    sent, so it belongs on this page as much as the conversation does. It
+    trails the messages rather than leading them — it is standing reference
+    the whole call could reach, not a step in the exchange, so a reader
+    following the conversation meets it last.
+
+    A `divider` heads the band, carrying the count and the
+    `tool_choice`/`parallel_tool_calls` settings — this app's reading *of* the
+    tools, so out of any box (design principle 2) — and opens the group box
+    the tools are drawn inside (`grouped`), subordinate to it rather than
+    first-class beside the messages. Each tool names itself in its label and
+    carries two tabs: a formatted reading of its whole definition — its
+    description (`summary`), its tool-level flags (`facts`) and its parameters
+    broken out one row each (`params`), shown by default — and the raw schema
+    (`text`). So the reading is there for the eye and the verbatim wire is one
+    tab away and untouched, with no page-wide switch needed.
+
+    A tool whose shape this does not recognise keeps its place with its whole
+    schema and no description or parameter rows — degraded, not dropped
+    (design principle 1).
+    """
+    tools = request.get("tools")
+    if not isinstance(tools, list) or not tools:
+        return []
+    bits = [f"{len(tools)} available"]
+    choice = request.get("tool_choice")
+    if choice is not None:
+        bits.append("tool_choice=" + (choice if isinstance(choice, str)
+                    else json.dumps(choice, ensure_ascii=False, default=str)))
+    parallel = request.get("parallel_tool_calls")
+    if isinstance(parallel, bool):
+        bits.append("parallel_tool_calls=" + ("yes" if parallel else "no"))
+    sections = [{"label": "tools", "text": "", "divider": True,
+                 "summary": " · ".join(bits)}]
+    for tool in tools:
+        schema = _fence(json.dumps(tool, indent=2, ensure_ascii=False,
+                                   default=str), "json")
+        name, description, parameters, flags = (
+            _tool_facts(tool) if isinstance(tool, dict)
+            else (None, None, None, []))
+        sections.append({"label": name or "(tool)", "text": schema,
+                         "summary": description, "facts": flags,
+                         "params": _tool_params(parameters), "grouped": True})
+    return sections
+
+
 def request_sections_from_profile(category_profile: Any) -> Optional[list]:
     """A whole llm request as `[{label, text}]` — one entry per message.
 
@@ -1424,9 +1570,10 @@ def request_sections_from_profile(category_profile: Any) -> Optional[list]:
     The *order* is this app's too, in one respect: a tool result is moved to
     sit under the call it answers — see `_message_sections`.
 
-    `instructions` leads when the request carries one — it is the system
-    prompt on the openai_responses path, and sits beside `messages` rather
-    than inside it.
+    `instructions` leads — the system prompt on the openai_responses path,
+    which sits beside `messages` rather than inside it — then the messages,
+    then the tool menu when the request carries one (see `_tools_sections`),
+    which trails as the reference it is rather than a step in the exchange.
     """
     if not isinstance(category_profile, dict):
         return None
@@ -1440,6 +1587,7 @@ def request_sections_from_profile(category_profile: Any) -> Optional[list]:
     messages = request.get("messages")
     if isinstance(messages, list):
         sections.extend(_message_sections(messages))
+    sections.extend(_tools_sections(request))
     return sections or None
 
 

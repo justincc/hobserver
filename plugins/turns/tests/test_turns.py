@@ -2334,6 +2334,79 @@ def test_the_full_page_says_where_the_value_came_from(tmp_path):
     assert "The labels are this app&#39;s" in page
 
 
+REQUEST_WITH_TOOLS = {"annotated_request": {
+    "instructions": "You are Hermes Agent.",
+    "tools": [{"type": "function",
+               "function": {"name": "delegate_task",
+                            "description": "Spawn a subagent.\n\n"
+                                           "- `goal` is what it does",
+                            "strict": True,
+                            "parameters": {"type": "object", "properties": {
+                                "goal": {"type": "string",
+                                         "description": "What to do."}},
+                                "required": ["goal"]}}}],
+    "tool_choice": "auto",
+    "parallel_tool_calls": True,
+    "messages": [{"role": "user", "content": "go"}]}}
+
+
+def test_the_full_page_trails_with_the_tools_as_a_contained_group(tmp_path):
+    """The tools the call was offered trail the request as a contained group: a
+    <div> box opened by a `tools` divider, the tools drawn inside it as
+    subordinate `msg-grouped` cards. Each has two tabs — a Formatted reading
+    (description rendered, flags, parameters broken out) shown first, and the
+    Raw schema. Reference the model could reach, kept below the conversation."""
+    page = _llm_client(tmp_path, profile=REQUEST_WITH_TOOLS).get(
+        "/turns/span/L1/prompt").get_data(as_text=True)
+    # the group trails: instructions and the user message come before the box
+    assert page.index("You are Hermes Agent.") < page.index(
+        '<div class="msg-group">')
+    group = re.search(r'<div class="msg-group">.*', page, re.S).group(0)
+    divider = re.search(r'<section id="m3".*?</section>', group, re.S).group(0)
+    assert '<div class="msg-label">tools</div>' in divider
+    assert "1 available · tool_choice=auto · parallel_tool_calls=yes" in divider
+    tool = re.search(r'<section id="m4".*?</section>', group, re.S).group(0)
+    assert 'class="msg msg-grouped"' in tool                      # subordinate
+    assert '<div class="msg-label">delegate_task</div>' in tool   # named
+    # two tabs, formatted checked (shown) first, then raw
+    assert tool.index('for="tab-f4">formatted') < tool.index('for="tab-r4">raw')
+    assert re.search(r'id="tab-f4"[^>]*\bchecked\b', tool)        # formatted default
+    fmt = re.search(r'tool-panel-fmt.*?(?=tool-panel-raw)', tool, re.S).group(0)
+    # three sections, each under its own heading like the parameters
+    assert '<div class="tool-section-head">description</div>' in fmt
+    assert '<div class="tool-section-head">properties</div>' in fmt
+    assert '<div class="tool-section-head">parameters</div>' in fmt
+    assert (fmt.index("description</div>") < fmt.index("properties</div>")
+            < fmt.index("parameters</div>"))
+    # the description, rendered as markdown, leads the formatted tab
+    assert '<div class="md-body tool-desc">' in fmt
+    assert "<code>goal</code>" in fmt and "<li>" in fmt          # markdown, not flat
+    # the tool-level flags
+    assert '<span class="tool-fact-k">strict</span> yes' in fmt
+    assert '<span class="tool-fact-k">type</span> function' in fmt
+    # the parameter itself, broken out — not lumped into one JSON block
+    assert '<code class="tool-pname">goal</code>' in fmt
+    assert '<span class="tool-ptype">string</span>' in fmt
+    assert '<span class="tool-preq">required</span>' in fmt
+    assert "What to do." in fmt
+    # the raw schema rides the other tab, whole
+    assert '<div class="tool-panel tool-panel-raw">' in tool
+    assert 'class="language-json"' in tool
+
+
+def test_the_full_page_shows_every_tool_schema_plainly_in_the_raw_view(tmp_path):
+    """The page-wide raw view is for the characters as they are, so it drops
+    the tabs and the formatted reading and shows every tool's verbatim schema —
+    while the group box and its divider still contain them."""
+    page = _llm_client(tmp_path, profile=REQUEST_WITH_TOOLS).get(
+        "/turns/span/L1/prompt?raw=1").get_data(as_text=True)
+    assert '<div class="msg-group">' in page                      # box kept
+    tool = re.search(r'<section id="m4".*?</section>', page, re.S).group(0)
+    assert 'class="tool-tabs"' not in tool            # no tabs
+    assert 'class="tool-params"' not in tool          # the schema, not the rows
+    assert "full-blob" in tool                        # …as characters
+
+
 def test_the_full_page_names_the_span_it_came_from(tmp_path):
     page = _llm_client(tmp_path).get(
         "/turns/span/L1/response").get_data(as_text=True)

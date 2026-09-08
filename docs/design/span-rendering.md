@@ -284,6 +284,35 @@ what it means is left to the tooltip that was always carrying it.
   where the label is this app's and the box holds nothing but what went on
   the wire.
 
+  **The tools the call was offered trail the messages as a contained group** —
+  the other half of `annotated_request`, beside `messages` rather than inside
+  it. A `tools` divider heads the group (a caption, not a band) carrying the
+  count and the `tool_choice`/`parallel_tool_calls` settings — this app's
+  reading of the array, so out of any box — and opens the box the tools are
+  drawn inside: a light-violet ground and a surrounding border, the tools
+  indented within it, so they read as belonging together and *under* the
+  heading rather than as more first-class messages. Each tool names itself in
+  its label and carries **two tabs**:
+
+  - **Formatted** (shown first) — the whole definition read for the eye, in
+    three sections each led by the same light band heading: **description** rendered
+    as markdown (it is prose the model was sent, so it is rendered the way a
+    message body is, and escaped the same way), **properties** (a faint line of
+    tool-level flags — `type`, `strict`), and **parameters broken out one row
+    each** — name, type, whether required, and description. A section whose
+    fact the schema did not carry is left out rather than shown empty.
+  - **Raw** — the verbatim wire schema, the characters as they are.
+
+  The Formatted tab is this app's reading of the schema; the Raw tab is the
+  wire untouched. The tabs are CSS-only (a pair of radios, no script — the
+  page is a still view of a value it does not own), and each tool's tabs are
+  its own. The group trails because it is standing reference the whole call
+  could reach, not a step in the exchange. The page-wide **raw view** shows
+  every tool's verbatim schema in place of the tabs. A tool whose shape this
+  app does not recognise (the openai function shape is not a contract) keeps
+  its place with its whole schema and no formatted reading — degraded, not
+  dropped.
+
   **Each `tool_result` is drawn inside its `tool_call`'s card**, which is not
   the order the wire sent: that sends every call and then every result, so
   the results arrived as a block with nothing tying them to the calls above.

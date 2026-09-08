@@ -155,3 +155,80 @@
 {%- endif %}
 {%- endfor %}
 {%- endmacro %}
+
+{# One section's body on the full page: the wire content of a request part,
+   as characters (raw view, or when markdown could not render) or as rendered
+   markdown, or a note that the part was empty. Shared by the message sections
+   and a tool's raw tab, so the two render a value the same way — see
+   turns/full.html and the tool_tabs macro below. #}
+{% macro full_section_body(part, raw) -%}
+{%- if raw or part.html is none %}
+  <pre class="blob full-blob">{{ part.text }}</pre>
+{%- elif part.text %}
+  <div class="md-body">{{ part.html | safe }}</div>
+{%- else %}
+  <p class="meta msg-empty">(no content on this message)</p>
+{%- endif %}
+{%- endmacro %}
+{# One tool's parameters, broken out of its schema (spans.py `_tool_params`):
+   a row per parameter — its name, its type, whether it is required, and its
+   description. Nothing here is |safe: every value is the tool's own schema
+   text, auto-escaped like any wire content. The raw view shows the schema in
+   full instead; this is the reading for the eye. #}
+{% macro tool_params(params) -%}
+<dl class="tool-params">
+{%- for p in params %}
+  <div class="tool-param">
+    <dt><code class="tool-pname">{{ p.name }}</code>
+      {%- if p.type %} <span class="tool-ptype">{{ p.type }}</span>{% endif %}
+      {%- if p.required %} <span class="tool-preq">required</span>{% endif %}</dt>
+    {%- if p.description %}<dd class="tool-pdesc">{{ p.description }}</dd>{% endif %}
+  </div>
+{%- endfor %}
+</dl>
+{%- endmacro %}
+{# One tool's formatted definition: its description (rendered like a message
+   body), its tool-level flags, and its parameters broken out one row each.
+   `summary_html` is the markdown render of the description; it falls back to
+   the plain `summary` when the renderer was absent, and to nothing when the
+   tool carried no description. Only `summary_html` is |safe — it is the
+   markdown renderer's output with raw HTML disabled, the one trusted string,
+   exactly as a message body is (see fulltext.py). #}
+{% macro tool_formatted(part) -%}
+{%- if part.summary_html or part.summary %}
+<div class="tool-section-head">description</div>
+{%- if part.summary_html %}<div class="md-body tool-desc">{{ part.summary_html | safe }}</div>
+{%- else %}<p class="tool-desc">{{ part.summary }}</p>{% endif %}
+{%- endif %}
+{%- if part.facts %}
+<div class="tool-section-head">properties</div>
+<p class="tool-facts">
+  {%- for f in part.facts %}<span class="tool-fact"><span class="tool-fact-k">{{ f.label }}</span> {{ f.value }}</span>{% endfor %}
+</p>
+{%- endif %}
+{%- if part.params %}
+<div class="tool-section-head">parameters</div>
+{{ tool_params(part.params) }}
+{%- endif %}
+{%- endmacro %}
+{# One tool's body: two tabs, its formatted definition (shown first) and the
+   raw wire schema. CSS-only, on a pair of radios — no script, and the page
+   stays a still view of a value it does not own. `idx` (the section's
+   position) names the radio group, so each tool's tabs are its own and one
+   tool's click never moves another's. The panel selectors key off the radios'
+   order, not their ids, since a stylesheet cannot name an id built at render
+   time — so the two radios must stay in this order, formatted then raw. #}
+{% macro tool_tabs(part, idx) -%}
+<div class="tool-tabs">
+  <input class="tool-tab-radio" type="radio" name="tooltab{{ idx }}" id="tab-f{{ idx }}" checked>
+  <label class="tool-tab" for="tab-f{{ idx }}">formatted</label>
+  <input class="tool-tab-radio" type="radio" name="tooltab{{ idx }}" id="tab-r{{ idx }}">
+  <label class="tool-tab" for="tab-r{{ idx }}">raw</label>
+  <div class="tool-panels">
+    <div class="tool-panel tool-panel-fmt">{{ tool_formatted(part) }}</div>
+    {#- The schema as a JSON code block — the verbatim wire, rendered for the
+       eye (the page-wide raw view shows it as literal characters instead). #}
+    <div class="tool-panel tool-panel-raw">{{ full_section_body(part, false) }}</div>
+  </div>
+</div>
+{%- endmacro %}

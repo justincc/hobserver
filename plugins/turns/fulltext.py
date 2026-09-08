@@ -50,9 +50,19 @@ class Section:
 
     `nested` marks a part shown *under* the one before it, and `nests` the
     part it belongs to — the request page uses the pair for a tool result
-    moved to sit with the call it answers, which are drawn as one card. Both
-    are the source's word, carried through rather than inferred here: this
-    module renders parts and does not know what any of them mean.
+    moved to sit with the call it answers, which are drawn as one card.
+    `divider` marks a label-only section break with no body box, the heading
+    over a group — the request page's `tools` band; `grouped` marks a part
+    drawn *inside* the box that divider opens, subordinate to it, which the
+    tools are. A grouped part shows two tabs: a formatted reading of the tool
+    — its description (`summary`, rendered to `summary_html` the way a message
+    body is), its `facts` (tool-level flags, `{label, value}` each) and its
+    `params` (the parameters broken out of its schema, `{name, type, required,
+    description}` each) — and its raw schema (`text`). `summary` also rides a
+    divider, as the faint metadata under its heading (there rendered plain,
+    not from `summary_html`). All are the source's word, carried through
+    rather than inferred here: this module renders parts and does not know
+    what any of them mean.
     """
 
     label: str
@@ -60,6 +70,12 @@ class Section:
     html: Optional[str] = None
     nested: bool = False
     nests: bool = False
+    summary: Optional[str] = None
+    summary_html: Optional[str] = None
+    divider: bool = False
+    grouped: bool = False
+    facts: tuple = ()
+    params: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -129,10 +145,24 @@ def _sections(value: Any) -> Optional[Rendered]:
         label = entry.get("label")
         html, fault = _markdown(entry["text"])
         problem = problem or fault
+        summary = entry.get("summary")
+        summary = str(summary) if summary else None
+        # A tool's description is wire content like a message body, so it is
+        # rendered to markdown the same way (and degrades the same way — a
+        # failed render leaves summary_html None and the page shows the plain
+        # text). A divider's summary is a plain metadata line; the page draws
+        # it from `summary`, not this, so rendering it here costs nothing.
+        summary_html, sfault = _markdown(summary) if summary else (None, None)
+        problem = problem or sfault
         parts.append(Section(label=str(label) if label else "(unlabelled)",
                              text=entry["text"], html=html,
                              nested=bool(entry.get("nested")),
-                             nests=bool(entry.get("nests"))))
+                             nests=bool(entry.get("nests")),
+                             summary=summary, summary_html=summary_html,
+                             divider=bool(entry.get("divider")),
+                             grouped=bool(entry.get("grouped")),
+                             facts=tuple(entry.get("facts") or ()),
+                             params=tuple(entry.get("params") or ())))
     return Rendered(kind="sections", text=None, sections=tuple(parts),
                     chars=sum(len(p.text) for p in parts), problem=problem)
 

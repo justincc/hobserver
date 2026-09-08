@@ -312,6 +312,85 @@
     .msg .md-body { padding: 0.7rem 0.9rem; max-width: none; }
     .msg pre.blob { margin: 0; border-radius: 0; background: none; }
     .msg .msg-empty { padding: 0.5rem 0.9rem; margin: 0; font-style: italic; }
+    /* The tools the call was offered, drawn as one contained group so they
+       read as belonging together and under the `tools` heading — not as more
+       first-class messages. The box surrounds the heading and every tool; a
+       distinct light-violet ground and its own border set the whole region
+       apart from the conversation above it. */
+    .msg-group { border: 1px solid #d3d9ea; border-radius: 6px;
+      background: #f4f5fb; padding: 0.55rem 0.6rem; margin: 0 0 1rem; }
+    /* The heading inside the box: a label as a small caption, not a solid
+       band, with the count/choice line faint beneath it. No card of its own. */
+    .msg-group .msg-divider { border: 0; border-radius: 0; margin: 0 0 0.5rem;
+      background: none; overflow: visible; }
+    .msg-group .msg-divider > .msg-label { background: none; color: #4a5578;
+      padding: 0 0.15rem; }
+    .msg-group .msg-divider .meta { padding: 0.1rem 0.2rem 0; margin: 0; }
+    /* Each tool inside the box: subordinate to the messages — indented, a
+       hairline card on a lighter ground, its label a step down in weight from
+       a message's solid band (the #55608c a nested result already uses). */
+    .msg-group .msg-grouped { margin: 0 0 0.4rem 0.7rem; border-color: #dbe0ec;
+      border-left: 2px solid #aab3c9; background: #fff; }
+    .msg-group .msg-grouped:last-child { margin-bottom: 0.1rem; }
+    .msg-group .msg-grouped > .msg-label { background: #55608c;
+      text-transform: none; letter-spacing: 0; }
+    /* Two tabs per tool — the formatted definition (shown first) and the raw schema — on a
+       pair of radios, no script (the page is a still view of the value). The
+       radios are visually hidden but stay keyboard-reachable; the label after
+       the checked one is the active tab, and the panels below show by which
+       radio is checked, keyed off order since their ids are built at render
+       time. Keep the two radios in the order the macro emits them. */
+    .tool-tab-radio { position: absolute; width: 1px; height: 1px;
+      opacity: 0; pointer-events: none; }
+    .tool-tab { display: inline-block; padding: 0.3rem 0.7rem; cursor: pointer;
+      font-size: 0.78rem; color: #55608c; border-bottom: 2px solid transparent; }
+    .tool-tab-radio:checked + .tool-tab { color: #1a1a2e; font-weight: 600;
+      border-bottom-color: #2456c4; }
+    .tool-tab-radio:focus-visible + .tool-tab { outline: 2px solid #2456c4;
+      outline-offset: -2px; }
+    .tool-panel { display: none; }
+    .tool-tab-radio:nth-of-type(1):checked ~ .tool-panels .tool-panel-fmt,
+    .tool-tab-radio:nth-of-type(2):checked ~ .tool-panels .tool-panel-raw {
+      display: block; }
+    .tool-panels { border-top: 1px solid #e2e5ec; }
+    /* The formatted tab reads as its own little sections, each under the same
+       small heading the parameters have: DESCRIPTION (the tool's own text, a
+       message body, so it borrows .md-body), PROPERTIES (a faint line of
+       tool-level flags), and PARAMETERS (the rows). One heading style for all
+       three, so they read as siblings. */
+    /* Each section is led by a light band running the panel's full width, so
+       DESCRIPTION / PROPERTIES / PARAMETERS read as distinct bands rather than
+       relying on whitespace alone. A top rule on each divides it from the
+       content above; the first sits right under the tab strip, so it drops
+       that rule. The content blocks then carry one even 0.5rem on both sides,
+       so band-to-content and content-to-next-band match throughout (the
+       markdown description's first/last renderer margins are zeroed to keep
+       to it). */
+    .tool-section-head { padding: 0.32rem 0.9rem; font-size: 0.7rem;
+      text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+      color: #55606b; background: #dfdfdf; border-top: 1px solid #d6d6d9; }
+    .tool-panel-fmt > .tool-section-head:first-child { border-top: 0; }
+    .tool-desc { margin: 0; padding: 0.5rem 0.9rem; }
+    .tool-desc.md-body > :first-child { margin-top: 0; }
+    .tool-desc.md-body > :last-child { margin-bottom: 0; }
+    .tool-facts { margin: 0; padding: 0.5rem 0.9rem; }
+    .tool-fact { margin-right: 0.9rem; font-size: 0.76rem; color: #6b7392; }
+    .tool-fact-k { font-family: ui-monospace, monospace; color: #55608c; }
+    /* A tool's parameters, broken out of its schema: a row each, the name in
+       mono, then a faint type and a `required` tag, then the description on
+       its own line. Read as a compact table rather than a block of JSON. */
+    .tool-params { margin: 0; padding: 0.5rem 0.9rem; }
+    .tool-param { margin: 0 0 0.5rem; }
+    .tool-param:last-child { margin-bottom: 0; }
+    .tool-param dt { margin: 0; }
+    .tool-pname { font-family: ui-monospace, monospace; font-size: 0.82rem;
+      color: #1a1a2e; }
+    .tool-ptype { font-family: ui-monospace, monospace; font-size: 0.72rem;
+      color: #6b7392; }
+    .tool-preq { font-size: 0.66rem; text-transform: uppercase;
+      letter-spacing: 0.04em; color: #a23; background: #fdeaea;
+      padding: 0.02rem 0.3rem; border-radius: 3px; vertical-align: 0.05rem; }
+    .tool-pdesc { margin: 0.1rem 0 0; color: #444; font-size: 0.86rem; }
     /* A tool call and the result it answers are drawn as ONE card: the
        call's box runs into the result's with no gap and no border between
        them, so the pair is a single object on the page rather than two
