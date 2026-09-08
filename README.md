@@ -6,8 +6,15 @@
        width="440">
 </picture>
 
-Hobserver is a webapp for observing live and recent sesssion-oriented [Hermes Agent](https://github.com/NousResearch/hermes-agent)
-activity. The currently bundled plugins are:
+Hobserver is a webapp for observing live [Hermes Agent](https://github.com/NousResearch/hermes-agent) session
+activity. It lets you see in detail:
+* The prompts and responses sent to LLMs.
+* The tools used and their parameters (e.g. web_extract, delegate_task).
+* The memories made and retrieved.
+
+More to come, contributions welcome. Hobserver also let's you see how long each part of a conversation turn took to execute (e.g. how long it took the LLM to respond, how long to execute a script in the terminal tool).
+
+The currently bundled plugins are:
 
 - **Turns** — the main plugin. Live and recent per-session turn waterfalls from the NVIDIA NeMo Relay ATOF
   JSONL stream that Hermes Agent's NeMo Relay integration exports.
