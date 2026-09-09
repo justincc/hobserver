@@ -11,6 +11,32 @@ on. Polling pauses while the browser tab is hidden.
 No SSE or WebSockets; a poll reuses the per-request tailer, which reads only
 what the exporter appended since the last request.
 
+### The change-probe gate
+
+A full swap refetches and re-renders the whole page, so doing it every 2 s is
+wasteful when nothing changed and slow to react when something did. A region
+that carries `data-live-probe="<url>"` is instead ticked fast (400 ms) against
+that cheap endpoint, and the expensive swap runs only when its token changes.
+
+The token is the log's byte size (`turns.live_token` → `tailer.file_size`, one
+`stat()`). It grows on any appended line, so it is a **superset trigger**: it
+may fire for a line in a different turn than the one on screen, but it never
+misses a real change. A shorter file (rotation) is a different token too, so
+that reloads as well. The first tick adopts the current token without swapping —
+the initial render is already current.
+
+Perceived latency drops to ~400 ms while a quiet in-flight turn costs only a
+stat()-sized request, not a render. A region with no `data-live-probe` keeps the
+old fetch-every-tick behaviour.
+
+There is **no heartbeat** — a swap happens only when the log changes, never on a
+timer, so a silent turn generates zero traffic. The one thing this gives up is
+the server-side stale-turn cutoff during pure silence: a turn quiet past
+`STALE_AFTER_US` is dropped from the strip on the next swap (the next appended
+line anywhere), not the instant it crosses the threshold. That is acceptable
+because its silence label goes on climbing past the cutoff in plain view — a
+zombie reads as "long dead" without a request being spent to prove it.
+
 ### Selecting text pauses everything
 
 A swap replaces the nodes a selection lives in, which drops it — so dragging
@@ -30,8 +56,27 @@ anything.
 
 Both Turns pages show an in-flight strip
 (`plugins/turns/templates/turns/_inflight.html`) listing every running turn, newest first,
-with a short prompt snippet, elapsed time and span count, each linking to its
-waterfall. The turn being viewed is marked.
+with a short prompt snippet, **time since the turn last emitted** and span
+count, each linking to its waterfall. The turn being viewed is marked.
+
+The strip's live number is silence — `now - last_activity_us`, not
+`now - start_us`. Elapsed-since-start conflates a long turn with a stalled one;
+silence resets to ~0 whenever the turn emits and climbs only while it is quiet,
+so it reads as progress. It advances client-side between polls (see the client
+clock below), and each swap re-bases it from the turn's fresh `last_activity_us`.
+
+### The client clock
+
+`base.html` runs one wall-clock time base, `nowUs()`, that advances the strip's
+silence labels (`data-silence-of`) once a second without a round-trip. It is
+anchored to the server's render-time now (`data-server-now-us`, in the log's µs
+clock) and advanced by the browser's **monotonic** `performance.now()`, so it is
+immune to any skew between the viewer's wall clock and the log's; re-anchoring on
+each swap keeps it from drifting. The ticker is independent of polling, so
+silence keeps advancing while a poll is paused (tab hidden, selection held) or
+the page is static (the strip still lists other sessions' live turns). A future
+live-growing waterfall can read `nowUs()` for its now-edge rather than adding a
+second clock.
 
 A turn silent for more than `STALE_AFTER_US` (2 hours) is treated as a lost end
 mark, not a running prompt, and dropped from the strip. The cutoff is generous

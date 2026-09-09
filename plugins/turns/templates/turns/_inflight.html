@@ -18,7 +18,10 @@
      {%- if is_current %} data-inflight-current="1"{% endif %}>
     {%- if e.turn.user_message %}“{{ e.turn.user_message | truncate(40, True) }}” · {% endif %}
     {{- e.turn.turn_id or (e.turn.start_us | us_time) }} · {{ e.turn.session_id | truncate(16) }} ·
-    {{ e.elapsed_us | us_dur }} · {{ e.turn.spans | length }} span{{ 's' if e.turn.spans | length != 1 }}
+    {# Time since the turn last emitted, advanced client-side by base.html
+       between polls (data-silence-of anchors it to last_activity_us). #}
+    <span data-silence-of="{{ e.turn.last_activity_us }}">{{ e.silence_us | us_dur }}</span> since update ·
+    {{ e.turn.spans | length }} span{{ 's' if e.turn.spans | length != 1 }}
     {%- if is_current %} (viewing){% endif -%}
   </a>
   {% endfor %}

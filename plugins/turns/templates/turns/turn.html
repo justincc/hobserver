@@ -11,6 +11,8 @@
    newest-first, so its new rows arrive at the top. #}
 <div data-live-poll="{{ 2000 if turn.is_live else 0 }}"
      data-turn-start-us="{{ turn.start_us }}"
+     data-live-probe="{{ url_for('turns.live_token') }}"
+     data-server-now-us="{{ now_us }}"
      data-live-tail>
 {# Same row as the stepping links: the follow toggle is navigation too, just
    automatic. Inside the live region, so base.html re-resolves it after each

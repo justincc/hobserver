@@ -30,6 +30,7 @@ from plugins.turns import fulltext, skills, skill_provenance, skill_index
 from plugins.turns.assembler import assemble, containing_turn
 from plugins.turns.atof_index import (AtofIndex, default_index_path,
                                         hydrate_span, hydrate_turn)
+from plugins.turns.tailer import file_size
 from providers import USAGE_SHAPES, check_shapes
 from scope_spec import (SpecTable, check_readers,
                                         check_table, full_for, full_link,
@@ -487,15 +488,18 @@ def _assembly():
     return assembly, errors
 
 
-def _inflight_entries(assembly):
+def _inflight_entries(assembly, now_us):
     """Still-running turns, newest first, dressed for the status strip.
 
     Three kinds of open turn are not running and are dropped: one superseded
     by a later turn in its session (Turn.is_live), a subagent the parent has
     already reported stopped, and one silent past STALE_AFTER_US — a lost end
     mark left open, which would otherwise sit in the strip indefinitely.
+
+    `now_us` is the caller's single render-time clock, shared with the page's
+    `data-server-now-us` anchor so the silence the strip shows and the client
+    clock that advances it start from the same instant.
     """
-    now_us = int(time.time() * 1_000_000)
     stopped = assembly.finished_subagent_sessions
     turns = sorted(
         (t for s in assembly.sessions for t in s.turns
@@ -504,9 +508,12 @@ def _inflight_entries(assembly):
         key=lambda t: t.start_us,
         reverse=True,
     )
+    # silence_us — time since the turn last emitted anything, not since it
+    # started. A working turn resets it to ~0 on each span; a stalled one lets
+    # it climb, so it reads as progress where elapsed-since-start does not.
     return [{
         "turn": t,
-        "elapsed_us": now_us - t.start_us,
+        "silence_us": now_us - t.last_activity_us,
     } for t in turns]
 
 
@@ -528,6 +535,22 @@ def _neighbours(assembly, turn):
             ordered[i + 1] if i + 1 < len(ordered) else None)
 
 
+@bp.route("/live")
+def live_token():
+    """A cheap "has anything changed?" token for the live-poll loop.
+
+    To decide whether to reload, the client fetches this instead of the whole
+    page. We just read the log file's size — one stat() call, no parsing. The
+    size grows whenever the exporter appends a line, so this catches every
+    real change; it may also change for a line in a different turn than the
+    one being viewed, but an occasional needless reload is far cheaper than
+    reloading on every tick, and no real change is ever missed. A shorter file
+    (rotation or overwrite) is a different token too, so that reloads as well.
+    """
+    size = file_size(current_app.config["ATOF_PATH"])
+    return current_app.response_class(str(size), mimetype="text/plain")
+
+
 @bp.route("/")
 def index():
     problem = _source_problem()
@@ -545,6 +568,7 @@ def index():
     # refresh() is the same cheap call _assembly just made; it carries the
     # count of log lines the index has read — one entry per JSONL line.
     index_state = get_index().refresh()
+    now_us = int(time.time() * 1_000_000)
     return render_template(
         "turns/index.html",
         state="ok",
@@ -553,7 +577,8 @@ def index():
         atof_entries=index_state.indexed_lines,
         turns=turns,
         last_us=last_us,
-        inflight=_inflight_entries(assembly),
+        now_us=now_us,
+        inflight=_inflight_entries(assembly, now_us),
         anomalies=assembly.anomalies,
         parse_errors=parse_errors,
     )
@@ -638,12 +663,14 @@ def turn(session_id, start_us):
     older, newer = _neighbours(assembly, found)
     table = _spec_table()
     accessors = _accessors()
+    now_us = int(time.time() * 1_000_000)
     return render_template(
         "turns/turn.html",
         turn=found,
         current=found,
         scale_us=scale_us,
-        inflight=_inflight_entries(assembly),
+        now_us=now_us,
+        inflight=_inflight_entries(assembly, now_us),
         older=older,
         newer=newer,
         scope_rows=lambda span: rows_for(span, table, accessors),

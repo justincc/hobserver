@@ -1057,6 +1057,44 @@ def test_index_is_a_live_region(tmp_path):
     assert 'data-live-poll="3000"' in page
 
 
+def test_live_token_is_the_log_size_and_tracks_appends(tmp_path):
+    # The cheap change-probe: /turns/live returns the log's byte size, so the
+    # client can tell "did anything change?" without refetching the page.
+    atof = write_atof(tmp_path, two_turn_stream())
+    client = make_client(tmp_path, str(atof))
+    before = client.get("/turns/live")
+    assert before.status_code == 200
+    assert before.get_data(as_text=True) == str(os.path.getsize(atof))
+    with open(atof, "a", encoding="utf-8") as handle:
+        handle.write(mark_line("hermes.turn.start", 20_000_000,
+                               session="s1", turn="t3") + "\n")
+    after = client.get("/turns/live").get_data(as_text=True)
+    assert after == str(os.path.getsize(atof))
+    assert int(after) > int(before.get_data(as_text=True))
+
+
+def test_live_region_carries_the_probe_url_and_clock_anchor(tmp_path):
+    # The poll loop reads data-live-probe to gate the swap and data-server-now-us
+    # to anchor the client clock; both pages must expose them.
+    _, inflight_start, lines = recent_stream()
+    client = make_client(tmp_path, str(write_atof(tmp_path, lines)))
+    for url in ("/turns/", f"/turns/turn/s9/{inflight_start}"):
+        page = client.get(url).get_data(as_text=True)
+        assert 'data-live-probe="/turns/live"' in page
+        assert re.search(r'data-server-now-us="\d+"', page)
+
+
+def test_inflight_strip_shows_time_since_last_update(tmp_path):
+    # The strip's live number is silence-since-last-update (data-silence-of,
+    # anchored to last_activity_us), which the client clock advances — not
+    # elapsed-since-start, which does not signal progress.
+    _, _, lines = recent_stream()
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get("/turns/").get_data(as_text=True)
+    assert "since update" in page
+    assert "data-silence-of=" in page
+
+
 def test_no_source_states_are_live_too(tmp_path):
     # a missing file page must come alive once the exporter starts writing
     missing = tmp_path / "missing.jsonl"
@@ -1261,8 +1299,8 @@ def test_a_selection_inside_a_live_region_holds_the_poll():
     # survives untouched
     assert ("return region.contains(sel.anchorNode) || "
             "region.contains(sel.focusNode);") in js
-    assert ("if (pollMs() && !busy && !document.hidden && !selecting()) "
-            "await poll();") in js
+    assert ("if (pollMs() && !busy && !document.hidden && !selecting() "
+            "&& await shouldPoll()) {") in js
 
 
 def test_both_switches_are_the_same_switch(tmp_path):

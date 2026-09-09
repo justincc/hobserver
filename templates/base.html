@@ -805,6 +805,38 @@
       syncToggle();
       if (!region) return;
 
+      // Client clock: advances "time since last update" ([data-silence-of] in
+      // the in-flight strip) between polls, with no round-trip. Anchored to the
+      // server's render-time now (data-server-now-us, in the log's µs clock) and
+      // advanced by the browser's *monotonic* performance.now(), so it is immune
+      // to any skew between the viewer's wall clock and the log's; re-anchoring
+      // on each swap keeps it from drifting. nowUs() is the single time base —
+      // a future live-growing waterfall can read it for its now-edge.
+      let serverNowUs = 0, perfAtAnchor = 0;
+      function anchorClock(el) {
+        const v = parseInt(el.dataset.serverNowUs || "0", 10);
+        if (v) { serverNowUs = v; perfAtAnchor = performance.now(); }
+      }
+      function nowUs() {
+        return serverNowUs + Math.round((performance.now() - perfAtAnchor) * 1000);
+      }
+      // Mirror of the us_dur template filter (plugins/turns/__init__.py): whole
+      // seconds to two decimals. One format string — keep the two in step.
+      const usDur = (us) => (us / 1_000_000).toFixed(2) + " s";
+      function tickClocks() {
+        const n = nowUs();
+        region.querySelectorAll("[data-silence-of]").forEach((el) => {
+          const t = parseInt(el.dataset.silenceOf, 10);
+          if (t) el.textContent = usDur(n - t);
+        });
+      }
+      anchorClock(region);
+      tickClocks();
+      // A second is enough (the label shows whole seconds) and it runs
+      // independently of polling, so the silence keeps advancing even while a
+      // poll is paused (tab hidden, selection held) or the page is static.
+      setInterval(tickClocks, 1000);
+
       // Tailing: a region marked [data-live-tail] keeps the newest events in
       // view, but only while the reader is already at the bottom — being
       // there is the opt-in, so there is no switch to find or to leave on by
@@ -898,6 +930,11 @@
           region.querySelectorAll("tr[data-span-uuid]").forEach((tr) => {
             tr.classList.toggle("detail-open", openRows.has(tr.dataset.spanUuid));
           });
+          // Re-anchor the clock to this render's server-now and repaint the
+          // silence labels. The swapped-in strip already carries fresh values,
+          // so this only corrects sub-tick drift and re-bases the monotonic run.
+          anchorClock(region);
+          tickClocks();
           // After the reopened rows, not before: they change the height this
           // is scrolling to. Instant rather than smooth — a 2 s poll would
           // start the next swap while an animation was still running, and
@@ -910,11 +947,49 @@
           busy = false;
         }
       }
+      // Change-probe gate. Rather than refetch the whole page every tick, poll
+      // a tiny token (data-live-probe) and do the expensive swap only when it
+      // changes — so a quiet in-flight turn costs a stat()-sized request, not a
+      // full render. The token is the log's byte size (turns.live_token), a
+      // superset trigger: it may fire for a change in another turn but never
+      // misses one. No probe attribute → the old fetch-every-tick behaviour,
+      // unchanged.
+      //
+      // There is no heartbeat: a swap happens only when the log actually
+      // changes, never on a timer. One thing this gives up is the server-side
+      // stale-turn cutoff during pure silence — a turn gone quiet past
+      // STALE_AFTER_US is only dropped from the strip on the next swap (the next
+      // appended line anywhere), not the moment it crosses the threshold. Its
+      // silence label meanwhile climbs past the cutoff in plain view, which
+      // reads as "long dead" without a request being spent to say so.
+      let lastToken = null;
+      async function shouldPoll() {
+        const probeUrl = region.dataset.liveProbe;
+        if (!probeUrl) return true;
+        try {
+          const resp = await fetch(probeUrl);
+          if (!resp.ok) return false;
+          const token = await resp.text();
+          if (lastToken === null) { lastToken = token; return false; }  // adopt, don't swap
+          if (token === lastToken) return false;
+          lastToken = token;
+          return true;
+        } catch (err) {
+          return false;   // transient probe failure — try again next tick
+        }
+      }
+      // With a probe, tick fast and let it gate the swap; without one, keep the
+      // region's own poll interval as the tick.
+      const tickMs = () =>
+        pollMs() ? (region.dataset.liveProbe ? 400 : pollMs()) : 1000;
+
       (function loop() {
         setTimeout(async () => {
-          if (pollMs() && !busy && !document.hidden && !selecting()) await poll();
+          if (pollMs() && !busy && !document.hidden && !selecting() && await shouldPoll()) {
+            await poll();
+          }
           loop();
-        }, pollMs() || 1000);
+        }, tickMs());
       })();
     })();
 

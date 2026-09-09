@@ -2,7 +2,9 @@
 {% block title %}turns — Hobserver{% endblock %}
 {% block content %}
 {% include "turns/_follow.html" %}
-<div data-live-poll="3000">
+<div data-live-poll="3000"
+     data-live-probe="{{ url_for('turns.live_token') }}"
+     data-server-now-us="{{ now_us }}">
 {% if state == "missing" %}
 <p class="notice warn">
   ATOF log not found: <code>{{ atof_path }}</code>.
