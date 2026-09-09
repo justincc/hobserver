@@ -98,20 +98,26 @@
        caveat that "user-added" is a wider bucket than it reads. */
     .origin-note { cursor: help; color: #777; }
     /* An invisible source line: keys across the top row, their values beneath.
-       Sizes to its content (not the full-width table default). No cell borders
-       (the global th,td rule draws them) — this is a layout aid, not a data
-       table. Values inherit the keys' font; a gap sets the columns apart. */
-    table.source-meta { width: auto; font-size: 0.85rem; margin-bottom: 0.75rem; }
+       Spans the page width so the path can use whatever room the window gives
+       it. No cell borders (the global th,td rule draws them) — this is a layout
+       aid, not a data table. Values inherit the keys' font; a gap sets the
+       columns apart. */
+    table.source-meta { width: 100%; font-size: 0.85rem; margin-bottom: 0.75rem; }
     table.source-meta th, table.source-meta td { border: 0; padding: 0.1rem 0; text-align: left; vertical-align: baseline; }
     table.source-meta th { font-weight: 600; color: #555; white-space: nowrap; }
     table.source-meta th:not(:last-child), table.source-meta td:not(:last-child) { padding-right: 2rem; }
-    /* The path clips to at most a quarter of the viewport, keeping its end: the
-       inner inline-block bounds the width (a td's max-width is unreliable under
-       table layout), and rtl + the template's &lrm; guards put the ellipsis on
-       the left while the path still reads left-to-right. Full path is in the title. */
-    table.source-meta td.path span { display: inline-block; max-width: 25vw;
+    /* Every other column shrinks to its content so the path cell takes the row's
+       leftover width; max-width:0 is the table idiom for "fill the rest, then
+       clip" (a plain max-width is unreliable in table layout — cf. td.col-prompt).
+       So the path shows in full whenever the window is wide enough and ellipsises
+       only when it is not. rtl + the template's &lrm; guards keep the ellipsis on
+       the left while the path still reads left-to-right, so the distinguishing
+       tail stays visible. Full path is in the title. */
+    table.source-meta td:not(.path) { width: 1%; white-space: nowrap; }
+    table.source-meta td.path { max-width: 0; }
+    table.source-meta td.path span { display: block; max-width: 100%;
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        direction: rtl; text-align: left; vertical-align: bottom; }
+        direction: rtl; text-align: left; }
     details.problems { background: #fdf0ef; border: 1px solid #e0b4b4; border-radius: 6px; padding: 0.6rem 1rem; margin-bottom: 1rem; font-size: 0.9rem; }
     details.problems summary { cursor: pointer; font-weight: 600; }
     /* prompt-timing waterfall. Series colors validated (dataviz six checks,

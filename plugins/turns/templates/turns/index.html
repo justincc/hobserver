@@ -19,11 +19,14 @@
 </p>
 {% else %}
 <table class="source-meta">
-  <tr><th>Source</th><th>Last event</th><th>Size</th></tr>
+  {# Source is last so the compact fields anchor left and the path trails off to
+     the right edge, using the remaining width and ellipsising there (base.html
+     source-meta rules) rather than shoving these fields across the page. #}
+  <tr><th>Last event</th><th>Size</th><th>Source</th></tr>
   <tr>
-    <td class="path"><span title="{{ atof_path }}">&lrm;{{ atof_path }}&lrm;</span></td>
     <td>{{ last_us | us_time }} UTC</td>
     <td>{{ atof_size | bytes_human }} · {{ "{:,}".format(atof_entries) }} entries</td>
+    <td class="path"><span title="{{ atof_path }}">&lrm;{{ atof_path }}&lrm;</span></td>
   </tr>
 </table>
 {% include "turns/_problems.html" %}
