@@ -533,14 +533,19 @@ def assemble(events: Iterable[AtofEvent],
             session_id = event.session_id or scope_sessions.get(event.parent_uuid) \
                 or UNKNOWN_SESSION
             session_for(session_id)._saw(event.timestamp_us)
+    # Group the turn-boundary marks by session in one pass. Filtering `ordered`
+    # once per session instead was O(sessions x events) — with hundreds of
+    # subagent sessions it was the assembly's dominant cost. `ordered` is
+    # sorted, so each session's list stays in order for _build_turns.
+    boundary_by_session: dict = {}
+    for event in ordered:
+        if event.is_mark and event.name in (TURN_START_MARK, TURN_END_MARK):
+            session_id = event.session_id \
+                or scope_sessions.get(event.parent_uuid) or UNKNOWN_SESSION
+            boundary_by_session.setdefault(session_id, []).append(event)
     for session in list(sessions.values()):
-        boundary = [
-            e for e in ordered
-            if e.is_mark and e.name in (TURN_START_MARK, TURN_END_MARK)
-            and (e.session_id or scope_sessions.get(e.parent_uuid) or UNKNOWN_SESSION)
-            == session.session_id
-        ]
-        _build_turns(session, boundary, anomalies)
+        _build_turns(session, boundary_by_session.get(session.session_id, []),
+                     anomalies)
 
     # Then the turn scopes, which mostly recognize a turn the marks already
     # built rather than adding one. Runs after `_build_turns` for exactly
