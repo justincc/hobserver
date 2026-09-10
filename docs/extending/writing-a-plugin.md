@@ -122,7 +122,8 @@ wrong. `required` decides what happens then:
 ## Templates and page furniture
 
 Extending `base.html` gives you the tab bar, the copy-to-clipboard button, the
-live-poll script and the shared CSS. These are the public surface:
+live-poll script and the shared CSS. Below are public page elements that your
+plugin can use:
 
 | what | how |
 | --- | --- |
@@ -132,14 +133,7 @@ live-poll script and the shared CSS. These are the public surface:
 | notices | `<p class="notice warn">` for a problem the reader must see |
 | a timestamp | `{{ epoch_us \| local_time }}`, or `\| local_time_s` for epoch seconds — machine-local, zone-labelled, one format across every tab (`timefmt.py`); `None` renders an em dash |
 | a column of timestamps | bare cells with `\| local_time(zone=False)`, and the zone once in the header: `<th>start ({{ local_zone() }})</th>` |
-| no tab bar | `{% block tabbar %}{% endblock %}` — for a page opened in its own tab to read one thing, never for one reached by navigating |
-
-The empty `tabbar` is the one piece of chrome worth turning off, and only in
-the case it exists for: `/turns/span/<uuid>/<key>` is opened from a span
-icon into a new tab, so a row of tabs there offers to navigate away from a
-place the reader never navigated to. Any page a reader *walks* to keeps the
-bar, or they lose their place in the app. The `hobserver` heading is
-outside the block, so a page without the bar still has a way home.
+| no tab bar | `{% block tabbar %}{% endblock %}` — for a page that shouldn't be within the hobserve tabs page, such as the one which shows the full prompt details (tools available, previously returned tool responses, etc.) in the turns plugin |
 
 Keep your templates in your own package —
 `Blueprint("tail", __name__, template_folder="templates")`, with the files
