@@ -553,7 +553,12 @@ def live_token():
     (rotation or overwrite) is a different token too, so that reloads as well.
     """
     size = file_size(current_app.config["ATOF_PATH"])
-    return current_app.response_class(str(size), mimetype="text/plain")
+    # no-store: the whole point is to detect a change the instant it lands, so
+    # a browser or proxy serving even a few-seconds-stale size would defeat it —
+    # the swap would wait out the cache rather than the log.
+    return current_app.response_class(
+        str(size), mimetype="text/plain",
+        headers={"Cache-Control": "no-store"})
 
 
 @bp.route("/")
