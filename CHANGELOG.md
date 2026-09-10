@@ -43,6 +43,13 @@ and provider-spec vocabularies) may still change between releases — see
   description (no truncation length is hardcoded, so it cannot drift out of
   step with hermes). Shown only when the description is genuinely cut. See
   ADR 24.
+- **The tools available to the model are shown on the full prompt page.** The
+  request's `tools` array captured in ATOF — the function schemas the model
+  could call that turn, with the count and `tool_choice`/`parallel` settings —
+  appears as a group trailing the messages, one card per tool with a Formatted
+  tab (its description, `type`/`strict` flags, and parameters broken out one row
+  each) and a Raw tab (the verbatim wire schema). An unrecognised tool keeps its
+  place with its whole schema shown. See `docs/design/span-rendering.md`.
 - **A tool call's parameters read out in more detail.** Each parameter now
   shows its enum values, its default, and one level of nested fields (following
   nested objects to a depth cap of four), with tooltips explaining the `type`
