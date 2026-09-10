@@ -98,7 +98,7 @@
         carries it (with retry, and fuller tooltips) — so it is shown here only
         for a span that has no such strip. #}
     {%- if span.call_role and not span.is_llm %} · <span class="mode-tag" title="What this call was for, when it was not the ordinary one.">{{ span.call_role }}</span>{% endif %}
-    · {{ span.start_us | us_time }} UTC
+    · {{ span.start_us | local_time }}
     <span class="span-uuid">· {{ span.uuid }}{{ copy_btn(span.uuid, "copy span uuid") }}</span>
   </p>
   {# The same facts the turn page shows on this call's own waterfall row —

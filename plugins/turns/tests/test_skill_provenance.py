@@ -7,9 +7,23 @@ at the user's request), and a root with no sidecars at all is "unknown"."""
 
 import json
 import os
+import time
+
+import pytest
 
 from plugins.turns import skills, skill_provenance as prov
 from plugins.turns.tests.test_skills import make_skill, skill_client
+
+
+@pytest.fixture(autouse=True)
+def _utc_zone(monkeypatch):
+    """Provenance times now render in the machine's local zone; pin it to UTC
+    so the expected display strings are fixed on any machine."""
+    monkeypatch.setenv("TZ", "UTC")
+    time.tzset()
+    yield
+    monkeypatch.undo()
+    time.tzset()
 
 
 def _roots(*dirs):
@@ -63,8 +77,8 @@ def test_agent_created_skill_is_read_from_usage(tmp_path):
         "use_count": 4, "last_used_at": "2026-08-20T09:30:00+00:00"}})
     p = prov.classify(str(d), _roots(root))
     assert p.origin_key == "agent"
-    assert p.created == "2026-08-01 12:00 UTC"
-    assert p.last_used == "2026-08-20 09:30 UTC"
+    assert p.created == "2026-08-01 12:00:00 UTC"
+    assert p.last_used == "2026-08-20 09:30:00 UTC"
     assert ("Times used", "4") in p.rows
 
 

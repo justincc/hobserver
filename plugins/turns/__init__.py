@@ -18,7 +18,6 @@ stay uncluttered.
 import importlib
 import os
 import time
-from datetime import datetime, timezone
 
 from flask import (Blueprint, abort, current_app, redirect, render_template,
                    request, url_for)
@@ -443,14 +442,6 @@ def bytes_human(n):
             return f"{size:.1f} {unit}" if size < 10 else f"{size:.0f} {unit}"
         size /= 1000
     return f"{size:.0f} {units[-1]}"
-
-
-@bp.app_template_filter("us_time")
-def us_time(us):
-    if us is None:
-        return "—"
-    stamp = datetime.fromtimestamp(us / 1_000_000, tz=timezone.utc)
-    return stamp.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _source_problem():

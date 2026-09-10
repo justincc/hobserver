@@ -260,7 +260,7 @@ def close_db(_exc):
 @bp.route("/")
 def index():
     events = get_db().execute(
-        "SELECT id, ts_utc, event_type, session_id, platform, query,"
+        "SELECT id, ts_epoch, event_type, session_id, platform, query,"
         " memory_count, elapsed_ms FROM events ORDER BY id DESC"
     ).fetchall()
     return render_template("mem0/index.html", events=events)
@@ -271,7 +271,7 @@ def event_rows_fragment():
     """Table rows for events newer than ?since=<id> — polled by the index."""
     since = request.args.get("since", 0, type=int)
     events = get_db().execute(
-        "SELECT id, ts_utc, event_type, session_id, platform, query,"
+        "SELECT id, ts_epoch, event_type, session_id, platform, query,"
         " memory_count, elapsed_ms FROM events WHERE id > ?"
         " ORDER BY id DESC",
         (since,),

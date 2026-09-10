@@ -33,6 +33,7 @@ from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 
 from plugins.turns import skills
+from timefmt import local_time_s
 
 # (stable slug for tests/styling, shown label). The slug never changes; the
 # label may.
@@ -63,9 +64,9 @@ class Provenance:
     origin_key: str
     origin: str
     note: Optional[str] = None
-    created: Optional[str] = None       # display string, UTC
-    modified: Optional[str] = None      # display string, UTC (SKILL.md mtime)
-    last_used: Optional[str] = None     # display string, UTC (usage last_used_at)
+    created: Optional[str] = None       # display string, local time
+    modified: Optional[str] = None      # display string, local (SKILL.md mtime)
+    last_used: Optional[str] = None     # display string, local (usage last_used_at)
     modified_count: Optional[int] = None  # hermes' patch_count, edits via skill_manage
     rows: List[Tuple[str, str]] = field(default_factory=list)  # extra facts
 
@@ -215,17 +216,19 @@ def _mtime(skill_dir: str) -> Optional[str]:
         ts = os.path.getmtime(target)
     except OSError:
         return None
-    return datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    return local_time_s(ts)
 
 
 def _fmt(iso) -> Optional[str]:
-    """An ISO-8601 timestamp as `YYYY-MM-DD HH:MM UTC`, or None if unparseable."""
+    """An ISO-8601 timestamp in local time (`YYYY-MM-DD HH:MM:SS ZZZ`), or None
+    if unparseable. A timestamp with no offset is taken as UTC, as hermes
+    writes them."""
     if not isinstance(iso, str) or not iso:
         return None
     try:
         dt = datetime.fromisoformat(iso)
     except ValueError:
         return None
-    if dt.tzinfo is not None:
-        dt = dt.astimezone(timezone.utc)
-    return dt.strftime("%Y-%m-%d %H:%M UTC")
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return local_time_s(dt.timestamp())

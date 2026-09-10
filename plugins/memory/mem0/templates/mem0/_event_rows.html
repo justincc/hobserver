@@ -1,7 +1,7 @@
 {% for e in events %}
 <tr data-event-id="{{ e['id'] }}">
   <td><a href="{{ url_for('mem0.event', event_id=e['id']) }}">{{ e['id'] }}</a></td>
-  <td>{{ e['ts_utc'] }}</td>
+  <td>{{ e['ts_epoch'] | local_time_s(zone=False) }}</td>
   <td>{{ e['event_type'] }}</td>
   <td>{{ e['session_id'] }}</td>
   <td>{{ e['platform'] }}</td>

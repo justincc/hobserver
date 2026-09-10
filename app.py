@@ -29,6 +29,7 @@ from console import CLOCK_FORMAT, LOG_FORMAT
 from request_log import (REFRESH_SECONDS, STATUS_PATH, RequestStats,
                          QuietWerkzeugFilter, format_status,
                          log_error_response)
+from timefmt import local_time, local_time_s, local_zone
 
 PORT = 5090
 
@@ -48,8 +49,15 @@ def create_app(tabs, dev=False):
     # Templates re-read from disk under --dev only, so that one switch covers
     # every kind of edit: without it neither a .py nor a template reaches a
     # running app, and a tool nobody is hacking on cannot be changed by a
-    # stray keystroke in a file it happens to serve.
+    # stray keystroke in a file it happens to serve. Set before anything
+    # touches `app.jinja_env`, which snapshots `auto_reload` from config on
+    # first access — the filters below are that first access.
     app.config["TEMPLATES_AUTO_RELOAD"] = dev
+    # Timestamps read the same on every tab (timefmt.py): registered here, at
+    # the app level, so no plugin imports another's filter to get them.
+    app.jinja_env.filters["local_time"] = local_time
+    app.jinja_env.filters["local_time_s"] = local_time_s
+    app.jinja_env.globals["local_zone"] = local_zone
     app.extensions["tab_settings"] = {}
     # Scope specs the loaded tabs contribute (ADR 10), collected before any
     # tab is registered: a tab that paints spans resolves its table in

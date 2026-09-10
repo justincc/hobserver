@@ -24,7 +24,7 @@
      source-meta rules) rather than shoving these fields across the page. #}
   <tr><th>Last event</th><th>Size</th><th>Source</th></tr>
   <tr>
-    <td>{{ last_us | us_time }} UTC</td>
+    <td>{{ last_us | local_time }}</td>
     <td>{{ atof_size | bytes_human }} · {{ "{:,}".format(atof_entries) }} entries</td>
     <td class="path"><span title="{{ atof_path }}">&lrm;{{ atof_path }}&lrm;</span></td>
   </tr>
@@ -35,7 +35,7 @@
 <p class="notice warn">
   Reading <code>{{ atof_path }}</code> — no turns yet.
   {% if last_us %}
-  Last event: {{ last_us | us_time }} UTC.
+  Last event: {{ last_us | local_time }}.
   {% else %}
   The file has produced no events. The nemo_relay plugin fails open — if
   hermes is running turns but nothing appears here, check that the plugin
@@ -49,7 +49,7 @@
 <table class="turns">
   <thead>
     <tr>
-      <th class="col-start">start (UTC)</th>
+      <th class="col-start">start ({{ local_zone() }})</th>
       <th class="col-prompt">prompt</th><th class="col-session">session</th>
       <th class="col-num">total</th><th class="col-num">model</th><th class="col-num">tool</th>
       <th class="col-num" title="model calls">mcalls</th><th class="col-num">spans</th>
@@ -58,7 +58,7 @@
   <tbody>
     {% for t in turns %}
     <tr class="turn-row">
-      <td class="col-start"><a href="{{ url_for('turns.turn', session_id=t.session_id, start_us=t.start_us) }}">{{ t.start_us | us_time }}</a></td>
+      <td class="col-start"><a href="{{ url_for('turns.turn', session_id=t.session_id, start_us=t.start_us) }}">{{ t.start_us | local_time(zone=False) }}</a></td>
       <td class="col-prompt">
         <a class="prompt-line" href="{{ url_for('turns.turn', session_id=t.session_id, start_us=t.start_us) }}" target="_blank" rel="noopener">{{ (t.user_message | truncate(300)) if t.user_message else '—' }}</a>
       </td>

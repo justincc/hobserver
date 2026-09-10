@@ -130,6 +130,8 @@ live-poll script and the shared CSS. These are the public surface:
 | self-updating region | wrap content in an element with `data-live-poll="<ms>"`; `"0"` means static |
 | item navigation | `{% from "_item_nav.html" import item_nav %}` for "← all X" plus prev/next |
 | notices | `<p class="notice warn">` for a problem the reader must see |
+| a timestamp | `{{ epoch_us \| local_time }}`, or `\| local_time_s` for epoch seconds — machine-local, zone-labelled, one format across every tab (`timefmt.py`); `None` renders an em dash |
+| a column of timestamps | bare cells with `\| local_time(zone=False)`, and the zone once in the header: `<th>start ({{ local_zone() }})</th>` |
 | no tab bar | `{% block tabbar %}{% endblock %}` — for a page opened in its own tab to read one thing, never for one reached by navigating |
 
 The empty `tabbar` is the one piece of chrome worth turning off, and only in
