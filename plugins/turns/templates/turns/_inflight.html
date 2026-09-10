@@ -20,7 +20,7 @@
     {{- e.turn.turn_id or (e.turn.start_us | local_time) }} · {{ e.turn.session_id | truncate(16) }} ·
     {# Time since the turn last emitted, advanced client-side by base.html
        between polls (data-silence-of anchors it to last_activity_us). #}
-    <span data-silence-of="{{ e.turn.last_activity_us }}">{{ e.silence_us | us_dur }}</span> since update ·
+    <span data-silence-of="{{ e.turn.last_activity_us }}">{{ e.silence_us | us_secs }}</span> since update ·
     {{ e.turn.spans | length }} span{{ 's' if e.turn.spans | length != 1 }}
     {%- if is_current %} (viewing){% endif -%}
   </a>

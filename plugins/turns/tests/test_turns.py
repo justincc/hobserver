@@ -90,6 +90,14 @@ def test_index_orders_turns_newest_first(tmp_path):
     assert page.index('/turns/turn/s1/10000000"') < page.index('/turns/turn/s1/1000000"')
 
 
+def test_us_secs_rounds_to_whole_seconds():
+    from plugins.turns import us_secs
+    assert us_secs(3_490_000) == "3 s"    # rounds down
+    assert us_secs(3_500_000) == "4 s"    # rounds up
+    assert us_secs(0) == "0 s"
+    assert us_secs(None) == "—"
+
+
 def test_bytes_human_picks_a_sensible_unit():
     from plugins.turns import bytes_human
     assert bytes_human(512) == "512 B"

@@ -826,14 +826,14 @@
       function nowUs() {
         return serverNowUs + Math.round((performance.now() - perfAtAnchor) * 1000);
       }
-      // Mirror of the us_dur template filter (plugins/turns/__init__.py): whole
-      // seconds to two decimals. One format string — keep the two in step.
-      const usDur = (us) => (us / 1_000_000).toFixed(2) + " s";
+      // Mirror of the us_secs template filter (plugins/turns/__init__.py):
+      // whole seconds, since this ticks once a second. Keep the two in step.
+      const usSecs = (us) => Math.round(us / 1_000_000) + " s";
       function tickClocks() {
         const n = nowUs();
         region.querySelectorAll("[data-silence-of]").forEach((el) => {
           const t = parseInt(el.dataset.silenceOf, 10);
-          if (t) el.textContent = usDur(n - t);
+          if (t) el.textContent = usSecs(n - t);
         });
       }
       anchorClock(region);

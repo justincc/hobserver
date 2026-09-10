@@ -381,6 +381,20 @@ def us_dur(us):
     return f"{us / 1_000_000:.2f} s"
 
 
+@bp.app_template_filter("us_secs")
+def us_secs(us):
+    """Microseconds → whole seconds (`N s`); em dash when unknown.
+
+    For the in-flight strip's "since update", which advances a second at a
+    time client-side: two decimals there are noise that never settles. The
+    per-turn and span times keep us_dur's two decimals, where the fraction is
+    the point.
+    """
+    if us is None:
+        return "—"
+    return f"{round(us / 1_000_000)} s"
+
+
 @bp.app_template_filter("us_mmss")
 def us_mmss(us):
     """Microseconds → m:ss (minutes and whole seconds); em dash when unknown.
