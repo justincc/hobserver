@@ -7,6 +7,9 @@
 {% if inflight %}
 <p class="inflight-strip">
   <span class="strip-label">in flight:</span>
+  {# The entries stack as one column to the right of the label, so many
+     running turns read down a single left edge rather than wrapping across. #}
+  <span class="inflight-entries">
   {% for e in inflight %}
   {% set is_current = current is defined and current
      and e.turn.session_id == current.session_id
@@ -25,5 +28,6 @@
     {%- if is_current %} (viewing){% endif -%}
   </a>
   {% endfor %}
+  </span>
 </p>
 {% endif %}

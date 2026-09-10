@@ -500,8 +500,10 @@
     /* a tool call the tool itself reported as failed. The word says it; the
        tint and the ! on the message row only reinforce it. */
     .badge-error { color: #b04a3f; font-size: 0.8rem; white-space: nowrap; }
-    .inflight-strip { display: flex; gap: 1rem 1.5rem; flex-wrap: wrap; align-items: baseline; background: #fff8e6; border: 1px solid #e6d49a; border-radius: 6px; padding: 0.5rem 0.8rem; font-size: 0.85rem; margin-bottom: 1rem; }
-    .inflight-strip .strip-label { color: #8a5a00; font-weight: 600; }
+    .inflight-strip { display: flex; gap: 0.6rem; align-items: baseline; background: #fff8e6; border: 1px solid #e6d49a; border-radius: 6px; padding: 0.5rem 0.8rem; font-size: 0.85rem; margin-bottom: 1rem; }
+    .inflight-strip .strip-label { color: #8a5a00; font-weight: 600; white-space: nowrap; }
+    /* One entry per line, sharing a left edge to the right of the label. */
+    .inflight-entries { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
     .inflight-entry.current { font-weight: 600; }
     /* A slider switch: a hidden checkbox, a track that draws it, and the
        label text. Both of the page's switches are one — follow mode and the
