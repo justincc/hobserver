@@ -16,6 +16,13 @@ import time
 # print and a logged error line show the clock the same way.
 CLOCK_FORMAT = "%H:%M:%S"
 
+# The error-log line format for `logging.basicConfig(format=...)`. `%(name)s`
+# is the emitting logger's name, so a line's origin is visible on its face:
+# `app` is this web app's own errors, `waitress.*` the server (task-queue
+# depth, connection limits), `werkzeug` the `--dev` reloader. Worth the column
+# because these share one console and read alike otherwise.
+LOG_FORMAT = "[%(asctime)s] %(levelname)s %(name)s: %(message)s"
+
 
 def console(message: str) -> None:
     """Print one timestamped console line, flushed, matching the error log."""

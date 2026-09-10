@@ -3,7 +3,7 @@
 import logging
 import re
 
-from console import CLOCK_FORMAT, console
+from console import CLOCK_FORMAT, LOG_FORMAT, console
 
 
 def test_console_stamps_the_line_with_a_clock(capsys):
@@ -21,3 +21,15 @@ def test_the_clock_matches_the_error_log_format():
     record = logging.LogRecord("x", logging.WARNING, "", 0, "m", None, None)
     stamped = logging.Formatter("[%(asctime)s]", datefmt=CLOCK_FORMAT).format(record)
     assert re.fullmatch(r"\[\d\d:\d\d:\d\d\]", stamped)
+
+
+def test_the_error_log_names_its_emitting_logger():
+    # The whole point of LOG_FORMAT over a bare message: a line says where it
+    # came from, so waitress's own warnings can be told from this app's.
+    line = logging.Formatter(LOG_FORMAT, datefmt=CLOCK_FORMAT).format(
+        logging.LogRecord("waitress.queue", logging.WARNING, "", 0,
+                          "Task queue depth is 1", None, None))
+    assert re.fullmatch(
+        r"\[\d\d:\d\d:\d\d\] WARNING waitress\.queue: Task queue depth is 1",
+        line,
+    )
