@@ -10,6 +10,8 @@ and provider-spec vocabularies) may still change between releases — see
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-09-10
+
 ### Added
 
 - **A failed llm call is now flagged instead of rendering as a bare call.** A
@@ -22,7 +24,16 @@ and provider-spec vocabularies) may still change between releases — see
   and `Span.failed`/`Span.error` fold in — so such a call takes the same
   `failed` badge on the summary line and `error` message row in the detail that
   a failing tool already does. See `docs/design/span-rendering.md`.
-
+- **A skill page shows where the skill came from.** A Metadata box, boxed like
+  the full prompt/response page's, labels the skill's origin — bundled with
+  hermes, hub/URL-installed, agent-created, an external (user-configured) dir,
+  or user-added/manually authored — with its creation and last-modified dates,
+  how many times hermes has edited it, and any usage the record carries. Origin
+  is read from hermes' own provenance sidecars (`.bundled_manifest`,
+  `.hub/lock.json`, `.usage.json`), best-effort: an unreadable or unexpected
+  file yields an "Unknown" origin rather than an error. hermes marks agent
+  authorship only for its autonomous curator, so a skill you asked hermes to
+  write shows as user-added — the box says so. See ADR 23 and SECURITY.md.
 - **A skill page shows the effective description hermes routes on.** hermes
   truncates a long skill description in the system-prompt index, and the model
   routes on that snippet unless it opens the full skill — so a trigger past the
@@ -32,14 +43,15 @@ and provider-spec vocabularies) may still change between releases — see
   description (no truncation length is hardcoded, so it cannot drift out of
   step with hermes). Shown only when the description is genuinely cut. See
   ADR 24.
-
-### Fixed
-
-- Following a newly started turn no longer 404s when the turn's session is
-  still uncorrelated. A turn whose spans have not yet named a session is filed
-  under `(unknown session)`; a follow link built then named a session the turn
-  had left by the time it was opened. The turn route now finds the turn by its
-  (unchanged) start across every session and redirects to its real URL.
+- **A tool call's parameters read out in more detail.** Each parameter now
+  shows its enum values, its default, and one level of nested fields (following
+  nested objects to a depth cap of four), with tooltips explaining the `type`
+  and `strict` flags.
+- **The turn header shows the session and the raw `start_us`.**
+- **An open span shows its live runtime in the duration column** while it is
+  still running.
+- **Timestamps are shown in local time**, through one shared helper.
+- **Console log lines are labelled with their emitting logger.**
 
 ### Changed
 
@@ -49,19 +61,18 @@ and provider-spec vocabularies) may still change between releases — see
   the descriptive summary is the SKILL.md frontmatter shown below.
 - An in-flight turn in the "in flight" strip now opens in a new tab, like a
   turn clicked in the main list.
+- **Live polling is much cheaper.** The index now caches its deserialized
+  events and extends them in place, turn-boundary marks are grouped by session
+  in one pass, page swaps are gated behind a cheap change-probe, and the
+  live-poll probe is sent with `Cache-Control: no-store`.
 
-### Added
+### Fixed
 
-- **A skill page shows where the skill came from.** A Metadata box, boxed like
-  the full prompt/response page's, labels the skill's origin — bundled with
-  hermes, hub/URL-installed, agent-created, an external (user-configured) dir,
-  or user-added/manually authored — with its creation and last-modified dates,
-  how many times hermes has edited it, and any usage the record carries. Origin is read from hermes' own provenance
-  sidecars (`.bundled_manifest`, `.hub/lock.json`, `.usage.json`), best-effort:
-  an unreadable or unexpected file yields an "Unknown" origin rather than an
-  error. hermes marks agent authorship only for its autonomous curator, so a
-  skill you asked hermes to write shows as user-added — the box says so. See
-  ADR 23 and SECURITY.md.
+- Following a newly started turn no longer 404s when the turn's session is
+  still uncorrelated. A turn whose spans have not yet named a session is filed
+  under `(unknown session)`; a follow link built then named a session the turn
+  had left by the time it was opened. The turn route now finds the turn by its
+  (unchanged) start across every session and redirects to its real URL.
 
 ## [0.3.3] - 2026-08-27
 
@@ -173,6 +184,9 @@ so the history here begins at 0.3.0.
   only where trusted parties can reach it. Log content is HTML-escaped and
   rendered without raw HTML. See `SECURITY.md` for the full trust model.
 
+[Unreleased]: https://github.com/justincc/hobserver/compare/v0.3.4...HEAD
+[0.3.4]: https://github.com/justincc/hobserver/releases/tag/v0.3.4
+[0.3.3]: https://github.com/justincc/hobserver/releases/tag/v0.3.3
 [0.3.2]: https://github.com/justincc/hobserver/releases/tag/v0.3.2
 [0.3.1]: https://github.com/justincc/hobserver/releases/tag/v0.3.1
 [0.3.0]: https://github.com/justincc/hobserver/releases/tag/v0.3.0
