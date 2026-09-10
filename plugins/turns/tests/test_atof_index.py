@@ -89,6 +89,28 @@ def test_builds_from_nothing_then_extends_without_rereading(index, log):
     assert [e.line_no for e in index.events()] == [1, 2, 3]
 
 
+def test_events_are_cached_and_reused_when_unchanged(index, log):
+    # The cache is what keeps a per-poll rebuild from re-parsing every row:
+    # an unchanged log hands back the very same list, not a fresh parse.
+    write(log, mark("a", 1), mark("b", 2))
+    index.refresh()
+    first = index.events()
+    assert index.events() is first
+
+
+def test_a_rebuild_drops_the_event_cache(index, log):
+    # A rebuild renumbers lines, so the cache must be reloaded, not appended
+    # to — otherwise the old events would linger in front of the new ones.
+    write(log, mark("a", 1), mark("b", 2))
+    index.refresh()
+    assert [e.uuid for e in index.events()] == ["a", "b"]
+
+    write(log, mark("x", 1))                 # shorter file → forced rebuild
+    state = index.refresh()
+    assert state.action == "rebuilt"
+    assert [e.uuid for e in index.events()] == ["x"]
+
+
 def test_an_unchanged_log_is_a_stat_and_no_work(index, log):
     write(log, mark("a", 1))
     index.refresh()

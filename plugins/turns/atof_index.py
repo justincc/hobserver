@@ -275,6 +275,16 @@ class AtofIndex:
         self.usage_shapes = tuple(usage_shapes) if usage_shapes else None
         self.state = IndexState()
         self._lock = threading.Lock()
+        # Deserialised-event cache. Rebuilding the whole turn model on every
+        # append means events() is called each time the extent moves; without
+        # this it re-reads and re-parses every row (seconds on a large log).
+        # The log is append-only, so between rebuilds new rows only ever have a
+        # higher line_no — we append those and keep the rest. A rebuild bumps
+        # the generation, which drops the cache. Guarded by _lock, shared with
+        # refresh(); callers treat the returned list as read-only.
+        self._events_cache: List[AtofEvent] = []
+        self._events_generation = -1
+        self._events_max_line = 0
 
     def _ensure_dir(self) -> None:
         """Make the cache directory, on every open rather than at startup.
@@ -311,11 +321,27 @@ class AtofIndex:
     # --- reading ---------------------------------------------------------
 
     def events(self) -> List[AtofEvent]:
-        """Every indexed event, payload-free where the payload was large."""
-        with self._db() as conn:
-            rows = conn.execute(
-                "SELECT * FROM events ORDER BY line_no").fetchall()
-        return [_event_from_row(row) for row in rows]
+        """Every indexed event, payload-free where the payload was large.
+
+        Cached across calls and extended in place: a rebuild (new generation)
+        reloads from scratch, an append parses only the rows past the last one
+        cached. The returned list is the live cache — read-only to callers.
+        """
+        with self._lock:
+            with self._db() as conn:
+                if self.state.generation != self._events_generation:
+                    rows = conn.execute(
+                        "SELECT * FROM events ORDER BY line_no").fetchall()
+                    self._events_cache = [_event_from_row(r) for r in rows]
+                    self._events_generation = self.state.generation
+                else:
+                    rows = conn.execute(
+                        "SELECT * FROM events WHERE line_no > ? ORDER BY line_no",
+                        (self._events_max_line,)).fetchall()
+                    self._events_cache.extend(_event_from_row(r) for r in rows)
+            if self._events_cache:
+                self._events_max_line = self._events_cache[-1].line_no
+            return self._events_cache
 
     def parse_errors(self) -> List[ParseError]:
         with self._db() as conn:
