@@ -72,7 +72,9 @@
     table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
     th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #ddd; vertical-align: top; }
     th { border-bottom: 2px solid #999; }
-    td.num { text-align: right; white-space: nowrap; }
+    /* tabular-nums so a live-ticking duration's digits keep a steady width
+       (the column is fixed-width already, so only the digits could jitter). */
+    td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
     dl.metadata { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; font-size: 0.9rem; background: #f4f5f8; padding: 1rem; border-radius: 6px; }
     dl.metadata dt { font-weight: 600; color: #555; }
     /* A key that carries an explanatory tooltip (the skill Metadata box) reads
@@ -813,8 +815,9 @@
       syncToggle();
       if (!region) return;
 
-      // Client clock: advances "time since last update" ([data-silence-of] in
-      // the in-flight strip) between polls, with no round-trip. Anchored to the
+      // Client clock: advances the strip's "time since last update"
+      // ([data-silence-of]) and an open span's live runtime ([data-elapsed-of],
+      // anchored to its start) between polls, with no round-trip. Anchored to the
       // server's render-time now (data-server-now-us, in the log's µs clock) and
       // advanced by the browser's *monotonic* performance.now(), so it is immune
       // to any skew between the viewer's wall clock and the log's; re-anchoring
@@ -828,22 +831,51 @@
       function nowUs() {
         return serverNowUs + Math.round((performance.now() - perfAtAnchor) * 1000);
       }
-      // Mirror of the us_secs template filter (plugins/turns/__init__.py):
-      // whole seconds, since this ticks once a second. Keep the two in step.
+      // Two mirrors of the duration filters (plugins/turns/__init__.py). Both
+      // read now minus an anchor; they differ only in shape. The strip's
+      // silence is a glanceable "how long quiet", so whole seconds (us_secs);
+      // an open span's live runtime sits in the duration column beside settled
+      // two-decimal closed spans, so it matches them (us_dur).
       const usSecs = (us) => Math.round(us / 1_000_000) + " s";
-      function tickClocks() {
+      const usDur = (us) => (us / 1_000_000).toFixed(2) + " s";
+      // Silence: whole seconds, so a one-second interval is enough. Runs
+      // independently of polling, so it keeps advancing while a poll is paused
+      // (tab hidden, selection held) or the page is static.
+      function tickSilence() {
         const n = nowUs();
         region.querySelectorAll("[data-silence-of]").forEach((el) => {
           const t = parseInt(el.dataset.silenceOf, 10);
           if (t) el.textContent = usSecs(n - t);
         });
       }
+      // Elapsed: two decimals, so it wants to move every frame, not every
+      // second. requestAnimationFrame runs at the display's rate (~60/s) and
+      // pauses to nothing while the tab is hidden — a setInterval fast enough
+      // for smooth decimals would keep firing there for no one. The node list
+      // is cached (refreshed on each swap by cacheElapsed) rather than queried
+      // per frame, and the loop only runs while there is a counter to move, so
+      // a page with no open span schedules nothing.
+      let elapsedEls = [], rafRunning = false;
+      function tickElapsed() {
+        const n = nowUs();
+        for (const el of elapsedEls) {
+          const t = parseInt(el.dataset.elapsedOf, 10);
+          if (t) el.textContent = usDur(n - t);
+        }
+        if (elapsedEls.length) requestAnimationFrame(tickElapsed);
+        else rafRunning = false;
+      }
+      function cacheElapsed() {
+        elapsedEls = region.querySelectorAll("[data-elapsed-of]");
+        if (elapsedEls.length && !rafRunning) {
+          rafRunning = true;
+          requestAnimationFrame(tickElapsed);
+        }
+      }
       anchorClock(region);
-      tickClocks();
-      // A second is enough (the label shows whole seconds) and it runs
-      // independently of polling, so the silence keeps advancing even while a
-      // poll is paused (tab hidden, selection held) or the page is static.
-      setInterval(tickClocks, 1000);
+      tickSilence();
+      cacheElapsed();
+      setInterval(tickSilence, 1000);
 
       // Tailing: a region marked [data-live-tail] keeps the newest events in
       // view, but only while the reader is already at the bottom — being
@@ -938,11 +970,13 @@
           region.querySelectorAll("tr[data-span-uuid]").forEach((tr) => {
             tr.classList.toggle("detail-open", openRows.has(tr.dataset.spanUuid));
           });
-          // Re-anchor the clock to this render's server-now and repaint the
-          // silence labels. The swapped-in strip already carries fresh values,
-          // so this only corrects sub-tick drift and re-bases the monotonic run.
+          // Re-anchor the clock to this render's server-now, repaint the
+          // silence labels and re-cache the open-span counters (the swap
+          // replaced their nodes). The swapped-in content already carries fresh
+          // values, so this only corrects sub-tick drift and re-bases the run.
           anchorClock(region);
-          tickClocks();
+          tickSilence();
+          cacheElapsed();
           // After the reopened rows, not before: they change the height this
           // is scrolling to. Instant rather than smooth — a 2 s poll would
           // start the next swap while an animation was still running, and

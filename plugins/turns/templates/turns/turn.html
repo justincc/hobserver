@@ -186,7 +186,16 @@
         {% endfor %}
         {% endif %}
       </td>
+      {# An open span has no duration yet. On a live turn, count its runtime up
+         a second at a time, client-side (base.html, same clock as the strip's
+         silence). Only while the turn is live: an open span on a turn a later
+         one superseded never got its end mark, so a running counter would
+         climb from a start that stopped meaning anything — it stays a dash. #}
+      {%- if s.is_open and turn.is_live %}
+      <td class="num"><span data-elapsed-of="{{ s.start_us }}">{{ (now_us - s.start_us) | us_dur }}</span></td>
+      {%- else %}
       <td class="num">{{ s.duration_us | us_dur }}</td>
+      {%- endif %}
       <td class="bar-cell">
         <div class="bar-track">
           <div class="bar {{ cls }}{{ ' open' if s.is_open }}"

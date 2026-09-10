@@ -2207,6 +2207,36 @@ def test_open_llm_span_renders_without_an_end_payload(tmp_path):
         "/turns/turn/s1/1000000").get_data(as_text=True)
     assert "openai-codex" in page
     assert "badge-inflight" in page
+    # An open span on a live turn carries a live runtime counter anchored to
+    # its own start, advanced client-side by base.html's clock (same as the
+    # strip's silence). The span started at 1_100_000 µs.
+    assert 'data-elapsed-of="1100000"' in page
+
+
+def test_open_span_on_an_ended_turn_has_no_running_counter(tmp_path):
+    # A later turn supersedes this one, so it is over even though its llm span
+    # never got an end mark: still "open", but not live. The counter would
+    # climb from a start that stopped meaning anything, so it is withheld.
+    now = int(time.time() * 1_000_000)
+    first_start, second_start = now - 120_000_000, now - 30_000_000
+    lines = [
+        *session_scope_lines("s7", start_us=now - 180_000_000),
+        mark_line("hermes.turn.start", first_start, session="s7", turn="t1",
+                  data={"user_message": SHORT_PROMPT, "platform": "webui"}),
+        *scope_lines("L1", "llm", first_start + 100_000, None,   # never closed
+                     name="anthropic", session="s7", turn="t1"),
+        mark_line("hermes.turn.start", second_start, session="s7", turn="t2",
+                  data={"user_message": LONG_PROMPT, "platform": "webui"}),
+        *scope_lines("L2", "llm", second_start + 100_000, None,
+                     name="anthropic", session="s7", turn="t2"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        f"/turns/turn/s7/{first_start}").get_data(as_text=True)
+    assert "badge-inflight" in page      # the open span is still shown as open
+    # No counter anchored to the open span's start (bare "data-elapsed-of"
+    # always appears — base.html's tick script names it).
+    assert f'data-elapsed-of="{first_start + 100_000}"' not in page
 
 
 def test_turn_page_opts_into_tailing(tmp_path):

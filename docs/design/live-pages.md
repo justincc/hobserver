@@ -78,6 +78,19 @@ the page is static (the strip still lists other sessions' live turns). A future
 live-growing waterfall can read `nowUs()` for its now-edge rather than adding a
 second clock.
 
+The same clock (`now - anchor`) drives an open span's live runtime in the turn
+page's duration column (`data-elapsed-of`, anchored to the span's start rather
+than a last-activity time). It sits beside settled two-decimal closed-span
+durations and matches them, so unlike the whole-second silence label it wants to
+move every frame: it runs on `requestAnimationFrame` (display rate, and nothing
+while the tab is hidden — a `setInterval` fast enough for smooth decimals would
+keep firing there for no one) over a node list cached per swap, and only while a
+counter is on the page. The column is fixed-width and the cells are `tabular-nums`,
+so the moving digits repaint one cell without reflowing the table. It is rendered
+only while the turn `is_live` — an open span on a turn a later one has superseded
+never got its end mark, so its cell stays a dash rather than a counter climbing
+from a start that stopped meaning anything.
+
 A turn silent for more than `STALE_AFTER_US` (2 hours) is treated as a lost end
 mark, not a running prompt, and dropped from the strip. The cutoff is generous
 because an agentic turn can legitimately go quiet for many minutes — a slow
