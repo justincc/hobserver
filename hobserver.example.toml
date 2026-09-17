@@ -32,8 +32,7 @@ plugin = "plugins.turns"
 # docs/extending/writing-a-scope-spec.md, and span-rendering.md
 # settings = { scope_specs = ["hobserver_acme.specs"] }
 #
-# `skill_roots` overrides the directories the "view skill" link is allowed to
-# read from (ADR 22). By default they are derived from hermes' config.yaml
+# `skill_roots` sets the directories the "view skill" link can read. By default they are derived from hermes' config.yaml
 # (`skills.external_dirs`) and the standard hermes skill dirs, so nothing is
 # needed here. Set it to pin the roots yourself — or to `[]` to turn skill
 # viewing off entirely.
