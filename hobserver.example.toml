@@ -28,10 +28,8 @@ plugin = "plugins.turns"
 # settings = { index_db = "/var/tmp/hermes-atof-index.sqlite3" }
 #
 # `scope_specs` names modules declaring how your own hermes tools should show
-# on a turn page — one entry per scope, no fork of this tree. A name already
-# in this app's table is overridden, and the banner says so at startup. See
-# docs/extending/writing-a-scope-spec.md, and span-rendering.md for the
-# vocabulary itself.
+# on a turn page. See
+# docs/extending/writing-a-scope-spec.md, and span-rendering.md
 # settings = { scope_specs = ["hobserver_acme.specs"] }
 #
 # `skill_roots` overrides the directories the "view skill" link is allowed to
