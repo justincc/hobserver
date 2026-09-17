@@ -39,7 +39,7 @@ plugin = "plugins.turns"
 # settings = { skill_roots = ["~/my-skills"] }
 #
 # `provider_specs` names modules declaring how your own router reports token
-# counts — one entry per provider payload shape, no fork of this tree. Yours
+# counts. Yours
 # are tried before the built-in ones, and the banner names them at startup.
 # You need this only when a router names its counts something the built-in
 # OpenAI-compatible reading does not recognise. See
