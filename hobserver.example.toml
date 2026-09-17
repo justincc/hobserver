@@ -48,6 +48,16 @@ plugin = "plugins.turns"
 # OpenAI-compatible reading does not recognise. See
 # docs/extending/writing-a-provider-spec.md.
 # settings = { provider_specs = ["hobserver_acme.providers"] }
+#
+# `cache_share` tints the `(89% cached)` figure on an llm span's prompt row by
+# how much of the prompt was served from cache, so the split reads at a glance.
+# `bands` is an ordered list of colours, each applying from its `from` percent
+# upward; a figure takes the last band it reaches. Give it two bands for a plain
+# pass/fail split, or many for a finer gradient — any count, any palette. The
+# number is always printed too, so the colour only reinforces it. `bands` is
+# optional (the default below is used when absent); colours are `#rgb`/`#rrggbb`,
+# and a malformed band is dropped with a startup warning rather than failing.
+# settings = { cache_share = { bands = [ { from = 0, color = "#c0392b" }, { from = 30, color = "#a07b12" }, { from = 90, color = "#1f8a3b" } ] } }
 
 # The Mem0 tab is opt-in: it reads a mem0 event log created by the jmem0-logged
 # hermes plugin (https://github.com/justincc/jmem0-logged).
