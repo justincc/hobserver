@@ -546,8 +546,13 @@ class Span:
                 continue        # not reported — which is not the same as zero
             if key not in ALWAYS_SHOWN and not value:
                 continue        # a zero cache write says nothing worth a row
+            pct = self._cache_share_pct(key, value)
             rows.append({"label": label, "value": f"{value:,}",
-                         "share": self._cache_share(key, value),
+                         # the text and the tint are two readings of one figure;
+                         # `share_pct` is what the page colours by, `share` is
+                         # what it prints. None on every row but the prompt's.
+                         "share": None if pct is None else f"{pct}% cached",
+                         "share_pct": pct,
                          "depth": depth, "subset": subset,
                          # the buckets sit at depth 1, under the `tokens`
                          # label, and are what a collapsed row keeps;
@@ -571,19 +576,22 @@ class Span:
                  for row in self.token_rows if row["summary"]]
         return " / ".join(parts) + " tokens" if parts else None
 
-    def _cache_share(self, key: str, prompt: int) -> Optional[str]:
-        """`89% cached` for the prompt row — how much of it was served.
+    def _cache_share_pct(self, key: str, prompt: int) -> Optional[int]:
+        """The prompt row's cache share as a whole percent — how much of it was
+        served from cache — or None when this is not the prompt row or no cache
+        read was reported.
 
-        On the summary line this is the only place the cache shows at all,
-        the parts being detail-only. Whole percent, rounded half up rather
-        than to even, since a reader comparing rows expects .5 to go up.
+        `token_rows` prints this as `89% cached` and the page tints it by size;
+        both are readings of this one number, so it lives in one place. On the
+        summary line this is the only place the cache shows at all, the parts
+        being detail-only. Whole percent, rounded half up rather than to even,
+        since a reader comparing rows expects .5 to go up.
 
-        A cold prompt reads `0% cached` rather than dropping the note: the
-        provider reported the zero, and every llm row saying the same thing
-        in the same shape is worth more than the character it saves. Absent
-        is different from zero — a payload that never reported a cache read
-        gets no share at all, since this app cannot tell nothing-cached from
-        nothing-said.
+        A cold prompt reads 0 rather than dropping the note: the provider
+        reported the zero, and every llm row saying the same thing in the same
+        shape is worth more than the character it saves. Absent is different
+        from zero — a payload that never reported a cache read gets no share at
+        all, since this app cannot tell nothing-cached from nothing-said.
 
         Capped at 99 unless the prompt was cached to the last token: 2.4% of
         the calls in the log round to 100 with hundreds of tokens still
@@ -599,7 +607,7 @@ class Span:
         percent = (cached * 200 + prompt) // (2 * prompt)    # floor(x + 0.5)
         if percent >= 100 and cached < prompt:
             percent = 99
-        return f"{percent}% cached"
+        return percent
 
     @property
     def generic_fields(self) -> List[dict]:

@@ -727,6 +727,10 @@
   {% if plugin_styles %}<style>
     {{ plugin_styles|safe }}
   </style>{% endif %}
+  {# A seam for a page that needs a little <head> of its own — a page-scoped
+     style, say — without the shell knowing what. The Turns pages pin their
+     configured cache-tint colours here (turns/_cache_share_style.html). #}
+  {% block head_extra %}{% endblock %}
 </head>
 <body>
   {# `id="top"` is here rather than on anything a page renders below: this

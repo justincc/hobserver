@@ -7,6 +7,7 @@ import time
 from markupsafe import escape
 
 from testkit import REPO_ROOT, make_app
+from plugins.turns import CACHE_SHARE_DEFAULTS, cache_share_config
 from mem0_data import make_memory_change_db, make_memory_db, turns_with_mem0_app
 from streams import (mark_line, scope_lines, session_scope_lines,
                      two_turn_stream)
@@ -2121,7 +2122,8 @@ def test_llm_span_reports_how_much_of_the_prompt_was_cached(tmp_path):
                                 "usage": {
         "input_tokens": 2273, "prompt_tokens": 20193, "output_tokens": 84,
         "cache_read_tokens": 17920, "request_count": 1}})
-    assert '<span class="tok-share">(89% cached)</span>' in page
+    # 89% reaches the middle default band (from 30, not yet the 90 band), b1
+    assert '<span class="tok-share cache-b1">(89% cached)</span>' in page
     # …and it rides the prompt row, which survives the collapse. Whitespace
     # before it, exactly as between the key and the figure — both collapse to
     # one rendered space. That space is what sets both gaps on the summary
@@ -2133,7 +2135,8 @@ def test_llm_span_reports_how_much_of_the_prompt_was_cached(tmp_path):
                      r'<span class="gen-key inline-only">·</span>\s*'
                      r'<span class="mode-tag"[^>]*>prompt</span>'
                      r'\s+<span class="row-value"[^>]*>20,193</span>'
-                     r'\s+<span class="tok-share">\(89% cached\)</span>', page)
+                     r'\s+<span class="tok-share cache-b1">\(89% cached\)</span>',
+                     page)
 
 
 def test_llm_span_never_claims_a_wholly_cached_prompt_it_did_not_have(tmp_path):
@@ -2142,7 +2145,7 @@ def test_llm_span_never_claims_a_wholly_cached_prompt_it_did_not_have(tmp_path):
     page = _llm_turn(tmp_path, {**_assistant("hi"), "usage": {
         "input_tokens": 1, "prompt_tokens": 12901, "output_tokens": 40,
         "cache_read_tokens": 12900, "request_count": 1}})
-    assert '<span class="tok-share">(99% cached)</span>' in page
+    assert '<span class="tok-share cache-b2">(99% cached)</span>' in page
     assert "100% cached)" not in page
 
 
@@ -2151,7 +2154,7 @@ def test_llm_span_reports_a_wholly_cached_prompt_as_all_of_it(tmp_path):
     page = _llm_turn(tmp_path, {**_assistant("hi"), "usage": {
         "input_tokens": 0, "prompt_tokens": 12900, "output_tokens": 40,
         "cache_read_tokens": 12900, "request_count": 1}})
-    assert '<span class="tok-share">(100% cached)</span>' in page
+    assert '<span class="tok-share cache-b2">(100% cached)</span>' in page
 
 
 def test_llm_span_omits_the_cache_share_when_no_cache_read_was_reported(tmp_path):
@@ -2223,10 +2226,130 @@ def test_llm_span_shows_the_cached_fresh_split_on_a_cold_prompt(tmp_path):
         "prompt", "cache read", "in", "out", "reasoning", "requests"]
     assert ("cache read", "list-item tok-d2") in _token_rows(page)
     assert {"cache read 0", "in 18,824"} <= set(_token_figures(page))
-    assert '<span class="tok-share">(0% cached)</span>' in page
+    # 0% takes the first default band, b0
+    assert '<span class="tok-share cache-b0">(0% cached)</span>' in page
     # cache write stays out: on the codex route hermes hard-codes that zero
     # rather than measuring it, so the row would be a claim, not a reading
     assert "cache write" not in page
+
+
+# A prompt with a known cache share (17,920/20,193 = 89%), reused by the tint
+# tests below so each varies only the config it is about.
+_SHARE_89 = {**_assistant("hi"), "usage": {
+    "input_tokens": 2273, "prompt_tokens": 20193, "output_tokens": 84,
+    "cache_read_tokens": 17920, "request_count": 1}}
+
+
+def _llm_turn_configured(tmp_path, end_data, cache_share):
+    """`_llm_turn`, but with a `cache_share` settings block on the Turns tab, so
+    a test can drive the configurable bands."""
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L1", "llm", 1_100_000, 1_600_000, name="openai-codex",
+                     session="s1", turn="t1", start_data={"headers": {}},
+                     end_data=end_data),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    # A fresh atof and db per call — a test may render more than one page with
+    # different config, and make_memory_db will not recreate an existing table.
+    nonce = f"{len(list(tmp_path.iterdir()))}"
+    atof = write_atof(tmp_path, lines, name=f"events-{nonce}.jsonl")
+    db_path = tmp_path / f"test-{nonce}.db"
+    make_memory_db(db_path)
+    app = make_app([
+        {"plugin": "plugins.turns",
+         "settings": {"atof_log": str(atof), "cache_share": cache_share}},
+        {"plugin": "plugins.memory.mem0", "settings": {"db": str(db_path)}},
+    ])
+    return app.test_client().get(
+        "/turns/turn/s1/1000000").get_data(as_text=True)
+
+
+def test_configured_bands_move_the_tint(tmp_path):
+    # two bands rather than three: 89% reaches the second (from 50), so it takes
+    # b1 and that band's colour — the count is the operator's, not the code's
+    page = _llm_turn_configured(tmp_path, _SHARE_89, {"bands": [
+        {"from": 0, "color": "#c0392b"}, {"from": 50, "color": "#1f8a3b"}]})
+    assert '<span class="tok-share cache-b1">(89% cached)</span>' in page
+    assert ".tok-share.cache-b1 { color: #1f8a3b; }" in page
+
+
+def test_many_bands_select_by_the_last_one_reached(tmp_path):
+    # five bands: 89% reaches the one starting at 80, index 4
+    page = _llm_turn_configured(tmp_path, _SHARE_89, {"bands": [
+        {"from": 0, "color": "#111111"}, {"from": 20, "color": "#222222"},
+        {"from": 40, "color": "#333333"}, {"from": 60, "color": "#444444"},
+        {"from": 80, "color": "#555555"}]})
+    assert '<span class="tok-share cache-b4">(89% cached)</span>' in page
+
+
+def test_a_single_band_paints_every_share_one_colour(tmp_path):
+    # one band is a flat tint: any share takes b0
+    page = _llm_turn_configured(tmp_path, _SHARE_89,
+                                {"bands": [{"from": 0, "color": "#3b3b52"}]})
+    assert '<span class="tok-share cache-b0">(89% cached)</span>' in page
+    assert ".tok-share.cache-b0 { color: #3b3b52; }" in page
+
+
+def test_share_at_a_band_boundary_takes_that_band(tmp_path):
+    # `from` is inclusive: exactly 90 reaches the default third band (from 90),
+    # b2, rather than staying in the middle one. 900/1000 rounds to 90%.
+    page = _llm_turn(tmp_path, {**_assistant("hi"), "usage": {
+        "input_tokens": 100, "prompt_tokens": 1000, "output_tokens": 40,
+        "cache_read_tokens": 900, "request_count": 1}})
+    assert '<span class="tok-share cache-b2">(90% cached)</span>' in page
+
+
+def test_band_colour_rules_are_injected_per_page(tmp_path):
+    # the colours live in a <style> on the page, not a static seam, because
+    # their count and values are config — one rule per default band
+    page = _llm_turn(tmp_path, _SHARE_89)
+    for i, band in enumerate(CACHE_SHARE_DEFAULTS["bands"]):
+        assert f".tok-share.cache-b{i} {{ color: {band['color']}; }}" in page
+
+
+def test_default_bands(tmp_path):
+    got = cache_share_config({})
+    assert got == CACHE_SHARE_DEFAULTS
+    # a copy, not the shared table: mutating the result must not touch defaults
+    got["bands"][0]["from"] = 99
+    assert CACHE_SHARE_DEFAULTS["bands"][0]["from"] == 0
+
+
+def test_cache_share_config_takes_and_sorts_bands(tmp_path):
+    # listed out of order, returned sorted by `from`
+    got = cache_share_config({"cache_share": {"bands": [
+        {"from": 90, "color": "#1f8a3b"}, {"from": 0, "color": "#c0392b"}]}})
+    assert got["bands"] == [
+        {"from": 0, "color": "#c0392b"}, {"from": 90, "color": "#1f8a3b"}]
+
+
+def test_cache_share_config_drops_bad_bands_and_warns(tmp_path):
+    warnings = []
+    got = cache_share_config({"cache_share": {"bands": [
+        {"from": 0, "color": "#c0392b"},      # kept
+        {"from": 150, "color": "#123456"},    # from out of range — dropped
+        {"from": 40, "color": "blue"},        # not a hex colour — dropped
+        {"from": True, "color": "#123456"},   # bool is not an int — dropped
+        "nope",                               # not a table — dropped
+        {"from": 90, "color": "#1f8a3b"}]}},  # kept
+        warn=warnings.append)
+    assert got["bands"] == [
+        {"from": 0, "color": "#c0392b"}, {"from": 90, "color": "#1f8a3b"}]
+    assert len(warnings) == 4                  # one per dropped band
+
+
+def test_cache_share_config_falls_back_to_defaults(tmp_path):
+    d = CACHE_SHARE_DEFAULTS
+    # a non-list `bands`, an empty list, and a list with nothing usable all
+    # fall back to the default bands with a warning
+    for bad in [{"bands": "nope"}, {"bands": []},
+                {"bands": [{"from": 200, "color": "#111111"}]},
+                "not-a-table"]:
+        warnings = []
+        got = cache_share_config({"cache_share": bad}, warn=warnings.append)
+        assert got == d, f"{bad!r} did not fall back"
+        assert warnings, f"no warning for {bad!r}"
 
 
 def test_open_llm_span_renders_without_an_end_payload(tmp_path):

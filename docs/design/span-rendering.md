@@ -587,13 +587,31 @@ what it means is left to the tooltip that was always carrying it.
   whole percent, half up rather than to even, since a reader comparing rows
   expects `.5` to go up.
 
-  It reads with the figure it rides — same font, same colour, sharing
-  `.row-value`'s rule rather than restating it. It was faint monospace when
-  every token row was; keeping it so once the figures became values would
-  have set one part of `prompt 20,193 (89% cached)` in a different hand, for
-  a distinction a reader has no use for — both halves are what the prompt
-  cost. It keeps its own class name because it is a different thing to find
-  in the markup, not because it looks different.
+  It reads with the figure it rides — same font, sharing `.row-value`'s
+  layout rule rather than restating it. It was faint monospace when every
+  token row was; keeping it so once the figures became values would have set
+  one part of `prompt 20,193 (89% cached)` in a different hand, for a
+  distinction a reader has no use for — both halves are what the prompt cost.
+  It keeps its own class name because it is a different thing to find in the
+  markup, and now because it is tinted.
+
+  **It is tinted by size** so the split reads at a glance without reading the
+  number. The tint comes from a list of **bands** — each a colour applying from
+  a percent upward — and a figure takes the last band it reaches; the default
+  is three (red below 30, ochre to 90, green from 90). The number is always
+  printed beside it, so the colour only reinforces a fact already on the page,
+  never carries one alone (design-principles §4).
+
+  **The bands carry no fixed count and no colour names** — they are opaque
+  ordered data, so `cache_share` in this tab's settings can hold two bands or
+  ten, in any palette, and nothing in the code knows "the red one" (the earlier
+  design named `red_below`/`green_above` and `lo`/`mid`/`hi`, which lied the
+  moment someone recoloured them). `_cache_share_context` maps a percent to a
+  band **index** from the config; the row carries it as a `cache-b{i}` class;
+  the `_cache_share_style` partial paints each `cache-b{i}` the band's colour,
+  injected per page because the count and colours are config, not static CSS
+  (`plugins/turns/__init__.py`, `_cache_share_style.html`). The `Span` exposes
+  only the raw percent, so the banding stays out of the payload reading.
 
   Its gap from the figure used to be stated in
   `base.html` as a `1ch` collapsed margin, matching the space inside a

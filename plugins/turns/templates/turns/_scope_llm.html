@@ -197,7 +197,11 @@
       own, one mechanism for both is what keeps them equal. #}
   <span class="mode-tag" title="{{ row.tooltip }}">{{ row.label }}</span>
   <span class="row-value" title="{{ row.tooltip }}">{{ row.value }}</span>
-  {%- if row.share %} <span class="tok-share">({{ row.share }})</span>{% endif %}
+  {#- the share is tinted by how much was cached: `cache_share_band` picks the
+      band index for this percent (from this tab's config), and `cache-b{i}` is
+      painted by the `_cache_share_style` partial. The colour only reinforces
+      the number, which is always printed beside it. #}
+  {%- if row.share %}{% set band = cache_share_band(row.share_pct) %} <span class="tok-share{% if band is not none %} cache-b{{ band }}{% endif %}">({{ row.share }})</span>{% endif %}
 </div>
 {%- if row.summary %}{% set ns.prior = true %}{% endif %}
 {% endfor %}

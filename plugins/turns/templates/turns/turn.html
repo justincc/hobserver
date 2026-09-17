@@ -3,7 +3,11 @@
 {% block title %}turn {{ turn.turn_id or turn.start_us }} — Hobserver{% endblock %}
 {% from "turns/_macros.html" import copy_btn, item_list, diff_rows,
      payload_rows, spec_rows %}
-{% from "turns/_scope_llm.html" import llm_rows %}
+{# `with context` so the macro sees `cache_share_band`, the cache-tint
+   classifier this tab's context processor provides — an imported macro is
+   otherwise sealed off from it. #}
+{% from "turns/_scope_llm.html" import llm_rows with context %}
+{% block head_extra %}{% include "turns/_cache_share_style.html" %}{% endblock %}
 {% block content %}
 {# data-live-tail: the waterfall runs in time order, so new spans land at the
    bottom — a reader who is already there is watching the newest work, and the

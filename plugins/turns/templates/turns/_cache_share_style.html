@@ -1,0 +1,11 @@
+{#- One colour rule per configured cache-tint band, `cache-b0`, `cache-b1`, …
+    matching the `cache_share_band` index the row carries. The bands are config,
+    so the rules cannot be static (their count and colours vary per install);
+    this is why they are injected per page rather than shipped in a STYLES seam.
+    Included once by every page that renders `llm_rows`. `cache_share_bands` and
+    each `color` come from this tab's context processor, validated to a hex
+    pattern at config time, so interpolating them here introduces nothing a
+    stylesheet could not already say. #}
+<style>
+{% for band in cache_share_bands %}.tok-share.cache-b{{ loop.index0 }} { color: {{ band.color }}; }
+{% endfor %}</style>

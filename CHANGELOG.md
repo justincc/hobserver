@@ -12,6 +12,17 @@ and provider-spec vocabularies) may still change between releases — see
 
 ### Added
 
+- **An llm span's `(89% cached)` figure is now tinted by how much of the prompt
+  was served from cache**, so the split reads at a glance without reading the
+  number. The tint is drawn from a configurable list of colour bands — each
+  applying from a percent upward, a figure taking the last band it reaches — so
+  an operator can set two bands for a plain pass/fail split or many for a finer
+  gradient, in any palette, via `cache_share.bands` in the Turns tab's
+  `settings` (`hobserver.toml`). The default is three bands (red below 30%,
+  ochre to 90%, green from 90%) tuned for the light theme; the number is always
+  printed beside the tint, so the colour only reinforces it. See
+  `docs/design/span-rendering.md`.
+
 - **A `tool_describe` span now shows what it handed back, not just what was
   looked up.** `tool_describe` is hermes' lazy-tool lookup: the model asks for
   the full schema of one or more tools before it calls them. The span used to

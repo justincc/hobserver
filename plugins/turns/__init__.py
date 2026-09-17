@@ -17,6 +17,7 @@ stay uncluttered.
 
 import importlib
 import os
+import re
 import time
 
 from flask import (Blueprint, abort, current_app, redirect, render_template,
@@ -49,6 +50,93 @@ URL_PREFIX = "turns"
 # tool run emits no ATOF events meanwhile — so a short cutoff would retire turns
 # that are still working.
 STALE_AFTER_US = 2 * 60 * 60 * 1_000_000
+
+# The `(89% cached)` figure on the prompt token row is tinted by how much of the
+# prompt was served from cache, so a reader can see the split at a glance without
+# reading the number. The tint is a colour drawn from a list of bands, each a
+# colour that applies from a percent upward; the figure takes the last band it
+# reaches. Nothing here is a fixed count or a colour name — the bands are opaque
+# ordered data, so an operator can configure two, three or ten of them, in any
+# palette, with no notion of "the red one" baked into the code. The number is
+# always printed beside the tint, so the colour only ever reinforces a fact
+# already on the page (design principle 4). The default is three bands tuned to
+# read on the app's light surfaces. `cache_share_config` is the one reader.
+CACHE_SHARE_DEFAULTS = {
+    "bands": [
+        {"from": 0, "color": "#c0392b"},     # cold — little or none cached
+        {"from": 30, "color": "#a07b12"},    # amber
+        {"from": 90, "color": "#1f8a3b"},    # hot — nearly all cached
+    ],
+}
+
+_HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
+
+
+def _default_bands():
+    """A fresh copy of the default bands, so a caller cannot mutate the module
+    table by editing what it was handed."""
+    return [dict(band) for band in CACHE_SHARE_DEFAULTS["bands"]]
+
+
+def cache_share_config(settings, warn=None):
+    """The prompt-row cache tint as an ordered list of `{from, color}` bands.
+
+    `cache_share.bands` in this tab's settings, each band a colour that applies
+    from its `from` percent upward; classification takes the last band a figure
+    reaches (`_cache_share_context`). Absent, the default three bands are used.
+
+    Read defensively and never fatally (design-principles §1, degrade to the
+    generic per component): a band whose `from` is not an int in 0..100 or whose
+    `color` is not a `#rgb`/`#rrggbb` string is dropped with a warning, and if
+    that leaves no bands at all the default list is used. Bands are sorted by
+    `from`, so the config may list them in any order.
+    """
+    raw = settings.get("cache_share") or {}
+    if not isinstance(raw, dict):
+        if warn:
+            warn("cache_share: expected a table, got %s; using defaults"
+                 % type(raw).__name__)
+        return {"bands": _default_bands()}
+
+    if "bands" not in raw:
+        return {"bands": _default_bands()}
+
+    raw_bands = raw["bands"]
+    if not isinstance(raw_bands, (list, tuple)):
+        if warn:
+            warn("cache_share.bands: expected a list, got %s; using defaults"
+                 % type(raw_bands).__name__)
+        return {"bands": _default_bands()}
+
+    bands = []
+    for i, band in enumerate(raw_bands):
+        if not isinstance(band, dict):
+            if warn:
+                warn("cache_share.bands[%d]: expected a table, got %s; dropped"
+                     % (i, type(band).__name__))
+            continue
+        start = band.get("from")
+        color = band.get("color")
+        if isinstance(start, bool) or not isinstance(start, int) \
+                or not 0 <= start <= 100:
+            if warn:
+                warn("cache_share.bands[%d].from: expected an integer percent "
+                     "0..100, got %r; band dropped" % (i, start))
+            continue
+        if not isinstance(color, str) or not _HEX_COLOR.match(color):
+            if warn:
+                warn("cache_share.bands[%d].color: expected a #rgb/#rrggbb "
+                     "colour, got %r; band dropped" % (i, color))
+            continue
+        bands.append({"from": start, "color": color})
+
+    if not bands:
+        if warn:
+            warn("cache_share.bands: no usable bands; using defaults")
+        return {"bands": _default_bands()}
+
+    bands.sort(key=lambda b: b["from"])
+    return {"bands": bands}
 
 
 def atof_path(settings):
@@ -295,7 +383,39 @@ def init_app(app, settings):
     # every read to these, and reading config.yaml on each request is startup
     # work a polling page must not pay for.
     app.config["SKILL_ROOTS"] = skills.skill_roots(settings)
+    app.config["CACHE_SHARE"] = cache_share_config(settings, warn=app.logger.warning)
     _warm_index(app)
+
+
+@bp.context_processor
+def _cache_share_context():
+    """Give this tab's templates the cache-tint bands resolved in `init_app`.
+
+    A blueprint context processor, so it reaches only pages this tab serves —
+    the shell and other tabs never see these names. `cache_share_band` maps a
+    share percent to its band index; the page turns that into a `cache-b{i}`
+    class and `cache_share_bands` gives the colours those classes are painted
+    (the `_cache_share_style` partial). Falls back to the defaults if a request
+    somehow arrives before `init_app` ran.
+    """
+    cfg = current_app.config.get("CACHE_SHARE", CACHE_SHARE_DEFAULTS)
+    bands = cfg["bands"]
+
+    def band(pct):
+        # The last band the figure reaches — bands are sorted ascending, so the
+        # highest `from` not above pct wins. A figure below the first band's
+        # `from` still takes that first band, which is the floor.
+        if pct is None:
+            return None
+        index = 0
+        for i, b in enumerate(bands):
+            if b["from"] <= pct:
+                index = i
+            else:
+                break
+        return index
+
+    return {"cache_share_band": band, "cache_share_bands": bands}
 
 
 def _index_report(state) -> str:
