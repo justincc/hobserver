@@ -1506,3 +1506,93 @@ def test_the_two_excerpts_on_a_span_row_cut_at_the_same_place():
 
 def test_a_call_with_no_request_has_no_asked_excerpt():
     assert llm_span(profile={}).request_prompt_excerpt is None
+
+
+# --- tool_describe: the lazy-tool lookup's request and its answer ---------
+# hermes' tool_describe hands back the full schema of the tools the model
+# asked for. The names ride the start payload; the definitions come back on
+# the end payload as a JSON *string* on the nemo-relay route, keyed by name.
+
+_DESCRIBE_END = json.dumps({"tools": {
+    "session_search": {
+        "description": "Recall past conversations.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query."},
+                "limit": {"type": "integer", "default": 3},
+            },
+            "required": ["query"],
+        },
+    },
+}})
+
+
+def test_tool_describe_names_from_start_payload():
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("D1", "tool", 1_100_000, 1_200_000, name="tool_describe",
+                     session="s1", turn="t1",
+                     start_data={"names": ["session_search", "terminal"]}),
+        *scope_lines("T1", "tool", 1_300_000, 1_400_000, name="terminal",
+                     session="s1", turn="t1",
+                     start_data={"names": ["x"], "command": "ls"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    describe, other = assemble_lines(lines).sessions[0].turns[0].spans
+    assert describe.tool_describe_names == ["session_search", "terminal"]
+    # the generic "names" key means nothing outside a tool_describe scope
+    assert other.tool_describe_names == []
+
+
+def test_tool_describe_reads_returned_schemas_from_a_json_string_payload():
+    """The end payload arrives as a JSON string on the nemo-relay route, so
+    the reading parses it rather than assuming a dict — the same string shape
+    the real log holds."""
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("D1", "tool", 1_100_000, 1_200_000, name="tool_describe",
+                     session="s1", turn="t1",
+                     start_data={"names": ["session_search"]},
+                     end_data=_DESCRIBE_END),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    describe, = assemble_lines(lines).sessions[0].turns[0].spans
+    assert describe.tool_describe_tools == [
+        {"name": "session_search", "description": "Recall past conversations."}]
+    sections = describe.tool_describe_schemas
+    # a divider heads the group, then one grouped section per returned tool
+    assert sections[0]["divider"] is True
+    assert sections[0]["summary"] == "1 returned"
+    tool = sections[1]
+    assert tool["label"] == "session_search" and tool["grouped"] is True
+    assert tool["summary"] == "Recall past conversations."
+    # its parameters are broken out of the schema, one row each, required marked
+    params = {p["name"]: p for p in tool["params"]}
+    assert params["query"]["required"] is True
+    assert params["limit"]["default"] == "3"
+    # the raw schema is carried verbatim beside the reading
+    assert "Recall past conversations." in tool["text"]
+
+
+def test_tool_describe_degrades_on_a_payload_without_tools():
+    """A shape that is not the expected one yields no tools and no sections
+    rather than raising — the span keeps its summary of what was looked up."""
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("D1", "tool", 1_100_000, 1_200_000, name="tool_describe",
+                     session="s1", turn="t1",
+                     start_data={"names": ["session_search"]},
+                     end_data={"error": "unknown tool"}),
+        *scope_lines("T1", "tool", 1_300_000, 1_400_000, name="terminal",
+                     session="s1", turn="t1", start_data={"command": "ls"}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    describe, other = assemble_lines(lines).sessions[0].turns[0].spans
+    assert describe.tool_describe_tools == []
+    assert describe.tool_describe_schemas == []
+    # the schema readings mean nothing outside a tool_describe scope
+    assert other.tool_describe_tools == [] and other.tool_describe_schemas == []

@@ -920,6 +920,28 @@ First line inline, the whole program in detail mode.
 The image path or URL left-ellipsized in the summary; the question added on
 its own line in detail mode only.
 
+### tool_describe — the lazy-tool lookup
+
+hermes' lazy-tool lookup: the model asks for the full schema of one or more
+tools before it calls them. The names it asked for ride the start payload
+(`names`); the definitions come back on the end payload's `tools`, keyed by
+name — and on the nemo-relay route that payload is a JSON *string*, so
+`tool_describe_definitions` parses it rather than assuming a dict.
+
+The summary names what was looked up. In detail mode each returned tool shows
+its name and description, and the whole returned schema opens on its own page
+(the `schema` `Full`, `render="sections"`,
+[ADR 12](adr/0012-open-a-whole-value-on-its-own-page.md)): one section per
+tool, its description and parameters broken out one row each beside the raw
+wire schema — the same formatted-vs-raw reading the request's own tool menu
+uses ([llm scopes](#llm-scopes)), through the same `_tool_params` helper. A
+definition whose parameters this cannot read keeps its whole schema and no
+parameter rows — degraded, not dropped.
+
+Without the spec the [generic fallback](#unrecognised-scopes) reads only the
+start payload, so the span would name the tool looked up but nothing that came
+back.
+
 ### mem0_add, mem0_update, mem0_delete — the fact and the id
 
 The four mem0 tools are defined in

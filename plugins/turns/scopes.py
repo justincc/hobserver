@@ -172,6 +172,30 @@ TERMINAL = Scope(rows=[
 # a todo call without `todos` is a read of the current list and shows nothing
 TODO = Scope(rows=[Items("todo_contents")])
 
+# tool_describe is hermes' lazy-tool lookup: the model asks for the full schema
+# of one or more tools before it calls them. The summary names what was looked
+# up (`names`, from the start payload); the detail gives each returned tool's
+# name and description, and the whole returned schema — parameters and all —
+# is the `schema` Full, drawn the same formatted-vs-raw way a request's own
+# tool menu is (spans.py `tool_describe_sections`). The generic fallback would
+# show only the requested names and nothing that came back.
+TOOL_DESCRIBE = Scope(rows=[
+    Row([Field(first("tool_describe_names"), font="mono", clip="wide",
+               title=joined("tool_describe_names"),
+               more="tool_describe_names")], layer="summary"),
+    Each("tool_describe_tools", [
+        Row([Field(item("name"), font="mono", full="schema")], layer="detail"),
+        Row([Field(item("description"), clip="wide-wrap")], layer="detail"),
+    ]),
+], fulls=[
+    Full(key="schema", source="tool_describe_schemas", render="sections",
+         title=const("Returned schema"),
+         note=const("The tool definitions tool_describe handed back, verbatim "
+                    "from the call's end payload — one section per tool, its "
+                    "description and parameters read out beside the raw "
+                    "schema.")),
+])
+
 VISION_ANALYZE = Scope(rows=[
     Row([Field("vision_image_url", clip="tail", transform=tilde)]),
     Row([Field("vision_question", font="mono", clip="wrap")], layer="detail"),
@@ -264,6 +288,7 @@ SCOPES = {
     "skill_view": SKILL,
     "terminal": TERMINAL,
     "todo": TODO,
+    "tool_describe": TOOL_DESCRIBE,
     "vision_analyze": VISION_ANALYZE,
     "web_extract": WEB_EXTRACT,
     "web_search": WEB_SEARCH,

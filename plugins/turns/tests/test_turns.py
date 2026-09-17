@@ -379,6 +379,39 @@ def test_session_search_scroll_mode_renders(tmp_path):
     assert "title=\"Messages in the session before" in page
 
 
+def test_tool_describe_names_and_returned_schema_render(tmp_path):
+    # tool_describe is hermes' lazy-tool lookup: the model asks for a tool's
+    # full schema before calling it. The end payload (the schema it got back)
+    # arrives as a JSON string, as on the nemo-relay route.
+    end = ('{"tools": {"session_search": {'
+           '"description": "Recall past conversations.",'
+           '"parameters": {"type": "object", "properties": {'
+           '"query": {"type": "string", "description": "Search query."}},'
+           '"required": ["query"]}}}}')
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("D1", "tool", 1_100_000, 1_300_000, name="tool_describe",
+                     session="s1", turn="t1",
+                     start_data={"names": ["session_search"]}, end_data=end),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    client = make_client(tmp_path, str(atof))
+    page = client.get("/turns/turn/s1/1000000").get_data(as_text=True)
+    # the looked-up tool names the span; its description sits in detail
+    assert ">session_search<" in page
+    assert "Recall past conversations." in page
+    # and the whole returned schema opens on its own page
+    assert "/turns/span/D1/schema" in page
+
+    full = client.get("/turns/span/D1/schema").get_data(as_text=True)
+    assert "Returned schema" in full
+    # the returned tool is broken out the same way a request's tool menu is:
+    # a formatted reading with its parameters, one row each
+    assert ">query<" in full and "Search query." in full
+    assert "1 returned" in full
+
+
 def test_skill_patch_strings_are_detail_only(tmp_path):
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),

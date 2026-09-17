@@ -1095,6 +1095,38 @@ class Span:
         return (self._start_str("question")
                 if self.name == "vision_analyze" else None)
 
+    # tool_describe is hermes' lazy-tool lookup: the model asks for the full
+    # schema of one or more tools before calling them. The names it asked for
+    # ride the start payload (`names`); the definitions come back in the end
+    # payload's `tools`, which the generic fallback never reads — so without
+    # these the span shows only what was looked up, not what came back.
+    @property
+    def tool_describe_names(self) -> list:
+        if self.name != "tool_describe":
+            return []
+        data = _as_dict(self.start_data)
+        if data is None:
+            return []
+        names = data.get("names")
+        if not isinstance(names, list):
+            return []
+        return [n for n in names if isinstance(n, str) and n]
+
+    @property
+    def tool_describe_tools(self) -> list:
+        """Each returned tool as `{name, description}`, for the detail rows.
+        The whole schema — parameters and all — is the `schema` Full."""
+        if self.name != "tool_describe":
+            return []
+        return [{"name": d["name"], "description": d["description"]}
+                for d in tool_describe_definitions(self.end_data)]
+
+    @property
+    def tool_describe_schemas(self) -> list:
+        """The returned schemas as labelled sections for the `schema` Full."""
+        if self.name != "tool_describe":
+            return []
+        return tool_describe_sections(self.end_data)
 
 
 # --- which entry a memory write matched -----------------------------------
@@ -1625,6 +1657,74 @@ def _tools_sections(request: dict) -> list:
         sections.append({"label": name or "(tool)", "text": schema,
                          "summary": description, "facts": flags,
                          "params": _tool_params(parameters), "grouped": True})
+    return sections
+
+
+def tool_describe_definitions(end_data: Any) -> list:
+    """The tool definitions a `tool_describe` call handed back, in order.
+
+    `tool_describe` is hermes' lazy-tool lookup: the model asks for the full
+    schema of one or more tools before it calls them. The definitions come
+    back in the end payload's `tools`, keyed by tool name — but that payload
+    is opaque per the ATOF spec and reaches this app as a JSON *string* on the
+    nemo-relay route, so it is parsed here rather than read as a dict, and a
+    shape that is not the expected one yields nothing rather than raising.
+
+    Each entry is `{name, description, parameters}` — the name is the key the
+    definition sat under (it is not repeated inside), the other two are the
+    tool's own, either absent when the schema did not carry them. `parameters`
+    is a JSON schema, left as-is for `_tool_params` to break out.
+    """
+    data = _as_dict(end_data)
+    if data is None:
+        return []
+    tools = data.get("tools")
+    if not isinstance(tools, dict):
+        return []
+    out = []
+    for name, defn in tools.items():
+        if not isinstance(name, str) or not name:
+            continue
+        defn = defn if isinstance(defn, dict) else {}
+        description = defn.get("description")
+        parameters = defn.get("parameters")
+        out.append({
+            "name": name,
+            "description": (description if isinstance(description, str)
+                            and description else None),
+            "parameters": parameters if isinstance(parameters, dict) else None,
+            "definition": defn,
+        })
+    return out
+
+
+def tool_describe_sections(end_data: Any) -> list:
+    """A `tool_describe` call's returned schemas as a `tools` band.
+
+    The same shape `_tools_sections` builds for a request's own tool menu, so
+    the Full page draws each returned tool the same way: a formatted reading —
+    its description (`summary`) and its parameters broken out (`params`) —
+    beside its raw schema (`text`), with a `divider` heading the group. The
+    returned shape carries no tool-level envelope (`type`/`strict`), so there
+    are no `facts` — the definition is `{description, parameters}` under the
+    tool's name, not the openai/anthropic wire tool that `_tool_facts` reads.
+
+    A definition this cannot read parameters from keeps its place with its
+    whole schema and no parameter rows — degraded, not dropped (design
+    principle 1), exactly as an unfamiliar tool does in the request band.
+    """
+    definitions = tool_describe_definitions(end_data)
+    if not definitions:
+        return []
+    sections = [{"label": "tools", "text": "", "divider": True,
+                 "summary": f"{len(definitions)} returned"}]
+    for defn in definitions:
+        schema = _fence(json.dumps(defn["definition"], indent=2,
+                                   ensure_ascii=False, default=str), "json")
+        sections.append({"label": defn["name"], "text": schema,
+                         "summary": defn["description"], "facts": [],
+                         "params": _tool_params(defn["parameters"]),
+                         "grouped": True})
     return sections
 
 

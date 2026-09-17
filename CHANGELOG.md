@@ -10,6 +10,21 @@ and provider-spec vocabularies) may still change between releases — see
 
 ## [Unreleased]
 
+### Added
+
+- **A `tool_describe` span now shows what it handed back, not just what was
+  looked up.** `tool_describe` is hermes' lazy-tool lookup: the model asks for
+  the full schema of one or more tools before it calls them. The span used to
+  fall to the generic payload dump, which reads only the start payload — so it
+  named the tool looked up but nothing that came back. It now has a scope spec:
+  the summary names the requested tools, detail mode gives each returned tool's
+  description, and the whole returned schema opens on its own page — one section
+  per tool, its parameters broken out one row each beside the raw wire schema,
+  the same formatted-vs-raw reading the request's own tool menu uses. The end
+  payload arrives as a JSON string on the nemo-relay route and is parsed
+  defensively; an unreadable shape degrades to the raw schema rather than
+  erroring. See `docs/design/span-rendering.md`.
+
 ## [0.3.4] - 2026-09-10
 
 ### Added
