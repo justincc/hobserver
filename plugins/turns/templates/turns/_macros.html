@@ -238,3 +238,63 @@
   </div>
 </div>
 {%- endmacro %}
+{# A tool result this app could read (spans.py `read_tool_result`): its rows,
+   drawn one per hit. A title that has a safe link is an anchor to it; the url
+   is shown in full beneath so a reader inspects where it goes before clicking,
+   and opens in its own tab with `rel` set so the opened page cannot reach back
+   through `window.opener` or carry a referrer. Nothing here is |safe — every
+   value is the search backend's own text, out of the log, auto-escaped like any
+   wire content; the href is the one attribute a click can act on, and it is the
+   scheme-checked `link`, never the raw url (see fulltext.py). #}
+{% macro result_formatted(result) -%}
+{#- The untrusted-content band, kept from the envelope the raw tab shows in full
+   (spans.py `_untrusted_notice`): the formatted view reads past the wrapper, so
+   without this it would drop the one signal that this is attacker-influenceable
+   external data. It is hermes' own instruction verbatim — what the model was
+   actually told about the block, not this app's paraphrase — auto-escaped like
+   any value. None means the wire carried no envelope, so no band. #}
+{%- if result.untrusted_notice is not none %}
+<p class="result-untrusted">{{ result.untrusted_notice }}</p>
+{%- endif %}
+{%- if result.error %}
+<p class="notice warn result-error">{{ result.error }}</p>
+{%- elif result.results %}
+<ol class="web-results">
+{%- for r in result.results %}
+  <li class="web-result">
+    <div class="web-result-title">
+      {%- if r.link %}<a href="{{ r.link }}" rel="noopener noreferrer nofollow" target="_blank">{{ r.title or r.url or '(untitled)' }}</a>
+      {%- else %}{{ r.title or '(untitled)' }}{% endif %}
+    </div>
+    {%- if r.url %}<div class="web-result-url">{{ r.url }}</div>{% endif %}
+    {%- if r.description %}<p class="web-result-desc">{{ r.description }}</p>{% endif %}
+  </li>
+{%- endfor %}
+</ol>
+{%- else %}
+<p class="meta msg-empty">(no results)</p>
+{%- endif %}
+{%- endmacro %}
+{# A tool result's body: two tabs, a formatted reading (shown first) and the raw
+   wire content — the same CSS-only radio machinery and classes as tool_tabs, so
+   one stylesheet drives both. `idx` (the section's position) names the radio
+   group. The raw panel is the verbatim message body: for a high-risk tool that
+   is the whole <untrusted_tool_result> envelope, shown exactly as it reached the
+   model. The two radios must stay formatted-then-raw — the panel selectors key
+   off their order, not their render-time ids. #}
+{% macro result_tabs(part, idx) -%}
+<div class="tool-tabs">
+  <input class="tool-tab-radio" type="radio" name="restab{{ idx }}" id="rtab-f{{ idx }}" checked>
+  <label class="tool-tab" for="rtab-f{{ idx }}">formatted</label>
+  <input class="tool-tab-radio" type="radio" name="restab{{ idx }}" id="rtab-r{{ idx }}">
+  <label class="tool-tab" for="rtab-r{{ idx }}">raw</label>
+  <div class="tool-panels">
+    <div class="tool-panel tool-panel-fmt">{{ result_formatted(part.result) }}</div>
+    {#- The verbatim body as characters (`raw=true` → a <pre>), not markdown:
+       a result is JSON, and markdown would collapse its indentation into one
+       line — where a tool's description, being prose, renders. Whitespace is
+       the whole value of a raw view of JSON, so it is kept. #}
+    <div class="tool-panel tool-panel-raw">{{ full_section_body(part, true) }}</div>
+  </div>
+</div>
+{%- endmacro %}

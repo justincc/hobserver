@@ -335,6 +335,22 @@ what it means is left to the tooltip that was always carrying it.
   true. (Labels did carry an ordinal at first, which is what the layout
   replaced.)
 
+  **A `tool_result` this app can read shows two tabs, like a tool schema
+  does** — a **Formatted** reading first, the **Raw** wire body beside it. The reading is
+  contributed per tool beside the spec that names it (ADR 17): `web_search` is
+  the one today, read by `spans.py` `read_tool_result`, drawn as one row per
+  hit — its title (a link when the url is a safe `http(s)` one, plain text
+  otherwise, see [SECURITY.md](../../SECURITY.md)), the url beneath for the user
+  to check before a click, then the description. A `success:false` payload
+  shows its error instead. 
+
+  A result whose shape the reader does not recognise degrades to
+  the raw dump rather than being forced into rows (design principle 3); the
+  page-wide raw view skips the tabs entirely.
+  
+  The reader parses through hermes'
+  `<untrusted_tool_result>` envelope to reach the payload, but the **Raw** tab keeps the verbatim wrapped text. 
+
   Three separations do the work, and they are three because they answer
   three different questions:
 

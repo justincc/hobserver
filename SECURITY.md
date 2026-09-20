@@ -51,6 +51,16 @@ rendering code:
   links become anchors.
 - **The `raw` value view** shows the unrendered characters through
   autoescaping (`{{ part.text }}` in a `<pre>`), not as HTML.
+- **A tool result's links are scheme-checked before they become anchors.**
+  The formatted reading of a tool result (e.g. web_search, on the prompt page)
+  can draw a hit's url as a clickable link. Autoescaping stops an attacker
+  breaking out of the `href`, but not a `javascript:`/`data:`/`vbscript:`
+  scheme that runs on click — so `_safe_http_url` in `plugins/turns/fulltext.py`
+  emits an anchor **only** for `http`/`https` with a host; any other url renders
+  as plain escaped text. This is the same policy markdown-it applies to
+  `[text](url)`. The anchor also carries `rel="noopener noreferrer nofollow"`,
+  so a clicked link cannot reach back through `window.opener` or leak a
+  referrer. Draw a link from log-borne text only through this check.
 
 Adding a `| safe`, an `{% autoescape false %}`, a `Markup(...)`, or
 `html: True` in the renderer removes one of these defenses. Don't, unless the

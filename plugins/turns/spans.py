@@ -1331,6 +1331,155 @@ def _fence(text: str, lang: str = "") -> str:
     return f"{ticks}{lang}\n{text}\n{ticks}"
 
 
+# --- reading a tool result for the prompt page (docs/design/adr/0017) -------
+#
+# A tool result on the request page is wire text like any message, and is shown
+# as a raw dump. A few tools return a shape this app can read into something
+# better — and does, as a formatted tab beside the raw one. The reading is
+# contributed here because these are hermes' own tools; another system's result
+# is read by that system, the same rule the module opens with.
+#
+# A reader takes the result message's body text and returns a dict the page
+# knows how to draw, or None to leave the result a raw dump — the same "read the
+# shape, degrade if it isn't there" discipline as every reading here. The body
+# is wire content, which for a high-risk tool (web_search, browser_*, mcp_*)
+# hermes wrapped in an <untrusted_tool_result> envelope before it reached the
+# model; the reader sees through that framing to the payload, but the raw tab
+# still shows the verbatim wrapped text, envelope and all. URL scheme-safety for
+# any link the formatted view draws is decided at render time, not here — see
+# `fulltext._safe_http_url`.
+
+
+# hermes' own framing (tool_dispatch_helpers.py), not the tool's output: the
+# tags of the envelope it wraps a high-risk result in. Case-insensitive to match
+# the defang there. Its presence is the signal that the payload is
+# attacker-influenceable, which the formatted view keeps even though it reads
+# past the wrapper to the data.
+_UNTRUSTED_OPEN_RE = re.compile(r'<untrusted_tool_result[^>]*>', re.IGNORECASE)
+_UNTRUSTED_CLOSE_RE = re.compile(r'</untrusted_tool_result>', re.IGNORECASE)
+
+
+def _untrusted_notice(text: str) -> Optional[str]:
+    """hermes' own instruction from inside the envelope — the "The following
+    content was retrieved…" paragraph it writes between the tag and the payload
+    — or None when `text` carries no envelope.
+
+    The paragraph verbatim, not this app's paraphrase: it is what the model was
+    actually told about the block, so the formatted view shows it word for word
+    (the tags themselves are dropped — they are the wire delimiter, not a
+    message). The payload of a readable result is JSON, so its first bracket
+    bounds the notice; the closing tag bounds it otherwise."""
+    if not isinstance(text, str):
+        return None
+    match = _UNTRUSTED_OPEN_RE.search(text)
+    if match is None:
+        return None
+    after = _UNTRUSTED_CLOSE_RE.split(text[match.end():], 1)[0]
+    brackets = [i for i in (after.find("{"), after.find("[")) if i != -1]
+    notice = (after[:min(brackets)] if brackets else after).strip()
+    return notice or None
+
+
+def _first_json_value(text: str) -> Any:
+    """The first JSON object or array embedded in `text`, parsed, or None.
+
+    Scans from the first bracket so a fixed preamble ahead of the payload —
+    hermes' untrusted-result notice sits between the envelope tags and the data
+    — does not defeat the parse. `raw_decode` stops at the end of the first
+    value and ignores any trailing text (the closing tag)."""
+    starts = [i for i in (text.find("{"), text.find("[")) if i != -1]
+    if not starts:
+        return None
+    try:
+        value, _ = json.JSONDecoder().raw_decode(text, min(starts))
+    except ValueError:
+        return None
+    return value
+
+
+def _parse_json_payload(text: str) -> Any:
+    """A tool result's JSON, whether it arrived bare or inside the envelope.
+
+    The whole string first (a result read straight from the span carries no
+    envelope), then the first embedded value (the prompt page's copy is wrapped
+    with a notice around it). None when neither yields JSON."""
+    if not isinstance(text, str):
+        return None
+    try:
+        return json.loads(text.strip())
+    except ValueError:
+        return _first_json_value(text)
+
+
+def _read_web_search_result(text: str) -> Optional[dict]:
+    """web_search's result read into `{ok, error, results:[{title, url,
+    description, position}]}`, or None when the payload is not that shape.
+
+    The tool returns `{"success": bool, "data": {"web": [...]}}` on a hit and
+    `{"success": false, "error": "..."}` on a miss (hermes `tools/web_tools.py`).
+    Both are recognized; anything else falls back to the raw dump rather than
+    being forced into rows this app cannot vouch for (design principle 3)."""
+    data = _parse_json_payload(text)
+    if not isinstance(data, dict):
+        return None
+    inner = data.get("data")
+    # Recognizable only as this tool's shape: a success flag, and either a
+    # results container or an error. A bare dict that happens to be JSON is not.
+    if "success" not in data and not isinstance(inner, dict):
+        return None
+    ok = bool(data.get("success"))
+    results = []
+    web = inner.get("web") if isinstance(inner, dict) else None
+    if isinstance(web, list):
+        for item in web:
+            if not isinstance(item, dict):
+                continue
+            results.append({
+                "title": _str_or_none(item.get("title")),
+                "url": _str_or_none(item.get("url")),
+                "description": _str_or_none(item.get("description")),
+                "position": item.get("position"),
+            })
+    return {
+        "ok": ok,
+        "error": None if ok else _str_or_none(data.get("error")),
+        "results": results,
+    }
+
+
+# Keyed by the tool a result answers (from the paired call). Add a tool by
+# adding its reader here; nothing else in the page changes.
+RESULT_READERS = {"web_search": _read_web_search_result}
+
+
+def read_tool_result(name: Optional[str], text: Any) -> Optional[dict]:
+    """A structured reading of a tool result for the prompt page, or None to
+    leave it a raw dump.
+
+    `name` is the tool the result answers, `text` its wire body. A reader must
+    never break the page, so a raising one is treated as no reading (principle
+    1, degrade per component)."""
+    reader = RESULT_READERS.get(name or "")
+    if reader is None or not isinstance(text, str):
+        return None
+    try:
+        reading = reader(text)
+    except Exception:  # noqa: BLE001 - a reader fault degrades, never raises
+        return None
+    if reading is not None:
+        # Envelope detection is hermes' framing, not the tool's, so it is done
+        # here (generic) rather than in each reader: the formatted view keeps
+        # the untrusted notice the raw view carries in the wrapper itself.
+        reading["untrusted_notice"] = _untrusted_notice(text)
+    return reading
+
+
+def _str_or_none(value: Any) -> Optional[str]:
+    """A non-empty string as itself, anything else as None — so a row field the
+    payload left absent or gave the wrong type simply does not draw."""
+    return value if isinstance(value, str) and value else None
+
+
 def _message_body(message: dict) -> str:
     """One request message as text, whatever kind of message it is.
 
@@ -1447,8 +1596,18 @@ def _message_sections(messages: list) -> list:
         # know to run into what follows it and not only the result to know
         # it is inside something.
         sections.append(section(message, **({"nests": True} if owned else {})))
+        # The call names the tool; its result carries only a call_id, so the
+        # reading is dispatched on the call's name (looked up once here, where
+        # the pair is already in hand) and rides the result's section for the
+        # page to draw as a formatted tab. None leaves it a plain raw dump.
+        name = message.get("name") if isinstance(message, dict) else None
         for result in owned:
-            sections.append(section(result, nested=True))
+            reading = read_tool_result(name, _message_body(result)) \
+                if isinstance(result, dict) else None
+            flags = {"nested": True}
+            if reading is not None:
+                flags["result"] = reading
+            sections.append(section(result, **flags))
     return sections
 
 

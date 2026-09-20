@@ -428,6 +428,30 @@
     .tool-pchildren { margin: 0.35rem 0 0.1rem; padding-left: 0.8rem;
       border-left: 2px solid #e2e5ec; }
     .tool-pchildren > .tool-params { padding: 0; }
+    /* A tool result read into rows (web_search): one hit per item, the title a
+       link when it has a safe one, the url beneath it for the eye to check
+       before a click, the description under that. Shares the formatted panel's
+       padding with the tool tabs, so a result reads like the schema view does. */
+    .web-results { margin: 0; padding: 0.5rem 0.9rem 0.5rem 2rem; }
+    .web-result { margin: 0 0 0.7rem; }
+    .web-result:last-child { margin-bottom: 0; }
+    .web-result-title { font-size: 0.95rem; line-height: 1.35; }
+    .web-result-title a { color: #2456c4; }
+    .web-result-url { font-family: ui-monospace, monospace; font-size: 0.76rem;
+      color: #3a7a3a; overflow-wrap: anywhere; margin: 0.05rem 0; }
+    .web-result-desc { margin: 0.1rem 0 0; color: #444; font-size: 0.86rem;
+      line-height: 1.45; }
+    .result-error { margin: 0.6rem 0.9rem; }
+    /* Kept from the envelope the raw tab shows in full: the formatted view
+       reads past the wrapper, so this band is the one signal left that the rows
+       are attacker-influenceable external content. A muted amber caution, led
+       by the tab strip, so it reads as a note about the whole result rather
+       than one of the rows. */
+    .result-untrusted { margin: 0; padding: 0.45rem 0.9rem; font-size: 0.78rem;
+      line-height: 1.4; color: #7a5300; background: #fdf3d8;
+      border-bottom: 1px solid #efe0ad; }
+    .result-untrusted code { font-family: ui-monospace, monospace;
+      font-size: 0.9em; }
     /* A tool call and the result it answers are drawn as ONE card: the
        call's box runs into the result's with no gap and no border between
        them, so the pair is a single object on the page rather than two

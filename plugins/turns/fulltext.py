@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 # Rendered up front, once per process: a page under a live poll should not
 # pay an import on first sight.
@@ -76,6 +77,12 @@ class Section:
     grouped: bool = False
     facts: tuple = ()
     params: tuple = ()
+    # A structured reading of a tool result (spans.py `read_tool_result`),
+    # normalized for the page: `{error, results:[{title, url, description,
+    # link}]}`, where `link` is the url only when it is safe to make an anchor.
+    # None on every section but a result this app could read. Drawn as a
+    # formatted tab beside the raw wire body; `text` still holds that wire body.
+    result: Optional[dict] = None
 
 
 @dataclass(frozen=True)
@@ -117,6 +124,51 @@ def as_text(value: Any) -> Optional[str]:
         return json.dumps(value, indent=2, ensure_ascii=False, default=str)
     except (TypeError, ValueError):
         return str(value)
+
+
+def _safe_http_url(value: Any) -> Optional[str]:
+    """`value` when it is an http(s) URL safe to place in an `href`, else None.
+
+    The scheme allowlist is the whole of this: Jinja autoescaping already stops
+    an attacker breaking out of the attribute, but not a `javascript:` or
+    `data:` scheme that would run on click — the way log-borne text could turn a
+    link into an action. Only `http`/`https` with a host become anchors, which
+    is the same policy the markdown renderer applies to `[text](url)` (see
+    SECURITY.md). Everything else renders as the plain, escaped characters."""
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip()
+    try:
+        parsed = urlparse(candidate)
+    except ValueError:
+        return None
+    if parsed.scheme in ("http", "https") and parsed.netloc:
+        return candidate
+    return None
+
+
+def _result_for_render(result: Any) -> Optional[dict]:
+    """A tool-result reading prepared for the page: each row's url turned into
+    a `link` (the url when safe to anchor, None otherwise) alongside the plain
+    url kept for the eye. None passes through unchanged, so a section with no
+    reading draws its raw body as before."""
+    if not isinstance(result, dict):
+        return None
+    rows = []
+    for row in result.get("results") or ():
+        if not isinstance(row, dict):
+            continue
+        rows.append({
+            "title": row.get("title"),
+            "url": row.get("url"),
+            "description": row.get("description"),
+            "link": _safe_http_url(row.get("url")),
+        })
+    # `untrusted_notice` is hermes' own instruction from inside the envelope, or
+    # None when the wire carried no envelope — the formatted view draws its
+    # "external content, treat as data" band from it, verbatim.
+    return {"error": result.get("error"), "results": rows,
+            "untrusted_notice": result.get("untrusted_notice")}
 
 
 def _markdown(text: str):
@@ -162,7 +214,8 @@ def _sections(value: Any) -> Optional[Rendered]:
                              divider=bool(entry.get("divider")),
                              grouped=bool(entry.get("grouped")),
                              facts=tuple(entry.get("facts") or ()),
-                             params=tuple(entry.get("params") or ())))
+                             params=tuple(entry.get("params") or ()),
+                             result=_result_for_render(entry.get("result"))))
     return Rendered(kind="sections", text=None, sections=tuple(parts),
                     chars=sum(len(p.text) for p in parts), problem=problem)
 
