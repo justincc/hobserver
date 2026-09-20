@@ -351,15 +351,6 @@ what it means is left to the tooltip that was always carrying it.
   The reader parses through hermes'
   `<untrusted_tool_result>` envelope to reach the payload, but the **Raw** tab keeps the verbatim wrapped text. 
 
-  Three separations do the work, and they are three because they answer
-  three different questions:
-
-  | question | answer |
-  |---|---|
-  | which two boxes are a pair? | a continuous left **spine** down both halves — the accent rail sits on the box, so joining the boxes joins the rail |
-  | which half is which? | both bands solid, the result's a step lighter, plus the `↳` and its indented label text |
-  | where does one pair end? | **proximity** — no gap inside a pair, 2rem after it |
-
   **Every message label is a solid band** (`#33406b`, light text). It got
   there because the call had to be the heavier of the pair — the call is the
   parent, the result sits inside its card, and weight belongs to the thing
