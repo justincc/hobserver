@@ -32,7 +32,9 @@ def _mem0_link_text(count):
         more = int(count) > MEM0_PREVIEW
     except (TypeError, ValueError):
         more = False
-    return f"all {count} results in Mem0 →" if more else "full result in Mem0 →"
+    # Leading ↗ marks a link to another page (here the Mem0 tab), the same
+    # glyph the Turns tab's own cross-page links wear.
+    return f"↗ all {count} results in Mem0" if more else "↗ full result in Mem0"
 
 
 MEM0_SEARCH = Scope(rows=[

@@ -287,12 +287,12 @@ def test_skill_scope_links_to_the_skill_view(tmp_path):
     atof = write_atof(tmp_path, lines)
     page = make_client(tmp_path, str(atof)).get(
         "/turns/turn/s1/1000000").get_data(as_text=True)
-    assert ">view skill</a>" in page
+    assert ">↗ view skill</a>" in page
     assert "/turns/skill?" in page and "name=github-pr-workflow" in page
     # the span uuid rides along so the skill page can link back to this turn
     assert "span=S1" in page
     # opened in its own tab, like the full-value page
-    assert 'target="_blank" rel="noopener">view skill</a>' in page
+    assert 'target="_blank" rel="noopener">↗ view skill</a>' in page
 
 
 def test_skill_page_links_back_to_its_turn(tmp_path):
@@ -906,9 +906,10 @@ def test_turn_detail_mem0_link_reads_full_result_when_nothing_is_hidden(tmp_path
     # target page as carrying all the results, which it does
     link_text = page[page.index("search-event"):]
     link_text = link_text[link_text.index('">') + 2:link_text.index("</a>")]
-    # a literal arrow now, not the &rarr; entity the macro used: the spec
-    # table writes literals (· − → ) and Jinja leaves them alone
-    assert link_text.strip() == "full result in Mem0 →"
+    # a literal glyph, not an entity: the spec table writes literals (· − ↗)
+    # and Jinja leaves them alone. Leading ↗ marks it as a link to another
+    # page, matching the Turns tab's own cross-page links.
+    assert link_text.strip() == "↗ full result in Mem0"
 
 
 def test_turn_detail_mem0_link_absent_while_the_search_is_open(tmp_path):

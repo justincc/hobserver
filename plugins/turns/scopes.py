@@ -29,8 +29,9 @@ from scope_spec import (Alt, Diff, Each, Field, Full, Items, Link,
 def _view_skill_label(_name):
     """The 'view skill' link's text is fixed; the source it reads
     (`skill_name`) is only there to gate it — a skill scope that names no skill
-    resolves to nothing and gets no link (ADR 22)."""
-    return "view skill"
+    resolves to nothing and gets no link (ADR 22). The leading ↗ marks it as a
+    link to another page, the same glyph every such link across the tab wears."""
+    return "↗ view skill"
 
 
 def tilde(path):

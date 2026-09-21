@@ -824,6 +824,10 @@ Row kinds: `Row` (fields on a line), `Diff` (a − / + pair), `Items` (a list as
 first-plus-count then one row each), `Each` (rows repeated per list entry,
 with `item("key")` reading the entry and `Row(when_many=True)` holding back a
 label a lone entry does not need). `Alt` picks the first field that resolves.
+`Link` is a row that navigates to another page — another tab's, or a
+full-value page ([ADR 9](adr/0009-scope-specs-may-link-and-read-published-data.md));
+**its text leads with a `↗` glyph**, the shared mark across the tab for a link
+that leaves the row for a page of its own.
 
 A scope may also declare the **complete values** behind its excerpts, each of
 which becomes a page of its own
@@ -1053,7 +1057,7 @@ covered by test alone.
 optional patch target) is middot-separated from the skill name and
 left-ellipsized (`.tail`, like the file tools' path).
 
-A detail-only **"view skill"** link (a `Link` to `turns.skill`, ADR 22) opens
+A detail-only **"↗ view skill"** link (a `Link` to `turns.skill`, ADR 22) opens
 the skill on disk in a new tab — its SKILL.md, with the skill's files down the
 left, and a link back to the turn. It is
 keyed on `name`/`file_path`, gated on the scope naming a skill, and confined to
@@ -1229,7 +1233,8 @@ leaving the UI.
 ### The link to the Mem0 tab
 
 A last row links to the whole ranked list in the Mem0 tab
-(`Span.mem0_result_count` names it: "all 10 results"). This is the one place
+(`Span.mem0_result_count` names it: "↗ all 10 results", leading with the ↗ that
+marks a link to another page). This is the one place
 two plugins meet, and they share no key — ATOF carries no event id, the db
 carries no span uuid.
 
