@@ -239,13 +239,17 @@
 </div>
 {%- endmacro %}
 {# A tool result this app could read (spans.py `read_tool_result`): its rows,
-   drawn one per hit. A title that has a safe link is an anchor to it; the url
-   is shown in full beneath so a reader inspects where it goes before clicking,
-   and opens in its own tab with `rel` set so the opened page cannot reach back
-   through `window.opener` or carry a referrer. Nothing here is |safe — every
-   value is the search backend's own text, out of the log, auto-escaped like any
-   wire content; the href is the one attribute a click can act on, and it is the
-   scheme-checked `link`, never the raw url (see fulltext.py). #}
+   drawn one per hit (web_search) or per extracted page (web_extract). A title
+   that has a safe link is an anchor to it; the url is shown in full beneath so
+   a reader inspects where it goes before clicking, and opens in its own tab
+   with `rel` set so the opened page cannot reach back through `window.opener`
+   or carry a referrer. A row draws only the fields its tool filled: a
+   description (web_search), or a per-row error and the extracted page content
+   (web_extract). Only `content_html` is |safe — it is the markdown renderer's
+   output with raw HTML off, the one trusted string, exactly as a message body
+   is (see fulltext.py); every other value is the backend's own text, out of
+   the log, auto-escaped like any wire content, and the one attribute a click
+   can act on is the scheme-checked `link`, never the raw url. #}
 {% macro result_formatted(result) -%}
 {#- The untrusted-content band, kept from the envelope the raw tab shows in full
    (spans.py `_untrusted_notice`): the formatted view reads past the wrapper, so
@@ -267,7 +271,13 @@
       {%- else %}{{ r.title or '(untitled)' }}{% endif %}
     </div>
     {%- if r.url %}<div class="web-result-url">{{ r.url }}</div>{% endif %}
+    {%- if r.error %}<p class="notice warn web-result-error">{{ r.error }}</p>{% endif %}
     {%- if r.description %}<p class="web-result-desc">{{ r.description }}</p>{% endif %}
+    {#- The extracted page: rendered markdown (the one |safe string here, from
+       the raw-HTML-off renderer), or the plain text escaped when the renderer
+       was absent — the same degrade as a message body's full_section_body. #}
+    {%- if r.content_html %}<div class="md-body web-result-content">{{ r.content_html | safe }}</div>
+    {%- elif r.content %}<pre class="blob web-result-content">{{ r.content }}</pre>{% endif %}
   </li>
 {%- endfor %}
 </ol>

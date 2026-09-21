@@ -1447,9 +1447,49 @@ def _read_web_search_result(text: str) -> Optional[dict]:
     }
 
 
+def _read_web_extract_result(text: str) -> Optional[dict]:
+    """web_extract's result read into `{ok, error, results:[{url, title,
+    content, error}]}`, or None when the payload is not that shape.
+
+    The tool returns `{"results": [{"url", "title", "content", "error", ...}]}`
+    on a run — one entry per requested page, each carrying its own `error` when
+    that URL alone could not be fetched (blocked, invalid, unreachable) — and
+    `{"success": false, "error": "..."}` when the whole call was refused or
+    nothing was reachable (hermes `tools/web_tools.py`). Both are recognized;
+    anything else falls back to the raw dump rather than being forced into rows
+    this app cannot vouch for (design principle 3)."""
+    data = _parse_json_payload(text)
+    if not isinstance(data, dict):
+        return None
+    entries = data.get("results")
+    # This tool's shape: a per-page `results` list, or the whole-call error
+    # form (a bare `success` flag). A dict that is neither is left a raw dump.
+    if not isinstance(entries, list) and "success" not in data:
+        return None
+    # The results form carries no `success` key; its presence at all means the
+    # call succeeded. The error form sets it False.
+    ok = bool(data.get("success", True))
+    results = []
+    for item in entries or ():
+        if not isinstance(item, dict):
+            continue
+        results.append({
+            "url": _str_or_none(item.get("url")),
+            "title": _str_or_none(item.get("title")),
+            "content": _str_or_none(item.get("content")),
+            "error": _str_or_none(item.get("error")),
+        })
+    return {
+        "ok": ok,
+        "error": None if ok else _str_or_none(data.get("error")),
+        "results": results,
+    }
+
+
 # Keyed by the tool a result answers (from the paired call). Add a tool by
 # adding its reader here; nothing else in the page changes.
-RESULT_READERS = {"web_search": _read_web_search_result}
+RESULT_READERS = {"web_search": _read_web_search_result,
+                  "web_extract": _read_web_extract_result}
 
 
 def read_tool_result(name: Optional[str], text: Any) -> Optional[dict]:

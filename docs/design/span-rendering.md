@@ -337,12 +337,20 @@ what it means is left to the tooltip that was always carrying it.
 
   **A `tool_result` this app can read shows two tabs, like a tool schema
   does** — a **Formatted** reading first, the **Raw** wire body beside it. The reading is
-  contributed per tool beside the spec that names it (ADR 17): `web_search` is
-  the one today, read by `spans.py` `read_tool_result`, drawn as one row per
-  hit — its title (a link when the url is a safe `http(s)` one, plain text
-  otherwise, see [SECURITY.md](../../SECURITY.md)), the url beneath for the user
-  to check before a click, then the description. A `success:false` payload
-  shows its error instead. 
+  contributed per tool beside the spec that names it (ADR 17), read by
+  `spans.py` `read_tool_result`; two tools are read today:
+
+  - **web_search** — one row per hit: its title (a link when the url is a safe
+    `http(s)` one, plain text otherwise, see [SECURITY.md](../../SECURITY.md)),
+    the url beneath for the user to check before a click, then the description.
+  - **web_extract** — one row per page pulled: its title and url the same way,
+    then the extracted page **content rendered as markdown** (the trusted
+    renderer, raw HTML off, the same one a message body goes through). A single
+    URL that failed while others returned carries its own error on its row; the
+    call as a whole is still read.
+
+  A `success:false` payload (or web_extract's whole-call refusal) shows its
+  error in place of the rows. 
 
   A result whose shape the reader does not recognise degrades to
   the raw dump rather than being forced into rows (design principle 3); the

@@ -1695,3 +1695,75 @@ def test_only_a_registered_tool_gets_a_reading():
     assert read_tool_result("read_file", payload) is None
     assert read_tool_result(None, payload) is None
     assert read_tool_result("web_search", None) is None    # non-str body
+
+
+# --- web_extract: one entry per extracted page, each with its own error ----
+# The tool returns `{"results": [...]}` on a run and `{"success": false, ...}`
+# for a whole-call failure; the prompt page's copy is wrapped like web_search's.
+
+
+def _web_extract_payload(results):
+    return json.dumps({"results": results}, indent=2)
+
+
+def test_web_extract_result_is_read_into_page_rows():
+    reading = read_tool_result("web_extract", _web_extract_payload([
+        {"url": "https://a.invalid/", "title": "A", "content": "# A\nbody",
+         "error": None},
+        {"url": "https://b.invalid/", "title": "B", "content": "b body",
+         "error": None}]))
+    # a results payload carries no success flag, so its presence is the success
+    assert reading["ok"] is True and reading["error"] is None
+    assert [r["url"] for r in reading["results"]] == ["https://a.invalid/",
+                                                      "https://b.invalid/"]
+    assert reading["results"][0]["content"] == "# A\nbody"
+    assert reading["untrusted_notice"] is None
+
+
+def test_web_extract_result_is_read_through_the_untrusted_envelope():
+    reading = read_tool_result("web_extract", _wrapped(_web_extract_payload(
+        [{"url": "https://e.invalid/", "title": "t", "content": "c",
+          "error": None}])))
+    assert reading["results"][0]["title"] == "t"
+    assert reading["untrusted_notice"].startswith("The following content")
+
+
+def test_web_extract_per_url_error_is_kept_on_its_row():
+    """One URL blocked while another returned: the failed entry carries its own
+    error and no content, the call as a whole is still ok."""
+    reading = read_tool_result("web_extract", _web_extract_payload([
+        {"url": "https://ok.invalid/", "title": "ok", "content": "text",
+         "error": None},
+        {"url": "http://10.0.0.1/", "title": "", "content": "",
+         "error": "Blocked: URL targets a private or internal network address"}]))
+    assert reading["ok"] is True
+    assert reading["results"][0]["error"] is None
+    assert reading["results"][1]["error"].startswith("Blocked:")
+    assert reading["results"][1]["content"] is None    # empty string drops out
+
+
+def test_web_extract_whole_call_error_shape_is_read_as_an_error():
+    reading = read_tool_result(
+        "web_extract",
+        json.dumps({"success": False, "error": "Content was inaccessible"}))
+    assert reading["ok"] is False
+    assert reading["error"] == "Content was inaccessible"
+    assert reading["results"] == []
+
+
+def test_web_extract_row_fields_absent_or_wrong_type_drop_out():
+    reading = read_tool_result("web_extract", _web_extract_payload([
+        {"url": "https://e.invalid/"},                  # no title/content/error
+        {"url": None, "title": 7, "content": ["x"], "error": 3},  # wrong types
+        "not a dict"]))                                 # skipped entirely
+    assert len(reading["results"]) == 2
+    assert reading["results"][0] == {"url": "https://e.invalid/", "title": None,
+                                     "content": None, "error": None}
+    assert reading["results"][1] == {"url": None, "title": None,
+                                     "content": None, "error": None}
+
+
+def test_a_result_that_is_not_the_web_extract_shape_falls_back_to_raw():
+    assert read_tool_result("web_extract", "just some prose") is None
+    assert read_tool_result("web_extract", json.dumps(["a", "b"])) is None
+    assert read_tool_result("web_extract", json.dumps({"other": 1})) is None

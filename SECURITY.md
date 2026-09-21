@@ -40,9 +40,11 @@ the main hardening surface. These defenses **must be preserved** when changing
 rendering code:
 
 - **Jinja autoescaping is on** (Flask's default for `.html`). Every
-  `{{ value }}` from the log is HTML-escaped. Only two places use `| safe`,
-  both in `plugins/turns/templates/turns/full.html`, and only on
-  markdown-rendered HTML.
+  `{{ value }}` from the log is HTML-escaped. Every `| safe` is on
+  markdown-rendered HTML from that renderer — the `.md-body` blocks in
+  `full.html` and the turns macros (`_macros.html`): a message body, a tool's
+  description, and a `web_extract` result's extracted page content — never on
+  raw log text.
 - **Markdown is rendered with raw HTML disabled** —
   `MarkdownIt("commonmark", {"html": False})` in `plugins/turns/fulltext.py`.
   A raw `<script>` or `<img onerror>` in log text is escaped, not emitted.

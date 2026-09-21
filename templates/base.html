@@ -441,6 +441,16 @@
       color: #3a7a3a; overflow-wrap: anywhere; margin: 0.05rem 0; }
     .web-result-desc { margin: 0.1rem 0 0; color: #444; font-size: 0.86rem;
       line-height: 1.45; }
+    /* A per-row failure (web_extract: one URL blocked or unreachable while the
+       others returned) — tighter than the whole-call .result-error band, since
+       it sits inside a hit rather than replacing every hit. */
+    .web-result-error { margin: 0.25rem 0; }
+    /* An extracted page's rendered content (web_extract), set in from the hit's
+       title and marked off by a rule so where one page ends and the next begins
+       stays clear when several were pulled in one call. */
+    .web-result-content { margin: 0.35rem 0 0; padding-left: 0.7rem;
+      border-left: 2px solid #e2e5ec; }
+    .web-result-content.blob { white-space: pre-wrap; }
     .result-error { margin: 0.6rem 0.9rem; }
     /* Kept from the envelope the raw tab shows in full: the formatted view
        reads past the wrapper, so this band is the one signal left that the rows

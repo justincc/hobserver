@@ -78,10 +78,14 @@ class Section:
     facts: tuple = ()
     params: tuple = ()
     # A structured reading of a tool result (spans.py `read_tool_result`),
-    # normalized for the page: `{error, results:[{title, url, description,
-    # link}]}`, where `link` is the url only when it is safe to make an anchor.
-    # None on every section but a result this app could read. Drawn as a
-    # formatted tab beside the raw wire body; `text` still holds that wire body.
+    # normalized for the page: `{error, results:[{title, url, link, description,
+    # content, content_html, error}]}`. `link` is the url only when it is safe
+    # to make an anchor; `content_html` is the row's `content` rendered as
+    # markdown (a page web_extract pulled) or None; `error` is a per-row failure.
+    # A given tool fills only the fields it has — web_search rows a description,
+    # web_extract rows content and a per-row error. None on every section but a
+    # result this app could read. Drawn as a formatted tab beside the raw wire
+    # body; `text` still holds that wire body.
     result: Optional[dict] = None
 
 
@@ -150,19 +154,31 @@ def _safe_http_url(value: Any) -> Optional[str]:
 def _result_for_render(result: Any) -> Optional[dict]:
     """A tool-result reading prepared for the page: each row's url turned into
     a `link` (the url when safe to anchor, None otherwise) alongside the plain
-    url kept for the eye. None passes through unchanged, so a section with no
-    reading draws its raw body as before."""
+    url kept for the eye, and any `content` (an extracted page) rendered to
+    markdown here — the same trusted renderer, raw HTML off, that a message body
+    goes through. None passes through unchanged, so a section with no reading
+    draws its raw body as before."""
     if not isinstance(result, dict):
         return None
     rows = []
     for row in result.get("results") or ():
         if not isinstance(row, dict):
             continue
+        content = row.get("content")
+        # Rendered once here so the template stays a still view; a failed or
+        # absent render leaves `content_html` None and the row shows the plain
+        # `content` escaped instead (the same degrade as a message body).
+        content_html = None
+        if isinstance(content, str) and content:
+            content_html, _ = _markdown(content)
         rows.append({
             "title": row.get("title"),
             "url": row.get("url"),
-            "description": row.get("description"),
             "link": _safe_http_url(row.get("url")),
+            "description": row.get("description"),
+            "content": content,
+            "content_html": content_html,
+            "error": row.get("error"),
         })
     # `untrusted_notice` is hermes' own instruction from inside the envelope, or
     # None when the wire carried no envelope — the formatted view draws its

@@ -283,3 +283,31 @@ def test_a_result_reading_turns_each_rows_url_into_a_safe_link():
 def test_a_section_with_no_reading_carries_no_result():
     out = render(sections(("user", "hi")), "sections")
     assert out.sections[0].result is None
+
+
+def test_an_extracted_pages_content_is_rendered_to_markdown_for_its_row():
+    """A web_extract row carries the extracted page; it is rendered here to the
+    one trusted markdown string the template emits, the plain text kept beside
+    it for the degrade path. A per-row error rides through untouched."""
+    out = render([{"label": "tool_result", "text": "<raw>", "nested": True,
+                   "result": {"ok": True, "error": None,
+                              "untrusted_notice": None, "results": [
+                       {"url": "https://a.invalid/", "title": "A",
+                        "content": "# Heading\n\ntext", "error": None},
+                       {"url": "http://10.0.0.1/", "title": None,
+                        "content": None, "error": "Blocked: private network"}]}}],
+                 "sections")
+    rows = out.sections[0].result["results"]
+    assert "<h1>Heading</h1>" in rows[0]["content_html"]   # rendered markdown
+    assert rows[0]["content"] == "# Heading\n\ntext"       # plain kept too
+    assert rows[1]["content_html"] is None                 # nothing to render
+    assert rows[1]["error"] == "Blocked: private network"  # carried through
+
+
+def test_a_row_content_that_is_not_a_string_renders_no_html():
+    out = render([{"label": "tool_result", "text": "<raw>", "nested": True,
+                   "result": {"ok": True, "error": None, "untrusted_notice": None,
+                              "results": [{"url": None, "title": None,
+                                           "content": None, "error": None}]}}],
+                 "sections")
+    assert out.sections[0].result["results"][0]["content_html"] is None
