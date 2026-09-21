@@ -872,183 +872,30 @@ A second exception would mean the same question is worth asking again.
 
 ## Scopes
 
-### terminal — `command` / `workdir`
+Listed alphabetically, with hermes' mem0 memory-plugin tools
+(`mem0_add`/`mem0_update`/`mem0_delete`) grouped at the end — they live
+outside `$HERMES_SOURCE/tools/`, unlike the rest. (`mem0_search` shares
+the `web_search` entry, and the `memory` scope is a different, core tool.)
 
-Command in monospace, workdir with the home prefix collapsed to `~`. The
-command wraps in full in detail mode with line breaks kept — code takes
-`pre-wrap`, unlike the `normal` wrap prose details use — so a heredoc or a
-multi-command script stays readable.
+### delegate_task — `tasks` / `goal` / `context`
 
-### file tools — `path`
+First goal plus a count inline; in detail mode every goal in full with its
+`context` nested fainter and indented beneath. Covers both shapes: a batch
+`tasks` list and a single top-level `goal`/`context`.
 
-Left-ellipsized (`.tail`) so the filename end survives a tight line.
-
-### search_files — `pattern` / `file_glob` / `path`
-
-Pattern in monospace, then the glob and the search path.
-
-### patch — two modes
-
-Checked against `patch_tool` in `$HERMES_SOURCE/tools/file_tools.py`. One spec,
-named by a `.mode-tag`:
-
-- **replace** (the tool's default) — `path` plus `old_string`/`new_string`.
-  Its own spec names both, so it no longer depends on being matched before
-  the plain-path scopes (`read_file`, `write_file`) it once fell into.
-- **patch** — a V4A multi-file `patch` text and no top-level path.
-  `Span.patch_paths` lists the files from its `*** <Op> File:` headers: first
-  path plus a "+N more" count.
-
-`Span.patch_mode` prefers the payload's explicit `mode`, falling back to the
-keys present (a `patch` text ⇒ patch, else the default, replace).
-
-Detail mode adds what the summary line cannot carry: the two replaced sides
-for replace, the whole V4A text for patch. Never the end payload's
-`diff`/`files_modified`/`lint` — nothing reads those today.
-
-### web_search, mem0_search — `query`
-
-Monospace; wraps in full in detail mode instead of ellipsizing. mem0_search
-also renders what came *back*, see
-[mem0_search results](#mem0_search-results).
-
-### session_search — four modes
-
-Checked against `$HERMES_SOURCE/tools/session_search_tool.py`, rendered
-mode-aware in one spec.
-
-`Span.session_search_mode` prefers the end payload's explicit `mode`, falling
-back to inferring it from the start-payload keys using the tool's own dispatch
-precedence — an `around_message_id` anchor ⇒ scroll, else a `session_id` ⇒
-read, else a `query` ⇒ discover, else browse — so a still-open span resolves
-too. A muted `.mode-tag` names it.
-
-`Span.session_search_summary` is the inline one-liner from the start payload:
-
-| mode | summary |
-| --- | --- |
-| discover | the query |
-| scroll | `session <id> · around msg <n> · window <w>` |
-| read | `session <id>` |
-| browse | `recent sessions` |
-
-`Span.session_search_stats` is a list of {label, value, tooltip} rows from the
-end payload, shown on detail-only `.list-item` rows, one per count the mode
-reports:
-
-- **discover** — `count` (sessions actually returned; lower than searched when
-  a match is title-only or its anchored view cannot be built) and `sessions
-  searched` (distinct matching sessions, deduped by lineage and capped at the
-  limit — **not** the corpus scanned, so count ≤ sessions_searched ≤ limit).
-- **scroll** — `before` / `after`: messages outside the returned window.
-- **read** — `messages` total, plus a `truncated` flag.
-- **browse** — `sessions` listed.
-
-Each label's tooltip carries the same explanation.
-
-### web_extract — `urls`, and a link to the result
-
-First url plus a "+N more" count inline; every url on its own line in detail
-mode.
-
-Detail mode also carries **a link to this call's result in context** — the
-`tool_result` on the *next* llm call's prompt page, jumped to at its section
-anchor. The result lives on a different span from the tool's own (it is fed
-back into a later request), so the link's target cannot come from this span's
-payload. `resolve_tool_result_links` (spans.py) pairs the two by `call_id`
-during the turn's post-hydration pass — the same kind of turn-level pass as
-`resolve_memory_entries` — and stamps `result_prompt_uuid` /
-`result_prompt_anchor` onto the tool span; a plain declarative `Link` reads
-them. The anchor is the section's `m{n}` in the same `_message_sections` order
-the prompt page numbers on, so the two agree.
-
-It is a `Link` like any cross-page one, so it **draws only once there is a
-prompt to jump to**: with the result still in flight the uuid is absent,
-`url_for` cannot build the route, and `spec_link` drops the row.
+`hermes.subagent.start` marks show their `child_goal` the same way;
+`subagent.stop` marks show `child_status` (e.g. timeout) plus the echoed goal,
+with the session id and `duration_ms` on a detail-only line. Both carry a
+per-turn #N tag (in start order) pairing start with stop, since
+`child_session_id` is the only key both marks share.
 
 ### execute_code — `code`
 
 First line inline, the whole program in detail mode.
 
-### vision_analyze — `image_url` / `question`
+### file tools — `path`
 
-The image path or URL left-ellipsized in the summary; the question added on
-its own line in detail mode only.
-
-### tool_describe — the lazy-tool lookup
-
-hermes' lazy-tool lookup: the model asks for the full schema of one or more
-tools before it calls them. The names it asked for ride the start payload
-(`names`); the definitions come back on the end payload's `tools`, keyed by
-name — and on the nemo-relay route that payload is a JSON *string*, so
-`tool_describe_definitions` parses it rather than assuming a dict.
-
-The summary names what was looked up. In detail mode each returned tool shows
-its name and description, and the whole returned schema opens on its own page
-(the `schema` `Full`, `render="sections"`,
-[ADR 12](adr/0012-open-a-whole-value-on-its-own-page.md)): one section per
-tool, its description and parameters broken out one row each beside the raw
-wire schema — the same formatted-vs-raw reading the request's own tool menu
-uses ([llm scopes](#llm-scopes)), through the same `_tool_params` helper. A
-definition whose parameters this cannot read keeps its whole schema and no
-parameter rows — degraded, not dropped.
-
-Without the spec the [generic fallback](#unrecognised-scopes) reads only the
-start payload, so the span would name the tool looked up but nothing that came
-back.
-
-### mem0_add, mem0_update, mem0_delete — the fact and the id
-
-The four mem0 tools are defined in
-`$HERMES_SOURCE/plugins/memory/mem0/__init__.py`, i.e. inside hermes' *memory
-plugin*, not in `$HERMES_SOURCE/tools/` where the rest live. Do not confuse
-them with the [`memory` scope](#memory--the-in-prompt-stores), which is a
-different tool.
-
-mem0_add carries the fact as `content` (plain text, not monospace); mem0_update
-carries it as `text`.
-`Span.memory_content` reads whichever key the scope uses, so the fact leads
-the summary line either way, and wraps in full in detail mode.
-
-mem0_update and mem0_delete also carry a `memory_id`, kept to a detail-only
-row (faint mono, copy button — the lookup key back to a mem0_search result).
-On the summary line it reads as a second uuid beside the span's own; expanding
-the row is enough to reach it.
-
-#### The previous text
-
-An update and a delete both show what the memory said *before* the change,
-recovered from the local event log by `memory.prior_memory_text` (ADR 4 covers
-why it is an `app.extensions` accessor rather than a link; `prior_memory` in
-the turns turn view holds the per-span map). It renders through the same
-`diff_rows` macro the patch scopes use — an update gets − old / + new, a
-delete only the − side — under a muted `.prov` row naming the source.
-
-mem0 itself is never queried and could not answer: hermes' `Mem0Backend`
-exposes only search/add/update/delete (no get, no history), and the platform
-cannot return a deleted memory at all.
-
-The log can answer because a mem0_search result carries each hit's text beside
-its id, and the agent can only learn an id *from* a search — so every change
-is preceded by the search that surfaced it — in practice within the same
-session, seconds to minutes earlier.
-
-It is therefore the memory as of that search, not a guaranteed pre-change
-snapshot. The row and its tooltip say the text is from the local log, name the
-search event and the gap, and state that a change made outside hermes in
-between would not show. **Never present it as something mem0 vouched for.**
-
-#### Why a delete leads with it
-
-A mem0_delete *leads* its summary line with the recovered text, the way an add
-leads with its `content`: the id is the delete's whole payload, so the row
-would otherwise say nothing about what was destroyed even before being opened.
-
-That line is `.list-compact`, so detail mode drops it in favour of the − row
-carrying the same text in full. An update's summary line is its own new `text`
-and stays put — the old text is the − row's job, and displacing the new one
-would hide what the span actually wrote. Deletes whose text was never
-recovered fall back to showing only the id.
+Left-ellipsized (`.tail`) so the filename end survives a tight line.
 
 ### memory — the in-prompt stores
 
@@ -1118,23 +965,62 @@ because the char budget is the whole story of the tool:
   write. It is also the evidence the section above resolves fragments
   against.
 
-### todo — `todos`
+### patch — two modes
 
-First item's content plus a "+N more" count inline; every item on its own line
-in detail mode. A todo call *without* `todos` is a read of the current list and
-shows nothing.
+Checked against `patch_tool` in `$HERMES_SOURCE/tools/file_tools.py`. One spec,
+named by a `.mode-tag`:
 
-### delegate_task — `tasks` / `goal` / `context`
+- **replace** (the tool's default) — `path` plus `old_string`/`new_string`.
+  Its own spec names both, so it no longer depends on being matched before
+  the plain-path scopes (`read_file`, `write_file`) it once fell into.
+- **patch** — a V4A multi-file `patch` text and no top-level path.
+  `Span.patch_paths` lists the files from its `*** <Op> File:` headers: first
+  path plus a "+N more" count.
 
-First goal plus a count inline; in detail mode every goal in full with its
-`context` nested fainter and indented beneath. Covers both shapes: a batch
-`tasks` list and a single top-level `goal`/`context`.
+`Span.patch_mode` prefers the payload's explicit `mode`, falling back to the
+keys present (a `patch` text ⇒ patch, else the default, replace).
 
-`hermes.subagent.start` marks show their `child_goal` the same way;
-`subagent.stop` marks show `child_status` (e.g. timeout) plus the echoed goal,
-with the session id and `duration_ms` on a detail-only line. Both carry a
-per-turn #N tag (in start order) pairing start with stop, since
-`child_session_id` is the only key both marks share.
+Detail mode adds what the summary line cannot carry: the two replaced sides
+for replace, the whole V4A text for patch. Never the end payload's
+`diff`/`files_modified`/`lint` — nothing reads those today.
+
+### search_files — `pattern` / `file_glob` / `path`
+
+Pattern in monospace, then the glob and the search path.
+
+### session_search — four modes
+
+Checked against `$HERMES_SOURCE/tools/session_search_tool.py`, rendered
+mode-aware in one spec.
+
+`Span.session_search_mode` prefers the end payload's explicit `mode`, falling
+back to inferring it from the start-payload keys using the tool's own dispatch
+precedence — an `around_message_id` anchor ⇒ scroll, else a `session_id` ⇒
+read, else a `query` ⇒ discover, else browse — so a still-open span resolves
+too. A muted `.mode-tag` names it.
+
+`Span.session_search_summary` is the inline one-liner from the start payload:
+
+| mode | summary |
+| --- | --- |
+| discover | the query |
+| scroll | `session <id> · around msg <n> · window <w>` |
+| read | `session <id>` |
+| browse | `recent sessions` |
+
+`Span.session_search_stats` is a list of {label, value, tooltip} rows from the
+end payload, shown on detail-only `.list-item` rows, one per count the mode
+reports:
+
+- **discover** — `count` (sessions actually returned; lower than searched when
+  a match is title-only or its anchored view cannot be built) and `sessions
+  searched` (distinct matching sessions, deduped by lineage and capped at the
+  limit — **not** the corpus scanned, so count ≤ sessions_searched ≤ limit).
+- **scroll** — `before` / `after`: messages outside the returned window.
+- **read** — `messages` total, plus a `truncated` flag.
+- **browse** — `sessions` listed.
+
+Each label's tooltip carries the same explanation.
 
 ### skill_view, skill_manage — `name` / `file_path` / `action`
 
@@ -1173,6 +1059,125 @@ left, and a link back to the turn. It is
 keyed on `name`/`file_path`, gated on the scope naming a skill, and confined to
 the configured skill roots; a skill outside them, or roots unconfigured, is
 refused rather than read.
+
+### terminal — `command` / `workdir`
+
+Command in monospace, workdir with the home prefix collapsed to `~`. The
+command wraps in full in detail mode with line breaks kept — code takes
+`pre-wrap`, unlike the `normal` wrap prose details use — so a heredoc or a
+multi-command script stays readable.
+
+### todo — `todos`
+
+First item's content plus a "+N more" count inline; every item on its own line
+in detail mode. A todo call *without* `todos` is a read of the current list and
+shows nothing.
+
+### tool_describe — the lazy-tool lookup
+
+hermes' lazy-tool lookup: the model asks for the full schema of one or more
+tools before it calls them. The names it asked for ride the start payload
+(`names`); the definitions come back on the end payload's `tools`, keyed by
+name — and on the nemo-relay route that payload is a JSON *string*, so
+`tool_describe_definitions` parses it rather than assuming a dict.
+
+The summary names what was looked up. In detail mode each returned tool shows
+its name and description, and the whole returned schema opens on its own page
+(the `schema` `Full`, `render="sections"`,
+[ADR 12](adr/0012-open-a-whole-value-on-its-own-page.md)): one section per
+tool, its description and parameters broken out one row each beside the raw
+wire schema — the same formatted-vs-raw reading the request's own tool menu
+uses ([llm scopes](#llm-scopes)), through the same `_tool_params` helper. A
+definition whose parameters this cannot read keeps its whole schema and no
+parameter rows — degraded, not dropped.
+
+Without the spec the [generic fallback](#unrecognised-scopes) reads only the
+start payload, so the span would name the tool looked up but nothing that came
+back.
+
+### vision_analyze — `image_url` / `question`
+
+The image path or URL left-ellipsized in the summary; the question added on
+its own line in detail mode only.
+
+### web_extract — `urls`, and a link to the result
+
+First url plus a "+N more" count inline; every url on its own line in detail
+mode.
+
+Detail mode also carries **a link to this call's result in context** — the
+`tool_result` on the *next* llm call's prompt page, jumped to at its section
+anchor. The result lives on a different span from the tool's own (it is fed
+back into a later request), so the link's target cannot come from this span's
+payload. `resolve_tool_result_links` (spans.py) pairs the two by `call_id`
+during the turn's post-hydration pass — the same kind of turn-level pass as
+`resolve_memory_entries` — and stamps `result_prompt_uuid` /
+`result_prompt_anchor` onto the tool span; a plain declarative `Link` reads
+them. The anchor is the section's `m{n}` in the same `_message_sections` order
+the prompt page numbers on, so the two agree.
+
+It is a `Link` like any cross-page one, so it **draws only once there is a
+prompt to jump to**: with the result still in flight the uuid is absent,
+`url_for` cannot build the route, and `spec_link` drops the row.
+
+### web_search, mem0_search — `query`
+
+Monospace; wraps in full in detail mode instead of ellipsizing. mem0_search
+also renders what came *back*, see
+[mem0_search results](#mem0_search-results).
+
+### mem0_add, mem0_update, mem0_delete — the fact and the id
+
+The four mem0 tools are defined in
+`$HERMES_SOURCE/plugins/memory/mem0/__init__.py`, i.e. inside hermes' *memory
+plugin*, not in `$HERMES_SOURCE/tools/` where the rest live. Do not confuse
+them with the [`memory` scope](#memory--the-in-prompt-stores), which is a
+different tool.
+
+mem0_add carries the fact as `content` (plain text, not monospace); mem0_update
+carries it as `text`.
+`Span.memory_content` reads whichever key the scope uses, so the fact leads
+the summary line either way, and wraps in full in detail mode.
+
+mem0_update and mem0_delete also carry a `memory_id`, kept to a detail-only
+row (faint mono, copy button — the lookup key back to a mem0_search result).
+On the summary line it reads as a second uuid beside the span's own; expanding
+the row is enough to reach it.
+
+#### The previous text
+
+An update and a delete both show what the memory said *before* the change,
+recovered from the local event log by `memory.prior_memory_text` (ADR 4 covers
+why it is an `app.extensions` accessor rather than a link; `prior_memory` in
+the turns turn view holds the per-span map). It renders through the same
+`diff_rows` macro the patch scopes use — an update gets − old / + new, a
+delete only the − side — under a muted `.prov` row naming the source.
+
+mem0 itself is never queried and could not answer: hermes' `Mem0Backend`
+exposes only search/add/update/delete (no get, no history), and the platform
+cannot return a deleted memory at all.
+
+The log can answer because a mem0_search result carries each hit's text beside
+its id, and the agent can only learn an id *from* a search — so every change
+is preceded by the search that surfaced it — in practice within the same
+session, seconds to minutes earlier.
+
+It is therefore the memory as of that search, not a guaranteed pre-change
+snapshot. The row and its tooltip say the text is from the local log, name the
+search event and the gap, and state that a change made outside hermes in
+between would not show. **Never present it as something mem0 vouched for.**
+
+#### Why a delete leads with it
+
+A mem0_delete *leads* its summary line with the recovered text, the way an add
+leads with its `content`: the id is the delete's whole payload, so the row
+would otherwise say nothing about what was destroyed even before being opened.
+
+That line is `.list-compact`, so detail mode drops it in favour of the − row
+carrying the same text in full. An update's summary line is its own new `text`
+and stays put — the old text is the − row's job, and displacing the new one
+would hide what the span actually wrote. Deletes whose text was never
+recovered fall back to showing only the id.
 
 ## Failures
 
