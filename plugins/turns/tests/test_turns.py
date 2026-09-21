@@ -3073,6 +3073,28 @@ def test_the_contents_list_survives_the_raw_view(tmp_path):
     assert len(_nav_items(page)) == 7
 
 
+def test_the_full_page_wires_the_contents_scroll_highlight(tmp_path):
+    """As the reader scrolls, the contents entry for the section at the top of
+    the viewport is marked current. That is the page script's job (client-side,
+    so this asserts the wiring is shipped, not its runtime effect); it marks
+    where the reader is and mutates no value, keeping the page still."""
+    page = _full_page(tmp_path)
+    assert 'classList.toggle("nav-current"' in page
+
+
+def test_the_scroll_highlight_can_reach_every_entry_it_marks(tmp_path):
+    """The highlight resolves each contents entry by its `#`-fragment to an
+    element id, so every entry it could mark (bar the `↑ top` link) must land
+    on an id the page renders — the Metadata box's `#summary` included, not
+    only the messages."""
+    page = _full_page(tmp_path)
+    nav = re.search(r'<nav class="msg-nav".*?</nav>', page, re.S).group(0)
+    frags = [h[1:] for h in re.findall(r'<a href="(#[^"]+)"', nav) if h != "#top"]
+    ids = set(re.findall(r'id="([^"]+)"', page))
+    assert "summary" in frags                    # the Metadata box is markable
+    assert frags and all(f in ids for f in frags)
+
+
 def test_the_contents_list_is_styled_as_a_column_beside_the_messages(tmp_path):
     """Class names carry the layout, so a rename that lost them would leave
     the list stacked on top of what it lists."""

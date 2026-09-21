@@ -433,6 +433,13 @@ what it means is left to the tooltip that was always carrying it.
   - **Nested results are indented in the list too**, which is what keeps a
     column of identical `tool_result` entries readable: each sits under the
     call that names it.
+  - **The entry for where the reader is is marked current** (`nav-current`,
+    bold on a faint ground — the same mark the skill view gives the file it
+    shows). A small scroll-spy in the page script sets it from scroll
+    position; it reflects where the reader is and mutates no value, so the
+    page stays still. The mark is on the list, not on the section it lands on
+    — a jumped-to message sits at the top of the viewport, which already says
+    which it is (a highlight there was tried and dropped as clutter).
   - **Not shown for a single message**, which would name the thing the
     reader is already looking at, nor on a value that is not sections —
     the response page is one document.

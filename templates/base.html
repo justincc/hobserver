@@ -293,8 +293,12 @@
     .msg-nav .nav-summary a { letter-spacing: 0; }
     .msg-nav .nav-summary { border-bottom: 1px solid #e2e5ec;
                             margin-bottom: 0.4rem; padding-bottom: 0.4rem; }
-    /* The skill file the page is showing, and the files it lists but will not
-       open (an image, a wheel) — shown for context, not a dead link. */
+    /* The contents entry for where the reader is: the skill file the page is
+       showing, or the full-value section now at the top of the viewport (set
+       by the scroll-spy in the page script). Bold, on a faint ground, so the
+       list says where you are without a second colour. `.nav-inert` is a file
+       the skill view lists but will not open (an image, a wheel) — context,
+       not a dead link. */
     .msg-nav a.nav-current { background: #e6ebf5; color: #1a1a2e; font-weight: 600; }
     .msg-nav .nav-inert { display: block; padding: 0.2rem 0.35rem; color: #aaa; }
     /* A skill's YAML frontmatter, shown verbatim above its rendered body —
@@ -1116,6 +1120,51 @@
       btn.classList.add("copied");
       setTimeout(() => btn.classList.remove("copied"), 1200);
     });
+
+    // Contents highlight (the full-value sections page only): as the reader
+    // scrolls, the contents entry for the section now at the top of the
+    // viewport is marked current — `nav-current`, the same treatment the skill
+    // view gives the file it is showing. This reflects only where the reader
+    // is, changing no value, so it does not break the page's stillness. Gated
+    // on .full-sections so it stays inert on the skill view, whose .msg-nav
+    // links are cross-page URLs and whose current entry is set server-side.
+    (() => {
+      if (!document.querySelector(".full-sections")) return;
+      const nav = document.querySelector(".msg-nav");
+      if (!nav) return;
+      // One target per on-page contents link (the "↑ top" link is not one),
+      // in document order — the list is already in it, so the first section
+      // whose top has not yet passed the line ends the search.
+      const targets = Array.from(nav.querySelectorAll('a[href^="#"]'))
+        .filter((a) => a.getAttribute("href") !== "#top")
+        .map((a) => ({ a, el: document.getElementById(a.getAttribute("href").slice(1)) }))
+        .filter((t) => t.el);
+      if (!targets.length) return;
+      let raf = 0;
+      const spy = () => {
+        raf = 0;
+        // A section is "current" once its top has scrolled to within `line` of
+        // the viewport top; the lowest such section wins, so a tall one still
+        // reads as current while it fills the view. `line` clears the 1rem
+        // scroll-margin a jump lands on, so the jumped-to section is current.
+        const line = Math.min(96, window.innerHeight * 0.25);
+        let current = targets[0];
+        for (const t of targets) {
+          if (t.el.getBoundingClientRect().top <= line) current = t;
+          else break;
+        }
+        for (const t of targets) {
+          const on = t === current;
+          t.a.classList.toggle("nav-current", on);
+          if (on) t.a.setAttribute("aria-current", "true");
+          else t.a.removeAttribute("aria-current");
+        }
+      };
+      const onScroll = () => { if (!raf) raf = requestAnimationFrame(spy); };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      window.addEventListener("resize", onScroll, { passive: true });
+      spy();
+    })();
   </script>
 </body>
 </html>
