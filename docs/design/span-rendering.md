@@ -1239,8 +1239,8 @@ leaving the UI.
 ### The link to the Mem0 tab
 
 A last row links to the whole ranked list in the Mem0 tab
-(`Span.mem0_result_count` names it: "↗ all 10 results", leading with the ↗ that
-marks a link to another page). This is the one place
+(`Span.mem0_result_count` names it: "↗ view all 10 results in Mem0", leading
+with the ↗ that marks a link to another page). This is the one place
 two plugins meet, and they share no key — ATOF carries no event id, the db
 carries no span uuid.
 

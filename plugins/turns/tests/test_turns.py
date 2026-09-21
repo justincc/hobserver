@@ -909,7 +909,7 @@ def test_turn_detail_mem0_link_reads_full_result_when_nothing_is_hidden(tmp_path
     # a literal glyph, not an entity: the spec table writes literals (· − ↗)
     # and Jinja leaves them alone. Leading ↗ marks it as a link to another
     # page, matching the Turns tab's own cross-page links.
-    assert link_text.strip() == "↗ full result in Mem0"
+    assert link_text.strip() == "↗ view full result in Mem0"
 
 
 def test_turn_detail_mem0_link_absent_while_the_search_is_open(tmp_path):
