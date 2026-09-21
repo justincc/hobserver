@@ -209,6 +209,13 @@ class Span:
     # `resolve_memory_entries` for the turn being viewed and empty for every
     # other span, because it is read off *other* spans of the same turn.
     memory_entries: dict = field(default_factory=dict)
+    # Where this tool call's result was fed back to the model: the uuid and
+    # `m{n}` anchor of the prompt section the result landed in, on a *later*
+    # llm span of the same turn. Filled by `resolve_tool_result_links` for the
+    # turn being viewed (None everywhere else, and while the result is still in
+    # flight), so a tool span's row can link straight to its result in context.
+    result_prompt_uuid: Optional[str] = None
+    result_prompt_anchor: Optional[str] = None
 
     @property
     def last_activity_us(self) -> int:
@@ -1208,6 +1215,43 @@ def resolve_memory_entries(turn) -> None:
             listings.pop(target, None)
 
 
+def resolve_tool_result_links(turn) -> None:
+    """Stamp each tool span with where its result was fed back to the model.
+
+    A tool call runs, and its result is sent into the *next* llm request as a
+    `tool_result` message — which lives on a different span from the tool's
+    own. This walks the turn's llm spans, finds the prompt section each result
+    landed in (the same `_message_sections` order the prompt page anchors on,
+    so the `m{n}` here is the `m{n}` there), and stamps the tool span whose
+    call it answers with that prompt's uuid and anchor. The tool span's row
+    then links straight to its result in context (`scopes.WEB_EXTRACT`).
+
+    Turn-level, like `resolve_memory_entries` and for the same reason: it reads
+    across spans and needs the hydrated request payloads (ADR 11), so it runs
+    only for the turn being viewed. Idempotent — rebuilt from scratch each call.
+
+    A result whose call appears in no llm prompt of this turn — still in
+    flight, or consumed in a turn this one does not hold — leaves its span
+    unstamped, and the link simply does not draw (`spec_link` drops a Link
+    whose route args are absent).
+    """
+    location = {}                      # call_id -> (llm span uuid, m{n} anchor)
+    for span in sorted(turn.spans, key=lambda s: s.start_us):
+        sections = span.llm_request_messages
+        if not sections:
+            continue
+        for index, sec in enumerate(sections, start=1):
+            call_id = sec.get("call_id") if isinstance(sec, dict) else None
+            # The first prompt to carry a result is the one that consumed it;
+            # a later call resending the same history must not steal the link.
+            if call_id and call_id not in location:
+                location[call_id] = (getattr(span, "uuid", None), f"m{index}")
+    for span in turn.spans:
+        uuid, anchor = location.get(span.tool_call_id or "", (None, None))
+        span.result_prompt_uuid = uuid
+        span.result_prompt_anchor = anchor
+
+
 def _memory_write_landed(span) -> bool:
     """Whether this write reached the store — i.e. whether a listing taken
     before it still describes what is there.
@@ -1641,10 +1685,15 @@ def _message_sections(messages: list) -> list:
         # the pair is already in hand) and rides the result's section for the
         # page to draw as a formatted tab. None leaves it a plain raw dump.
         name = message.get("name") if isinstance(message, dict) else None
+        call_id = message.get("call_id") if isinstance(message, dict) else None
         for result in owned:
             reading = read_tool_result(name, _message_body(result)) \
                 if isinstance(result, dict) else None
-            flags = {"nested": True}
+            # `call_id` rides the result's section so a turn-level pass can find
+            # which section a tool's result landed in — the anchor a link from
+            # the tool's own span jumps to (`resolve_tool_result_links`). It is
+            # the call's id, which is how the pair was matched to begin with.
+            flags = {"nested": True, "call_id": call_id}
             if reading is not None:
                 flags["result"] = reading
             sections.append(section(result, **flags))

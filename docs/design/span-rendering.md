@@ -946,10 +946,25 @@ reports:
 
 Each label's tooltip carries the same explanation.
 
-### web_extract — `urls`
+### web_extract — `urls`, and a link to the result
 
 First url plus a "+N more" count inline; every url on its own line in detail
 mode.
+
+Detail mode also carries **a link to this call's result in context** — the
+`tool_result` on the *next* llm call's prompt page, jumped to at its section
+anchor. The result lives on a different span from the tool's own (it is fed
+back into a later request), so the link's target cannot come from this span's
+payload. `resolve_tool_result_links` (spans.py) pairs the two by `call_id`
+during the turn's post-hydration pass — the same kind of turn-level pass as
+`resolve_memory_entries` — and stamps `result_prompt_uuid` /
+`result_prompt_anchor` onto the tool span; a plain declarative `Link` reads
+them. The anchor is the section's `m{n}` in the same `_message_sections` order
+the prompt page numbers on, so the two agree.
+
+It is a `Link` like any cross-page one, so it **draws only once there is a
+prompt to jump to**: with the result still in flight the uuid is absent,
+`url_for` cannot build the route, and `spec_link` drops the row.
 
 ### execute_code — `code`
 

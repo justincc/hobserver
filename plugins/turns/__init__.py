@@ -37,7 +37,8 @@ from scope_spec import (SpecTable, check_readers,
                                         render_macro, resolve_full,
                                         resolve_source, rows_for)
 from plugins.turns.scopes import SCOPES, SCOPES_BY_CATEGORY
-from plugins.turns.spans import Span, resolve_memory_entries
+from plugins.turns.spans import (Span, resolve_memory_entries,
+                                  resolve_tool_result_links)
 
 PLUGIN_API = 1
 bp = Blueprint("turns", __name__, template_folder="templates")
@@ -785,6 +786,10 @@ def turn(session_id, start_us):
     # store listing to make sense of another's, which needs the end payloads
     # the line above just fetched.
     resolve_memory_entries(found)
+    # Also turn-level and post-hydration: pair each tool span with the prompt
+    # section its result was fed into, so a tool's row can link to its result
+    # in context. Needs the hydrated request payloads of this turn's llm spans.
+    resolve_tool_result_links(found)
     # Scale for the bars: a turn still in flight is drawn against the last
     # thing we saw in it.
     span_edges = [s.end_us or s.start_us for s in found.spans]

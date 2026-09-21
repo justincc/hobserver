@@ -10,8 +10,9 @@ from markupsafe import escape
 from testkit import REPO_ROOT, make_app
 from plugins.turns import CACHE_SHARE_DEFAULTS, cache_share_config
 from mem0_data import make_memory_change_db, make_memory_db, turns_with_mem0_app
-from streams import (mark_line, scope_lines, session_scope_lines,
-                     two_turn_stream)
+from streams import (assemble_lines, mark_line, scope_lines,
+                     session_scope_lines, two_turn_stream)
+from plugins.turns.spans import resolve_tool_result_links
 
 
 def make_client(tmp_path, atof_path):
@@ -3462,3 +3463,73 @@ def test_web_extract_raw_tab_keeps_the_verbatim_envelope(tmp_path):
     assert "&lt;untrusted_tool_result" in raw
     # the markdown source is shown verbatim in the raw tab, un-rendered
     assert "# Quickstart" in raw
+
+
+# --- a tool span links to its result in the prompt it was fed into --------
+# A web_extract runs, and its result is sent into the next llm call's prompt.
+# `resolve_tool_result_links` pairs the two by call_id and stamps the tool span
+# with that prompt's uuid and section anchor, so the turn detail can link to it.
+
+
+def _extract_and_consumer(*, with_result=True):
+    """A turn: a web_extract tool span, then the llm call whose prompt was fed
+    its result (a tool_call + the matching tool_result). `with_result=False`
+    drops the result, standing in for a call still in flight."""
+    messages = [{"role": "user", "content": "read these"},
+                {"role": "tool_call", "name": "web_extract", "call_id": "call-x",
+                 "arguments": '{"urls": ["https://a.example/one"]}'}]
+    if with_result:
+        messages.append({"role": "tool_result", "call_id": "call-x",
+                         "output": '{"results": []}'})
+    return [
+        *session_scope_lines("s1", start_us=0),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("W1", "tool", 1_100_000, 1_200_000, name="web_extract",
+                     session="s1", turn="t1", profile={"tool_call_id": "call-x"},
+                     start_data={"urls": ["https://a.example/one"]}),
+        *scope_lines("L2", "llm", 1_300_000, 1_400_000, name="anthropic",
+                     session="s1", turn="t1",
+                     profile={"annotated_request": {"messages": messages}}),
+        mark_line("hermes.turn.end", 1_500_000, session="s1", turn="t1"),
+    ]
+
+
+def test_resolve_tool_result_links_stamps_the_consuming_prompt():
+    """The tool span is paired to the section its result landed in: the result
+    sits third in the consuming prompt (user, tool_call, then the result under
+    its call), so the anchor is m3."""
+    turn = assemble_lines(_extract_and_consumer()).sessions[0].turns[0]
+    resolve_tool_result_links(turn)
+    w1 = next(s for s in turn.spans if s.uuid == "W1")
+    assert w1.result_prompt_uuid == "L2"
+    assert w1.result_prompt_anchor == "m3"
+
+
+def test_resolve_tool_result_links_leaves_an_unconsumed_result_unstamped():
+    """No llm prompt carried the result (still in flight, say): no target, and
+    the row will not draw a link."""
+    turn = assemble_lines(_extract_and_consumer(with_result=False)) \
+        .sessions[0].turns[0]
+    resolve_tool_result_links(turn)
+    w1 = next(s for s in turn.spans if s.uuid == "W1")
+    assert w1.result_prompt_uuid is None and w1.result_prompt_anchor is None
+
+
+def test_web_extract_detail_links_to_its_result_in_the_prompt(tmp_path):
+    atof = write_atof(tmp_path, _extract_and_consumer())
+    page = make_client(tmp_path, str(atof)).get(
+        "/turns/turn/s1/1000000").get_data(as_text=True)
+    # straight to the tool_result section of the prompt that consumed it
+    assert 'href="/turns/span/L2/prompt#m3"' in page
+    assert "↗ view results" in page
+
+
+def test_web_extract_detail_has_no_link_until_the_result_is_consumed(tmp_path):
+    """The link is offered only once there is a prompt to jump to — an absent
+    route arg makes `spec_link` drop the row rather than build a broken URL."""
+    atof = write_atof(tmp_path, _extract_and_consumer(with_result=False))
+    page = make_client(tmp_path, str(atof)).get(
+        "/turns/turn/s1/1000000").get_data(as_text=True)
+    assert "↗ view results" not in page
+    # the urls themselves still show — only the result link is held back
+    assert "a.example/one" in page

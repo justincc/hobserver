@@ -201,7 +201,24 @@ VISION_ANALYZE = Scope(rows=[
     Row([Field("vision_question", font="mono", clip="wrap")], layer="detail"),
 ])
 
-WEB_EXTRACT = Scope(rows=[Items("web_extract_urls")])
+# The urls extracted, and — once the result has been fed back to the model — a
+# link to it in context. `result_prompt_uuid`/`result_prompt_anchor` are
+# stamped on the span by `resolve_tool_result_links` (a tool result lives on a
+# *later* llm span's prompt, not this one), so the link is a plain declarative
+# Link over two span values. It draws only once the target exists: with no
+# consuming prompt yet, the uuid is absent, `url_for` cannot build the route,
+# and `spec_link` drops the row (detail-only, so it never crowds the summary
+# line).
+WEB_EXTRACT = Scope(rows=[
+    Items("web_extract_urls"),
+    Link(endpoint="turns.span_full",
+         params={"span_uuid": "result_prompt_uuid", "key": const("prompt"),
+                 "_anchor": "result_prompt_anchor"},
+         text=const("↗ view results"),
+         title=const("Jump to this call's results where they were fed back to "
+                     "the model, in the full prompt of the next llm call."),
+         layer="detail", new_tab=True),
+])
 
 WEB_SEARCH = Scope(rows=[
     Row([Field("search_query", font="mono", clip="wrap")]),
