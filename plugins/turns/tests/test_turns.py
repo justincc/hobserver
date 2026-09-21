@@ -3534,3 +3534,29 @@ def test_web_extract_detail_has_no_link_until_the_result_is_consumed(tmp_path):
     assert "↗ view results" not in page
     # the urls themselves still show — only the result link is held back
     assert "a.example/one" in page
+
+
+def test_web_search_detail_links_to_its_result_in_the_prompt(tmp_path):
+    """web_search carries the same result link as web_extract — its own result
+    is fed back into the next llm call's prompt just the same."""
+    messages = [{"role": "user", "content": "search"},
+                {"role": "tool_call", "name": "web_search", "call_id": "call-s",
+                 "arguments": '{"query": "flask"}'},
+                {"role": "tool_result", "call_id": "call-s",
+                 "output": '{"success": true}'}]
+    lines = [
+        *session_scope_lines("s1", start_us=0),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("S1", "tool", 1_100_000, 1_200_000, name="web_search",
+                     session="s1", turn="t1", profile={"tool_call_id": "call-s"},
+                     start_data={"query": "flask"}),
+        *scope_lines("L2", "llm", 1_300_000, 1_400_000, name="anthropic",
+                     session="s1", turn="t1",
+                     profile={"annotated_request": {"messages": messages}}),
+        mark_line("hermes.turn.end", 1_500_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        "/turns/turn/s1/1000000").get_data(as_text=True)
+    assert 'href="/turns/span/L2/prompt#m3"' in page
+    assert "↗ view results" in page

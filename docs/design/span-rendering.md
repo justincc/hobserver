@@ -1130,6 +1130,12 @@ Monospace; wraps in full in detail mode instead of ellipsizing. mem0_search
 also renders what came *back*, see
 [mem0_search results](#mem0_search-results).
 
+web_search also carries the same detail-only **"↗ view results"** link
+web_extract does, to its result in the prompt it was fed into (one shared
+`Link`; see [web_extract](#web_extract--urls-and-a-link-to-the-result) for how
+it is resolved and when it draws). mem0_search does not — its own results are
+shown inline and its "↗ ... in Mem0" link already opens them in full.
+
 ### mem0_add, mem0_update, mem0_delete — the fact and the id
 
 The four mem0 tools are defined in
