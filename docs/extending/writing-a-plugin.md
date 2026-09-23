@@ -190,7 +190,10 @@ the plugin, not in the shell's suite: `plugins/memory/mem0/tests/mem0_data.py`
 holds mem0's event-log schema and app builders, and
 `plugins/memory/mem0/tests/conftest.py` its fixtures. That is what lets a tab
 be lifted out of this tree without breaking anyone else's suite — the same
-promise the runtime makes. The shell's own tests (`tests/`) return the favour:
+promise the runtime makes. What a tab contributes to another tab is
+tested by the contributor, too: mem0's spans on a turn page are tested in
+`plugins/memory/mem0/tests/test_turn_page.py`, so the Turns suite needs
+nothing from mem0 and `uv run pytest plugins/turns` runs on its own. The shell's own tests (`tests/`) return the favour:
 they build apps from neutral stub plugins (`tests/stubs.py`), never from an
 in-tree tab, so adding or removing a tab cannot break them.
 
