@@ -23,7 +23,7 @@ alphabet and the exception is marked.
 
 from scope_spec import (Alt, Diff, Each, Field, Full, Items, Link,
                                         Row, Scope, const, first, item, joined,
-                                        mapped)
+                                        mapped, payload)
 
 
 def _view_skill_label(_name):
@@ -161,6 +161,22 @@ SKILL = Scope(rows=[
          text="skill_name", transform=_view_skill_label,
          title=const("Open this skill's SKILL.md and files."),
          layer="detail", new_tab=True),
+])
+
+# The filter (if any) and how many came back sit on the summary line; the
+# categories and every skill are detail-only, one row each, since an
+# unfiltered listing runs to a hundred-odd rows.
+SKILLS_LIST = Scope(rows=[
+    Row([Field(payload("category"), deco="cat"),
+         Field("skills_list_count", sep_if=payload("category"))]),
+    Row([Field("skills_list_categories", clip="wide-wrap",
+               label="categories")], layer="detail"),
+    Each("skills_list_skills", [
+        Row([Field(item("name"), font="mono"),
+             Field(item("category"), deco="cat", sep_if=item("category")),
+             Field(item("description"), clip="wrap",
+                   sep_if=item("description"))], layer="detail"),
+    ]),
 ])
 
 # The command runs in monospace and keeps its line breaks in detail mode, so
@@ -309,6 +325,7 @@ SCOPES = {
     "session_search": SESSION_SEARCH,
     "skill_manage": SKILL,
     "skill_view": SKILL,
+    "skills_list": SKILLS_LIST,
     "terminal": TERMINAL,
     "todo": TODO,
     "tool_describe": TOOL_DESCRIBE,

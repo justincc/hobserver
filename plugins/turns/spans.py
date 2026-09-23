@@ -1097,6 +1097,65 @@ class Span:
             return []
         return [m for m in matches if isinstance(m, str) and m]
 
+    # skills_list ($HERMES_SOURCE/tools/skills_tool.py) takes an optional
+    # `category` filter and returns `skills` ({name, description, category}
+    # each), `categories` and `count`. `categories` is computed *after* the
+    # filter, so a filtered call's list is just the filter again, and every
+    # skill's category repeats it: both are dropped for a filtered call, since
+    # the category tag on the summary line already says it.
+    def _skills_list_end(self) -> Optional[dict]:
+        if self.name != "skills_list":
+            return None
+        return _as_dict(self.end_data)
+
+    def _skills_list_filtered(self) -> bool:
+        start = _as_dict(self.start_data) or {}
+        category = start.get("category")
+        return isinstance(category, str) and bool(category)
+
+    @property
+    def skills_list_count(self) -> Optional[str]:
+        """`N skills`, from `count`, or the list's length when `count` is
+        absent (hermes omits it when no skills exist at all)."""
+        end = self._skills_list_end()
+        if end is None:
+            return None
+        count = end.get("count")
+        if isinstance(count, bool) or not isinstance(count, int):
+            skills = end.get("skills")
+            if not isinstance(skills, list):
+                return None
+            count = len(skills)
+        return f"{count} skill" + ("" if count == 1 else "s")
+
+    @property
+    def skills_list_categories(self) -> Optional[str]:
+        end = self._skills_list_end()
+        if end is None or self._skills_list_filtered():
+            return None
+        cats = end.get("categories")
+        if not isinstance(cats, list):
+            return None
+        return ", ".join(c for c in cats if isinstance(c, str) and c) or None
+
+    @property
+    def skills_list_skills(self) -> list:
+        end = self._skills_list_end()
+        if end is None:
+            return []
+        skills = end.get("skills")
+        if not isinstance(skills, list):
+            return []
+        filtered = self._skills_list_filtered()
+
+        def text(value):
+            return value if isinstance(value, str) and value else None
+
+        return [{"name": text(s.get("name")),
+                 "description": text(s.get("description")),
+                 "category": None if filtered else text(s.get("category"))}
+                for s in skills if isinstance(s, dict) and text(s.get("name"))]
+
     # vision_analyze start payloads carry the image looked at (a URL or local
     # path) and the question asked of it; keys are too generic to trust
     # outside the scope, so gate on the span name

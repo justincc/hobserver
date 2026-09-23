@@ -415,6 +415,54 @@ def test_tool_describe_names_and_returned_schema_render(tmp_path):
     assert "1 returned" in full
 
 
+def _skills_list_page(tmp_path, start_data, end_data):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L1", "tool", 1_100_000, 1_300_000, name="skills_list",
+                     session="s1", turn="t1",
+                     start_data=start_data, end_data=end_data),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    return make_client(tmp_path, str(atof)).get(
+        "/turns/turn/s1/1000000").get_data(as_text=True)
+
+
+def test_skills_list_unfiltered_shows_count_categories_and_every_skill(tmp_path):
+    end = ('{"success": true, "skills": ['
+           '{"name": "dogfood", "description": "Exploratory QA of web apps.",'
+           ' "category": null},'
+           '{"name": "codex", "description": "Delegate coding to Codex.",'
+           ' "category": "autonomous-ai-agents"}],'
+           ' "categories": ["autonomous-ai-agents", "creative"], "count": 2,'
+           ' "hint": "Use skill_view(name) to see full content"}')
+    page = _skills_list_page(tmp_path, {}, end)
+    assert "2 skills" in page
+    assert "autonomous-ai-agents, creative" in page
+    assert ">dogfood<" in page and "Exploratory QA of web apps." in page
+    assert ">codex<" in page and "Delegate coding to Codex." in page
+    # the skills are detail-only rows, not crowding the summary line
+    row = page[page.index(">dogfood<") - 300:page.index(">dogfood<")]
+    assert "list-item" in row
+    # the fixed hint is not worth a row
+    assert "Use skill_view(name)" not in page
+
+
+def test_skills_list_filtered_names_the_category_once(tmp_path):
+    end = ('{"success": true, "skills": ['
+           '{"name": "codex", "description": "Delegate coding to Codex.",'
+           ' "category": "autonomous-ai-agents"}],'
+           ' "categories": ["autonomous-ai-agents"], "count": 1}')
+    page = _skills_list_page(tmp_path, {"category": "autonomous-ai-agents"},
+                             end)
+    assert "1 skill<" in page
+    # the filter is on the summary line; neither the categories row nor each
+    # skill repeats it
+    assert page.count(">autonomous-ai-agents<") == 1
+    assert "categories</span>" not in page
+    assert ">codex<" in page
+
+
 def test_skill_patch_strings_are_detail_only(tmp_path):
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),

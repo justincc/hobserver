@@ -1064,6 +1064,23 @@ keyed on `name`/`file_path`, gated on the scope naming a skill, and confined to
 the configured skill roots; a skill outside them, or roots unconfigured, is
 refused rather than read.
 
+### skills_list — `category`, and what came back
+
+Checked against `skills_list` in `$HERMES_SOURCE/tools/skills_tool.py`.
+
+- **Summary** — the `category` filter as a faint tag, when there was one, then
+  `N skills` from the end payload's `count` (or the list's length, since hermes
+  omits `count` when no skills exist).
+- **Detail** — a `categories` row, then one row per skill: name, category,
+  description. An unfiltered call runs to a hundred-odd rows; they are
+  detail-only for that reason, and shown in full because the listing is what a
+  diagnosis of skill routing needs.
+
+hermes computes `categories` *after* applying the filter, so on a filtered call
+it is just the filter again, and so is every skill's category. Both are dropped
+there (`Span.skills_list_categories`, `Span.skills_list_skills`), leaving the
+summary tag to say it once. The fixed `hint` string is not shown.
+
 ### terminal — `command` / `workdir`
 
 Command in monospace, workdir with the home prefix collapsed to `~`. The
