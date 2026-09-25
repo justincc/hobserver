@@ -1018,23 +1018,113 @@ class Span:
     def _is_skill_scope(self) -> bool:
         return self.name in ("skill_view", "skill_manage")
 
+    # skill_manage takes two shapes (checked against skill_manage and
+    # _skill_manage_batch in $HERMES_SOURCE/tools/skill_manager_tool.py and
+    # skill_manager_batch.py): an `operations` list of {action, name, ...}
+    # applied atomically — the only shape the tool advertises — else the
+    # legacy flat {action, name, ...}, still accepted for old transcripts and
+    # staged-write replay. `operations` wins when both are present, as it
+    # does in the tool, and an op without a name falls back to the top-level
+    # one. Both are normalized to one list here.
+    @property
+    def skill_ops(self) -> list:
+        """Every write in a skill_manage span, as {action, name, file_path,
+        category, absorbed_into, old_string, new_string}. new_string keeps
+        "" (a patch deleting its matched text); every other empty value is
+        None. skill_view has no ops."""
+        if self.name != "skill_manage":
+            return []
+        data = _as_dict(self.start_data)
+        if data is None:
+            return []
+        ops = data.get("operations")
+        default_name = data.get("name")
+        if not isinstance(ops, list):
+            ops, default_name = [data], None
+        out = []
+        for op in ops:
+            if not isinstance(op, dict):
+                continue
+            action = _str_or_none(op.get("action"))
+            if action is None:
+                continue
+            new_string = op.get("new_string")
+            out.append({
+                "action": action,
+                "name": _str_or_none(op.get("name")) or _str_or_none(default_name),
+                "file_path": _str_or_none(op.get("file_path")),
+                "category": _str_or_none(op.get("category")),
+                "absorbed_into": _str_or_none(op.get("absorbed_into")),
+                "old_string": _str_or_none(op.get("old_string")),
+                "new_string": new_string if isinstance(new_string, str) else None,
+            })
+        return out
+
+    @property
+    def skill_batch_ops(self) -> list:
+        """The ops of a skill_manage call that made more than one write — the
+        ones the turn page lists one by one. A lone op, in either shape, is
+        shown by the scalar skill_* fields instead, so it reads the same
+        whichever shape carried it.
+
+        Each op also gets `own_name`: its skill's name when the batch spans
+        several skills, else None — a batch on one skill names it once, on
+        the summary line."""
+        ops = self.skill_ops
+        if len(ops) < 2:
+            return []
+        mixed = len(self.skill_batch_names) > 1
+        return [dict(op, own_name=op["name"] if mixed else None) for op in ops]
+
+    @property
+    def skill_batch_names(self) -> list:
+        """The distinct skills a batch wrote to, in the order it first
+        touched them."""
+        ops = self.skill_ops
+        if len(ops) < 2:
+            return []
+        return list(dict.fromkeys(op["name"] for op in ops if op["name"]))
+
+    @property
+    def skill_batch_count(self) -> Optional[str]:
+        # how many writes a batch made, for the summary line
+        n = len(self.skill_ops)
+        return f"{n} writes" if n > 1 else None
+
+    def _skill_field(self, key: str) -> Optional[str]:
+        """`key` of the one skill this span touched in one write: skill_view's
+        payload, or a skill_manage call's lone op. None for a batch."""
+        if self.name == "skill_view":
+            return self._start_str(key)
+        ops = self.skill_ops
+        return ops[0][key] if len(ops) == 1 else None
+
     @property
     def skill_name(self) -> Optional[str]:
-        return self._start_str("name") if self._is_skill_scope else None
+        # A batch that wrote to one skill throughout still names it, which is
+        # what the summary line and the "view skill" link want.
+        if self.name == "skill_manage" and len(self.skill_ops) > 1:
+            names = {op["name"] for op in self.skill_ops}
+            return names.pop() if len(names) == 1 else None
+        return self._skill_field("name") if self._is_skill_scope else None
 
     @property
     def skill_file_path(self) -> Optional[str]:
-        return self._start_str("file_path") if self._is_skill_scope else None
+        return self._skill_field("file_path") if self._is_skill_scope else None
 
     @property
     def skill_action(self) -> Optional[str]:
-        return self._start_str("action") if self.name == "skill_manage" else None
+        # "batch" for a call of several writes; each op's own action is on
+        # its detail row
+        if self.name != "skill_manage":
+            return None
+        return "batch" if len(self.skill_ops) > 1 else self._skill_field("action")
 
     @property
     def skill_category(self) -> Optional[str]:
         # only skill_manage "create" payloads carry a category; absent on
         # patch/write_file, so this is None for those actions
-        return self._start_str("category") if self.name == "skill_manage" else None
+        return self._skill_field("category") if self.name == "skill_manage" else None
 
     # a skill_manage "patch" carries the replaced text as old_string /
     # new_string (checked against skill_manage's signature in
@@ -1043,12 +1133,11 @@ class Span:
     # old_string is required and non-empty in both.
     @property
     def skill_old_string(self) -> Optional[str]:
-        return (self._start_str("old_string")
-                if self.name == "skill_manage" else None)
+        return self._skill_field("old_string") if self.name == "skill_manage" else None
 
     @property
     def skill_new_string(self) -> Optional[str]:
-        return self._new_string() if self.name == "skill_manage" else None
+        return self._skill_field("new_string") if self.name == "skill_manage" else None
 
     # replace-mode patch scopes carry the same pair; patch mode carries
     # neither, so these are None there and the patch text renders instead
@@ -1075,8 +1164,9 @@ class Span:
     @property
     def skill_absorbed_into(self) -> Optional[str]:
         # only a skill_manage "delete" that merged the skill elsewhere names
-        # the skill it was folded into; absent otherwise
-        return (self._start_str("absorbed_into")
+        # the skill it was folded into; absent otherwise. A delete is always
+        # the sole op of its call, so this is never needed on a batch.
+        return (self._skill_field("absorbed_into")
                 if self.name == "skill_manage" else None)
 
     # a skill scope that failed on a bare name matching more than one skill

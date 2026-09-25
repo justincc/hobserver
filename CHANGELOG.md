@@ -12,6 +12,14 @@ and provider-spec vocabularies) may still change between releases — see
 
 ### Added
 
+- **A batched `skill_manage` call is now shown op by op.** hermes'
+  `skill_manage` now takes an `operations` list, and every current call uses
+  it. The summary line now reads `batch`, the skill written to (or the first of
+  several, with the rest counted) and how many writes were made. The detail
+  view gives each op its own row and − / + diff, and links to the skill when
+  the batch touched only one. A batch of one looks exactly like the older flat
+  call. See `docs/design/span-rendering.md`.
+
 - **An llm span's `(89% cached)` figure is now tinted by how much of the prompt
   was served from cache**, so the split reads at a glance without reading the
   number. The tint is drawn from a configurable list of colour bands — each

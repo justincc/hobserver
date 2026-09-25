@@ -488,6 +488,50 @@ def test_skill_patch_strings_are_detail_only(tmp_path):
     assert "deletes the matched text" in page
 
 
+def test_skill_batch_lists_every_operation(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("B1", "tool", 1_100_000, 1_300_000, name="skill_manage",
+                     session="s1", turn="t1",
+                     start_data={"operations": [
+                         {"action": "patch", "name": "crypto-analysis",
+                          "old_string": "version: 0.3.2",
+                          "new_string": "version: 0.3.3"},
+                         {"action": "write_file", "name": "crypto-analysis",
+                          "file_path": "references/dates.md",
+                          "file_content": "..."},
+                     ]}),
+        *scope_lines("B2", "tool", 1_350_000, 1_400_000, name="skill_manage",
+                     session="s1", turn="t1",
+                     start_data={"operations": [
+                         {"action": "patch", "name": "job-seeker",
+                          "old_string": "a", "new_string": "b"},
+                         {"action": "patch", "name": "doc-review",
+                          "old_string": "c", "new_string": "d"},
+                     ]}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        "/turns/turn/s1/1000000").get_data(as_text=True)
+    # the summary names the batch, its skill and how many writes it made
+    assert '<span class="skill-action">batch</span>' in page
+    assert "crypto-analysis" in page and "2 writes" in page
+    assert '<span class="gen-key">operations</span>' not in page
+    # every op gets its own detail row and diff
+    assert '<span class="skill-action">patch</span>' in page
+    assert '<span class="skill-action">write_file</span>' in page
+    assert "references/dates.md" in page
+    assert "version: 0.3.2" in page and "version: 0.3.3" in page
+    # each op heads its own group, which base.html rules off from the last
+    assert page.count('class="span-detail list-item op-head"') == 4
+    # a batch on one skill still links to it
+    assert "name=crypto-analysis" in page and "span=B1" in page
+    # a batch across skills names the first and counts the rest
+    assert "job-seeker" in page and "+1 more" in page
+    assert "doc-review" in page
+
+
 def test_file_tool_path_shown_inline_tail_first(tmp_path):
     home_notes = os.path.join(os.path.expanduser("~"), "docs", "notes.md")
     lines = [

@@ -1053,6 +1053,24 @@ skill_manage's six actions are create/edit/patch/delete/write_file/remove_file
 patch and write_file have turned up in practice so far, so the other three are
 covered by test alone.
 
+**Two call shapes.** skill_manage's advertised shape is an `operations` list,
+applied atomically (`$HERMES_SOURCE/tools/skill_manager_batch.py`); the flat
+top-level `{action, name, ...}` is still accepted for old transcripts and
+staged-write replay. As in the tool, `operations` wins when both are present,
+and an op with no `name` takes the top-level one. `Span.skill_ops` normalizes
+both into one list, and then:
+
+- **One op** (either shape) fills the scalar fields above, so a batch of one
+  reads exactly like a flat call.
+- **Several ops** show as action `batch`, the skill written to — or, for a
+  batch across skills, the first with "+N more" — and "N writes" on the summary
+  line. In detail, each op gets its own row (action, category, file path, and
+  the skill name only when the batch spans several) with its own − / + pair
+  beneath it (`skill_batch_ops`). Each op's header row carries `op-head`, and
+  `base.html` puts a rule and a gap above every one — the first separating the
+  ops from the summary line — so each op reads as its own group. The "view skill" link appears when the whole
+  batch wrote to one skill.
+
 `file_path` (skill_view, skill_manage write_file and remove_file, and an
 optional patch target) is middot-separated from the skill name and
 left-ellipsized (`.tail`, like the file tools' path).

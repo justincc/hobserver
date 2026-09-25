@@ -144,15 +144,34 @@ SESSION_SEARCH = Scope(rows=[
 # what is beside them, which is why they ride `sep_if` on the following
 # field rather than being cells of their own.
 SKILL = Scope(rows=[
+    # A batch (skill_manage `operations`) shows as action "batch", the skill
+    # it wrote to — or the first of several, with the rest counted — and how
+    # many writes it made. A lone op, in either shape, fills the scalar
+    # fields and none of the batch ones.
     Row([Field("skill_action", deco="action"),
          Field("skill_category", deco="cat"),
-         Field("skill_name", font="mono", sep_if="skill_category"),
+         Alt([Field("skill_name", font="mono", sep_if="skill_category"),
+              Field(first("skill_batch_names"), font="mono",
+                    title=joined("skill_batch_names"),
+                    more="skill_batch_names")]),
          Field("skill_file_path", clip="tail", sep_if="skill_name"),
          Field("skill_absorbed_into", font="mono",
-               label="→ absorbed into")]),
+               label="→ absorbed into"),
+         Field("skill_batch_count", prefix="· ")]),
     # a skill_manage patch replaces text; it never carries a V4A patch the
     # way the file tools' patch scope does, so it renders as a replace pair
     Diff("skill_old_string", "skill_new_string"),
+    # One pass per op of a batch, so each op's label stays with its own
+    # − / + pair. The skill is named per op only when the batch spans
+    # several (`own_name`). `op-head` rules off each op from the one above.
+    Each("skill_batch_ops", [
+        Row([Field(item("action"), deco="action"),
+             Field(item("category"), deco="cat"),
+             Field(item("own_name"), font="mono", sep_if=item("category")),
+             Field(item("file_path"), clip="tail", sep_if=item("own_name"))],
+            layer="detail", cls="op-head"),
+        Diff(item("old_string"), item("new_string")),
+    ]),
     # To the skill on disk (ADR 22): name and file_path are what the route
     # resolves against the configured roots. Detail-only, like the pair above.
     Link(endpoint="turns.skill",

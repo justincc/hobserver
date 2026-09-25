@@ -735,6 +735,13 @@
        set in a different hand, for a distinction a reader has no use for:
        both halves are what the prompt cost. */
     .span-detail.list-item + .span-detail.task-goal { margin-top: 0.95rem; }
+    /* one op of a batch (skill_manage `operations`) per group: a rule and a
+       gap above every op header — the first one too, which separates the ops
+       from the batch's summary line — so where one op's diff ends and the
+       next op begins is plain when the diffs run long. Op headers are
+       detail-only, so the collapsed layout never draws these. */
+    .span-detail.op-head {
+      margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid #e2e5ec; }
     /* .wrap-detail text (search queries, subagent goals, delegate
        briefs) drops the one-line ellipsis in the detailed layout and
        wraps out in full */

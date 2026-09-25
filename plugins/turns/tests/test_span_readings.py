@@ -219,6 +219,76 @@ def test_skill_ambiguous_matches_from_end_payload():
     assert other.skill_ambiguous_matches == []   # the key is ignored off a skill scope
 
 
+def test_skill_manage_operations_shape():
+    # the batched shape skill_manage advertises: an `operations` list, which
+    # wins over flat keys, with a missing op name falling back to the
+    # top-level one
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("B1", "tool", 1_100_000, 1_200_000, name="skill_manage",
+                     session="s1", turn="t1",
+                     start_data={"action": "ignored", "operations": [
+                         {"action": "patch", "name": "crypto-analysis",
+                          "old_string": "version: 0.3.2",
+                          "new_string": "version: 0.3.3"},
+                         {"action": "write_file", "name": "crypto-analysis",
+                          "file_path": "references/dates.md",
+                          "file_content": "..."},
+                         {"action": "patch", "name": "crypto-analysis",
+                          "old_string": "stale", "new_string": ""},
+                     ]}),
+        *scope_lines("B2", "tool", 1_300_000, 1_400_000, name="skill_manage",
+                     session="s1", turn="t1",
+                     start_data={"name": "fallback-skill", "operations": [
+                         {"action": "patch", "old_string": "a",
+                          "new_string": "b"},
+                         {"action": "create", "name": "doc-review",
+                          "category": "productivity", "content": "..."},
+                         "not-an-op", {"name": "no-action"},
+                     ]}),
+        # a batch of one reads exactly like the flat shape
+        *scope_lines("B3", "tool", 1_450_000, 1_480_000, name="skill_manage",
+                     session="s1", turn="t1",
+                     start_data={"operations": [
+                         {"action": "delete", "name": "old-skill",
+                          "absorbed_into": "job-seeker"}]}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    one_skill, two_skills, lone = \
+        assemble_lines(lines).sessions[0].turns[0].spans
+
+    assert one_skill.skill_action == "batch"
+    assert one_skill.skill_name == "crypto-analysis"   # shared by every op
+    assert one_skill.skill_batch_names == ["crypto-analysis"]
+    assert one_skill.skill_batch_count == "3 writes"
+    # per-op values live on the ops, not the scalar fields
+    assert one_skill.skill_file_path is None
+    assert one_skill.skill_old_string is None
+    assert one_skill.skill_new_string is None
+    ops = one_skill.skill_batch_ops
+    assert [op["action"] for op in ops] == ["patch", "write_file", "patch"]
+    assert ops[0]["old_string"] == "version: 0.3.2"
+    assert ops[0]["new_string"] == "version: 0.3.3"
+    assert ops[1]["file_path"] == "references/dates.md"
+    assert ops[2]["new_string"] == ""               # a deletion, kept as ""
+    assert all(op["own_name"] is None for op in ops)  # one skill: not repeated
+
+    assert two_skills.skill_name is None            # no single skill to name
+    assert two_skills.skill_batch_names == ["fallback-skill", "doc-review"]
+    assert two_skills.skill_batch_count == "2 writes"  # malformed ops dropped
+    ops = two_skills.skill_batch_ops
+    assert [op["own_name"] for op in ops] == ["fallback-skill", "doc-review"]
+    assert ops[1]["category"] == "productivity"
+
+    assert lone.skill_action == "delete"
+    assert lone.skill_name == "old-skill"
+    assert lone.skill_absorbed_into == "job-seeker"
+    assert lone.skill_batch_ops == []
+    assert lone.skill_batch_names == []
+    assert lone.skill_batch_count is None
+
+
 def test_skill_patch_keeps_an_empty_new_string():
     # "" is a real patch — it deletes the matched text — so it must not fold
     # into None the way an absent key does
