@@ -421,9 +421,9 @@ def test_a_render_scope_yields_no_rows_and_names_its_macro():
 def isolated_turns_settings(tmp_path):
     """Turns settings that point at an empty log in a tmp dir. These tests
     build the *real* app to exercise the spec-contribution path, but the tab
-    warms its index at registration — so without this each one would re-read
-    the operator's actual (multi-GB, live) ATOF log, tens of seconds apiece.
-    A path that does not exist is a source problem, not an index to build."""
+    warms its index at registration, so these keep each one off the
+    operator's actual (multi-GB, live) ATOF log. A path that does not exist
+    is a source problem, not an index to build."""
     return {"atof_log": str(tmp_path / "empty.jsonl"),
             "index_db": str(tmp_path / "index.sqlite3")}
 
@@ -976,8 +976,8 @@ def test_a_full_is_reachable_by_key_for_a_hand_written_scope():
 
 def test_a_full_source_reads_the_category_profile():
     """Where an llm span keeps its request. Neither payload holds it, so
-    without this source a contributed spec could not declare a full view of
-    the biggest value in the log."""
+    this source is how a contributed spec declares a full view of the
+    biggest value in the log."""
     span = make_span(profile_data={"annotated_request": {"messages": []}})
     full = Full(key="request", source=profile("annotated_request"))
     assert resolve_full(span, full) == {"messages": []}
@@ -1024,9 +1024,8 @@ def problems(spec):
 
 
 def test_a_field_naming_an_undeclared_full_is_reported_at_load():
-    """Otherwise the mistake is an icon that opens a page saying the key is
-    unknown — a broken link the reader has to click to discover, on a page
-    they opened because they could not see the value."""
+    """Reported when the spec loads, not by an icon that opens a page saying
+    the key is unknown."""
     found = problems(Scope(rows=[Row([Field(payload("n"), full="typo")])],
                            fulls=[Full(key="whole", source=payload("n"))]))
     assert any("full='typo'" in p and "whole" in p for p in found), found

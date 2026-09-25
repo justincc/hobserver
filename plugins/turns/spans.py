@@ -61,8 +61,7 @@ LLM_TEXT_PREVIEW_CHARS = 400
 
 
 
-# The token counts, as the tree they actually form rather than the flat line
-# they used to be rendered as. The three relations behind the indent do not
+# The token counts, as the tree they actually form. The three relations behind the indent do not
 # hold equally firmly, and it is worth knowing which is which:
 #
 #   cache read + in + cache write == prompt   structural, and true by
@@ -85,9 +84,9 @@ LLM_TEXT_PREVIEW_CHARS = 400
 # There is deliberately no `total` row. It is `prompt + out`, both of which
 # are here — and it is the one figure the tree could not vouch for, since
 # hermes' codex path takes the provider's reported total over the computed
-# sum. Nothing on screen now depends on that agreement. Depth 1 is where the
-# buckets it used to parent still sit: the template's `tokens` label heads
-# the tree in its place, carrying no number of its own.
+# sum, so nothing on screen depends on that agreement. The buckets sit at
+# depth 1, and the template's `tokens` label heads the tree, carrying no
+# number of its own.
 TOKEN_TREE = (
     ("prompt_tokens", "prompt", 1, False,
      "What the model was sent, however it was served — the rows below it "
@@ -247,8 +246,8 @@ class Span:
 
         The end payload first, then the stream. A provider that reports
         usage only on the final chunk — the openrouter route does, and
-        leaves `usage` null on the end event — would otherwise show no
-        token counts at all, when the log holds every one of them.
+        leaves `usage` null on the end event — has its counts read from
+        there.
         """
         if isinstance(self.end_data, dict):
             reported = self.end_data.get("usage")
@@ -270,8 +269,7 @@ class Span:
     # errors, and it has held for every failing call seen here — terminal,
     # patch, read_file, search_files, write_file, execute_code, web_search,
     # skill_view, skill_manage, memory — so this is one generic pair rather
-    # than per-scope readers. A failed call used to look exactly like a
-    # successful one here.
+    # than per-scope readers.
     @property
     def failed(self) -> bool:
         return (self.metadata.get("status") == "error"
@@ -283,9 +281,8 @@ class Span:
     # carry a message the way a tool's does. This is how an llm call surfaces
     # a failure: a provider backend erroring (an `APIError: servers
     # overloaded`, say) leaves `end_data` null, so finish_reason, tokens and
-    # text are all absent and the row would otherwise read as a bare call
-    # with nothing saying why — which is exactly a run of retried calls with
-    # no spans between them.
+    # text are all absent, and this is what says why the call is bare — the
+    # usual sight being a run of retried calls with no spans between them.
     #
     # Distinct from `error` below: that is a call that *ran* and reported its
     # own failure string; this one never ran to completion. `otel.status_code`
@@ -575,9 +572,8 @@ class Span:
 
         Built from `token_rows`, so it names the counts the way the rows do
         and can never disagree with them. None when no bucket was reported:
-        the tooltip used to interpolate `?` for a missing figure, which read
-        as a count the provider had withheld rather than one this app had
-        gone looking for in the wrong place.
+        a missing figure is left out rather than shown as a placeholder,
+        which would read as a count the provider withheld.
         """
         parts = [f"{row['label']} {row['value']}"
                  for row in self.token_rows if row["summary"]]
@@ -620,10 +616,10 @@ class Span:
     def generic_fields(self) -> List[dict]:
         """The start payload of a scope nothing here renders specially.
 
-        hermes' tool set is not this app's to know: with tools these branches
-        have never heard of, a reader would otherwise get a name, a duration
-        and nothing about the call. The template falls back to this when no
-        scope branch matched — see `generic_payload_fields`.
+        hermes' tool set is not this app's to know, so a tool these branches
+        have never heard of still shows what it was called with. The template
+        falls back to this when no scope branch matched — see
+        `generic_payload_fields`.
         """
         return generic_payload_fields(self.start_data)
 
@@ -1173,7 +1169,7 @@ class Span:
     # names every colliding SKILL.md in a "matches" list on its end payload
     # (checked against skill_view/skill_manage's ambiguity error in
     # $HERMES_SOURCE/tools/skill_tool.py). The error string itself does not
-    # carry the paths, so they would be lost without this. Detail mode only,
+    # carry the paths, so this is the one place they are read. Detail mode only,
     # like memory's current_entries: it is the outcome, not the request.
     @property
     def skill_ambiguous_matches(self) -> list:
@@ -1421,8 +1417,8 @@ def _match_memory_entry(op, entries, as_of_us, span) -> Optional[dict]:
     None when there is nothing to add: an add (no fragment), or a fragment
     that is already the whole entry. Otherwise the note says what happened,
     including when the listing could not answer — an unmatched or ambiguous
-    fragment is stated rather than passed over, since the row would
-    otherwise look like one we simply chose not to resolve.
+    fragment is stated rather than passed over, so the row never looks like
+    one we simply chose not to resolve.
     """
     fragment = (op.get("old_text") or "").strip()
     if not fragment:
@@ -1442,8 +1438,8 @@ def _match_memory_entry(op, entries, as_of_us, span) -> Optional[dict]:
     if entry.strip() == fragment:
         return None                    # the fragment was the whole entry
     # The fragment goes in the note because the entry has taken its place on
-    # the row: it is what the payload actually says, and without it the page
-    # would show only text this app worked out.
+    # the row: it is what the payload actually says, beside the text this app
+    # worked out.
     return {"entry": entry,
             "note": f"matched entry from {listing} · logged as “{fragment}”"}
 

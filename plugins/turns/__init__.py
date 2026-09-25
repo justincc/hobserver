@@ -359,7 +359,7 @@ def sources(settings):
     entries.extend(usage_shape_table(settings)[1])
     # The skill roots the skill view (ADR 22) is confined to. Not required —
     # a root that is absent simply holds no skills to open — but named here
-    # because they are files this tab now reads, and a reader looking for
+    # because they are files this tab reads, and a reader looking for
     # "what does this touch" should find them.
     for root in skills.skill_roots(settings):
         entries.append({"label": "skill root", "path": root, "required": False,
@@ -582,9 +582,8 @@ def bytes_human(n):
 def _source_problem():
     """The loud no-source state; None when the file is readable.
 
-    There is no "unconfigured" case any more: a path is always resolved (the
-    setting, else the default), so an absent log is always a path that does
-    not exist — which is the more useful thing to say.
+    A path is always resolved (the setting, else the default), so an absent
+    log is always a path that does not exist, and this says which.
     """
     atof_path = current_app.config["ATOF_PATH"]
     if not os.path.exists(atof_path):
@@ -619,8 +618,8 @@ def _inflight_entries(assembly, now_us):
 
     Three kinds of open turn are not running and are dropped: one superseded
     by a later turn in its session (Turn.is_live), a subagent the parent has
-    already reported stopped, and one silent past STALE_AFTER_US — a lost end
-    mark left open, which would otherwise sit in the strip indefinitely.
+    already reported stopped, and one silent past STALE_AFTER_US — a turn
+    left open by a lost end mark.
 
     `now_us` is the caller's single render-time clock, shared with the page's
     `data-server-now-us` anchor so the silence the strip shows and the client
@@ -719,11 +718,10 @@ def _accessors():
     """The accessors other plugins have published, for specs that name one.
 
     Passed whole rather than looked up here: which accessor a scope wants is
-    the spec's business, not this tab's (ADR 9). Before that, this function
-    named `mem0_prior_text` and keyed on `span.memory_id` — one plugin
-    reachable because this tab knew about it, which is exactly the privilege
-    ADR 9 removed. `app.extensions` also holds this tab's own entries; a spec
-    can only reach what it names, and names are the published contract.
+    the spec's business, not this tab's (ADR 9), so no plugin is reachable
+    only because this tab knows about it. `app.extensions` also holds this
+    tab's own entries; a spec can only reach what it names, and names are the
+    published contract.
     """
     return current_app.extensions
 
@@ -947,8 +945,8 @@ def skill():
         text, problem = skills.read_text(target)
         if text is not None and skills.is_markdown(target) and not raw:
             # Held out of the markdown and shown verbatim: a `key:` line closed
-            # by `---` is a setext heading to CommonMark, so the frontmatter
-            # would otherwise render as one bold heading (ADR 22).
+            # by `---` is a setext heading to CommonMark, and frontmatter is
+            # data, not a heading (ADR 22).
             frontmatter, body = skills.split_frontmatter(text)
             rendered = fulltext.render(body, "markdown")
         elif text is not None:

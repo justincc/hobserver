@@ -16,7 +16,7 @@ def isolated_cache(tmp_path, monkeypatch):
     """Keep any cache a tab derives out of the developer's real cache dir.
 
     The Turns index (ADR 11) derives its default path from the log path, and
-    tests point at a different log each run, so without this a test session
-    leaves a fresh SQLite file in ~/.cache for every app it builds.
+    tests point at a different log each run, so each app a test session
+    builds gets its index under the test's own tmp directory.
     """
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))

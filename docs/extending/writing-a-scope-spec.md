@@ -165,9 +165,8 @@ a separator state machine that is not a shape the vocabulary should learn.
 entry.
 
 **A contributed module cannot use it**, because adding a macro means editing
-this app's template — and since ADR 9 there is far less reason to want to:
-the two scopes that used to need a macro were reaching into another tab, and
-that is now declarable (see above). Naming a macro that does not exist is
+this app's template — and reaching into another tab, the usual reason to
+want one, is declarable (see above). Naming a macro that does not exist is
 refused at load, with the reason in the banner, rather than leaving you with
 a payload dump and no clue why:
 

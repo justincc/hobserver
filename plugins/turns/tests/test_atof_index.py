@@ -99,8 +99,8 @@ def test_events_are_cached_and_reused_when_unchanged(index, log):
 
 
 def test_a_rebuild_drops_the_event_cache(index, log):
-    # A rebuild renumbers lines, so the cache must be reloaded, not appended
-    # to — otherwise the old events would linger in front of the new ones.
+    # A rebuild renumbers lines, so the cache is reloaded, not appended to,
+    # and holds only the new events.
     write(log, mark("a", 1), mark("b", 2))
     index.refresh()
     assert [e.uuid for e in index.events()] == ["a", "b"]

@@ -22,8 +22,8 @@ are folded into one row per streaming llm span, holding the two things they
 can say: that a long model call is still alive, and what it cost in tokens.
 The second is not a nicety — providers on the chat-completions route report
 usage *only* on the stream's final chunk and leave the span's own end
-payload with a null `usage`, so without it those calls show no token counts
-at all.
+payload with a null `usage`, so this row is where those calls' token counts
+come from.
 """
 
 from __future__ import annotations
@@ -148,9 +148,8 @@ def code_fingerprint(usage_shapes=None) -> str:
 
     **Contributed provider modules are hashed too** (ADR 13). A third-party
     `UsageShape` decides what the stored token counts mean just as much as
-    this tree does, so editing one has to invalidate an index built before
-    the edit. Without this the counts would be stale in exactly the way a
-    cache is never allowed to be (ADR 11).
+    this tree does, so editing one invalidates an index built before the
+    edit and the counts stay current (ADR 11).
     """
     digest = hashlib.sha256()
     modules = [_atof_reader, _providers, _spans, _assembler,
@@ -235,7 +234,7 @@ def project(event: AtofEvent) -> dict:
                 out["request_prompt"] = prompt
         elif event.category == AGENT_CATEGORY and not event.session_id:
             # an agent scope naming its session in the payload rather than
-            # the envelope; without it every span beneath it is orphaned
+            # the envelope; it places every span beneath it in the session
             data = event.data
             if isinstance(data, dict) and isinstance(data.get("session_id"), str):
                 out["data_session_id"] = data["session_id"]
@@ -291,10 +290,8 @@ class AtofIndex:
 
         Deleting the index is a supported thing to do — it is a cache, and
         the documentation says so — and people delete the directory, not the
-        file. Doing this once in `__init__` meant a live app whose cache
-        directory had been removed under it raised `unable to open database
-        file` on every subsequent request, having told the reader deleting it
-        was safe.
+        file. Making it on every open keeps a live app serving when its cache
+        directory is removed under it.
         """
         directory = os.path.dirname(self.db_path)
         if directory:

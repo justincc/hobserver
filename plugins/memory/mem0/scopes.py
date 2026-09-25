@@ -105,9 +105,9 @@ MEM0_UPDATE = Scope(rows=[
     _MEM0_PROV,
 ])
 
-# A delete's payload is only an id, so the recovered text leads instead —
-# otherwise the row would say nothing about what was destroyed even before
-# being opened. `.list-compact`, because the − row below carries it in full.
+# A delete's payload is only an id, so the recovered text leads instead: it
+# says what was destroyed before the row is opened. `.list-compact`, because
+# the − row below carries it in full.
 MEM0_DELETE = Scope(rows=[
     Row([Field(attr(_MEM0_WAS, "text"), clip="wide")], layer="summary"),
     _MEM0_ID,

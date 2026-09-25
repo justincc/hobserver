@@ -319,10 +319,8 @@
        flush against the viewport edge. The page has no sticky header, so
        this is spacing and not a correction.
 
-       Nothing marks *which* message was jumped to. A ring was tried and is
-       clutter: the message is at the top of the viewport, which already
-       says it, and a highlight that repeats what the position says earns
-       nothing and stays on screen afterwards. */
+       Nothing marks *which* message was jumped to: the message is at the
+       top of the viewport, which already says it. */
     .msg { scroll-margin-top: 1rem; }
     /* Below this the two columns do not both fit, so the list goes back to
        being a block above what it lists rather than a squeezed column
@@ -483,15 +481,12 @@
          lighter (1.65:1 against the call's), with the `↳` and the indented
          label text carrying most of the load.
 
-         Getting here took four cuts, and the measurements are the record:
-         a 3% lighter tint (1.06:1 band against band) and then violet at
-         matched luminance (1.01:1) both read as one surface — hue without a
-         luminance step does not separate two flat areas. Light-against-dark
-         fixed that at 8.74:1 but put the heavier register on the result,
-         where the CALL is the parent: the result sits inside its card, and
-         weight belongs to the thing that owns the other. So the call took
-         the solid band — which is why every message label is solid now,
-         a call being an ordinary label — and the result followed it dark.
+         The step is in luminance, not hue: hue without a luminance step
+         does not separate two flat areas. The call carries the heavier
+         register because it is the parent — the result sits inside its
+         card, and weight belongs to the thing that owns the other — so the
+         call has the solid band, like every message label, and the result
+         follows it a step lighter.
 
          Two dark bands are never adjacent (the call's body sits between
          them), so they read as stripes rather than as two surfaces being
@@ -639,10 +634,8 @@
     /* the tool names on the `tool_calls` row. Not .path: this list wraps
        rather than ellipsizing, because the row's point is how many calls
        there were and a sixteen-call fan-out cut at one line does not say it.
-       (It also used to sit beside the finish reason carrying .list-item
-       itself, where .path's collapsed rule outranked the hiding rule and put
-       the names on the summary line. The row carries .list-item now, so that
-       fight is over — a hidden row hides its children whatever their class.) */
+       The row carries .list-item, and a hidden row hides its children
+       whatever their class. */
     .span-detail .call-list { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
     /* a value too large to print — its type and size instead, in words */
     .span-detail .gen-omitted { flex: none; color: #8a8a8a; font-style: italic; }
@@ -689,13 +682,11 @@
        detail overruns that reserve the block is dropped whole at the cell
        edge — acceptable, that case only loses an already-clipped path */
     body:not(.show-detail) tr:not(.detail-open) .span-detail .tail { display: inline-block; max-width: calc(100% - 12rem); overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
-    /* The share used to state its own collapsed gap here — 1ch, matching the
-       space inside a single-span `prompt 20,193` — because the detail
-       layout's flex `gap` does not survive the `display: inline` above. The
-       row is a key span and a figure span now, so it has an internal gap of
-       its own, and both come from the literal spaces in the template: those
-       are ignored between flex items and render when the row goes inline, so
-       one mechanism keeps the two gaps equal in both layouts. */
+    /* The detail layout's flex `gap` does not survive the `display: inline`
+       above. The cache share's gap and the token row's key/figure gap both
+       come from the literal spaces in the template: those are ignored
+       between flex items and render when the row goes inline, so one
+       mechanism keeps the two gaps equal in both layouts. */
     /* the parts of the token tree carry .list-item and so are detail-only by
        the rule below, as does the `tokens` label; the two buckets do not, and
        inline onto the summary line — ~25 characters, where the whole tree
@@ -703,10 +694,9 @@
        The `·` between them is a real .gen-key span the template puts inside
        the row (turn.html), not a pseudo-element on it — same glyph, font
        and colour as a generic payload's separator, which is what makes the
-       two look alike. A row carrying one drops the 0.35rem above: that
-       margin sits outside the dot and would push it right, leaving a wider
-       gap before the dot than after it. Without it the dot has one plain
-       space either side, as it does in payload_rows. */
+       two look alike. A row carrying one drops the 0.35rem above, which sits
+       outside the dot, so the dot has one plain space either side, as it
+       does in payload_rows. */
     body:not(.show-detail) tr:not(.detail-open) .span-detail.tok-sep { margin-left: 0; }
     /* a task's context nests fainter under its goal line (delegate_task
        detail view); a gap above each goal after the first keeps the
@@ -720,20 +710,13 @@
        share of it (reasoning inside out) — it must not be added to its
        siblings, and its tooltip is what says so.
 
-       It used to shade its row #8a8a8a as well. That is exactly the colour
-       .mode-tag gives a key, so once the figures became values in their own
-       right `reasoning 303` was the one pair on the span whose key and value
-       matched, and the row read as the only one the change had missed.
-       Every figure in the tree is one colour now, and the class carries no
-       shade of its own — a marker for the markup and for anything that wants
-       to find these rows, with the meaning left to the tooltip that was
-       always carrying it. */
+       The class carries no shade of its own: every figure in the tree is
+       one colour, distinct from the #8a8a8a .mode-tag gives a key. It is a
+       marker for the markup and for anything that wants to find these rows,
+       with the meaning left to the tooltip. */
     /* the cache share rides the prompt figure and reads with it — same font,
-       same colour, styled with .row-value above. It was faint monospace when
-       every token row was, and keeping it that way once the figures became
-       values would have made it the one part of `prompt 20,193 (89% cached)`
-       set in a different hand, for a distinction a reader has no use for:
-       both halves are what the prompt cost. */
+       same colour, styled with .row-value above: both halves of
+       `prompt 20,193 (89% cached)` are what the prompt cost. */
     .span-detail.list-item + .span-detail.task-goal { margin-top: 0.95rem; }
     /* one op of a batch (skill_manage `operations`) per group: a rule and a
        gap above every op header — the first one too, which separates the ops
@@ -968,13 +951,11 @@
       // Selecting text pauses the whole loop — the fetch, the swap and any
       // follow-mode navigation with it.
       //
-      // A swap replaces the nodes the selection lives in, which drops it: a
-      // reader dragging across a prompt to copy it lost the selection on the
-      // next tick, every 2 or 3 s, and could not copy at all. Nothing here
-      // could rescue it either, since the text they had selected is gone with
-      // the old nodes. So the page holds still instead, and resumes on the
-      // first tick after the selection collapses — which a click anywhere
-      // does, and is what a reader does after copying.
+      // A swap replaces the nodes the selection lives in, which drops it
+      // along with the selected text. So the page holds still while text is
+      // selected, and resumes on the first tick after the selection
+      // collapses — which a click anywhere does, and is what a reader does
+      // after copying.
       //
       // Only a selection *inside* the region counts: one in the page header
       // survives a swap untouched, and pausing for it would stop a live turn

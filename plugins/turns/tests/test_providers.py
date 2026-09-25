@@ -98,8 +98,8 @@ def test_the_parts_convention_sums_to_the_prompt_rather_than_subtracting():
 
 
 def test_both_conventions_agree_on_the_same_call():
-    """The regression this fork exists to prevent: the same 20,100-token
-    call read under either spelling gives one prompt and one fresh input."""
+    """What this fork exists for: the same 20,100-token call read under
+    either spelling gives one prompt and one fresh input."""
     openai_shaped = {"prompt_tokens": 20100, "completion_tokens": 300,
                      "prompt_tokens_details": {"cached_tokens": 18000,
                                                "cache_write_tokens": 900}}

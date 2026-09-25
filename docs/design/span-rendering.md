@@ -54,8 +54,8 @@ shown.
 ## What is read
 
 Nearly everything below comes from the span's **start** payload — the call's
-input. Output is read in exactly three cases, each because the call is
-unreadable without it:
+input. Output is read in exactly three cases, each because the output is
+what makes the call readable:
 
 - **failures**, on every scope (see [Failures](#failures));
 - **memory**'s char budget, which is the whole story of that tool;
@@ -137,13 +137,11 @@ what it means is left to the tooltip that was always carrying it.
   tool_calls     read_file · read_file · terminal
   ```
 
-  **It carries its key, and only in the detail view.** The value used to
-  stand alone everywhere, which worked no better than the unlabelled
-  `tool_calls` row below: `complete` is a bare word in a row of bare words,
-  saying nothing about what it is the answer to. Worse, a reader who took it
-  to the log found `status: "completed"` on the same event — `data.status`
+  **It carries its key, and only in the detail view.** The key says what
+  `complete` is the answer to, and names the field it came from. That matters
+  because the same event also carries `status: "completed"` — `data.status`
   and `annotated_response.api_specific.status`, the OpenAI Responses API's
-  own field — and concluded the page had reworded it.
+  own field — which is a different value.
 
   On the summary line the value keeps standing alone. There it sits among
   token figures with nothing else it could be confused for, and a 14-column
@@ -157,8 +155,8 @@ what it means is left to the tooltip that was always carrying it.
   the key — with the two side by side, the font is what separates them, and
   the metadata chips above stay visibly a different kind of thing.
 
-  It had not. The two are different fields with different value spaces, and
-  hermes' is the one shown: `category_profile.annotated_response.finish_reason`
+  The two are different fields with different value spaces, and hermes' is
+  the one shown: `category_profile.annotated_response.finish_reason`
   on the current exporter, `data.finish_reason` on the old envelope. The key
   is `finish_reason` and not `status` for two reasons — it is hermes' own
   word for this value on every provider route, and `status` is already taken
@@ -173,21 +171,14 @@ what it means is left to the tooltip that was always carrying it.
   tool_calls  skill_view · mem0_search · terminal · read_file · read_file
   ```
 
-  **The label is not decoration.** These names used to ride the finish
-  reason unlabelled, which worked while that reason *was* the word
-  `tool_calls` — it named the list, and a `calls` label would have restated
-  it. ADR 6's core runtime reports `complete` instead, so the row read
-  `complete  read_file` on 958 of the log's tool-calling spans and nothing
-  said what the names were. The old exporter's 1,008 tool-calling spans said
-  `tool_calls`; the split is exactly at the changeover. A rendering that
-  depended on a payload value outlived the value.
+  **The label is not decoration.** ADR 6's core runtime reports the finish
+  reason as `complete`, which does not name the list, so the row carries its
+  own key rather than relying on a neighbouring field's value.
 
-  On those older spans the word now appears twice in the detail view — as
-  the `finish_reason` row's value and as this row's key — which is the cost
-  of a label that is reliable rather than one that happens to be supplied by
-  a neighbouring field. Accepted knowingly: it affects only spans already
-  written, the two are different rows in the same column, and one of them is
-  collapsed away on the summary line.
+  Spans from the older exporter report the finish reason `tool_calls`, so on
+  those the word appears twice in the detail view — as the `finish_reason`
+  row's value and as this row's key. The two are different rows in the same
+  column, and one of them is collapsed away on the summary line.
 
   `tool_calls` is hermes' own key and uniform across every provider route,
   so it takes the log's word (like `response`, unlike `prompt`). The wire
@@ -201,8 +192,7 @@ what it means is left to the tooltip that was always carrying it.
   in the log fan out to two or more, and one to sixteen — and a fan-out cut
   off at one line does not say that. `.list-item` sits on the row, so the
   names stay off the summary line; a hidden row hides its children whatever
-  class they carry, which is why the span no longer has to avoid `.path` to
-  stay hidden.
+  class they carry.
 
   The arguments stay on the spans below, each rendered by the spec written
   for that tool; repeating them here would restate the waterfall.
@@ -230,15 +220,12 @@ what it means is left to the tooltip that was always carrying it.
   prompt already at the top of the page; for every other kind it is the only
   place the instruction appears at all. A compaction's is hermes talking to
   itself (*"You are a summarization agent creating a context
-  checkpoint…"*), and before this row there was nowhere on the site to read
-  it.
+  checkpoint…"*), and this row is the only place on the site to read it.
 - **What the model said** — `response`, detail-only, from
   `assistant_message.content`. Empty whenever the model was calling tools
   rather than talking, and long enough otherwise that the row shows the
-  first 400 characters (`LLM_TEXT_PREVIEW_CHARS`) and an ellipsis. There
-  used to be a `start of 2,579 chars` note under it, from when the rest of
-  the message lived in the log and nowhere else; the ellipsis says there is
-  more and the text itself opens it, so the figure was one nobody acted on.
+  first 400 characters (`LLM_TEXT_PREVIEW_CHARS`) and an ellipsis. The
+  ellipsis says there is more, and the text itself opens it.
 
   It carries a key for the same reason `prompt` and `tokens` do: prose
   starting mid-row with nothing in front of it has to be identified before
@@ -332,8 +319,7 @@ what it means is left to the tooltip that was always carrying it.
   **That is why the result's label is a bare `tool_result`** — no name, no
   number. The card says which call it answers, and a label repeating what
   the box around it already shows is one more thing to read and to keep
-  true. (Labels did carry an ordinal at first, which is what the layout
-  replaced.)
+  true.
 
   **A `tool_result` this app can read shows two tabs, like a tool schema
   does** — a **Formatted** reading first, the **Raw** wire body beside it. The reading is
@@ -359,17 +345,16 @@ what it means is left to the tooltip that was always carrying it.
   The reader parses through hermes'
   `<untrusted_tool_result>` envelope to reach the payload, but the **Raw** tab keeps the verbatim wrapped text. 
 
-  **Every message label is a solid band** (`#33406b`, light text). It got
-  there because the call had to be the heavier of the pair — the call is the
-  parent, the result sits inside its card, and weight belongs to the thing
-  that owns the other — and a call is an ordinary label, so making it solid
-  made them all solid.
+  **Every message label is a solid band** (`#33406b`, light text). The call
+  is the heavier of the pair — the call is the parent, the result sits inside
+  its card, and weight belongs to the thing that owns the other — and a call
+  is an ordinary label, so every label is solid.
 
   ADR 12 put the labels "in the header panel's colours"; that still holds,
   but as the accent *filled in* rather than the header's tint repeated. A
   label sits directly above content competing for the eye, where the header
-  sits alone at the top of the page. The accent rule moved from the label to
-  the box, where it runs the message's full height and stays visible against
+  sits alone at the top of the page. The accent rule is on the box, not the
+  label, where it runs the message's full height and stays visible against
   the band instead of disappearing into it — and where joining two boxes
   joins their rails into the pair's spine for free.
 
@@ -406,9 +391,9 @@ what it means is left to the tooltip that was always carrying it.
   `error` row a failing tool takes, on the summary line and in the detail. An
   llm call whose provider backend errors (`APIError: Our servers are currently
   overloaded`, say) has no end payload: `finish_reason`, the tokens and the
-  text are all absent, so the row would otherwise read as a bare call with
-  nothing saying why — which is exactly what a run of retried calls with no
-  spans between them looks like (`retry` stays 0, since the layer that reissues
+  text are all absent, and the badge and `error` row are what say why the
+  call is bare — the usual sight being a run of retried calls with no spans
+  between them (`retry` stays 0, since the layer that reissues
   the request is not the one that counts fallback attempts). The failure lives
   in the end event's envelope metadata, not a payload of its own:
   `otel.status_code == "ERROR"` with the message in `otel.status_description`
@@ -439,14 +424,14 @@ what it means is left to the tooltip that was always carrying it.
     position; it reflects where the reader is and mutates no value, so the
     page stays still. The mark is on the list, not on the section it lands on
     — a jumped-to message sits at the top of the viewport, which already says
-    which it is (a highlight there was tried and dropped as clutter).
+    which it is, so the section itself carries no highlight.
   - **Not shown for a single message**, which would name the thing the
     reader is already looking at, nor on a value that is not sections —
     the response page is one document.
   - **`↑ top` heads the list**, ruled off from it because it is not one of
     the messages. It is named for where it goes rather than for what is
-    there: the page's own title was tried and reads as one more part, since
-    every entry below it is a part of the Prompt.
+    there: every entry below it is a part of the Prompt, and a title in its
+    place would read as one more part.
 
     The anchor is on the **`hobserver` heading in `base.html`**, not
     on anything this page renders. Everything the page renders is below
@@ -626,21 +611,18 @@ what it means is left to the tooltip that was always carrying it.
 
   **The bands carry no fixed count and no colour names** — they are opaque
   ordered data, so `cache_share` in this tab's settings can hold two bands or
-  ten, in any palette, and nothing in the code knows "the red one" (the earlier
-  design named `red_below`/`green_above` and `lo`/`mid`/`hi`, which lied the
-  moment someone recoloured them). `_cache_share_context` maps a percent to a
+  ten, in any palette, and nothing in the code knows "the red one", so a
+  recoloured band never contradicts its name. `_cache_share_context` maps a percent to a
   band **index** from the config; the row carries it as a `cache-b{i}` class;
   the `_cache_share_style` partial paints each `cache-b{i}` the band's colour,
   injected per page because the count and colours are config, not static CSS
   (`plugins/turns/__init__.py`, `_cache_share_style.html`). The `Span` exposes
   only the raw percent, so the banding stays out of the payload reading.
 
-  Its gap from the figure used to be stated in
-  `base.html` as a `1ch` collapsed margin, matching the space inside a
-  single-span `prompt 20,193`; now that the row has its own key/figure gap,
-  both come from the literal spaces in the template — ignored between flex
-  items in the detail layout, rendered when the row goes inline — so one
-  mechanism keeps them equal instead of two being kept in step by hand.
+  Its gap from the figure and the row's key/figure gap both come from the
+  literal spaces in the template — ignored between flex items in the detail
+  layout, rendered when the row goes inline — so one mechanism keeps them
+  equal.
 
   It never reads `100% cached` unless every last token was: straight
   rounding puts 27 of the 1,129 calls in the log at 100 with hundreds of
@@ -705,12 +687,9 @@ rows get the class, not by a mechanism of their own:
 A `·` divides the buckets from the finish reason and from each other. It is a
 real `.gen-key` span the template puts inside the row — the same element
 `payload_rows` uses for its own separators, so the two are the same glyph in
-the same font at the same colour. A pseudo-element was tried first and was
-visibly wrong twice over: it inherited the body's proportional font, where a
-middle dot is a lighter mark than the monospace one beside it, and the row's
-`margin-left` sat outside it, leaving a wider gap before the dot than after.
-A row carrying a dot now takes `.tok-sep`, which drops that margin, so the
-dot has one plain space either side.
+the same font at the same colour. A row carrying a dot takes `.tok-sep`,
+which drops the row's `margin-left`, so the dot has one plain space either
+side.
 
 The template decides where dots go, tracking whether anything precedes — so a
 row with nothing to its left never gets a leading one.
@@ -721,10 +700,8 @@ slow one — worth seeing on the span, not on hover.
 
 The bar's tooltip still repeats the two buckets (`Span.usage_summary`, built
 from the `summary` rows so it can never disagree with them), and says nothing
-at all when neither was reported. It used to interpolate a `?` for a missing
-figure, which read as a count the provider had withheld rather than one this
-app had gone looking for in the wrong place — which, for every
-chat-completions call, is exactly what had happened.
+at all when neither was reported: a missing figure is left out rather than
+shown as a placeholder, which would read as a count the provider withheld.
 
 **Which figures are reported and which are derived is per-provider**, and
 the intuitive reading — leaves reported, parents summed — does not hold.
@@ -975,8 +952,8 @@ Checked against `patch_tool` in `$HERMES_SOURCE/tools/file_tools.py`. One spec,
 named by a `.mode-tag`:
 
 - **replace** (the tool's default) — `path` plus `old_string`/`new_string`.
-  Its own spec names both, so it no longer depends on being matched before
-  the plain-path scopes (`read_file`, `write_file`) it once fell into.
+  Its own spec names both, independent of the plain-path scopes
+  (`read_file`, `write_file`).
 - **patch** — a V4A multi-file `patch` text and no top-level path.
   `Span.patch_paths` lists the files from its `*** <Op> File:` headers: first
   path plus a "+N more" count.
@@ -1215,8 +1192,8 @@ between would not show. **Never present it as something mem0 vouched for.**
 #### Why a delete leads with it
 
 A mem0_delete *leads* its summary line with the recovered text, the way an add
-leads with its `content`: the id is the delete's whole payload, so the row
-would otherwise say nothing about what was destroyed even before being opened.
+leads with its `content`: the id is the delete's whole payload, and the
+recovered text is what says what was destroyed before the row is opened.
 
 That line is `.list-compact`, so detail mode drops it in favour of the − row
 carrying the same text in full. An update's summary line is its own new `text`

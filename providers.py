@@ -306,9 +306,8 @@ def complete_the_prompt(canonical: dict) -> dict:
     - the PARTS convention gave `in`, so `prompt` is the sum.
 
     Derived only where the cache read was actually reported. Absent is not
-    zero, and both directions would otherwise state something about caching
-    that the payload did not: subtracting nothing claims the whole prompt
-    was fresh, and adding nothing claims none of it was cached.
+    zero: an unreported cache read says nothing about caching, so nothing is
+    derived from it.
 
     Omitted too when the parts do not partition the prompt — a negative
     remainder is not a count this app can vouch for.

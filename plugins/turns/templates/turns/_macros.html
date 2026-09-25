@@ -252,9 +252,9 @@
    can act on is the scheme-checked `link`, never the raw url. #}
 {% macro result_formatted(result) -%}
 {#- The untrusted-content band, kept from the envelope the raw tab shows in full
-   (spans.py `_untrusted_notice`): the formatted view reads past the wrapper, so
-   without this it would drop the one signal that this is attacker-influenceable
-   external data. It is hermes' own instruction verbatim — what the model was
+   (spans.py `_untrusted_notice`): the formatted view reads past the wrapper, and
+   this keeps the one signal that this is attacker-influenceable external
+   data. It is hermes' own instruction verbatim — what the model was
    actually told about the block, not this app's paraphrase — auto-escaped like
    any value. None means the wire carried no envelope, so no band. #}
 {%- if result.untrusted_notice is not none %}

@@ -19,12 +19,9 @@
    template that reads no context, like every other macro here. #}
 {% from "turns/_macros.html" import open_text %}
 {% macro llm_rows(s, full=none) -%}
-{# The calls used to ride the finish reason, unlabelled, because that reason
-   was the word `tool_calls` and named them. It is not any more: the core
-   runtime reports `complete` where the plugin reported `tool_calls` (ADR 6
-   passes the reason through as the exporter gives it), so on 958 of the
-   log's tool-calling spans the row read `complete  read_file` and nothing
-   said what the names were. They take their own labelled row below. #}
+{# The calls take their own labelled row below: the core runtime reports the
+   finish reason as `complete` (ADR 6 passes the reason through as the
+   exporter gives it), which does not name them. #}
 {% if s.call_role or s.retry_count %}
 <div class="span-detail">
   {#- the role leads: it says what the call was for, which qualifies
@@ -191,10 +188,9 @@
       does it (`payload_rows`, the `finish_reason` row): whitespace-only text
       between flex items is not rendered, so the detail layout's `gap` still
       sets these gaps, and the space is what shows when the row collapses to
-      `display: inline` and that gap stops applying. The share used to state
-      its own collapsed gap in base.html because it was the only element
-      after a single-span row; now that the row has an internal gap of its
-      own, one mechanism for both is what keeps them equal. #}
+      `display: inline` and that gap stops applying. The share's gap and the
+      row's internal gap come from the one mechanism, which keeps them
+      equal. #}
   <span class="mode-tag" title="{{ row.tooltip }}">{{ row.label }}</span>
   <span class="row-value" title="{{ row.tooltip }}">{{ row.value }}</span>
   {#- the share is tinted by how much was cached: `cache_share_band` picks the

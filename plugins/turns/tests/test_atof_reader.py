@@ -410,8 +410,8 @@ def test_relay_usage_omits_fresh_input_when_the_parts_do_not_partition():
 
 
 def test_chat_completions_usage_reaches_an_llm_end_payload():
-    """The whole point of the mapping: this route used to yield a usage with
-    nothing in it but a grand total, and so rendered no token rows at all.
+    """The whole point of the mapping: this route's usage carries the
+    token counts, not only a grand total.
 
     The mapping itself is `providers`\' — tested there. This is the seam:
     that a chat-shaped payload arriving through `parse_line` comes out with
@@ -517,8 +517,8 @@ def test_llm_session_is_recovered_from_the_composite_api_request_id():
     """A cloud qwen over chat_completions stamps no session_id header, and an
     llm-only turn has no tool span to borrow a composite turn_id from. The
     composite api_request_id — "<session>:<task>:<hash>:api:N" — is the last
-    place the session survived; without it the turn's scope-tree copy strands
-    in (unknown session) and duplicates the mark-built turn."""
+    place the session survives, and it keeps the turn's scope-tree copy in
+    its session, merged with the mark-built turn."""
     e = parse_line(relay_llm_end(
         profile={"model_name": "qwen3.5-9b", "annotated_request": {}},
         metadata={"api_mode": "chat_completions",

@@ -156,7 +156,7 @@ def test_an_optional_source_problem_leaves_the_tab_serving(tmp_path):
 
 
 def test_an_unusable_tab_serves_a_503_while_others_carry_on(tmp_path):
-    # was a process exit before ADR 5; now one tab's problem, not the app's
+    # one tab's problem, not the app's (ADR 5)
     ok = write_stub(tmp_path, "ok_tab", "OK", "ok")
     bad = write_plugin(tmp_path, "bad_tab", prefix="bad", required="True")
     app = make_app(entries=[

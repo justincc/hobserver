@@ -392,9 +392,9 @@ def _build_scope_turns(spans: dict, turn_uuids, session_for, anomalies) -> dict:
     # A turn's session, from the spans under it. A turn that ran no span
     # yet — one just started — names nobody, so the agent scope above is
     # asked next: an agent scope is one session by construction, and its
-    # other turns have already said which. Without that, a turn opened at
-    # the moment of reading would strand itself in (unknown session) and
-    # then fail to recognize the mark that describes it.
+    # other turns have already said which. That keeps a turn opened at the
+    # moment of reading in its own session, where the mark that describes it
+    # is recognized.
     own_session = {}
     for uuid in turn_uuids:
         own_session[uuid] = next(

@@ -54,9 +54,9 @@ def profile(key: str):
 
     Where an llm span keeps its request and its response — the two biggest
     values in the log, and the ones a `Full` is usually opened to see. They
-    are in neither payload, so without this a scope from outside this tree
-    could declare a full view of them only by going through a `Span`
-    property it cannot add (the fork test, design principle 1).
+    are in neither payload, so this is how a scope from outside this tree
+    declares a full view of them without a `Span` property of its own (the
+    fork test, design principle 1).
     """
     return ("profile", key)
 
@@ -602,10 +602,9 @@ class Link:
             value = _resolve(source, span, ctx)
             if value is not None:
                 params[name] = value
-        # A bare string is a source here as everywhere else; `const()` is how
-        # a literal is written. Falling back to "treat the string as a
-        # literal when it does not resolve" was tried and was wrong: it
-        # turned an absent value into the source's own name on the page.
+        # A bare string is a source here as everywhere else, never a literal;
+        # `const()` is how a literal is written. So an absent value renders as
+        # nothing, not as the source's own name.
         text = _resolve(self.text, span, ctx)
         if text in (None, ""):
             return []
@@ -903,10 +902,10 @@ def check_readers(readers: dict) -> list:
 def _full_problems(where: str, spec: "Scope") -> list:
     """What is wrong with a scope's `Full`s and the fields naming them.
 
-    Checked at load for the same reason the rest is: every one of these
-    mistakes otherwise shows up as an icon that opens a page saying the key
-    is unknown — a link the reader has to click to discover is broken, on a
-    page they opened precisely because they could not see the value.
+    Checked at load for the same reason the rest is: each of these mistakes
+    is reported when the spec loads, not discovered by a reader clicking an
+    icon on a page they opened precisely because they could not see the
+    value.
     """
     problems = []
     seen = set()

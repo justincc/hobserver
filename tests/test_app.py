@@ -130,7 +130,7 @@ def test_banner_lists_a_path_without_saying_what_supplied_it(tmp_path):
 
 def test_banner_reports_an_unusable_required_source(tmp_path):
     """A path that exists but is unusable must not read [ok], and takes its tab
-    out of service — the state a bare 500 used to hide."""
+    out of service, with the problem named."""
     a = write_stub(tmp_path, "alpha_tab", "Alpha", "alpha")
     tabs = load([{"plugin": a, "settings": {
         "path": "/tmp/bad", "required": True, "problem": "not a regular file"}}])

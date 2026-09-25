@@ -1,7 +1,7 @@
 """The Mem0 view (blueprint `mem0`) — browses jmem0_logged.db, the mem0
 event log written by the jmem0-logged hermes plugin
-(https://github.com/justincc/jmem0-logged). Without that plugin producing the
-log, this tab has nothing to read.
+(https://github.com/justincc/jmem0-logged), which produces the log this tab
+reads.
 
 The database is always opened read-only, so it is safe to point at the live
 log while hermes is writing.
@@ -44,9 +44,8 @@ TAB_LABEL = "Mem0"
 URL_PREFIX = "memory/mem0"
 
 # CSS this plugin ships to every page's <head> (the STYLES seam in tabs.py):
-# the provenance note that heads its event page. It lived in the shell's
-# base.html until a plugin could carry its own styling — the shell no longer
-# needs to know mem0 has an event page with a provenance subheading.
+# the provenance note that heads its event page. It ships from here so the
+# shell needs no knowledge of mem0's event page.
 STYLES = """
 h2 .provenance { font-size: 0.8rem; font-weight: normal; font-style: italic;
                  color: #8a8a8a; margin-left: 0.4rem; }

@@ -116,9 +116,9 @@ is neither:
 
 This applies to liveness only — the turn table and turn pages keep everything.
 
-A permanently-live turn also freezes follow mode, which will not leave a live
-turn. That was the bug supersession fixed, and no time threshold could have:
-the turn had been silent for 2 minutes.
+Follow mode does not leave a live turn, so these proofs are also what let it
+move on from a turn whose end mark never arrived. Liveness itself uses no
+silence threshold: a running turn can be silent for minutes.
 
 ## Follow mode
 

@@ -124,9 +124,9 @@ that, it is `WHOLE`.
 ## Where your shape sits
 
 Contributed shapes are tried **before** the built-ins, in the order your
-module lists them, and the first whose `matches` returns true wins. This
-matters: `openai_compatible` is deliberately broad and would otherwise claim
-your payload first. Being asked first is how a more specific shape wins.
+module lists them, and the first whose `matches` returns true wins.
+`openai_compatible` is deliberately broad, and being asked first is how a more
+specific shape wins over it.
 
 It also means you can override a built-in reading — probe for whatever
 distinguishes your deployment's payload and yours is used instead.

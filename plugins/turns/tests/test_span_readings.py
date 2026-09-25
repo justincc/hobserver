@@ -4,8 +4,7 @@ Named `test_span_readings` rather than `test_spans` because pytest collects
 these modules by bare filename, so `plugins/memory/mem0/tests/test_spans.py` — mem0's
 half of the same idea — already has that name.
 
-The other half of what `test_assembler.py` used to hold. These assert facts a
-span can answer about itself — a tool's arguments, a call's token counts, the
+These assert facts a span can answer about itself — a tool's arguments, a call's token counts, the
 entry a memory write matched — where the assembler tests assert what several
 events add up to.
 
@@ -100,8 +99,8 @@ def test_a_stream_that_reported_no_counts_leaves_usage_absent():
 
 
 def test_a_span_with_nothing_to_count_has_no_tooltip_summary():
-    """It used to interpolate `?` for a missing figure, which read as a
-    count the provider had withheld rather than one this app never sought."""
+    """A missing figure is left out rather than shown as a placeholder,
+    which would read as a count the provider withheld."""
     assembly = assemble_lines(_streamed_llm({"total_tokens": 30251}, None))
     (span,) = assembly.sessions[0].turns[0].spans
     assert span.usage == {"total_tokens": 30251}   # nothing is lost
@@ -656,7 +655,7 @@ def test_delegate_task_briefs_from_start_payload():
 def test_string_end_data_yields_no_usage_or_finish_reason():
     # the real nemo_relay exporter emits hermes tool results as raw JSON
     # strings in the end event's data field — payload accessors must
-    # type-guard, not assume dicts (regression: 500 on the turn page)
+    # type-guard, not assume dicts, so the turn page still renders
     lines = [
         *session_scope_lines("s1"),
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
@@ -802,11 +801,9 @@ def test_failed_spans_carry_the_tools_own_error():
 def test_llm_call_that_errored_before_returning_is_flagged():
     """An llm call whose provider backend errors leaves no end payload — the
     observability wrapper stamps OpenTelemetry's ERROR status and the
-    exception instead. Without this it renders as a bare call (no finish
-    reason, no tokens, nothing saying why), which is what a run of retried
-    calls with no spans between them looks like. `failed` and `error` surface
-    it the same way a tool's own failure is surfaced, so the badge and the
-    message row both appear."""
+    exception instead: no finish reason, no tokens. `failed` and `error`
+    surface it the same way a tool's own failure is surfaced, so the badge
+    and the message row both appear and say why the call is bare."""
     lines = [
         *session_scope_lines("s1"),
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
@@ -1451,7 +1448,7 @@ def test_two_calls_of_one_tool_keep_their_own_results():
 
 def test_both_halves_of_a_pair_are_marked_so_the_page_can_join_them():
     """The card drawn around the two is the only thing on screen that says
-    they are a pair — the labels no longer say it."""
+    they are a pair — the labels do not say it."""
     span = llm_span(profile=_blocked_request(("c1", "read_file")))
     sections = span.llm_request_messages
     # the call knows it runs into what follows; the result knows it is inside

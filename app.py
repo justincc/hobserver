@@ -47,9 +47,9 @@ def create_app(tabs, dev=False):
     """
     app = Flask(__name__)
     # Templates re-read from disk under --dev only, so that one switch covers
-    # every kind of edit: without it neither a .py nor a template reaches a
-    # running app, and a tool nobody is hacking on cannot be changed by a
-    # stray keystroke in a file it happens to serve. Set before anything
+    # every kind of edit: .py and template changes reach a running app only
+    # under --dev, and a tool nobody is hacking on is not changed by a stray
+    # keystroke in a file it happens to serve. Set before anything
     # touches `app.jinja_env`, which snapshots `auto_reload` from config on
     # first access — the filters below are that first access.
     app.config["TEMPLATES_AUTO_RELOAD"] = dev
@@ -61,8 +61,8 @@ def create_app(tabs, dev=False):
     app.extensions["tab_settings"] = {}
     # Scope specs the loaded tabs contribute (ADR 10), collected before any
     # tab is registered: a tab that paints spans resolves its table in
-    # `init_app`, which runs during registration, and would otherwise see
-    # only the tabs that happened to come before it in the config file.
+    # `init_app`, which runs during registration, and this lets it see every
+    # tab's specs, not only those of tabs earlier in the config file.
     # Opaque to the shell — it carries them, and never looks inside.
     app.extensions["tab_scopes"] = {
         tab.name: tab.scopes for tab in tabs if tab.bp is not None and tab.scopes}

@@ -77,11 +77,10 @@ milliseconds apart.
 **So the dial is read per event, never per file**, and neither exporter can
 be assumed absent because a sample window did not happen to contain it.
 
-What actually broke the Turns tab on 2026-08-03 was not the marks
-stopping — they never stopped. It was that **spans lost their
-`session_id`**: tool spans kept a `turn_id` that still matched the marks,
-but with no session to look it up in they fell to `(unknown session)`,
-which had no turns, and llm spans carry no `turn_id` at all.
+**Core-runtime spans carry no `session_id`.** Tool spans carry a `turn_id`
+that matches the marks; llm spans carry no `turn_id` at all. Assembly places
+them in a session from the scope tree instead — see
+[Turns under the core runtime](#turns-under-the-core-runtime).
 
 An unrecognized `telemetry_schema_version` is returned verbatim and
 `schema_is_known` goes False. Such an event's payload is left exactly as it
@@ -228,8 +227,8 @@ and hermes asks it to (`stream_options.include_usage`). Those chunks are
 `llm.chunk` marks, which the index folds away rather than carrying as
 events, so the counts reach a span through
 [the index's stream row](#what-is-stored-and-what-is-left-in-the-log) and
-`Span.usage` falls back to them. Without that fallback every openrouter call
-shows no token counts at all while the log holds every one of them.
+`Span.usage` falls back to them. That fallback is where every openrouter
+call's token counts come from.
 
 ## atof_index.py — the index
 
@@ -263,7 +262,7 @@ reachable from the turn **list** without a trip to the log.
 ### The three projections
 
 Three facts are derived at index time out of payloads the index then leaves
-behind, because assembly cannot build turns without them:
+behind, because assembly builds turns from them:
 
 | projection | out of | needed for |
 |---|---|---|
@@ -417,8 +416,7 @@ needs two things the scope does not carry:
 - **Session** — from the first span beneath it that names one, else from the
   agent scope above. A turn that has run no span yet names nobody, and an
   agent scope is one session by construction, so its other turns answer for
-  it. Without that fallback every turn *in flight* stranded itself in
-  `(unknown session)` and duplicated.
+  it. That fallback keeps a turn *in flight* in its own session.
 - **The prompt** — from the first llm call's `annotated_request.messages`:
   the last user-role message, with hermes' `[Workspace::v1: …]` header and
   `<memory-context>` block stripped back off (`Span.request_prompt`). A

@@ -292,10 +292,9 @@ WEB_SEARCH = Scope(rows=[
 #
 # Both are on the llm scope by *category*, so every model call has them
 # whatever it was for — a turn's own prompt, a compaction, a subagent's
-# delegated call. That is the point of them: before this, hermes' background
-# work was the one kind of call whose prompt appeared nowhere on the page,
-# since the turn header shows the turn's user message and an auxiliary call
-# does not have one.
+# delegated call. That is the point of them: they are the one place hermes'
+# background work shows its prompt, since the turn header shows the turn's
+# user message and an auxiliary call does not have one.
 LLM = Scope(render="llm", fulls=[
     # `prompt` throughout — the key, the URL segment, the heading, and the row
     # whose icon opens it. That is what the word means everywhere else in the

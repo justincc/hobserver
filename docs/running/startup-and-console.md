@@ -77,12 +77,12 @@ a full rebuild, out of the first page load and onto the console.
 exist, be a regular file, and yield a row from `events` over a read-only
 connection. Since the source is marked required, a failure takes **that tab**
 out of service — marked in the bar, serving a page that names the problem —
-while the rest of the app runs. Before ADR 5 it exited the process.
+while the rest of the app runs.
 
-An existence check alone was not enough. `app.py .` made the db path the
-*directory*, which exists; sqlite reads the file header at connect, so every
-request died with a bare `disk I/O error` (EISDIR) that reads like failing
-hardware rather than a wrong path.
+The regular-file check catches a db path that names a *directory* (as
+`app.py .` does): the path exists, but sqlite reads the file header at
+connect and fails every request with a bare `disk I/O error` (EISDIR) that
+reads like failing hardware rather than a wrong path.
 
 The ATOF log is not required in that sense: it is allowed to be missing, and
 the Turns tab says so itself rather than going out of service.

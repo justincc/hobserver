@@ -219,14 +219,12 @@ Two departures so far, both earning it:
 - the **request page** draws each `tool_result` inside the `tool_call` it
   answers, as one card (`Full.note` says so at the top). The wire sends
   every call and then every result — 957 of 957 such requests in the log —
-  so five results otherwise arrive as five boxes with nothing tying them to
-  the five calls above.
+  and the card is what ties each result to its call.
 
 A corollary worth having: **when the layout carries the relation, the labels
-should stop carrying it.** The results were first labelled `tool_result 3 ·
-read_file` so a reader could pair them by eye; once the card did the
-pairing, the number and the name were two more things to read and to keep
-true, and went back to a bare `tool_result`.
+should stop carrying it.** A result's label is a bare `tool_result`: the
+card does the pairing, so a number and a name would be two more things to
+read and to keep true.
 
 The test for a departure is whether the original order was carrying meaning
 a reader needs. Reordering *spans* on a waterfall would fail it — their

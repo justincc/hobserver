@@ -281,8 +281,8 @@ def test_split_frontmatter_is_none_when_there_is_none():
 
 
 def test_frontmatter_is_shown_verbatim_not_as_a_heading(tmp_path):
-    # The bug this fixes: CommonMark reads `name: maps` closed by `---` as a
-    # setext heading, so the whole block rendered as one bold heading.
+    # CommonMark reads `name: maps` closed by `---` as a setext heading, so
+    # the frontmatter is held out of the markdown and shown verbatim.
     root = tmp_path / "root"
     d = root / "maps"
     d.mkdir(parents=True)

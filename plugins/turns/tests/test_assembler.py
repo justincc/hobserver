@@ -433,8 +433,8 @@ def test_a_turn_takes_its_prompt_from_its_first_llm_request():
 
 
 def test_the_prompt_is_unwrapped_of_hermes_own_envelope():
-    """The turn mark used to carry the bare prompt; the wire message it has
-    to be read from now is wrapped, and the two known wrappers come off."""
+    """The wire message the prompt is read from is wrapped, and the two
+    known wrappers come off."""
     wrapped = ("[Workspace::v1: /home/u/workspace]\n"
                "please produce a jobs report\n\n"
                "<memory-context>\n[System note: recalled memory]\n</memory-context>")

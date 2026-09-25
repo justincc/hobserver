@@ -355,7 +355,7 @@ def test_session_search_discover_query_inline_and_stats_detail_only(tmp_path):
 
 
 def test_session_search_scroll_mode_renders(tmp_path):
-    # the mode that was previously invisible: no query, no count
+    # scroll mode carries no query and no count
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
         *scope_lines("SS1", "tool", 1_100_000, 1_300_000, name="session_search",
@@ -858,8 +858,8 @@ def test_search_queries_shown_inline(tmp_path):
 
 
 def test_turn_detail_renders_with_string_tool_result_data(tmp_path):
-    # regression: real tool end events carry data as a raw JSON string,
-    # which 500ed the turn page when the template assumed a dict
+    # real tool end events carry data as a raw JSON string, not a dict, and
+    # the turn page renders them
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
         *scope_lines("T1", "tool", 1_100_000, 1_600_000, name="mem0_search",
@@ -1056,8 +1056,8 @@ def test_superseded_turn_leaves_the_inflight_strip(tmp_path):
 
 
 def test_superseded_turn_page_does_not_block_follow(tmp_path):
-    # the regression: viewing the older turn must not mark it as the current
-    # in-flight turn, or followNewTurn() returns early and never advances
+    # viewing the older turn does not mark it as the current in-flight turn,
+    # so followNewTurn() advances past it
     first_start, second_start, lines = superseded_stream()
     atof = write_atof(tmp_path, lines)
     client = make_client(tmp_path, str(atof))
@@ -1144,11 +1144,10 @@ def test_follow_toggle_is_persisted_per_tab(tmp_path):
 
 
 def test_a_selection_inside_a_live_region_holds_the_poll():
-    """A swap drops the selection it replaces, so copying off a live page
-    was impossible while it polled. The guard has to sit on the loop, not
-    inside `poll()`: the fetch and the follow-mode navigation that follows
-    it would otherwise still run, and navigating away loses a selection
-    just as thoroughly as swapping does."""
+    """A swap drops the selection it replaces, so a selection holds the
+    poll. The guard sits on the loop, not inside `poll()`, so it holds the
+    fetch and the follow-mode navigation that follows it too: navigating
+    away loses a selection just as a swap does."""
     js = (REPO_ROOT / "templates" / "base.html").read_text()
     assert "const selecting = () =>" in js
     # only a selection in the swapped region counts — one in the page header
@@ -1520,8 +1519,8 @@ def test_memory_success_reports_usage_without_the_store(tmp_path):
 
 # --- unrecognised scopes ------------------------------------------------
 # hermes' tool set is not this app's to know. A scope with no branch of its
-# own used to render a name and a duration and nothing else, which is what
-# anyone running hermes with other tools would see for most of their spans.
+# own renders its payload generically, which is what anyone running hermes
+# with other tools sees for most of their spans.
 
 
 def _unknown_scope(tmp_path, start_data, name="widget_tool"):
@@ -1647,8 +1646,8 @@ def _token_rows(page):
 def _token_figures(page):
     """The tree as `label figure` strings. The key and the figure are two
     spans — faint monospace and the row's reading font — so a plain
-    `"in 2,465" in page` no longer sees a row and would pass on markup that
-    never rendered."""
+    `"in 2,465" in page` does not match a row; this reads the pairs out of
+    the markup."""
     return [f"{label} {value}" for _, label, value in re.findall(TOKEN_ROW, page)]
 
 
@@ -1772,8 +1771,7 @@ def test_llm_tool_calls_take_their_own_labelled_row(tmp_path):
 
 def test_llm_tool_call_names_stay_off_the_summary_line(tmp_path):
     # detail-only, and it is the row that carries .list-item — a hidden row
-    # hides its children whatever class they have, which is why the names
-    # span no longer has to avoid .path to stay off the summary line
+    # hides its children whatever class they have
     page = _llm_turn(tmp_path, {**_assistant("", "terminal", "read_file"),
                                 "finish_reason": "complete"})
     row = re.search(r'<div class="([^"]*)">\s*<span class="gen-key key-col"'
@@ -1795,7 +1793,7 @@ def test_llm_span_shows_short_text_whole_without_an_ellipsis(tmp_path):
                                 "finish_reason": "stop"})
     assert "Short reply." in page
     assert "Short reply.…" not in page
-    assert "start of" not in page            # no size note anywhere any more
+    assert "start of" not in page            # no size note anywhere
 
 
 # The reasoning effort is the one llm row read from the *request*, not the
@@ -1855,7 +1853,7 @@ def test_llm_span_reports_tokens_including_cache_reads(tmp_path):
     assert "prompt 20,897" in figures         # differs from in, so shown
     assert "cache read 18,432" in figures
     assert "reasoning 124" in figures
-    assert "requests 1" in figures            # no longer eaten by an ellipsis
+    assert "requests 1" in figures            # not eaten by an ellipsis
     assert "cache write" not in page          # zero says nothing
 
 
@@ -1883,18 +1881,16 @@ def test_llm_token_figures_keep_the_row_shade_they_are_on(tmp_path):
     # the selector list and not `.row-value` alone
     rule = re.search(r"\.span-detail \.row-value,\s*"
                      r"\.span-detail \.tok-share \{([^}]*)\}", css)
-    assert rule, "no .row-value rule, or the share no longer reads with it"
+    assert rule, "no .row-value rule, or the share does not read with it"
     assert "color" not in rule.group(1)
     assert "font-family" not in rule.group(1)  # the row's own, not a chip's
     assert "tabular-nums" in rule.group(1)     # figures compared down a column
 
 
 def test_every_token_figure_is_one_colour(tmp_path):
-    """`.tok-part` used to shade its row `.mode-tag`'s own #8a8a8a, which
-    left `reasoning 303` the one pair on the span whose key and value
-    matched — the row read as the only one the change to values had missed.
-    Parts read like every other figure now; the class stays as a marker, and
-    what it means is left to the tooltip that was always carrying it."""
+    """Every figure in the tree is one colour, parts included, and none is
+    `.mode-tag`'s #8a8a8a. `.tok-part` stays as a marker, and what it means
+    is left to the tooltip."""
     css = (REPO_ROOT / "templates" / "base.html").read_text()
     assert not re.search(r"\.tok-part[^{,]*\{[^}]*color:", css), \
         "a .tok-part rule still shades its row"
@@ -2243,7 +2239,7 @@ def test_tailing_is_conditioned_on_being_at_the_bottom(tmp_path):
 #
 # The turn page shows excerpts. These cover the icon that leads out of one
 # and the page it leads to — for llm spans of every call_role, which is the
-# point: before this, an auxiliary call's prompt appeared nowhere, since the
+# point: this is the one place an auxiliary call's prompt appears, since the
 # turn header shows the turn's user message and a compaction has none.
 
 REQUEST = {"annotated_request": {
@@ -2922,8 +2918,8 @@ def test_the_contents_list_is_styled_as_a_column_beside_the_messages(tmp_path):
 
 def test_the_contents_list_offers_a_way_back_to_the_top(tmp_path):
     """Reaching the top of a thousand-line request should not mean scrolling
-    there. Named for where it goes: the page's own title was tried and reads
-    as one more part, since every entry below it is part of the Prompt."""
+    there. Named for where it goes: every entry below it is part of the
+    Prompt, and a title in its place would read as one more part."""
     page = _full_page(tmp_path)
     nav = re.search(r'<nav class="msg-nav".*?</nav>', page, re.S).group(0)
     top = re.search(r'<a class="nav-top" href="#top">([^<]*)</a>', nav)

@@ -1,7 +1,7 @@
 """mem0's span readers — how this plugin reads its own payloads (ADR 17).
 
-These used to be `Span` properties, tested in the Turns tab's assembler
-tests. They are mem0's knowledge, so they moved here with the code.
+They are mem0's knowledge, so they live and are tested with this plugin's
+code.
 
 A reader is `fn(span) -> value`, so these test against a stub carrying the
 attributes a reader reads. That is the contract, and holding to it here is

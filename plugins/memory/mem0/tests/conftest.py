@@ -1,7 +1,7 @@
 """Fixtures for the Mem0 tab's tests, scoped to this directory.
 
 The event-log schema and its sample rows live in `mem0_data.py` beside this
-file — mem0's own test data, no longer in the shell's root conftest.
+file — mem0's own test data.
 """
 
 import pytest
