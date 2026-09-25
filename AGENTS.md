@@ -4,6 +4,7 @@
 - Keep this generation instructions section and its subsections at the top of the file.
 - Document and code should follow the DRY (Don't Repeat Yourself) principle when reasonable.
 - In code, docs, tests or examples, don't use locations or names particular to one machine or person.
+- In docs and comments, say what the code does. Don't describe what would happen if a feature or section of code were absent, or how it used to behave.
 
 ### Coding
 - Write comments for someone maintaining the code, not for someone judging the decision.
