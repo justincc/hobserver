@@ -238,6 +238,42 @@
   </div>
 </div>
 {%- endmacro %}
+{# search_files' result (spans.py `read_search_files`). Its short fields are
+   one line of `key value` facts, the same markup a tool definition's
+   properties use on this page; a bare `true` or `search_timeout` needs its
+   key to mean anything. hermes' sentences to the model (`_hint`, …) would
+   stretch that line, so each has its own, keyed the same way. The hits need
+   no label and take the panel's full width below, so a long path is likelier
+   to fit on one line: one block per file — its path, then each matched line's
+   number beside its content, or its count. Every value is the log's own text,
+   auto-escaped. #}
+{% macro search_files_formatted(s) -%}
+{%- if s.fields %}
+<p class="tool-facts">
+  {%- for f in s.fields %}<span class="tool-fact"><span class="tool-fact-k">{{ f.key }}</span> {{ f.value }}</span>{% endfor %}
+</p>
+{%- endif %}
+{%- for n in s.notes %}
+<p class="tool-facts search-note"><span class="tool-fact"><span class="tool-fact-k">{{ n.key }}</span> {{ n.value }}</span></p>
+{%- endfor %}
+{%- if s.groups %}
+<div class="search-groups">
+{%- for g in s.groups %}
+  <div class="search-group">
+    <code class="search-path">{{ g.path }}</code>
+    {%- if g.count is not none %} <span class="search-count">{{ g.count }}</span>{% endif %}
+    {%- if g.lines %}
+    <table class="search-lines">
+    {%- for ln in g.lines %}
+      <tr><td class="search-line-no">{{ ln.line if ln.line is not none else '' }}</td><td><code>{{ ln.content }}</code></td></tr>
+    {%- endfor %}
+    </table>
+    {%- endif %}
+  </div>
+{%- endfor %}
+</div>
+{%- endif %}
+{%- endmacro %}
 {# A tool result this app could read (spans.py `read_tool_result`): its rows,
    drawn one per hit (web_search) or per extracted page (web_extract). A title
    that has a safe link is an anchor to it; the url is shown in full beneath so
@@ -262,6 +298,7 @@
 {%- endif %}
 {%- if result.error %}
 <p class="notice warn result-error">{{ result.error }}</p>
+{%- elif result.search %}{{ search_files_formatted(result.search) }}
 {%- elif result.results %}
 <ol class="web-results">
 {%- for r in result.results %}

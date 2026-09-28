@@ -47,6 +47,25 @@ def tilde(path):
     return path
 
 
+# A detail-only link to this tool call's result in the prompt it was fed into,
+# shared by the tools whose result is worth jumping to (search_files,
+# web_extract, web_search). `result_prompt_uuid`/`result_prompt_anchor` are stamped on the span by
+# `resolve_tool_result_links` (a tool result lives on a *later* llm span's
+# prompt, not this one), so this is a plain declarative Link over two span
+# values. It draws only once the target exists: with no consuming prompt yet the
+# uuid is absent, `url_for` cannot build the route, and `spec_link` drops the
+# row (detail-only, so it never crowds the summary line). The ↗ marks it as a
+# link to another page, like every such link across the tab.
+_RESULT_IN_PROMPT = Link(
+    endpoint="turns.span_full",
+    params={"span_uuid": "result_prompt_uuid", "key": const("prompt"),
+            "_anchor": "result_prompt_anchor"},
+    text=const("↗ view results"),
+    title=const("Jump to this call's results where they were fed back to the "
+                "model, in the full prompt of the next llm call."),
+    layer="detail", new_tab=True)
+
+
 DELEGATE_TASK = Scope(rows=[
     Row([Field(first("delegate_goals"), clip="wide",
                title=joined("delegate_goals"), more="delegate_tasks")],
@@ -123,10 +142,41 @@ PATCH = Scope(rows=[
     Row([Field("patch_text", font="mono", clip="wrap")], layer="detail"),
 ])
 
+def _path_end(path):
+    """The last two components of a path, after `tilde`: `…/src/app` for
+    `/home/u/src/app`. Plain text rather than a `tail` clip, so on a crowded
+    summary line the cell edge cuts it character by character instead of
+    dropping it whole."""
+    path = tilde(path)
+    parts = path.rstrip("/").split("/")
+    return path if len(parts) <= 3 else "…/" + "/".join(parts[-2:])
+
+
+# The summary line carries what came back as hermes' own `total_count`, and
+# the path shortened to its end (full on hover). Detail mode has the full path,
+# the counts, the first hits (spans.py SEARCH_FILES_SHOWN) and the link to the
+# whole result in the prompt it was fed into.
 SEARCH_FILES = Scope(rows=[
     Row([Field("search_pattern", font="mono")]),
+    Row([Field("search_files_total", prefix="total_count ",
+               title=const("Results found: hermes' total_count."))],
+        layer="summary"),
     Row([Field("file_glob", clip="wide")]),
-    Row([Field("path", clip="tail", transform=tilde)]),
+    Row([Field("path", transform=_path_end)], layer="summary"),
+    Row([Field("path", clip="tail", transform=tilde)], layer="detail"),
+    Each("search_files_stats", [
+        Row([Field([item("label"), item("value")], deco="plain",
+                   title=item("tooltip"))], layer="detail"),
+    ]),
+    Each("search_files_hits", [
+        Row([Field(item("path"), clip="tail", transform=tilde),
+             Field(item("line"), deco="key"),
+             Field(item("count"), deco="key", prefix="count "),
+             Field(item("content"), font="mono")],
+            layer="detail", cls="search-hit"),
+    ]),
+    Row([Field("search_files_unshown", deco="omitted")], layer="detail"),
+    _RESULT_IN_PROMPT,
 ])
 
 # Four modes, named by a tag; the per-mode counts the end payload reports sit
@@ -236,24 +286,6 @@ VISION_ANALYZE = Scope(rows=[
     Row([Field("vision_image_url", clip="tail", transform=tilde)]),
     Row([Field("vision_question", font="mono", clip="wrap")], layer="detail"),
 ])
-
-# A detail-only link to this tool call's result in the prompt it was fed into,
-# shared by the tools whose result is worth jumping to (web_extract, web_search).
-# `result_prompt_uuid`/`result_prompt_anchor` are stamped on the span by
-# `resolve_tool_result_links` (a tool result lives on a *later* llm span's
-# prompt, not this one), so this is a plain declarative Link over two span
-# values. It draws only once the target exists: with no consuming prompt yet the
-# uuid is absent, `url_for` cannot build the route, and `spec_link` drops the
-# row (detail-only, so it never crowds the summary line). The ↗ marks it as a
-# link to another page, like every such link across the tab.
-_RESULT_IN_PROMPT = Link(
-    endpoint="turns.span_full",
-    params={"span_uuid": "result_prompt_uuid", "key": const("prompt"),
-            "_anchor": "result_prompt_anchor"},
-    text=const("↗ view results"),
-    title=const("Jump to this call's results where they were fed back to the "
-                "model, in the full prompt of the next llm call."),
-    layer="detail", new_tab=True)
 
 WEB_EXTRACT = Scope(rows=[
     Items("web_extract_urls"),

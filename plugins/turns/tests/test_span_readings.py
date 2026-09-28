@@ -15,7 +15,8 @@ line hermes could have written.
 
 import json
 
-from plugins.turns.spans import resolve_memory_entries
+from plugins.turns.spans import (SEARCH_FILES_SHOWN, read_tool_result,
+                                 resolve_memory_entries)
 from streams import (SESSION_SCOPE_UUID, assemble_lines, mark_line,
                      scope_lines, session_scope_lines, two_turn_stream)
 
@@ -428,6 +429,120 @@ def test_search_files_query_from_start_payload():
     assert search.path == "/home/u/proj"
     # the generic "pattern" key means nothing outside a search_files scope
     assert other.search_pattern is None and other.file_glob is None
+
+
+def _search_files_span(start_data, end_data):
+    lines = [
+        *session_scope_lines("s1"),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("S1", "tool", 1_100_000, 1_200_000, name="search_files",
+                     session="s1", turn="t1", start_data=start_data,
+                     end_data=end_data),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    return assemble_lines(lines).sessions[0].turns[0].spans[0]
+
+
+def _stats(span):
+    return [(s["label"], s["value"]) for s in span.search_files_stats]
+
+
+def test_search_files_stats_count_matches_and_the_files_they_are_in():
+    dense = "/p/a.py\n  3: x\n  9: x\n/p/b.py\n  1:  x\n  2: x\n  4: x"
+    span = _search_files_span(
+        {"pattern": "x"},
+        {"total_count": 5, "matches_format": "path-grouped",
+         "matches_text": dense})
+    assert _stats(span) == [("total_count", "5"), ("in files", 2)]
+    assert span.search_files_total == "5"
+    # leading indentation inside the content is the file's, and kept
+    assert span.search_files_hits[2] == {"path": "/p/b.py", "line": 1,
+                                         "content": " x"}
+    listed = _search_files_span(
+        {"pattern": "x"},
+        {"total_count": 2, "matches": [
+            {"path": "/p/a.py", "line": 1, "content": "x"},
+            {"path": "/p/a.py", "line": 2, "content": "y"}]})
+    assert _stats(listed) == [("total_count", "2"), ("in files", 1)]
+    assert [h["content"] for h in listed.search_files_hits] == ["x", "y"]
+
+
+def test_search_files_stats_say_what_a_file_search_counted():
+    found = _search_files_span({"pattern": "*.md", "target": "files"},
+                               {"total_count": 2, "files": ["/a.md", "/b.md"]})
+    assert _stats(found) == [("total_count", "2")]
+    assert "names matched" in found.search_files_stats[0]["tooltip"]
+    assert found.search_files_hits == [{"path": "/a.md", "count": None},
+                                       {"path": "/b.md", "count": None}]
+    # files_only is a content search reporting paths, not a name match
+    only = _search_files_span({"pattern": "x", "output_mode": "files_only"},
+                              {"total_count": 1, "files": ["/a.py"]})
+    assert "a line matching" in only.search_files_stats[0]["tooltip"]
+
+
+def test_search_files_stats_count_mode_counts_files():
+    span = _search_files_span({"pattern": "x", "output_mode": "count"},
+                              {"total_count": 7, "counts": {"/a": 4, "/b": 3}})
+    assert _stats(span) == [("total_count", "7"), ("in files", 2)]
+    assert span.search_files_hits[0] == {"path": "/a", "count": 4}
+
+
+def test_search_files_hits_stop_at_the_shown_limit():
+    files = [f"/f{i}" for i in range(SEARCH_FILES_SHOWN + 3)]
+    span = _search_files_span({"pattern": "*", "target": "files"},
+                              {"total_count": len(files), "files": files})
+    assert len(span.search_files_hits) == SEARCH_FILES_SHOWN
+    assert span.search_files_unshown == "+3 more returned"
+    few = _search_files_span({"pattern": "*", "target": "files"},
+                             {"total_count": 1, "files": ["/a"]})
+    assert few.search_files_unshown is None
+
+
+def test_search_files_stats_mark_a_truncated_search():
+    span = _search_files_span(
+        {"pattern": "x"},
+        {"total_count": 0, "truncated": True,
+         "total_count_is_lower_bound": True, "limit_reason": "search_timeout",
+         "_omitted": "2 result(s) omitted because they target secrets."})
+    assert _stats(span) == [("total_count", "0+"),
+                            ("truncated", "search_timeout"), ("omitted", "")]
+    assert "at least this many" in span.search_files_stats[0]["tooltip"]
+    assert span.search_files_stats[2]["tooltip"].startswith("2 result(s)")
+
+
+def test_search_files_stats_read_the_json_before_an_appended_hint():
+    span = _search_files_span(
+        {"pattern": "x"},
+        '{"total_count": 0, "truncated": true, "limit_reason": "search_timeout"}'
+        "\n\n[Hint: Results truncated. Use offset=50 to see more.]")
+    assert _stats(span) == [("total_count", "0"),
+                            ("truncated", "search_timeout")]
+
+
+def test_search_files_stats_absent_without_a_result():
+    for end in (None, "not json", {"total_count": "3"}):
+        span = _search_files_span({"pattern": "x"}, end)
+        assert span.search_files_stats == [] and span.search_files_hits == []
+        assert span.search_files_total is None
+
+
+def test_search_files_result_is_read_for_the_prompt_page():
+    text = ('{"total_count": 2, "matches": [{"path": "/a", "line": 3, '
+            '"content": "hit"}, {"path": "/b", "line": 1, "content": "hit"}],'
+            ' "_hint": "narrow it"}')
+    reading = read_tool_result("search_files", text)
+    assert reading["ok"] and reading["error"] is None
+    search = reading["search"]
+    assert search["total"] == "2"
+    # every other value keeps hermes' key, JSON-spelled
+    assert search["fields"] == [{"key": "total_count", "value": "2"}]
+    assert search["notes"] == [{"key": "_hint", "value": "narrow it"}]
+    assert [g["path"] for g in search["groups"]] == ["/a", "/b"]
+    assert search["groups"][0]["lines"] == [{"line": 3, "content": "hit"}]
+    failed = read_tool_result("search_files",
+                              '{"total_count": 0, "error": "Path not found: /x"}')
+    assert failed["error"] == "Path not found: /x"
+    assert read_tool_result("search_files", '{"other": 1}') is None
 
 
 def test_search_query_from_start_payload():
@@ -1669,8 +1784,6 @@ def test_tool_describe_degrades_on_a_payload_without_tools():
 # web_search returns a JSON string; the prompt page's copy of it is wrapped in
 # hermes' <untrusted_tool_result> envelope. The reader parses either, into rows,
 # and returns None for anything it does not recognize (raw dump then).
-
-from plugins.turns.spans import read_tool_result       # noqa: E402
 
 
 def _web_search_payload(results, *, success=True, error=None):

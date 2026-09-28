@@ -435,6 +435,20 @@
        before a click, the description under that. Shares the formatted panel's
        padding with the tool tabs, so a result reads like the schema view does. */
     .web-results { margin: 0; padding: 0.5rem 0.9rem 0.5rem 2rem; }
+    /* search_files: its fields as .tool-facts, each note of hermes' on a
+       facts line of its own tucked under them, then the hits unlabelled at
+       the panel's full width — each file's path, then its matched lines,
+       number beside content, the way grep prints them. */
+    .tool-facts + .search-note { padding-top: 0; margin-top: -0.3rem; }
+    .search-groups { padding: 0 0.9rem 0.5rem; }
+    .search-group { margin: 0 0 0.35rem; }
+    .search-group:last-child { margin-bottom: 0; }
+    .search-path { font-size: 0.8rem; color: #3a7a3a; overflow-wrap: anywhere; }
+    .search-count { font-family: ui-monospace, monospace; font-size: 0.76rem; color: #8a8a8a; margin-left: 0.4rem; }
+    table.search-lines { border-collapse: collapse; margin: 0.1rem 0 0.3rem 1rem; font-size: 0.78rem; }
+    table.search-lines td { border: 0; padding: 0 0.6rem 0 0; vertical-align: baseline; }
+    table.search-lines td code { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .search-line-no { color: #8a8a8a; text-align: right; font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums; }
     .web-result { margin: 0 0 0.7rem; }
     .web-result:last-child { margin-bottom: 0; }
     .web-result-title { font-size: 0.95rem; line-height: 1.35; }

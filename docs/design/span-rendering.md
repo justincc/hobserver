@@ -965,9 +965,44 @@ Detail mode adds what the summary line cannot carry: the two replaced sides
 for replace, the whole V4A text for patch. Never the end payload's
 `diff`/`files_modified`/`lint` — nothing reads those today.
 
-### search_files — `pattern` / `file_glob` / `path`
+### search_files — `pattern` / `file_glob` / `path`, and what came back
 
-Pattern in monospace, then the glob and the search path.
+`read_search_files` (spans.py) reads the result once for both pages. It is
+checked against `SearchResult.to_dict` in
+`$HERMES_SOURCE/tools/file_operations_common.py` and handles each of its
+shapes: `matches_text`, `matches`, `files` and `counts`. Older hermes appended
+a `[Hint: ...]` line after the JSON object; the leading object is read.
+
+**Summary line:** the pattern in monospace, `total_count N` (with a trailing
+`+` when `total_count_is_lower_bound`), the glob, and the path cut to its last
+two components (`…/src/app`, full on hover). The cut path is plain text, so on
+a crowded line the cell edge trims it character by character. A `tail` clip
+is an inline-block and gets dropped whole, which leaves only the cell's `…`.
+
+**Detail mode**, one `.list-item` row each:
+
+- the full path;
+- `Span.search_files_stats`. Its first row is `total_count`, labelled with
+  hermes' own key so it reads as a result rather than a parameter. The tooltip
+  says what was counted: file names for `target: files`, files for
+  `output_mode: files_only`, otherwise matching lines. After it come
+  `in files` (distinct files among the returned matches), `truncated` with its
+  `limit_reason`, and `omitted` (secret-bearing results withheld; the message
+  is the tooltip);
+- `Span.search_files_hits`, the first `SEARCH_FILES_SHOWN` (10) hits. A hit is
+  `path line content`, a bare path, or `path count N`. A `+N more returned`
+  row follows when there were more;
+- the shared **"↗ view results"** link to the full result in the prompt it was
+  fed into (see [web_extract](#web_extract--urls-and-a-link-to-the-result)).
+
+**Prompt page:** the result's formatted tab puts its fields (`total_count`,
+`truncated`, `limit_reason`, …) on one line of `key value` facts under
+hermes' own keys, in the markup a tool definition's properties use, since a
+bare `true` needs its key. hermes' sentences to the model (`_hint`,
+`_warning`, `_omitted`) get a keyed line each. The hits follow unlabelled at
+the panel's full width, so long paths are likelier to fit on one line: one
+block per file, its path, then each matched line's number beside its content,
+or its count.
 
 ### session_search — four modes
 
@@ -1143,7 +1178,7 @@ also renders what came *back*, see
 [mem0_search results](#mem0_search-results).
 
 web_search also carries the same detail-only **"↗ view results"** link
-web_extract does, to its result in the prompt it was fed into (one shared
+web_extract and search_files do, to its result in the prompt it was fed into (one shared
 `Link`; see [web_extract](#web_extract--urls-and-a-link-to-the-result) for how
 it is resolved and when it draws). mem0_search does not — its own results are
 shown inline and its "↗ ... in Mem0" link already opens them in full.

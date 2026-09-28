@@ -615,6 +615,70 @@ def test_search_files_pattern_and_glob_shown_inline(tmp_path):
     assert "/home/u/proj" in page
 
 
+def _search_files_and_consumer(end):
+    """A turn: a search_files span, then the llm call whose prompt was fed its
+    result (the call, then the result under it — section m3)."""
+    messages = [{"role": "user", "content": "find"},
+                {"role": "tool_call", "name": "search_files", "call_id": "call-f",
+                 "arguments": '{"pattern": "*.md"}'},
+                {"role": "tool_result", "call_id": "call-f", "output": end}]
+    return [
+        *session_scope_lines("s1", start_us=0),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("S1", "tool", 1_100_000, 1_200_000, name="search_files",
+                     session="s1", turn="t1", profile={"tool_call_id": "call-f"},
+                     start_data={"pattern": "*.md", "target": "files",
+                                 "path": "/home/u/deep/proj/docs"},
+                     end_data=end),
+        *scope_lines("L2", "llm", 1_300_000, 1_400_000, name="anthropic",
+                     session="s1", turn="t1",
+                     profile={"annotated_request": {"messages": messages}}),
+        mark_line("hermes.turn.end", 1_500_000, session="s1", turn="t1"),
+    ]
+
+
+def test_search_files_turn_page_shows_what_came_back(tmp_path):
+    """The summary line carries total_count and the end of the path; detail
+    mode the counts, the first hits and a link to the whole result in the
+    prompt it was fed into — as for web_search."""
+    files = [f"/p/f{i}.md" for i in range(12)]
+    end = json.dumps({"total_count": 12, "files": files, "truncated": True})
+    atof = write_atof(tmp_path, _search_files_and_consumer(end))
+    page = make_client(tmp_path, str(atof)).get(
+        "/turns/turn/s1/1000000").get_data(as_text=True)
+    assert re.search(r'list-compact">\s*<span[^>]*>total_count 12<', page)
+    assert re.search(r'list-compact">\s*<span[^>]*title="/home/u/deep/proj/docs"'
+                     r'>…/proj/docs<', page)
+    # detail: the stats row, the first ten files and a count of the rest
+    assert re.search(r'list-item">\s*<span[^>]*>total_count 12<', page)
+    assert "/p/f9.md" in page and "/p/f10.md" not in page
+    assert "+2 more returned" in page
+    assert 'href="/turns/span/L2/prompt#m3"' in page
+    assert "↗ view results" in page
+
+
+def test_search_files_result_is_formatted_on_the_prompt_page(tmp_path):
+    end = json.dumps({"total_count": 2, "matches": [
+        {"path": "/p/a.py", "line": 7, "content": "needle = 1"},
+        {"path": "/p/a.py", "line": 9, "content": "needle += 1"}],
+        "_hint": "narrow the pattern"})
+    atof = write_atof(tmp_path, _search_files_and_consumer(end))
+    page = make_client(tmp_path, str(atof)).get(
+        "/turns/span/L2/prompt").get_data(as_text=True)
+    fmt = re.search(r'<div class="tool-panel tool-panel-fmt">(.*?)'
+                    r'<div class="tool-panel tool-panel-raw">', page, re.S)
+    assert fmt
+    body = fmt.group(1)
+    # fields keep hermes' key, as facts; the hits are shown unlabelled
+    assert ('<span class="tool-fact"><span class="tool-fact-k">total_count'
+            '</span> 2</span>') in body
+    assert "tool-fact-k\">matches<" not in body
+    assert '<p class="tool-facts search-note">' in body
+    assert body.count('<code class="search-path">/p/a.py</code>') == 1
+    assert '<td class="search-line-no">7</td>' in body
+    assert "needle += 1" in body
+
+
 def test_execute_code_first_line_shown_inline(tmp_path):
     lines = [
         mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),

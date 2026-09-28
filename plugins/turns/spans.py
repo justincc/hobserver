@@ -162,6 +162,133 @@ def _as_dict(data: Any) -> Optional[dict]:
     return data if isinstance(data, dict) else None
 
 
+# How many of a search_files call's hits the turn page lists under the span;
+# the whole result is one click away in the prompt it was fed into.
+SEARCH_FILES_SHOWN = 10
+
+# One `matches_text` hit row: indented, then `<line>: <content>`.
+_SEARCH_HIT_RE = re.compile(r"^\s+(\d+):\s?(.*)$")
+
+
+def read_search_files(end: Any, start: Any = None) -> Optional[dict]:
+    """A search_files result read into what the turn page and the prompt page
+    draw, or None when `end` is not that tool's shape.
+
+    Checked against `SearchResult.to_dict` in
+    $HERMES_SOURCE/tools/file_operations_common.py and `search_tool` in
+    tools/file_tools.py: `total_count` always, then whichever of `matches_text`
+    (path-grouped, 5+ hits), `matches`, `files` or `counts` the target and
+    output mode produced, `truncated` with a `limit_reason` when the search
+    stopped short, and `_omitted` / `_hint` / `_warning` notes. Older hermes
+    appended its hint after the JSON object instead, so a string is read up to
+    the end of its first object. `start`, when given, says whether file names
+    or file contents were searched; the prompt page has only the result.
+
+    `groups` is one entry per file, in the result's order: `{path, count,
+    lines: [{line, content}]}`, with `count` only for `output_mode: count` and
+    `lines` only for matched lines. Every other value is kept under its own
+    key, in payload order, for the prompt page to label as hermes did: the
+    sentences hermes addresses to the model (`_SEARCH_NOTE_KEYS`) as `notes`,
+    the rest as `fields`.
+    """
+    data = end if isinstance(end, dict) else _parse_json_payload(end)
+    if not isinstance(data, dict):
+        return None
+    total = data.get("total_count")
+    if isinstance(total, bool) or not isinstance(total, int):
+        return None
+    start = _as_dict(start) or {}
+    lower_bound = data.get("total_count_is_lower_bound") is True
+
+    groups: List[dict] = []
+    by_path: dict = {}
+
+    def group(path: str) -> dict:
+        if path not in by_path:
+            by_path[path] = {"path": path, "count": None, "lines": []}
+            groups.append(by_path[path])
+        return by_path[path]
+
+    text, matches = data.get("matches_text"), data.get("matches")
+    files, counts = data.get("files"), data.get("counts")
+    if isinstance(text, str):
+        current = None
+        for raw in text.splitlines():
+            if raw and not raw[0].isspace():
+                current = group(raw)
+                continue
+            hit = _SEARCH_HIT_RE.match(raw)
+            if current is not None and hit:
+                current["lines"].append({"line": int(hit.group(1)),
+                                         "content": hit.group(2)})
+    elif isinstance(matches, list):
+        for m in matches:
+            if isinstance(m, dict) and isinstance(m.get("path"), str):
+                line = m.get("line")
+                group(m["path"])["lines"].append({
+                    "line": line if isinstance(line, int) else None,
+                    "content": _str_or_none(m.get("content")) or ""})
+    elif isinstance(files, list):
+        for path in files:
+            if isinstance(path, str) and path:
+                group(path)
+    elif isinstance(counts, dict):
+        for path, n in counts.items():
+            if isinstance(path, str):
+                group(path)["count"] = n if isinstance(n, int) else None
+
+    if start.get("target") == "files":
+        what = "Files whose names matched the pattern"
+    elif start.get("output_mode") == "files_only" or isinstance(files, list):
+        what = "Files with a line matching the pattern"
+    elif isinstance(counts, dict):
+        what = "Matching lines, counted per file"
+    elif start.get("target") == "content" or text or matches:
+        what = "Matching lines"
+    else:
+        what = "Results"
+    if lower_bound:
+        what += (" — at least this many: the search stopped short, so the "
+                 "real total is higher")
+
+    def note(key):
+        value = data.get(key)
+        return value if isinstance(value, str) and value else None
+
+    reason = note("limit_reason")
+    return {
+        "total": f"{total}+" if lower_bound else str(total),
+        "total_tooltip": what + ".",
+        "groups": groups,
+        "hits": sum(len(g["lines"]) or 1 for g in groups),
+        "matched_files": (len(groups) if isinstance(text, str)
+                          or isinstance(matches, list)
+                          or isinstance(counts, dict) else None),
+        "truncated": data.get("truncated") is True,
+        "limit_reason": reason,
+        "omitted": note("_omitted"),
+        "fields": [{"key": k, "value": _field_text(v)}
+                   for k, v in data.items()
+                   if k not in _SEARCH_LIST_KEYS + _SEARCH_NOTE_KEYS
+                   and k != "matches_format"],
+        "notes": [{"key": k, "value": _field_text(data[k])}
+                  for k in data if k in _SEARCH_NOTE_KEYS],
+    }
+
+
+# The keys of a search_files result that hold its hits, one per output shape.
+_SEARCH_LIST_KEYS = ("matches_text", "matches", "files", "counts")
+
+# The keys of a search_files result whose value is a sentence to the model
+# rather than a figure or a flag.
+_SEARCH_NOTE_KEYS = ("_hint", "_warning", "_omitted", "warning")
+
+
+def _field_text(value: Any) -> str:
+    """A scalar payload value as the JSON it was (`true`, not `True`)."""
+    return value if isinstance(value, str) else json.dumps(value)
+
+
 # V4A patch operation headers, per hermes tools/patch_parser.py
 _PATCH_FILE_HEADERS = ("*** Update File:", "*** Add File:",
                        "*** Delete File:", "*** Move File:")
@@ -682,6 +809,73 @@ class Span:
     @property
     def file_glob(self) -> Optional[str]:
         return self._start_str("file_glob") if self.name == "search_files" else None
+
+    # What a search_files call found (`read_search_files`), for the turn page.
+    # `error` is not read here — the generic error row shows it.
+    @property
+    def search_files_reading(self) -> Optional[dict]:
+        if self.name != "search_files":
+            return None
+        return read_search_files(self.end_data, self.start_data)
+
+    @property
+    def search_files_total(self) -> Optional[str]:
+        reading = self.search_files_reading
+        return reading["total"] if reading else None
+
+    # {label, value, tooltip} rows, the session_search_stats shape.
+    # `total_count` is hermes' own key, kept as the label so it reads as what
+    # came back rather than as one of the call's parameters.
+    @property
+    def search_files_stats(self) -> list:
+        reading = self.search_files_reading
+        if reading is None:
+            return []
+        stats = [{"label": "total_count", "value": reading["total"],
+                  "tooltip": reading["total_tooltip"]}]
+        if reading["matched_files"]:
+            stats.append({"label": "in files",
+                          "value": reading["matched_files"],
+                          "tooltip": "Distinct files the returned matches are "
+                          "in — a truncated search returns only a page of "
+                          "them."})
+        if reading["truncated"]:
+            stats.append({"label": "truncated",
+                          "value": reading["limit_reason"] or "",
+                          "tooltip": "Only one page of results came back; "
+                          "the model has to page with offset, or narrow the "
+                          "pattern, to see more."})
+        if reading["omitted"]:
+            stats.append({"label": "omitted", "value": "",
+                          "tooltip": reading["omitted"]})
+        return stats
+
+    # The first SEARCH_FILES_SHOWN hits, one row each: a matched line as
+    # {path, line, content}, a file as {path}, a per-file count as
+    # {path, count}.
+    @property
+    def search_files_hits(self) -> list:
+        reading = self.search_files_reading
+        if reading is None:
+            return []
+        hits: List[dict] = []
+        for g in reading["groups"]:
+            if g["lines"]:
+                hits.extend({"path": g["path"], "line": ln["line"],
+                             "content": ln["content"]} for ln in g["lines"])
+            else:
+                hits.append({"path": g["path"], "count": g["count"]})
+            if len(hits) >= SEARCH_FILES_SHOWN:
+                break
+        return hits[:SEARCH_FILES_SHOWN]
+
+    # How many returned hits `search_files_hits` leaves out.
+    @property
+    def search_files_unshown(self) -> Optional[str]:
+        reading = self.search_files_reading
+        if reading is None or reading["hits"] <= SEARCH_FILES_SHOWN:
+            return None
+        return f"+{reading['hits'] - SEARCH_FILES_SHOWN} more returned"
 
     # web_search and mem0_search scopes carry their search query in the start
     # payload; "query" is too generic a key to trust on other scopes.
@@ -1677,7 +1871,21 @@ def _read_web_extract_result(text: str) -> Optional[dict]:
 
 # Keyed by the tool a result answers (from the paired call). Add a tool by
 # adding its reader here; nothing else in the page changes.
-RESULT_READERS = {"web_search": _read_web_search_result,
+def _read_search_files_result(text: str) -> Optional[dict]:
+    """search_files' result for the prompt page: the `read_search_files`
+    reading under `search`, beside the `{ok, error, results}` every reader
+    returns. A result without `total_count` is not this tool's shape and stays
+    a raw dump."""
+    reading = read_search_files(text)
+    if reading is None:
+        return None
+    error = _str_or_none(_parse_json_payload(text).get("error"))
+    return {"ok": error is None, "error": error, "results": [],
+            "search": reading}
+
+
+RESULT_READERS = {"search_files": _read_search_files_result,
+                  "web_search": _read_web_search_result,
                   "web_extract": _read_web_extract_result}
 
 
