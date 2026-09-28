@@ -2181,10 +2181,27 @@ def request_prompt_from_profile(category_profile: Any) -> Optional[str]:
     for message in reversed(messages):
         if not isinstance(message, dict) or message.get("role") != "user":
             continue
-        content = message.get("content")
-        if isinstance(content, str) and content:
+        content = _message_text(message.get("content"))
+        if content:
             return _unwrap_prompt(content)
     return None
+
+
+def _message_text(content: Any) -> Optional[str]:
+    """A wire message's text: the string itself, or its text parts joined.
+
+    A message's content is either a string or a list of typed parts; only
+    the text parts carry the prompt, so an image or file part adds nothing.
+    """
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return None
+    texts = [part.get("text") for part in content
+             if isinstance(part, dict)
+             and part.get("type") in ("text", "input_text")
+             and isinstance(part.get("text"), str)]
+    return "".join(texts)
 
 
 def user_message_from_data(data: Any) -> Optional[str]:

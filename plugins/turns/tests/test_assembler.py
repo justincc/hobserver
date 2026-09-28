@@ -442,6 +442,17 @@ def test_the_prompt_is_unwrapped_of_hermes_own_envelope():
     assert turn.user_message == "please produce a jobs report"
 
 
+def test_the_prompt_is_read_from_a_message_of_typed_parts():
+    """A message's content can be a list of parts; the text parts are the
+    prompt, and anything else in the list is not."""
+    parts = [{"type": "text",
+              "text": "[Workspace::v1: /home/u/workspace]\nplease produce "},
+             {"type": "image_url", "image_url": {"url": "data:,"}},
+             {"type": "input_text", "text": "a jobs report"}]
+    turn, = assemble_lines(relay_stream(prompt=parts)).sessions[0].turns
+    assert turn.user_message == "please produce a jobs report"
+
+
 def test_an_unrecognized_wrapping_leaves_the_prompt_whole():
     """Cutting at a guess would be this app inventing a prompt boundary."""
     prompt = "Review the conversation above and update the skill library."
