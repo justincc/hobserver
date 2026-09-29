@@ -50,8 +50,9 @@ def tilde(path):
 
 
 # A detail-only link to this tool call's result in the prompt it was fed into,
-# shared by the tools whose result is worth jumping to (search_files, terminal,
-# web_extract, web_search). `result_prompt_uuid`/`result_prompt_anchor` are
+# shared by the tools whose result is worth jumping to (execute_code,
+# search_files, terminal, web_extract, web_search). It lands on the tool_call
+# the result is drawn under, so the call's arguments are in view above it. `result_prompt_uuid`/`result_prompt_anchor` are
 # stamped on the span by
 # `resolve_tool_result_links` (a tool result lives on a *later* llm span's
 # prompt, not this one), so this is a plain declarative Link over two span

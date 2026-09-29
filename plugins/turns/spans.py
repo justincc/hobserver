@@ -1559,11 +1559,12 @@ def resolve_tool_result_links(turn) -> None:
 
     A tool call runs, and its result is sent into the *next* llm request as a
     `tool_result` message — which lives on a different span from the tool's
-    own. This walks the turn's llm spans, finds the prompt section each result
-    landed in (the same `_message_sections` order the prompt page anchors on,
+    own. This walks the turn's llm spans, finds the `tool_call` section each
+    result was fed back under (the same `_message_sections` order the prompt page anchors on,
     so the `m{n}` here is the `m{n}` there), and stamps the tool span whose
     call it answers with that prompt's uuid and anchor. The tool span's row
-    then links straight to its result in context (`scopes.WEB_EXTRACT`).
+    then links straight to the call and its result in context
+    (`scopes._RESULT_IN_PROMPT`).
 
     Turn-level, like `resolve_memory_entries` and for the same reason: it reads
     across spans and needs the hydrated request payloads (ADR 11), so it runs
@@ -2032,21 +2033,23 @@ def _message_sections(messages: list) -> list:
         # needed: the pair is drawn as a single card, so the call has to
         # know to run into what follows it and not only the result to know
         # it is inside something.
-        sections.append(section(message, **({"nests": True} if owned else {})))
+        # `call_id` rides a call's section once its result is paired under it,
+        # so a turn-level pass can find where a tool's result was fed back —
+        # the anchor a link from the tool's own span jumps to
+        # (`resolve_tool_result_links`). The call, not the result, is the
+        # target: the reader lands on what was asked with the answer below it.
+        call_id = message.get("call_id") if isinstance(message, dict) else None
+        sections.append(section(
+            message, **({"nests": True, "call_id": call_id} if owned else {})))
         # The call names the tool; its result carries only a call_id, so the
         # reading is dispatched on the call's name (looked up once here, where
         # the pair is already in hand) and rides the result's section for the
         # page to draw as a formatted tab. None leaves it a plain raw dump.
         name = message.get("name") if isinstance(message, dict) else None
-        call_id = message.get("call_id") if isinstance(message, dict) else None
         for result in owned:
             reading = read_tool_result(name, _message_body(result)) \
                 if isinstance(result, dict) else None
-            # `call_id` rides the result's section so a turn-level pass can find
-            # which section a tool's result landed in — the anchor a link from
-            # the tool's own span jumps to (`resolve_tool_result_links`). It is
-            # the call's id, which is how the pair was matched to begin with.
-            flags = {"nested": True, "call_id": call_id}
+            flags = {"nested": True}
             if reading is not None:
                 flags["result"] = reading
             sections.append(section(result, **flags))

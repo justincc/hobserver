@@ -654,7 +654,7 @@ def test_search_files_turn_page_shows_what_came_back(tmp_path):
     assert re.search(r'list-item">\s*<span[^>]*>total_count 12<', page)
     assert "/p/f9.md" in page and "/p/f10.md" not in page
     assert "+2 more returned" in page
-    assert 'href="/turns/span/L2/prompt#m3"' in page
+    assert 'href="/turns/span/L2/prompt#m2"' in page
     assert "↗ view results" in page
 
 
@@ -3364,14 +3364,14 @@ def _extract_and_consumer(*, with_result=True):
 
 
 def test_resolve_tool_result_links_stamps_the_consuming_prompt():
-    """The tool span is paired to the section its result landed in: the result
-    sits third in the consuming prompt (user, tool_call, then the result under
-    its call), so the anchor is m3."""
+    """The tool span is paired to the tool_call its result is drawn under: the
+    call sits second in the consuming prompt (user, tool_call, then the result
+    under it), so the anchor is m2 — the call in view, its result below."""
     turn = assemble_lines(_extract_and_consumer()).sessions[0].turns[0]
     resolve_tool_result_links(turn)
     w1 = next(s for s in turn.spans if s.uuid == "W1")
     assert w1.result_prompt_uuid == "L2"
-    assert w1.result_prompt_anchor == "m3"
+    assert w1.result_prompt_anchor == "m2"
 
 
 def test_resolve_tool_result_links_leaves_an_unconsumed_result_unstamped():
@@ -3388,8 +3388,9 @@ def test_web_extract_detail_links_to_its_result_in_the_prompt(tmp_path):
     atof = write_atof(tmp_path, _extract_and_consumer())
     page = make_client(tmp_path, str(atof)).get(
         "/turns/turn/s1/1000000").get_data(as_text=True)
-    # straight to the tool_result section of the prompt that consumed it
-    assert 'href="/turns/span/L2/prompt#m3"' in page
+    # straight to the tool_call its result is drawn under, in the prompt
+    # that consumed it
+    assert 'href="/turns/span/L2/prompt#m2"' in page
     assert "↗ view results" in page
 
 
@@ -3426,7 +3427,7 @@ def test_web_search_detail_links_to_its_result_in_the_prompt(tmp_path):
     atof = write_atof(tmp_path, lines)
     page = make_client(tmp_path, str(atof)).get(
         "/turns/turn/s1/1000000").get_data(as_text=True)
-    assert 'href="/turns/span/L2/prompt#m3"' in page
+    assert 'href="/turns/span/L2/prompt#m2"' in page
     assert "↗ view results" in page
 
 
@@ -3458,5 +3459,14 @@ def test_code_running_tools_link_to_their_output_in_the_prompt(
     atof = write_atof(tmp_path, lines)
     page = make_client(tmp_path, str(atof)).get(
         "/turns/turn/s1/1000000").get_data(as_text=True)
-    assert 'href="/turns/span/L2/prompt#m3"' in page
+    assert 'href="/turns/span/L2/prompt#m2"' in page
     assert "↗ view output" in page
+
+
+def test_resolve_tool_result_links_leaves_a_call_without_its_result_unstamped():
+    """A prompt carrying the call but not yet its result is not the one that
+    consumed it: only a call with its result paired under it is a target."""
+    turn = assemble_lines(_extract_and_consumer(with_result=False)) \
+        .sessions[0].turns[0]
+    llm = next(s for s in turn.spans if s.uuid == "L2")
+    assert not any(sec.get("call_id") for sec in llm.llm_request_messages)
