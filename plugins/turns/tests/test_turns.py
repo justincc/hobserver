@@ -3427,3 +3427,29 @@ def test_web_search_detail_links_to_its_result_in_the_prompt(tmp_path):
         "/turns/turn/s1/1000000").get_data(as_text=True)
     assert 'href="/turns/span/L2/prompt#m3"' in page
     assert "↗ view results" in page
+
+
+def test_terminal_detail_links_to_its_output_in_the_prompt(tmp_path):
+    """terminal carries the shared result link: its output is fed back into
+    the next llm call's prompt like any other tool result."""
+    messages = [{"role": "user", "content": "list it"},
+                {"role": "tool_call", "name": "terminal", "call_id": "call-t",
+                 "arguments": '{"command": "ls"}'},
+                {"role": "tool_result", "call_id": "call-t",
+                 "output": '{"output": "a.txt", "exit_code": 0}'}]
+    lines = [
+        *session_scope_lines("s1", start_us=0),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("T1", "tool", 1_100_000, 1_200_000, name="terminal",
+                     session="s1", turn="t1", profile={"tool_call_id": "call-t"},
+                     start_data={"command": "ls"}),
+        *scope_lines("L2", "llm", 1_300_000, 1_400_000, name="anthropic",
+                     session="s1", turn="t1",
+                     profile={"annotated_request": {"messages": messages}}),
+        mark_line("hermes.turn.end", 1_500_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        "/turns/turn/s1/1000000").get_data(as_text=True)
+    assert 'href="/turns/span/L2/prompt#m3"' in page
+    assert "↗ view output" in page

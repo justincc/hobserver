@@ -777,7 +777,8 @@ SPAN_READERS = {"command": lambda span: (span.start_data or {}).get("argv")}
     built, notes = spec_table({"scope_specs": [name]})
     assert notes[0]["problem"] is None
     span = make_span(name="terminal", start={"command": "ls", "argv": "ls -l"})
-    assert only_cell(rows_for(span, built))["text"] == "ls -l"
+    # the first row is the command; the result link follows it
+    assert rows_for(span, built)[0]["cells"][0]["text"] == "ls -l"
     # …and this tree's own spec for that scope is still the one rendering it
     assert built.by_name["terminal"] is SCOPES["terminal"]
 

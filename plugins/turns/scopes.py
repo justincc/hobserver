@@ -21,6 +21,8 @@ alphabet and the exception is marked.
 `docs/design/span-rendering.md` narrates what each of these shows and why.
 """
 
+from dataclasses import replace
+
 from scope_spec import (Alt, Diff, Each, Field, Full, Items, Link,
                                         Row, Scope, const, first, item, joined,
                                         mapped, payload)
@@ -48,8 +50,9 @@ def tilde(path):
 
 
 # A detail-only link to this tool call's result in the prompt it was fed into,
-# shared by the tools whose result is worth jumping to (search_files,
-# web_extract, web_search). `result_prompt_uuid`/`result_prompt_anchor` are stamped on the span by
+# shared by the tools whose result is worth jumping to (search_files, terminal,
+# web_extract, web_search). `result_prompt_uuid`/`result_prompt_anchor` are
+# stamped on the span by
 # `resolve_tool_result_links` (a tool result lives on a *later* llm span's
 # prompt, not this one), so this is a plain declarative Link over two span
 # values. It draws only once the target exists: with no consuming prompt yet the
@@ -249,10 +252,15 @@ SKILLS_LIST = Scope(rows=[
 ])
 
 # The command runs in monospace and keeps its line breaks in detail mode, so
-# a heredoc or a multi-command script stays readable.
+# a heredoc or a multi-command script stays readable. Its output is reached
+# through the shared result link, worded for a command.
 TERMINAL = Scope(rows=[
     Row([Field("command", font="mono", clip="wrap"),
          Field("workdir", prefix="in ", transform=tilde)]),
+    replace(_RESULT_IN_PROMPT, text=const("↗ view output"),
+            title=const("Jump to this command's output where it was fed back "
+                        "to the model, in the full prompt of the next llm "
+                        "call.")),
 ])
 
 # a todo call without `todos` is a read of the current list and shows nothing

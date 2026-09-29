@@ -1116,7 +1116,10 @@ summary tag to say it once. The fixed `hint` string is not shown.
 Command in monospace, workdir with the home prefix collapsed to `~`. The
 command wraps in full in detail mode with line breaks kept — code takes
 `pre-wrap`, unlike the `normal` wrap prose details use — so a heredoc or a
-multi-command script stays readable.
+multi-command script stays readable. Detail mode adds the shared result link,
+worded **"↗ view output"**, to the command's output in the prompt it was fed into
+(see [web_extract](#web_extract--urls-and-a-link-to-the-result) for how it is
+resolved and when it draws).
 
 ### todo — `todos`
 
@@ -1178,7 +1181,7 @@ also renders what came *back*, see
 [mem0_search results](#mem0_search-results).
 
 web_search also carries the same detail-only **"↗ view results"** link
-web_extract and search_files do, to its result in the prompt it was fed into (one shared
+web_extract and search_files do (terminal words it "view output"), to its result in the prompt it was fed into (one shared
 `Link`; see [web_extract](#web_extract--urls-and-a-link-to-the-result) for how
 it is resolved and when it draws). mem0_search does not — its own results are
 shown inline and its "↗ ... in Mem0" link already opens them in full.
