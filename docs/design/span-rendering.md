@@ -872,7 +872,8 @@ per-turn #N tag (in start order) pairing start with stop, since
 
 ### execute_code — `code`
 
-First line inline, the whole program in detail mode.
+First line inline, the whole program in detail mode, then the shared result
+link worded **"↗ view output"**, as on [terminal](#terminal--command--workdir).
 
 ### file tools — `path`
 
@@ -1181,7 +1182,7 @@ also renders what came *back*, see
 [mem0_search results](#mem0_search-results).
 
 web_search also carries the same detail-only **"↗ view results"** link
-web_extract and search_files do (terminal words it "view output"), to its result in the prompt it was fed into (one shared
+web_extract and search_files do (execute_code and terminal word it "view output"), to its result in the prompt it was fed into (one shared
 `Link`; see [web_extract](#web_extract--urls-and-a-link-to-the-result) for how
 it is resolved and when it draws). mem0_search does not — its own results are
 shown inline and its "↗ ... in Mem0" link already opens them in full.

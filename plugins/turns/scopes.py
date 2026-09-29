@@ -68,6 +68,13 @@ _RESULT_IN_PROMPT = Link(
                 "model, in the full prompt of the next llm call."),
     layer="detail", new_tab=True)
 
+# The same link worded for tools that run code (execute_code, terminal), whose
+# result is the output of what they ran.
+_OUTPUT_IN_PROMPT = replace(
+    _RESULT_IN_PROMPT, text=const("↗ view output"),
+    title=const("Jump to this call's output where it was fed back to the "
+                "model, in the full prompt of the next llm call."))
+
 
 DELEGATE_TASK = Scope(rows=[
     Row([Field(first("delegate_goals"), clip="wide",
@@ -85,6 +92,7 @@ EXECUTE_CODE = Scope(rows=[
     Row([Field("code_first_line", font="mono", title="code")],
         layer="summary"),
     Row([Field("code", font="mono", clip="wrap")], layer="detail"),
+    _OUTPUT_IN_PROMPT,
 ])
 
 # read_file and write_file are the file tools carrying a plain path; the other
@@ -253,14 +261,11 @@ SKILLS_LIST = Scope(rows=[
 
 # The command runs in monospace and keeps its line breaks in detail mode, so
 # a heredoc or a multi-command script stays readable. Its output is reached
-# through the shared result link, worded for a command.
+# through the shared output link.
 TERMINAL = Scope(rows=[
     Row([Field("command", font="mono", clip="wrap"),
          Field("workdir", prefix="in ", transform=tilde)]),
-    replace(_RESULT_IN_PROMPT, text=const("↗ view output"),
-            title=const("Jump to this command's output where it was fed back "
-                        "to the model, in the full prompt of the next llm "
-                        "call.")),
+    _OUTPUT_IN_PROMPT,
 ])
 
 # a todo call without `todos` is a read of the current list and shows nothing
