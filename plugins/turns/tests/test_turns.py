@@ -2952,6 +2952,15 @@ def test_the_full_page_wires_the_contents_scroll_highlight(tmp_path):
     assert 'classList.toggle("nav-current"' in page
 
 
+def test_the_full_page_wires_the_contents_list_to_follow_the_anchor(tmp_path):
+    """A page opened at a section's anchor scrolls the contents list to that
+    section's entry, and the list follows the current mark. Client-side, so
+    this asserts the wiring is shipped, not its runtime effect."""
+    page = _full_page(tmp_path)
+    assert 'addEventListener("hashchange", revealHash)' in page
+    assert "reveal(current.a)" in page
+
+
 def test_the_scroll_highlight_can_reach_every_entry_it_marks(tmp_path):
     """The highlight resolves each contents entry by its `#`-fragment to an
     element id, so every entry it could mark (bar the `↑ top` link) must land

@@ -1142,7 +1142,24 @@
         .map((a) => ({ a, el: document.getElementById(a.getAttribute("href").slice(1)) }))
         .filter((t) => t.el);
       if (!targets.length) return;
+      // The list scrolls on its own once it outgrows the viewport, so an
+      // entry can be marked, or jumped to, while out of its sight. Scrolls the
+      // list alone — never the page — to centre an entry that is not fully
+      // visible, and leaves one already in view where it is.
+      const reveal = (a) => {
+        const box = nav.getBoundingClientRect();
+        const r = a.getBoundingClientRect();
+        if (r.top >= box.top && r.bottom <= box.bottom) return;
+        nav.scrollTop += r.top - box.top - (box.height - r.height) / 2;
+      };
+      // A page opened at a section's anchor — a tool's result link lands on
+      // its tool_call — or a hash changed after load shows that entry.
+      const revealHash = () => {
+        const t = targets.find((t) => t.a.getAttribute("href") === location.hash);
+        if (t) reveal(t.a);
+      };
       let raf = 0;
+      let shown = null;
       const spy = () => {
         raf = 0;
         // A section is "current" once its top has scrolled to within `line` of
@@ -1161,11 +1178,17 @@
           if (on) t.a.setAttribute("aria-current", "true");
           else t.a.removeAttribute("aria-current");
         }
+        // the marked entry follows the reader, but only when it changes, so a
+        // list scrolled by hand stays put while the reader stays in a section
+        if (current !== shown) { shown = current; reveal(current.a); }
       };
       const onScroll = () => { if (!raf) raf = requestAnimationFrame(spy); };
       window.addEventListener("scroll", onScroll, { passive: true });
       window.addEventListener("resize", onScroll, { passive: true });
+      window.addEventListener("hashchange", revealHash);
+      window.addEventListener("load", revealHash);
       spy();
+      revealHash();
     })();
   </script>
 </body>

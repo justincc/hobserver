@@ -425,6 +425,11 @@ what it means is left to the tooltip that was always carrying it.
     page stays still. The mark is on the list, not on the section it lands on
     — a jumped-to message sits at the top of the viewport, which already says
     which it is, so the section itself carries no highlight.
+  - **The list keeps its marked entry in sight.** It scrolls on its own once
+    it outgrows the viewport, so the script scrolls the list — never the
+    page — to centre the entry for a page opened at an anchor (a tool's
+    result link lands on its `tool_call`), and to follow the current mark
+    when it changes.
   - **Not shown for a single message**, which would name the thing the
     reader is already looking at, nor on a value that is not sections —
     the response page is one document.
