@@ -1947,3 +1947,34 @@ def test_a_result_that_is_not_the_web_extract_shape_falls_back_to_raw():
     assert read_tool_result("web_extract", "just some prose") is None
     assert read_tool_result("web_extract", json.dumps(["a", "b"])) is None
     assert read_tool_result("web_extract", json.dumps({"other": 1})) is None
+
+
+def test_terminal_result_is_read_for_the_prompt_page():
+    text = json.dumps({"output": '{"a": 1}', "exit_code": 0, "error": None,
+                       "hint": "use a pager"})
+    reading = read_tool_result("terminal", text)
+    assert reading["ok"] and reading["error"] is None
+    command = reading["command"]
+    assert command["output"] == '{"a": 1}'
+    # a null value is dropped; the rest keep hermes' key, JSON-spelled
+    assert command["fields"] == [{"key": "exit_code", "value": "0"}]
+    assert command["notes"] == [{"key": "hint", "value": "use a pager"}]
+
+
+def test_execute_code_error_keeps_its_output_beside_the_error():
+    """A timed-out call carries both, so the error does not replace the
+    output the way a whole-call error does for other tools."""
+    text = json.dumps({"status": "timeout", "output": "partial",
+                       "error": "timed out", "duration_seconds": 30.0})
+    reading = read_tool_result("execute_code", text)
+    assert reading["error"] is None and not reading["ok"]
+    assert reading["command"]["error"] == "timed out"
+    assert reading["command"]["output"] == "partial"
+    no_output = read_tool_result("execute_code", json.dumps(
+        {"status": "error", "error": "boom", "tool_calls_made": 0}))
+    assert no_output["command"]["output"] is None
+
+
+def test_a_result_that_is_not_the_command_shape_falls_back_to_raw():
+    assert read_tool_result("terminal", '{"other": 1}') is None
+    assert read_tool_result("terminal", "plain text") is None

@@ -3479,3 +3479,38 @@ def test_resolve_tool_result_links_leaves_a_call_without_its_result_unstamped():
         .sessions[0].turns[0]
     llm = next(s for s in turn.spans if s.uuid == "L2")
     assert not any(sec.get("call_id") for sec in llm.llm_request_messages)
+
+
+# --- terminal / execute_code: the printed output, as a tree when structured --
+
+def _command_request(name, output):
+    return {"annotated_request": {"messages": [
+        {"role": "user", "content": "run it"},
+        {"role": "tool_call", "name": name, "call_id": "c1",
+         "arguments": '{"command": "cat x"}'},
+        {"role": "tool_result", "call_id": "c1", "output": json.dumps(
+            {"output": output, "exit_code": 0, "error": None})}]}}
+
+
+def _formatted_panel(page):
+    fmt = re.search(r'<div class="tool-panel tool-panel-fmt">(.*?)'
+                    r'<div class="tool-panel tool-panel-raw">', page, re.S)
+    assert fmt
+    return fmt.group(1)
+
+
+def test_terminal_result_fields_are_facts_on_the_prompt_page(tmp_path):
+    page = _full_page(tmp_path, profile=_command_request(
+        "terminal", '{"role_count": 16}'))
+    body = _formatted_panel(page)
+    assert ('<span class="tool-fact"><span class="tool-fact-k">exit_code'
+            '</span> 0</span>') in body
+    assert '<pre class="blob command-output">{&#34;role_count&#34;: 16}</pre>' in body
+
+
+def test_plain_command_output_is_shown_as_text(tmp_path):
+    page = _full_page(tmp_path, profile=_command_request(
+        "terminal", "line one\nline two"))
+    body = _formatted_panel(page)
+    assert '<pre class="blob command-output">line one\nline two</pre>' in body
+

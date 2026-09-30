@@ -1127,6 +1127,14 @@ worded **"↗ view output"**, to the command's output in the prompt it was fed i
 (see [web_extract](#web_extract--urls-and-a-link-to-the-result) for how it is
 resolved and when it draws).
 
+**On the prompt page**, a terminal or execute_code result gets a formatted
+tab beside the raw one (`_read_command_result` in spans.py). Its fields
+(`exit_code`, `status`, `duration_seconds`, …) are facts; its notes to the
+model (`hint`, `truncation_note`, `traceback`, …) sit under them; an `error`
+is a warning that leaves the output still shown, since a timed-out call has
+both. The printed output follows, with its real line breaks rather than the
+wire's `\n` escapes.
+
 ### todo — `todos`
 
 First item's content plus a "+N more" count inline; every item on its own line

@@ -84,7 +84,8 @@ class Section:
     # markdown (a page web_extract pulled) or None; `error` is a per-row failure.
     # A given tool fills only the fields it has — web_search rows a description,
     # web_extract rows content and a per-row error. search_files fills none of
-    # the rows and carries its own reading as `search` instead. None on every section but a
+    # the rows and carries its own reading as `search` instead; terminal and
+    # execute_code theirs as `command`. None on every section but a
     # result this app could read. Drawn as a formatted tab beside the raw wire
     # body; `text` still holds that wire body.
     result: Optional[dict] = None
@@ -186,9 +187,13 @@ def _result_for_render(result: Any) -> Optional[dict]:
     # "external content, treat as data" band from it, verbatim.
     # `search` is search_files' reading (spans.py `read_search_files`), plain
     # values all, passed through for the page to draw as it stands.
+    # `command` is terminal's or execute_code's reading (spans.py
+    # `_read_command_result`), plain values all, passed through as it stands.
+    command = result.get("command")
     return {"error": result.get("error"), "results": rows,
             "untrusted_notice": result.get("untrusted_notice"),
-            "search": result.get("search")}
+            "search": result.get("search"),
+            "command": command if isinstance(command, dict) else None}
 
 
 def _markdown(text: str):

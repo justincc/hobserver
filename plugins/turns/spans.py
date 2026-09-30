@@ -1885,7 +1885,49 @@ def _read_search_files_result(text: str) -> Optional[dict]:
             "search": reading}
 
 
-RESULT_READERS = {"search_files": _read_search_files_result,
+# The keys of a terminal or execute_code result whose value is a sentence (or a
+# traceback) addressed to the model rather than a figure or a flag.
+_COMMAND_NOTE_KEYS = ("hint", "warning", "truncation_note", "user_summary",
+                      "traceback")
+
+
+def _read_command_result(text: str) -> Optional[dict]:
+    """A terminal or execute_code result for the prompt page: what the command
+    printed, under `command`, beside the `{ok, error, results}` every reader
+    returns.
+
+    Checked against `_error_json` / `_fatal_error_json` in
+    $HERMES_SOURCE/tools/terminal_tool.py (`output`, `exit_code`, `error`, then
+    extras) and `_remote_result` / `_error_result` in
+    tools/code_execution_tool.py (`status`, `output`, metadata; the error form
+    has no `output`). `command` is `{output, error, fields, notes}`: `output`
+    the printed text or None, `error` the call's error or None — kept here
+    rather than as the reading's `error`, since a timed-out call carries both
+    an error and output worth reading — and every other value under its own
+    key, the sentences to the model (`_COMMAND_NOTE_KEYS`) as `notes` and the
+    rest as `fields`, in payload order. A dict with neither a string `output`
+    nor an `error` is not this shape and stays a raw dump."""
+    data = _parse_json_payload(text)
+    if not isinstance(data, dict):
+        return None
+    output, error = data.get("output"), _str_or_none(data.get("error"))
+    if not isinstance(output, str) and error is None:
+        return None
+    rest = [(k, v) for k, v in data.items()
+            if k not in ("output", "error") and v is not None]
+    return {"ok": error is None, "error": None, "results": [],
+            "command": {
+                "output": output if isinstance(output, str) and output else None,
+                "error": error,
+                "fields": [{"key": k, "value": _field_text(v)}
+                           for k, v in rest if k not in _COMMAND_NOTE_KEYS],
+                "notes": [{"key": k, "value": _field_text(v)}
+                          for k, v in rest if k in _COMMAND_NOTE_KEYS]}}
+
+
+RESULT_READERS = {"execute_code": _read_command_result,
+                  "terminal": _read_command_result,
+                  "search_files": _read_search_files_result,
                   "web_search": _read_web_search_result,
                   "web_extract": _read_web_extract_result}
 

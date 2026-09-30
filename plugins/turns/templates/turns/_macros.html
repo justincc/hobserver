@@ -274,6 +274,25 @@
 </div>
 {%- endif %}
 {%- endmacro %}
+{# A terminal or execute_code result (spans.py `_read_command_result`): its
+   fields as facts, its notes and error, then what the command printed, as the
+   text it is, newlines and all. #}
+{% macro command_formatted(c) -%}
+{%- if c.fields %}
+<p class="tool-facts">
+  {%- for f in c.fields %}<span class="tool-fact"><span class="tool-fact-k">{{ f.key }}</span> {{ f.value }}</span>{% endfor %}
+</p>
+{%- endif %}
+{%- for n in c.notes %}
+<p class="tool-facts search-note"><span class="tool-fact"><span class="tool-fact-k">{{ n.key }}</span> <span class="command-note">{{ n.value }}</span></span></p>
+{%- endfor %}
+{%- if c.error %}<p class="notice warn result-error">{{ c.error }}</p>{% endif %}
+{%- if c.output %}
+<pre class="blob command-output">{{ c.output }}</pre>
+{%- elif not c.error %}
+<p class="meta msg-empty">(no output)</p>
+{%- endif %}
+{%- endmacro %}
 {# A tool result this app could read (spans.py `read_tool_result`): its rows,
    drawn one per hit (web_search) or per extracted page (web_extract). A title
    that has a safe link is an anchor to it; the url is shown in full beneath so
@@ -299,6 +318,7 @@
 {%- if result.error %}
 <p class="notice warn result-error">{{ result.error }}</p>
 {%- elif result.search %}{{ search_files_formatted(result.search) }}
+{%- elif result.command %}{{ command_formatted(result.command) }}
 {%- elif result.results %}
 <ol class="web-results">
 {%- for r in result.results %}
