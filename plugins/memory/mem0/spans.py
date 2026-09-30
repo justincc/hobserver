@@ -56,20 +56,21 @@ def mem0_results(span):
     raw = end.get("results")
     if not isinstance(raw, list):
         return []
-    results = []
-    for item in raw:
-        if not isinstance(item, dict):
-            continue
-        memory = item.get("memory")
-        score = item.get("score")
-        results.append({
-            "id": item.get("id") if isinstance(item.get("id"), str) else None,
-            "memory": memory if isinstance(memory, str) else None,
-            # ints are valid JSON numbers; bool is an int subclass
-            "score": score if isinstance(score, (int, float))
-                     and not isinstance(score, bool) else None,
-        })
-    return results
+    return [_hit(item) for item in raw if isinstance(item, dict)]
+
+
+def _hit(item):
+    """One search hit, `{id, memory, score}`, each None when absent or the
+    wrong type."""
+    memory = item.get("memory")
+    score = item.get("score")
+    return {
+        "id": item.get("id") if isinstance(item.get("id"), str) else None,
+        "memory": memory if isinstance(memory, str) else None,
+        # ints are valid JSON numbers; bool is an int subclass
+        "score": score if isinstance(score, (int, float))
+                 and not isinstance(score, bool) else None,
+    }
 
 
 def mem0_result_count(span):
@@ -86,10 +87,67 @@ def mem0_result_count(span):
     return len(results) if results else None
 
 
+def _result_dict(text):
+    """A result's JSON object as fed back to the model, or None. The whole
+    text first, then the first object in it, for a result that arrives with
+    framing around it."""
+    try:
+        data = json.loads(text.strip())
+    except ValueError:
+        start = text.find("{")
+        if start < 0:
+            return None
+        try:
+            data, _ = json.JSONDecoder().raw_decode(text, start)
+        except ValueError:
+            return None
+    return data if isinstance(data, dict) else None
+
+
+def read_search_result(text):
+    """mem0_search's result on the prompt page (ADR 26): the reading the
+    Turns tab draws as the formatted tab, or None to leave the raw body.
+
+    The tool returns `{"results": [{id, memory, score}], "count": n}`, `{"result":
+    "No relevant memories found."}` when nothing matched, or `{"error":
+    "..."}`. Each hit is a row: the memory as its text, its score and id as the
+    row's facts; the count, or the no-match sentence, is the whole result's."""
+    data = _result_dict(text)
+    if data is None:
+        return None
+    error = data.get("error")
+    if isinstance(error, str) and error:
+        return {"error": error, "results": []}
+    raw = data.get("results")
+    if not isinstance(raw, list):
+        said = data.get("result")
+        if isinstance(said, str) and said:
+            return {"fields": [{"key": "result", "value": said}],
+                    "results": []}
+        return None
+    hits = [_hit(item) for item in raw if isinstance(item, dict)]
+    count = data.get("count")
+    if not isinstance(count, int) or isinstance(count, bool):
+        count = len(hits)
+    return {
+        "fields": [{"key": "count", "value": str(count)}],
+        "results": [{"description": h["memory"],
+                     "fields": [{"key": k, "value": str(h[k])}
+                                for k in ("score", "id") if h[k] is not None]}
+                    for h in hits],
+    }
+
+
 # The table this plugin contributes, keyed by the name a spec uses as a
 # source. `__init__` re-exports it as SPAN_READERS, which is what the shell
 # picks up — beside SCOPES, and gone with it when this tab is disabled.
 SPAN_READERS = {
     "mem0_results": mem0_results,
     "mem0_result_count": mem0_result_count,
+}
+
+# The prompt page's reading of this plugin's tool results, keyed by tool name.
+# `__init__` re-exports it as RESULT_READERS, beside SPAN_READERS (ADR 26).
+RESULT_READERS = {
+    "mem0_search": read_search_result,
 }

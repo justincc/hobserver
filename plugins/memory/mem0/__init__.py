@@ -26,13 +26,15 @@ import hermes_paths
 
 PLUGIN_API = 1
 
-# How this plugin's own spans show on a turn page (ADR 10) and how their
-# payloads are read (ADR 17). Contributed to whichever tab paints spans, and
+# How this plugin's own spans show on a turn page (ADR 10), how their
+# payloads are read (ADR 17), and how their results read on the prompt page
+# (ADR 26). Contributed to whichever tab paints spans, and
 # gone the moment this tab is disabled — so a link into a page that is no
 # longer served cannot be left behind. Both halves are mem0's: nothing in the
 # Turns tab knows what a mem0 search result looks like.
 from plugins.memory.mem0.scopes import SCOPES  # noqa: E402  (after PLUGIN_API)
-from plugins.memory.mem0.spans import SPAN_READERS  # noqa: E402  (after PLUGIN_API)
+from plugins.memory.mem0.spans import (  # noqa: E402  (after PLUGIN_API)
+    RESULT_READERS, SPAN_READERS)
 bp = Blueprint("mem0", __name__, template_folder="templates")
 TAB_LABEL = "Mem0"
 # Namespaced under memory/ because mem0 is one memory system of several to

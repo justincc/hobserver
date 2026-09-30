@@ -22,6 +22,7 @@ A plugin is any importable module exposing:
 | `sources(settings)` | no | what the tab reads, for the banner and error states |
 | `SCOPES` / `SCOPES_BY_CATEGORY` | no | how this tab's own hermes spans render on a tab that paints spans (ADR 10) |
 | `SPAN_READERS` | no | how this tab's own span payloads are read, named as sources by those specs (ADR 17) |
+| `RESULT_READERS` | no | how this tab's own tools' results read on the prompt page (ADR 26) |
 
 In-tree plugins live in `plugins/<name>/`, templates included:
 `plugins/<name>/templates/<name>/`, carried by the blueprint's own

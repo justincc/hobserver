@@ -3534,3 +3534,57 @@ def test_mixed_command_output_draws_text_and_trees_in_order(tmp_path):
     assert order == sorted(order)
     # a key out of the output stays text
     assert "&lt;i&gt;k&lt;/i&gt;" in body and "<i>k</i>" not in body
+
+
+# --- contributed result readers reach the prompt page (ADR 26) --------------
+
+def _prompt_page_with_specs(tmp_path, monkeypatch, name, body):
+    (tmp_path / f"{name}.py").write_text(body, encoding="utf-8")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L1", "llm", 1_100_000, 1_600_000, name="openai-codex",
+                     session="s1", turn="t1",
+                     profile=_command_request("terminal", "hello"),
+                     start_data={"headers": {}}, end_data=_assistant("ok")),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    app = make_app([{"plugin": "plugins.turns",
+                     "settings": {"atof_log": str(atof),
+                                  "scope_specs": [name]}}])
+    return app.test_client().get("/turns/span/L1/prompt").get_data(as_text=True)
+
+
+def test_a_contributed_result_reader_replaces_this_trees(tmp_path, monkeypatch):
+    page = _prompt_page_with_specs(tmp_path, monkeypatch, "theirs_results", '''
+def read(text):
+    return {"fields": [{"key": "theirs", "value": "yes"}],
+            "results": [{"description": "their row",
+                         "fields": [{"key": "k", "value": "v"}]}]}
+RESULT_READERS = {"terminal": read}
+''')
+    body = _formatted_panel(page)
+    assert '<span class="tool-fact-k">theirs</span> yes' in body
+    assert '<p class="web-result-desc">their row</p>' in body
+    assert '<span class="tool-fact-k">k</span> v' in body
+    assert "command-output" not in body            # ours no longer draws it
+
+
+def test_a_contributed_result_reader_that_raises_leaves_the_raw_body(
+        tmp_path, monkeypatch):
+    page = _prompt_page_with_specs(tmp_path, monkeypatch, "raising_results", '''
+def read(text):
+    raise RuntimeError("boom")
+RESULT_READERS = {"terminal": read}
+''')
+    assert 'class="tool-tabs"' not in page
+    assert "hello" in page
+
+
+def test_a_contributed_reading_that_is_not_a_dict_is_no_reading(
+        tmp_path, monkeypatch):
+    page = _prompt_page_with_specs(tmp_path, monkeypatch, "listing_results", '''
+RESULT_READERS = {"terminal": lambda text: ["not", "a", "reading"]}
+''')
+    assert 'class="tool-tabs"' not in page

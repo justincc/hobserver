@@ -64,8 +64,10 @@ audience it serves, not the one whose subject it shares.
   shows on the turn page, scope by scope
 - [ADR 17](docs/design/adr/0017-a-payload-reading-is-contributed-beside-the-spec-that-names-it.md)
   — a tool's payload is read by whoever owns that tool, as `SPAN_READERS`
-  beside its specs. **[plugins/turns/spans.py](plugins/turns/spans.py) is
-  this tab's reading of hermes' own tools**, and nothing else's; another
+  beside its specs, and its result on the prompt page as `RESULT_READERS`
+  ([ADR 26](docs/design/adr/0026-a-tool-results-prompt-page-reading-is-contributed-too.md)).
+  **[plugins/turns/spans.py](plugins/turns/spans.py) is this tab's reading
+  of hermes' own tools**, and nothing else's; another
   system's shape goes with that system
   ([plugins/memory/mem0/spans.py](plugins/memory/mem0/spans.py) is the worked example)
 - [live-pages.md](docs/design/live-pages.md) — polling, liveness, follow mode,

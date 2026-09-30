@@ -737,11 +737,16 @@ class SpecTable:
     readings a spec names as bare-string sources. It travels with the specs
     because it arrives with them, from the same module, and dies with them
     when that tab is disabled.
+
+    `result_readers` is the prompt page's reading of a tool's result as it
+    was fed back to the model, by tool name (ADR 26): `fn(text) -> reading`,
+    drawn as the formatted tab beside the raw body. It travels the same way.
     """
 
     by_name: dict = dc_field(default_factory=dict)
     by_category: dict = dc_field(default_factory=dict)
     readers: dict = dc_field(default_factory=dict)
+    result_readers: dict = dc_field(default_factory=dict)
 
     def lookup(self, span) -> Optional[Scope]:
         spec = self.by_name.get(getattr(span, "name", None))
@@ -750,22 +755,27 @@ class SpecTable:
         return spec
 
     def merged_with(self, by_name: dict, by_category: dict,
-                    readers: Optional[dict] = None) -> "SpecTable":
+                    readers: Optional[dict] = None,
+                    result_readers: Optional[dict] = None) -> "SpecTable":
         """This table with another module's specs laid over it. Later wins:
         the in-tree table is a default, not a floor (ADR 7)."""
         return SpecTable({**self.by_name, **by_name},
                          {**self.by_category, **by_category},
-                         {**self.readers, **(readers or {})})
+                         {**self.readers, **(readers or {})},
+                         {**self.result_readers, **(result_readers or {})})
 
     def overrides_of(self, by_name: dict, by_category: dict,
-                     readers: Optional[dict] = None) -> list:
+                     readers: Optional[dict] = None,
+                     result_readers: Optional[dict] = None) -> list:
         """Which names another module would take over, for the startup line.
         An override is legitimate and announced, never silent."""
         return sorted([n for n in by_name if n in self.by_name]
                       + [f"category:{c}" for c in by_category
                          if c in self.by_category]
                       + [f"reader:{r}" for r in (readers or {})
-                         if r in self.readers])
+                         if r in self.readers]
+                      + [f"result reader:{r}" for r in (result_readers or {})
+                         if r in self.result_readers])
 
 
 def rows_for(span, table: SpecTable, accessors=None) -> Optional[list]:
@@ -896,6 +906,24 @@ def check_readers(readers: dict) -> list:
         elif not callable(reader):
             problems.append(f"{where} is {type(reader).__name__}, not "
                             "callable — a reader is fn(span) -> value")
+    return problems
+
+
+def check_result_readers(readers: dict) -> list:
+    """What is wrong with a contributed result-reader table (ADR 26), for the
+    same reason as `check_readers`: a fault would otherwise show only as a
+    result with no formatted tab, which is what an uninstalled module looks
+    like. A key is a tool name as the model called it."""
+    if not isinstance(readers, dict):
+        return [f"RESULT_READERS is {type(readers).__name__}, not a dict"]
+    problems = []
+    for name, reader in readers.items():
+        where = f"RESULT_READERS[{name!r}]"
+        if not isinstance(name, str) or not name:
+            problems.append(f"{where} is not a tool name")
+        elif not callable(reader):
+            problems.append(f"{where} is {type(reader).__name__}, not "
+                            "callable — a result reader is fn(text) -> reading")
     return problems
 
 

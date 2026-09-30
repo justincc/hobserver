@@ -32,12 +32,14 @@ from plugins.turns.atof_index import (AtofIndex, default_index_path,
                                         hydrate_span, hydrate_turn)
 from plugins.turns.tailer import file_size
 from providers import USAGE_SHAPES, check_shapes
-from scope_spec import (SpecTable, check_readers,
+from scope_spec import (SpecTable, check_readers, check_result_readers,
                                         check_table, full_for, full_link,
                                         render_macro, resolve_full,
                                         resolve_source, rows_for)
 from plugins.turns.scopes import SCOPES, SCOPES_BY_CATEGORY
-from plugins.turns.spans import (Span, resolve_memory_entries,
+from plugins.turns.spans import (RESULT_READERS, Span,
+                                  apply_result_readings,
+                                  resolve_memory_entries,
                                   resolve_tool_result_links)
 
 PLUGIN_API = 1
@@ -228,8 +230,8 @@ def usage_shape_table(settings):
 
 
 def tab_spec_tables(app):
-    """Scope specs and span readers the other loaded tabs contribute
-    (ADR 10, ADR 17).
+    """Scope specs, span readers and result readers the other loaded tabs
+    contribute (ADR 10, ADR 17, ADR 26).
 
     A tab that owns a kind of span describes it itself — mem0's spans are
     declared in `plugins/memory/mem0/scopes.py` and read in `plugins/memory/mem0/spans.py`,
@@ -250,15 +252,18 @@ def tab_spec_tables(app):
         by_name = tables.get("SCOPES") or {}
         by_category = tables.get("SCOPES_BY_CATEGORY") or {}
         readers = tables.get("SPAN_READERS") or {}
+        result_readers = tables.get("RESULT_READERS") or {}
         # This tab exposes SCOPES too — it owns the specs for hermes' own
         # tools — and the shell offers them back like any other tab's. They
         # are already the base here, so skip them rather than merging a table
         # over itself and reporting it as a contribution.
         if by_name is SCOPES or by_category is SCOPES_BY_CATEGORY:
             continue
-        faults = check_table(by_name, by_category) + check_readers(readers)
+        faults = (check_table(by_name, by_category) + check_readers(readers)
+                  + check_result_readers(result_readers))
         out.append({"tab": name, "by_name": by_name,
                     "by_category": by_category, "readers": readers,
+                    "result_readers": result_readers,
                     "problem": "; ".join(faults) if faults else None})
     return out
 
@@ -273,7 +278,8 @@ def spec_table(settings, app=None):
     scopes it would have described fall back to the generic payload renderer,
     which is what they had before it was installed.
     """
-    table = SpecTable(dict(SCOPES), dict(SCOPES_BY_CATEGORY))
+    table = SpecTable(dict(SCOPES), dict(SCOPES_BY_CATEGORY),
+                      result_readers=dict(RESULT_READERS))
     notes = []
     # Three layers, each overriding the last: this tree's defaults, then what
     # the loaded tabs contribute, then modules named in settings — most
@@ -285,13 +291,15 @@ def spec_table(settings, app=None):
         if note["problem"] is None:
             taken = table.overrides_of(contributed["by_name"],
                                        contributed["by_category"],
-                                       contributed["readers"])
+                                       contributed["readers"],
+                                       contributed["result_readers"])
             taken += _shadowed_properties(contributed["readers"])
             if taken:
                 note["from"] = f"contributed, overriding {', '.join(taken)}"
             table = table.merged_with(contributed["by_name"],
                                       contributed["by_category"],
-                                      contributed["readers"])
+                                      contributed["readers"],
+                                      contributed["result_readers"])
         notes.append(note)
     for path in spec_modules(settings):
         note = {"label": "scope spec", "path": path, "from": "settings",
@@ -301,6 +309,7 @@ def spec_table(settings, app=None):
             by_name = getattr(module, "SCOPES", None) or {}
             by_category = getattr(module, "SCOPES_BY_CATEGORY", None) or {}
             readers = getattr(module, "SPAN_READERS", None) or {}
+            result_readers = getattr(module, "RESULT_READERS", None) or {}
             if not isinstance(by_name, dict) or not isinstance(by_category, dict):
                 raise TypeError("SCOPES must be a dict of scope name to Scope")
             # Readers alone are a legitimate module: replacing this app's
@@ -308,20 +317,26 @@ def spec_table(settings, app=None):
             # the override design principle 1 allows (ADR 17). What is not
             # legitimate is a module that does nothing, which is what this
             # catches.
-            if not by_name and not by_category and not readers:
-                raise ValueError("no SCOPES or SPAN_READERS in module")
-            faults = check_table(by_name, by_category) + check_readers(readers)
+            if not by_name and not by_category and not readers \
+                    and not result_readers:
+                raise ValueError("no SCOPES, SPAN_READERS or RESULT_READERS "
+                                 "in module")
+            faults = (check_table(by_name, by_category)
+                      + check_readers(readers)
+                      + check_result_readers(result_readers))
             if faults:
                 raise ValueError("; ".join(faults))
         except Exception as exc:  # noqa: BLE001 - third-party module
             note["problem"] = f"{type(exc).__name__}: {exc}"
             notes.append(note)
             continue
-        taken = (table.overrides_of(by_name, by_category, readers)
+        taken = (table.overrides_of(by_name, by_category, readers,
+                                    result_readers)
                  + _shadowed_properties(readers))
         if taken:
             note["from"] = f"settings, overriding {', '.join(taken)}"
-        table = table.merged_with(by_name, by_category, readers)
+        table = table.merged_with(by_name, by_category, readers,
+                                  result_readers)
         notes.append(note)
     return table, notes
 
@@ -875,8 +890,11 @@ def span_full(span_uuid, key):
     # a payload just as a row can, and the two pages must resolve a source
     # the same way or a `Full` would open on nothing (ADR 17).
     readers = table.readers
-    rendered = fulltext.render(resolve_full(span, full, accessors, readers),
-                               full.render)
+    # A request's tool results are read here, by the merged table, so a
+    # contributed result reader reaches the page (ADR 26).
+    value = apply_result_readings(resolve_full(span, full, accessors, readers),
+                                  table.result_readers)
+    rendered = fulltext.render(value, full.render)
     return render_template(
         "turns/full.html",
         span=span,

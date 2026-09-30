@@ -17,7 +17,8 @@ from scope_spec import (FULL_ENDPOINT, FULL_RENDERERS,
                                         RENDER_MACROS, Alt, Diff, Each, Field,
                                         Full, Items, Link, Row, Scope,
                                         SpecTable, accessor, attr,
-                                        check_readers, check_table, const,
+                                        check_readers, check_result_readers,
+                                        check_table, const,
                                         first, full_for, full_link, item,
                                         joined, mapped, payload, payload_end,
                                         profile, render_macro, resolve_full,
@@ -797,6 +798,62 @@ SPAN_READERS = {"widget_summary": "not a function"}
     assert "not callable" in notes[0]["problem"]
     assert "acme_widget" not in built.by_name
     assert built.readers == {}
+
+
+# --- result readers: the prompt page's reading of a tool result (ADR 26) ---
+
+
+def test_a_result_reader_that_is_not_callable_is_refused():
+    assert "not callable" in check_result_readers({"acme": "nope"})[0]
+    assert "not a tool name" in check_result_readers({"": len})[0]
+    assert "not a dict" in check_result_readers(["acme"])[0]
+    assert check_result_readers({}) == []
+
+
+def test_this_trees_result_readers_are_the_base_table():
+    from plugins.turns import spec_table
+    from plugins.turns.spans import RESULT_READERS
+
+    built, _ = spec_table({})
+    assert built.result_readers == RESULT_READERS
+
+
+def test_a_module_may_contribute_a_result_reader_alone(tmp_path, monkeypatch):
+    from plugins.turns import spec_table
+
+    name = write_spec_module(tmp_path, monkeypatch, "acme_results", '''
+RESULT_READERS = {"acme_widget": lambda text: {"results": []}}
+''')
+    built, notes = spec_table({"scope_specs": [name]})
+    assert notes[0]["problem"] is None
+    assert "acme_widget" in built.result_readers
+    assert "terminal" in built.result_readers      # this tree's kept beside it
+
+
+def test_a_result_reader_override_is_reported_not_silent(tmp_path,
+                                                         monkeypatch):
+    from plugins.turns import spec_table
+
+    name = write_spec_module(tmp_path, monkeypatch, "terminal_results", '''
+RESULT_READERS = {"terminal": lambda text: {"results": []}}
+''')
+    built, notes = spec_table({"scope_specs": [name]})
+    assert "result reader:terminal" in notes[0]["from"]
+
+
+def test_a_bad_result_reader_table_skips_the_whole_contribution(tmp_path,
+                                                                monkeypatch):
+    from plugins.turns import spec_table
+
+    name = write_spec_module(tmp_path, monkeypatch, "badresult_specs", '''
+from scope_spec import Field, Row, Scope, payload
+SCOPES = {"acme_widget": Scope(rows=[Row([Field(payload("widget"))])])}
+RESULT_READERS = {"acme_widget": "not a function"}
+''')
+    built, notes = spec_table({"scope_specs": [name]})
+    assert "not callable" in notes[0]["problem"]
+    assert "acme_widget" not in built.by_name
+    assert "acme_widget" not in built.result_readers
 
 
 def test_a_module_that_cannot_be_imported_is_reported_and_skipped():

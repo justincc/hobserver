@@ -1300,6 +1300,11 @@ the shape is mem0's, so the reading belongs to mem0's tab
 Turn the Mem0 tab off and these spans render as a payload dump, rows and
 reading together.
 
+On the prompt page, the same result fed back to the model gets a formatted
+tab from the mem0 plugin's `read_search_result` (a `RESULT_READERS` entry,
+[ADR 26](adr/0026-a-tool-results-prompt-page-reading-is-contributed-too.md)):
+the count as a fact, then one row per memory with its score and id.
+
 Only the top three render, on detail-only rows: whole facts would swamp the
 summary line. How many is bound once, as `shown` in the template — the same
 slice decides whether the link below reads "all N results" or "full result",

@@ -87,6 +87,7 @@ Restart the app. The startup banner gains a line naming the module, and the
 | `SCOPES` | required | `{scope name: Scope}` — the hermes tool's own name, as it appears on the span |
 | `SCOPES_BY_CATEGORY` | optional | `{category: Scope}`, for spans with no stable name |
 | `SPAN_READERS` | optional | `{name: fn(span) -> value}` — payload readings your rows name as sources |
+| `RESULT_READERS` | optional | `{tool name: fn(text) -> reading}` — a formatted tab for the tool's result on the prompt page |
 
 A name beats a category, so a category spec is the default for a whole class
 of span and a name spec singles one out. Use a category only when the name
@@ -291,6 +292,42 @@ applied to an already-resolved value, so it is for presentation — shortening,
 formatting, `tilde()` on a path — where a reader is for getting the value out
 of the payload at all.
 
+## Formatting a tool's result on the prompt page
+
+The prompt page shows each tool result under the call it answers, as the raw
+body the model received. A **result reader** adds a formatted tab beside it
+([ADR 26](../design/adr/0026-a-tool-results-prompt-page-reading-is-contributed-too.md)):
+
+```python
+def read_deploy_result(text):
+    """The result as the model received it — a string, framing and all."""
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return None                          # None: the raw body alone
+    if not isinstance(data, dict):
+        return None
+    return {
+        "fields": [{"key": "status", "value": str(data.get("status"))}],
+        "results": [{"description": host, "fields": [{"key": "role", "value": role}]}
+                    for host, role in (data.get("hosts") or {}).items()],
+    }
+
+RESULT_READERS = {"deploy": read_deploy_result}
+```
+
+A reading is a dict; every key is optional:
+
+| key | drawn as |
+| --- | --- |
+| `error` | a warning band in place of the rows |
+| `fields` | `[{key, value}]`, one line of facts at the top |
+| `results` | one row each: `title`, `url` (a link only when http/https), `description` (plain text), `content` (markdown), `error`, and its own `fields` |
+
+Every value is escaped. A reader that raises, or returns anything but a dict,
+leaves the raw body alone on the page. `plugins/memory/mem0/spans.py`
+(`read_search_result`) is a worked example.
+
 ## Overriding a spec this app ships
 
 Claim a name already in the table and yours wins. The in-tree table is a
@@ -308,7 +345,8 @@ A `SPAN_READERS` name is announced the same way — `overriding
 reader:mem0_results` for another module's reader, `overriding Span.command`
 for one of this app's own readings. That second line is the one worth
 watching for: nothing else would show it, because the rows go on rendering
-with different values in them.
+with different values in them. A `RESULT_READERS` entry for a tool this app
+already reads is `overriding result reader:terminal`.
 
 ## When it goes wrong
 
@@ -319,10 +357,11 @@ payload dump — which is what that scope showed before your module existed.
 | what happened | what you see |
 | --- | --- |
 | module will not import | banner names the module and the exception; every other scope renders |
-| no `SCOPES` and no `SPAN_READERS` in it, or not a dict | banner says so; module skipped |
-| a `SPAN_READERS` entry is not callable, or badly named | banner says so; the whole module is skipped, specs included |
+| no `SCOPES`, `SPAN_READERS` or `RESULT_READERS` in it, or not a dict | banner says so; module skipped |
+| a `SPAN_READERS` or `RESULT_READERS` entry is not callable, or badly named | banner says so; the whole module is skipped, specs included |
 | a spec raises while resolving | that span falls back to its payload; the rest of the page is fine |
 | a reader raises while resolving | that one field is empty; the row, the span and the page are fine |
+| a result reader raises, or returns a non-dict | that result shows its raw body only |
 | a spec resolves to no rows | same — treated as "nothing to say about this span" |
 
 Because failure is quiet on the page and loud at startup, **read the banner**

@@ -1925,6 +1925,9 @@ def _read_command_result(text: str) -> Optional[dict]:
                           for k, v in rest if k in _COMMAND_NOTE_KEYS]}}
 
 
+# This tab's readings of hermes' own tools' results. Another system's tool is
+# read by whoever owns it, contributed as `RESULT_READERS` beside its specs
+# and merged over this table (ADR 26).
 RESULT_READERS = {"execute_code": _read_command_result,
                   "terminal": _read_command_result,
                   "search_files": _read_search_files_result,
@@ -1932,26 +1935,47 @@ RESULT_READERS = {"execute_code": _read_command_result,
                   "web_extract": _read_web_extract_result}
 
 
-def read_tool_result(name: Optional[str], text: Any) -> Optional[dict]:
+def read_tool_result(name: Optional[str], text: Any,
+                     readers: Optional[dict] = None) -> Optional[dict]:
     """A structured reading of a tool result for the prompt page, or None to
     leave it a raw dump.
 
-    `name` is the tool the result answers, `text` its wire body. A reader must
-    never break the page, so a raising one is treated as no reading (principle
-    1, degrade per component)."""
-    reader = RESULT_READERS.get(name or "")
+    `name` is the tool the result answers, `text` its wire body, `readers`
+    the table to read it by (this tab's `RESULT_READERS` when not given). A
+    reader must never break the page, so a raising one, or one returning
+    something other than a dict, is treated as no reading (principle 1,
+    degrade per component)."""
+    reader = (RESULT_READERS if readers is None else readers).get(name or "")
     if reader is None or not isinstance(text, str):
         return None
     try:
         reading = reader(text)
-    except Exception:  # noqa: BLE001 - a reader fault degrades, never raises
+    except Exception:  # noqa: BLE001 - a reader may come from outside this tree
         return None
-    if reading is not None:
-        # Envelope detection is hermes' framing, not the tool's, so it is done
-        # here (generic) rather than in each reader: the formatted view keeps
-        # the untrusted notice the raw view carries in the wrapper itself.
-        reading["untrusted_notice"] = _untrusted_notice(text)
-    return reading
+    if not isinstance(reading, dict):
+        return None
+    # Envelope detection is hermes' framing, not the tool's, so it is done
+    # here (generic) rather than in each reader: the formatted view keeps the
+    # untrusted notice the raw view carries in the wrapper itself.
+    return {**reading, "untrusted_notice": _untrusted_notice(text)}
+
+
+def apply_result_readings(value: Any, readers: Optional[dict] = None) -> Any:
+    """A request's sections with each tool result's reading added as
+    `result`, by the `tool` its call stamped on it (`_message_sections`) and
+    the `readers` given — the merged table, contributed readers included.
+    Anything that is not a list of sections comes back as it was."""
+    if not isinstance(value, list):
+        return value
+    out = []
+    for section in value:
+        if isinstance(section, dict) and section.get("tool"):
+            reading = read_tool_result(section["tool"], section.get("text"),
+                                       readers)
+            if reading is not None:
+                section = {**section, "result": reading}
+        out.append(section)
+    return out
 
 
 def _str_or_none(value: Any) -> Optional[str]:
@@ -2084,16 +2108,14 @@ def _message_sections(messages: list) -> list:
         sections.append(section(
             message, **({"nests": True, "call_id": call_id} if owned else {})))
         # The call names the tool; its result carries only a call_id, so the
-        # reading is dispatched on the call's name (looked up once here, where
-        # the pair is already in hand) and rides the result's section for the
-        # page to draw as a formatted tab. None leaves it a plain raw dump.
+        # call's name is stamped on the result's section here, where the pair
+        # is already in hand, as `tool`. The page reads the result by it
+        # (`apply_result_readings`) with the result readers it was given.
         name = message.get("name") if isinstance(message, dict) else None
         for result in owned:
-            reading = read_tool_result(name, _message_body(result)) \
-                if isinstance(result, dict) else None
             flags = {"nested": True}
-            if reading is not None:
-                flags["result"] = reading
+            if isinstance(name, str) and name:
+                flags["tool"] = name
             sections.append(section(result, **flags))
     return sections
 

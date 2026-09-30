@@ -85,7 +85,9 @@ class Section:
     # to make an anchor; `content_html` is the row's `content` rendered as
     # markdown (a page web_extract pulled) or None; `error` is a per-row failure.
     # A given tool fills only the fields it has — web_search rows a description,
-    # web_extract rows content and a per-row error. search_files fills none of
+    # web_extract rows content and a per-row error. `fields` (`[{key, value}]`,
+    # drawn as facts) may ride the whole result and each row — the generic
+    # part of the shape, for a reader contributed from outside (ADR 26). search_files fills none of
     # the rows and carries its own reading as `search` instead; terminal and
     # execute_code theirs as `command`, whose printed output gains a
     # `structured` reading when it holds JSON or Python values (structured.py). None on every section but a
@@ -184,6 +186,7 @@ def _result_for_render(result: Any) -> Optional[dict]:
             "content": content,
             "content_html": content_html,
             "error": row.get("error"),
+            "fields": _fields(row.get("fields")),
         })
     # `untrusted_notice` is hermes' own instruction from inside the envelope, or
     # None when the wire carried no envelope — the formatted view draws its
@@ -197,9 +200,22 @@ def _result_for_render(result: Any) -> Optional[dict]:
     if isinstance(command, dict):
         command = {**command, "structured": structure(command.get("output"))}
     return {"error": result.get("error"), "results": rows,
+            "fields": _fields(result.get("fields")),
             "untrusted_notice": result.get("untrusted_notice"),
             "search": result.get("search"),
             "command": command if isinstance(command, dict) else None}
+
+
+def _fields(value: Any) -> tuple:
+    """A reading's `fields` — `[{key, value}]`, facts shown as key and value —
+    kept to the entries that are that shape, each value as characters. A
+    contributed reader's output is not trusted to be well formed, so a
+    malformed entry is dropped rather than drawn wrong."""
+    if not isinstance(value, (list, tuple)):
+        return ()
+    return tuple({"key": str(f["key"]), "value": as_text(f["value"]) or ""}
+                 for f in value
+                 if isinstance(f, dict) and "key" in f and "value" in f)
 
 
 def _markdown(text: str):

@@ -13,7 +13,9 @@ foothold in this tree can write one.
 from types import SimpleNamespace
 
 from plugins.memory import mem0
-from plugins.memory.mem0.spans import SPAN_READERS, mem0_result_count, mem0_results
+from plugins.memory.mem0.spans import (RESULT_READERS, SPAN_READERS,
+                                       mem0_result_count, mem0_results,
+                                       read_search_result)
 
 RANKED = ('{"count": 3, "results":'
           ' [{"id": "b760576d", "memory": "top fact", "score": 0.8042},'
@@ -73,3 +75,43 @@ def test_the_tab_exposes_its_readers_beside_its_scopes():
     assert mem0.SPAN_READERS is SPAN_READERS
     assert set(SPAN_READERS) == {"mem0_results", "mem0_result_count"}
     assert all(callable(r) for r in SPAN_READERS.values())
+
+
+# --- the prompt page's reading of a mem0_search result (ADR 26) -------------
+
+def test_a_search_result_reads_as_one_row_per_memory():
+    reading = read_search_result(RANKED)
+    assert reading["fields"] == [{"key": "count", "value": "3"}]
+    first = reading["results"][0]
+    assert first["description"] == "top fact"
+    assert first["fields"] == [{"key": "score", "value": "0.8042"},
+                               {"key": "id", "value": "b760576d"}]
+    assert [r["description"] for r in reading["results"]] == [
+        "top fact", "next fact", "third fact"]
+
+
+def test_a_search_that_matched_nothing_says_so():
+    reading = read_search_result('{"result": "No relevant memories found."}')
+    assert reading == {"fields": [{"key": "result",
+                                   "value": "No relevant memories found."}],
+                       "results": []}
+
+
+def test_a_failed_search_reads_as_its_error():
+    reading = read_search_result('{"error": "Search failed: timeout"}')
+    assert reading["error"] == "Search failed: timeout"
+
+
+def test_a_result_that_is_not_the_search_shape_stays_raw():
+    assert read_search_result("not json") is None
+    assert read_search_result('{"other": 1}') is None
+    assert read_search_result("[1, 2]") is None
+    # a hit's missing fields simply do not draw
+    reading = read_search_result('{"results": [{"memory": "m"}]}')
+    assert reading["results"] == [{"description": "m", "fields": []}]
+    assert reading["fields"] == [{"key": "count", "value": "1"}]
+
+
+def test_the_tab_exposes_its_result_readers():
+    assert mem0.RESULT_READERS is RESULT_READERS
+    assert RESULT_READERS == {"mem0_search": read_search_result}

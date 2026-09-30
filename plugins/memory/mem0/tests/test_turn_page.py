@@ -308,3 +308,52 @@ def test_turn_detail_renders_without_the_memory_plugin_lookup(tmp_path):
     assert "the new fact" in page
     assert "the old fact" not in page
     assert "previous text from the local log" not in page
+
+
+# --- a mem0_search result on the prompt page, read by this tab (ADR 26) -----
+
+SEARCH_REQUEST = {"annotated_request": {"messages": [
+    {"role": "user", "content": "what do you know about me?"},
+    {"role": "tool_call", "name": "mem0_search", "call_id": "m1",
+     "arguments": '{"query": "user facts"}'},
+    {"role": "tool_result", "call_id": "m1", "output": (
+        '{"results": [{"id": "b760576d", "memory": "User <b>likes</b> tea",'
+        ' "score": 0.8042}], "count": 1}')}]}}
+
+
+def _prompt_page(client):
+    return client.get("/turns/span/L1/prompt").get_data(as_text=True)
+
+
+def _llm_lines():
+    return [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L1", "llm", 1_100_000, 1_600_000, name="openai-codex",
+                     session="s1", turn="t1", profile=SEARCH_REQUEST,
+                     start_data={"headers": {}}, end_data={}),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+
+
+def test_a_search_result_is_formatted_on_the_prompt_page(tmp_path):
+    atof = write_atof(tmp_path, _llm_lines())
+    page = _prompt_page(make_client(tmp_path, str(atof)))
+    fmt = page.split('<div class="tool-panel tool-panel-fmt">', 1)[1] \
+        .split('<div class="tool-panel tool-panel-raw">', 1)[0]
+    assert ('<span class="tool-fact"><span class="tool-fact-k">count</span> 1'
+            '</span>') in fmt
+    # the memory is the row's text, escaped; score and id its facts
+    assert '<p class="web-result-desc">User &lt;b&gt;likes&lt;/b&gt; tea</p>' in fmt
+    assert '<span class="tool-fact-k">score</span> 0.8042' in fmt
+    assert '<span class="tool-fact-k">id</span> b760576d' in fmt
+    assert "(untitled)" not in fmt
+
+
+def test_without_this_tab_a_search_result_stays_raw(tmp_path):
+    """The reading is this tab's contribution: with it disabled, the Turns
+    tab shows the result as the plain dump any unknown tool's gets."""
+    atof = write_atof(tmp_path, _llm_lines())
+    client = make_app([{"plugin": "plugins.turns",
+                        "settings": {"atof_log": str(atof)}}]).test_client()
+    page = _prompt_page(client)
+    assert 'class="tool-tabs"' not in page

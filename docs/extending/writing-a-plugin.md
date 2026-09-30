@@ -67,6 +67,7 @@ That is the whole mechanism. There is no registry to add yourself to.
 | `sources(settings)` | no | what you read, for the banner and error states |
 | `SCOPES` / `SCOPES_BY_CATEGORY` | no | how your own hermes spans render on a tab that paints spans |
 | `SPAN_READERS` | no | how those spans' payloads are read, for the values your rows name (ADR 17) |
+| `RESULT_READERS` | no | how your tools' results read on the prompt page, as a formatted tab (ADR 26) |
 | `STYLES` | no | a CSS string the shell injects into every page's `<head>`, for classes the shared stylesheet does not cover (ADR 20) |
 
 Your blueprint must have an `index` endpoint — that is what the tab links to.
@@ -225,7 +226,8 @@ accessor being absent — the tab that publishes it may be disabled.
 - [ ] `sources()` reports every file or store you read, with `required` set
       deliberately
 - [ ] `SCOPES` (and `SPAN_READERS`, if a row needs a payload read rather
-      than looked up) if your tab owns a kind of hermes span — how it shows on a
+      than looked up, and `RESULT_READERS` for a formatted result on the
+      prompt page) if your tab owns a kind of hermes span — how it shows on a
       turn page travels with the tab that owns it, and goes when it is
       disabled ([ADR 10](../design/adr/0010-a-tab-contributes-its-own-scope-specs.md),
       [writing-a-scope-spec.md](writing-a-scope-spec.md))

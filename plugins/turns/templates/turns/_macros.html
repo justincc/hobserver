@@ -329,6 +329,12 @@
 <p class="meta msg-empty">(no output)</p>
 {%- endif %}
 {%- endmacro %}
+{# A reading's `fields`, `[{key, value}]`, as one line of key/value facts. #}
+{% macro facts_line(fields, extra="") -%}
+<p class="tool-facts{% if extra %} {{ extra }}{% endif %}">
+  {%- for f in fields %}<span class="tool-fact"><span class="tool-fact-k">{{ f.key }}</span> {{ f.value }}</span>{% endfor %}
+</p>
+{%- endmacro %}
 {# A tool result this app could read (spans.py `read_tool_result`): its rows,
    drawn one per hit (web_search) or per extracted page (web_extract). A title
    that has a safe link is an anchor to it; the url is shown in full beneath so
@@ -351,6 +357,7 @@
 {%- if result.untrusted_notice is not none %}
 <p class="result-untrusted">{{ result.untrusted_notice }}</p>
 {%- endif %}
+{%- if result.fields %}{{ facts_line(result.fields) }}{% endif %}
 {%- if result.error %}
 <p class="notice warn result-error">{{ result.error }}</p>
 {%- elif result.search %}{{ search_files_formatted(result.search) }}
@@ -359,13 +366,16 @@
 <ol class="web-results">
 {%- for r in result.results %}
   <li class="web-result">
+    {%- if r.title or r.url %}
     <div class="web-result-title">
-      {%- if r.link %}<a href="{{ r.link }}" rel="noopener noreferrer nofollow" target="_blank">{{ r.title or r.url or '(untitled)' }}</a>
+      {%- if r.link %}<a href="{{ r.link }}" rel="noopener noreferrer nofollow" target="_blank">{{ r.title or r.url }}</a>
       {%- else %}{{ r.title or '(untitled)' }}{% endif %}
     </div>
+    {%- endif %}
     {%- if r.url %}<div class="web-result-url">{{ r.url }}</div>{% endif %}
     {%- if r.error %}<p class="notice warn web-result-error">{{ r.error }}</p>{% endif %}
     {%- if r.description %}<p class="web-result-desc">{{ r.description }}</p>{% endif %}
+    {%- if r.fields %}{{ facts_line(r.fields, "result-row-facts") }}{% endif %}
     {#- The extracted page: rendered markdown (the one |safe string here, from
        the raw-HTML-off renderer), or the plain text escaped when the renderer
        was absent — the same degrade as a message body's full_section_body. #}
