@@ -322,3 +322,28 @@ def test_a_command_reading_gains_a_structured_reading_of_its_output():
     command = out.sections[0].result["command"]
     assert command["structured"]["summary"] == "JSON"
     assert command["output"] == "[1]"                   # text kept beside it
+
+
+def test_a_calls_arguments_are_marked_with_how_each_shows():
+    out = render([{"label": "tool_call · x", "text": "```json\n{}\n```",
+                   "call": [{"key": "path", "value": "/a/b"},
+                            {"key": "code", "value": "a\nb"},
+                            {"key": "long", "value": "x" * 101},
+                            {"key": "n", "value": 60},
+                            {"key": "flag", "value": None},
+                            {"key": "todos", "value": [{"id": 1}]},
+                            {"key": "empty", "value": {}}]}], "sections")
+    args = {a["key"]: a for a in out.sections[0].call}
+    assert (args["path"]["kind"], args["path"]["value"]) == ("fact", "/a/b")
+    assert args["code"]["kind"] == "text" and args["code"]["value"] == "a\nb"
+    assert args["long"]["kind"] == "text"
+    assert (args["n"]["kind"], args["n"]["value"]) == ("fact", "60")
+    assert args["flag"]["value"] == "null"
+    assert args["todos"]["kind"] == "tree"
+    assert args["todos"]["tree"]["kind"] == "array"
+    assert (args["empty"]["kind"], args["empty"]["value"]) == ("fact", "{}")
+
+
+def test_a_section_that_is_not_a_call_carries_no_arguments():
+    out = render(sections(("user", "hi")), "sections")
+    assert out.sections[0].call is None

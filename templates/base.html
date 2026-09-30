@@ -458,6 +458,18 @@
     /* A row's own facts (a contributed reading's per-row `fields`), under
        its text inside the row rather than as a band of their own. */
     .tool-facts.result-row-facts { padding: 0.1rem 0 0; }
+    /* A tool call's arguments: key and value side by side for a short value,
+       a long or multi-line one (code, a command) or a structure on the full
+       width below its key. */
+    dl.call-args { display: grid; grid-template-columns: max-content 1fr;
+      gap: 0.25rem 0.8rem; margin: 0; padding: 0.5rem 0.9rem;
+      font-size: 0.86rem; }
+    dl.call-args dt { font-size: 0.76rem; padding-top: 0.1rem; }
+    dl.call-args dd { margin: 0; overflow-wrap: anywhere; min-width: 0; }
+    dl.call-args dd.call-arg-block { grid-column: 1 / -1; }
+    pre.call-text { margin: 0; padding: 0.4rem 0.6rem; background: #f4f5f8;
+      border-radius: 4px; white-space: pre-wrap; overflow-wrap: anywhere;
+      font-size: 0.8rem; }
     .web-result-desc { margin: 0.1rem 0 0; color: #444; font-size: 0.86rem;
       line-height: 1.45; }
     /* A per-row failure (web_extract: one URL blocked or unreachable while the

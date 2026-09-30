@@ -15,7 +15,8 @@ line hermes could have written.
 
 import json
 
-from plugins.turns.spans import (SEARCH_FILES_SHOWN, read_tool_result,
+from plugins.turns.spans import (SEARCH_FILES_SHOWN, read_call_arguments,
+                                 read_tool_result,
                                  resolve_memory_entries)
 from streams import (SESSION_SCOPE_UUID, assemble_lines, mark_line,
                      scope_lines, session_scope_lines, two_turn_stream)
@@ -1978,3 +1979,20 @@ def test_execute_code_error_keeps_its_output_beside_the_error():
 def test_a_result_that_is_not_the_command_shape_falls_back_to_raw():
     assert read_tool_result("terminal", '{"other": 1}') is None
     assert read_tool_result("terminal", "plain text") is None
+
+
+def test_a_calls_arguments_are_read_in_the_order_written():
+    message = {"role": "tool_call", "name": "execute_code", "call_id": "c1",
+               "arguments": '{"code": "a\\nb", "timeout": 60}'}
+    assert read_call_arguments(message) == [
+        {"key": "code", "value": "a\nb"}, {"key": "timeout", "value": 60}]
+    # an object on routes that send one reads the same
+    message["arguments"] = {"code": "a\nb"}
+    assert read_call_arguments(message) == [{"key": "code", "value": "a\nb"}]
+
+
+def test_arguments_that_are_not_an_object_are_no_reading():
+    assert read_call_arguments({"arguments": "not json"}) is None
+    assert read_call_arguments({"arguments": "[1, 2]"}) is None
+    assert read_call_arguments({}) is None
+    assert read_call_arguments({"arguments": "{}"}) == []

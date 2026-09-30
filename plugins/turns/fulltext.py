@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 from urllib.parse import urlparse
 
-from plugins.turns.structured import structure
+from plugins.turns.structured import json_tree, structure
 
 # Rendered up front, once per process: a page under a live poll should not
 # pay an import on first sight.
@@ -94,6 +94,11 @@ class Section:
     # result this app could read. Drawn as a formatted tab beside the raw wire
     # body; `text` still holds that wire body.
     result: Optional[dict] = None
+    # A tool call's arguments (spans.py `read_call_arguments`), prepared for
+    # the page by `_call_for_render`: `[{key, kind, value, tree}]`. None on
+    # every section but a call whose arguments are an object. Drawn as a
+    # formatted tab beside the wire JSON, which `text` still holds.
+    call: Optional[tuple] = None
 
 
 @dataclass(frozen=True)
@@ -206,6 +211,38 @@ def _result_for_render(result: Any) -> Optional[dict]:
             "command": command if isinstance(command, dict) else None}
 
 
+# A string argument longer than this, or with a line break in it, is shown as
+# a block of its own rather than beside its key.
+CALL_INLINE_CHARS = 100
+
+
+def _call_for_render(call: Any) -> Optional[tuple]:
+    """A call's arguments, each marked with how it shows: `kind` "text" for a
+    string with a line break or longer than `CALL_INLINE_CHARS` (code, a
+    command, file content — drawn as a block, line breaks and all), "tree" for
+    a non-empty object or array (`tree`, see structured.py), else "fact", its
+    `value` beside the key: a string as itself, anything else as its JSON."""
+    if not isinstance(call, (list, tuple)):
+        return None
+    out = []
+    for arg in call:
+        if not isinstance(arg, dict) or "key" not in arg:
+            continue
+        value = arg.get("value")
+        entry = {"key": str(arg["key"]), "kind": "fact", "value": None,
+                 "tree": None}
+        if isinstance(value, str):
+            entry["value"] = value
+            if "\n" in value or len(value) > CALL_INLINE_CHARS:
+                entry["kind"] = "text"
+        elif isinstance(value, (dict, list)) and value:
+            entry["kind"], entry["tree"] = "tree", json_tree(value)
+        else:
+            entry["value"] = json.dumps(value, ensure_ascii=False)
+        out.append(entry)
+    return tuple(out)
+
+
 def _fields(value: Any) -> tuple:
     """A reading's `fields` — `[{key, value}]`, facts shown as key and value —
     kept to the entries that are that shape, each value as characters. A
@@ -262,7 +299,8 @@ def _sections(value: Any) -> Optional[Rendered]:
                              grouped=bool(entry.get("grouped")),
                              facts=tuple(entry.get("facts") or ()),
                              params=tuple(entry.get("params") or ()),
-                             result=_result_for_render(entry.get("result"))))
+                             result=_result_for_render(entry.get("result")),
+                             call=_call_for_render(entry.get("call"))))
     return Rendered(kind="sections", text=None, sections=tuple(parts),
                     chars=sum(len(p.text) for p in parts), problem=problem)
 

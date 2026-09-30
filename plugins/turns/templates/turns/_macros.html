@@ -219,24 +219,29 @@
 {%- endmacro %}
 {# One tool's body: two tabs, its formatted definition (shown first) and the
    raw wire schema. CSS-only, on a pair of radios — no script, and the page
-   stays a still view of a value it does not own. `idx` (the section's
-   position) names the radio group, so each tool's tabs are its own and one
-   tool's click never moves another's. The panel selectors key off the radios'
-   order, not their ids, since a stylesheet cannot name an id built at render
-   time — so the two radios must stay in this order, formatted then raw. #}
-{% macro tool_tabs(part, idx) -%}
+   stays a still view of a value it does not own. #}
+{# Two CSS-only tabs, formatted (shown first) and raw, shared by tool
+   definitions, tool calls and tool results. `group` and `idx` (the section's
+   position) name the radio group, so each section's tabs are its own and one
+   click never moves another's. The panel selectors key off the radios' order,
+   not their ids, since a stylesheet cannot name an id built at render time —
+   so the two radios must stay in this order, formatted then raw. #}
+{% macro two_tabs(group, idx, fmt, raw) -%}
 <div class="tool-tabs">
-  <input class="tool-tab-radio" type="radio" name="tooltab{{ idx }}" id="tab-f{{ idx }}" checked>
-  <label class="tool-tab" for="tab-f{{ idx }}">formatted</label>
-  <input class="tool-tab-radio" type="radio" name="tooltab{{ idx }}" id="tab-r{{ idx }}">
-  <label class="tool-tab" for="tab-r{{ idx }}">raw</label>
+  <input class="tool-tab-radio" type="radio" name="{{ group }}tab{{ idx }}" id="{{ group }}-f{{ idx }}" checked>
+  <label class="tool-tab" for="{{ group }}-f{{ idx }}">formatted</label>
+  <input class="tool-tab-radio" type="radio" name="{{ group }}tab{{ idx }}" id="{{ group }}-r{{ idx }}">
+  <label class="tool-tab" for="{{ group }}-r{{ idx }}">raw</label>
   <div class="tool-panels">
-    <div class="tool-panel tool-panel-fmt">{{ tool_formatted(part) }}</div>
-    {#- The schema as a JSON code block — the verbatim wire, rendered for the
-       eye (the page-wide raw view shows it as literal characters instead). #}
-    <div class="tool-panel tool-panel-raw">{{ full_section_body(part, false) }}</div>
+    <div class="tool-panel tool-panel-fmt">{{ fmt }}</div>
+    <div class="tool-panel tool-panel-raw">{{ raw }}</div>
   </div>
 </div>
+{%- endmacro %}
+{% macro tool_tabs(part, idx) -%}
+{#- The schema as a JSON code block — the verbatim wire, rendered for the eye
+   (the page-wide raw view shows it as literal characters instead). #}
+{{ two_tabs("tool", idx, tool_formatted(part), full_section_body(part, false)) }}
 {%- endmacro %}
 {# search_files' result (spans.py `read_search_files`). Its short fields are
    one line of `key value` facts, the same markup a tool definition's
@@ -396,18 +401,37 @@
    model. The two radios must stay formatted-then-raw — the panel selectors key
    off their order, not their render-time ids. #}
 {% macro result_tabs(part, idx) -%}
-<div class="tool-tabs">
-  <input class="tool-tab-radio" type="radio" name="restab{{ idx }}" id="rtab-f{{ idx }}" checked>
-  <label class="tool-tab" for="rtab-f{{ idx }}">formatted</label>
-  <input class="tool-tab-radio" type="radio" name="restab{{ idx }}" id="rtab-r{{ idx }}">
-  <label class="tool-tab" for="rtab-r{{ idx }}">raw</label>
-  <div class="tool-panels">
-    <div class="tool-panel tool-panel-fmt">{{ result_formatted(part.result) }}</div>
-    {#- The verbatim body as characters (`raw=true` → a <pre>), not markdown:
-       a result is JSON, and markdown would collapse its indentation into one
-       line — where a tool's description, being prose, renders. Whitespace is
-       the whole value of a raw view of JSON, so it is kept. #}
-    <div class="tool-panel tool-panel-raw">{{ full_section_body(part, true) }}</div>
-  </div>
-</div>
+{#- The verbatim body as characters (`raw=true` → a <pre>), not markdown: a
+   result is JSON, and markdown would collapse its indentation into one line —
+   where a tool's description, being prose, renders. Whitespace is the whole
+   value of a raw view of JSON, so it is kept. #}
+{{ two_tabs("res", idx, result_formatted(part.result), full_section_body(part, true)) }}
+{%- endmacro %}
+{# A tool call's arguments (fulltext.py `_call_for_render`), in the order the
+   model wrote them: each key, then its value beside it (a fact), or below it
+   as a block with its line breaks (long or multi-line text: code, a command,
+   file content), or as a tree (an object or array). Every value is the
+   model's own text, auto-escaped. #}
+{% macro call_formatted(args) -%}
+{%- if args %}
+<dl class="call-args">
+{%- for a in args %}
+  <dt class="tool-fact-k">{{ a.key }}</dt>
+  {%- if a.kind == "text" %}
+  <dd class="call-arg-block"><pre class="call-text">{{ a.value }}</pre></dd>
+  {%- elif a.kind == "tree" %}
+  <dd class="call-arg-block"><ul class="tree tree-root">{{ tree_node(none, a.tree, 0) }}</ul></dd>
+  {%- else %}
+  <dd>{{ a.value }}</dd>
+  {%- endif %}
+{%- endfor %}
+</dl>
+{%- else %}
+<p class="meta msg-empty">(no arguments)</p>
+{%- endif %}
+{%- endmacro %}
+{# A tool call: its formatted arguments, and the wire JSON as the code block the
+   page showed before the tabs. #}
+{% macro call_tabs(part, idx) -%}
+{{ two_tabs("call", idx, call_formatted(part.call), full_section_body(part, false)) }}
 {%- endmacro %}

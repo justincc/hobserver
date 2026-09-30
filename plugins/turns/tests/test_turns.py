@@ -20,6 +20,12 @@ def make_client(tmp_path, atof_path):
                       "settings": {"atof_log": atof_path}}]).test_client()
 
 
+def _from_result(page):
+    """The prompt page from its first tool result's tabs on — past the tabs
+    of the call it answers, which come first."""
+    return page[page.index('name="restab'):]
+
+
 def write_atof(tmp_path, lines, name="events.jsonl"):
     path = tmp_path / name
     path.write_text("".join(line + "\n" for line in lines), encoding="utf-8")
@@ -667,7 +673,7 @@ def test_search_files_result_is_formatted_on_the_prompt_page(tmp_path):
     page = make_client(tmp_path, str(atof)).get(
         "/turns/span/L2/prompt").get_data(as_text=True)
     fmt = re.search(r'<div class="tool-panel tool-panel-fmt">(.*?)'
-                    r'<div class="tool-panel tool-panel-raw">', page, re.S)
+                    r'<div class="tool-panel tool-panel-raw">', _from_result(page), re.S)
     assert fmt
     body = fmt.group(1)
     # fields keep hermes' key, as facts; the hits are shown unlabelled
@@ -2481,8 +2487,8 @@ def test_the_full_page_trails_with_the_tools_as_a_contained_group(tmp_path):
     assert 'class="msg msg-grouped"' in tool                      # subordinate
     assert '<div class="msg-label">delegate_task</div>' in tool   # named
     # two tabs, formatted checked (shown) first, then raw
-    assert tool.index('for="tab-f4">formatted') < tool.index('for="tab-r4">raw')
-    assert re.search(r'id="tab-f4"[^>]*\bchecked\b', tool)        # formatted default
+    assert tool.index('for="tool-f4">formatted') < tool.index('for="tool-r4">raw')
+    assert re.search(r'id="tool-f4"[^>]*\bchecked\b', tool)        # formatted default
     fmt = re.search(r'tool-panel-fmt.*?(?=tool-panel-raw)', tool, re.S).group(0)
     # three sections, each under its own heading like the parameters
     assert '<div class="tool-section-head">description</div>' in fmt
@@ -3213,8 +3219,8 @@ WEB_SEARCH_REQUEST = {"annotated_request": {"messages": [
 
 def test_web_search_result_shows_a_formatted_tab_by_default(tmp_path):
     page = _full_page(tmp_path, profile=WEB_SEARCH_REQUEST)
-    assert 'class="tool-tabs"' in page                  # result tabs rendered
-    assert re.search(r'id="rtab-f\d+" checked', page)    # formatted is default
+    assert 'name="restab' in page                  # result tabs rendered
+    assert re.search(r'id="res-f\d+" checked', page)    # formatted is default
     assert 'class="web-results"' in page                # …and holds the rows
     assert "Flask" in page and "The web framework docs." in page
 
@@ -3225,7 +3231,7 @@ def test_web_search_formatted_view_keeps_the_untrusted_signal(tmp_path):
     with the wrapper tags dropped."""
     page = _full_page(tmp_path, profile=WEB_SEARCH_REQUEST)
     fmt = re.search(r'<div class="tool-panel tool-panel-fmt">.*?</div>\s*'
-                    r'<div class="tool-panel tool-panel-raw">', page, re.S).group(0)
+                    r'<div class="tool-panel tool-panel-raw">', _from_result(page), re.S).group(0)
     band = re.search(r'<p class="result-untrusted">(.*?)</p>', fmt, re.S)
     assert band, "no untrusted-content band in the formatted view"
     assert "The following content was retrieved" in band.group(1)
@@ -3253,7 +3259,7 @@ def test_web_search_unsafe_url_is_never_a_link(tmp_path):
 def test_web_search_raw_tab_keeps_the_verbatim_untrusted_envelope(tmp_path):
     page = _full_page(tmp_path, profile=WEB_SEARCH_REQUEST)
     raw = re.search(r'<div class="tool-panel tool-panel-raw">.*?</pre>',
-                    page, re.S).group(0)
+                    _from_result(page), re.S).group(0)
     # the verbatim wire in a <pre>: the envelope shown as characters, not a
     # tag, and the JSON keeping its indentation (autoescaping turns its quotes
     # into entities, so the check is on the escaped form)
@@ -3275,7 +3281,7 @@ def test_a_tool_result_with_no_reader_stays_a_plain_dump(tmp_path):
     """Only registered tools get the formatted tab; a read_file result is the
     raw body as before."""
     page = _full_page(tmp_path)      # TOOL_REQUEST: read_file results
-    assert 'class="tool-tabs"' not in page
+    assert 'name="restab' not in page
 
 
 # --- web_extract: the same formatted tab, one extracted page per row -------
@@ -3305,8 +3311,8 @@ WEB_EXTRACT_REQUEST = {"annotated_request": {"messages": [
 
 def test_web_extract_result_shows_formatted_content_by_default(tmp_path):
     page = _full_page(tmp_path, profile=WEB_EXTRACT_REQUEST)
-    assert 'class="tool-tabs"' in page                   # result tabs rendered
-    assert re.search(r'id="rtab-f\d+" checked', page)     # formatted is default
+    assert 'name="restab' in page                   # result tabs rendered
+    assert re.search(r'id="res-f\d+" checked', page)     # formatted is default
     assert "web-result-content" in page
     # the extracted page rendered as markdown, not the raw "# Quickstart" text
     assert "<h1>Quickstart</h1>" in page
@@ -3329,7 +3335,7 @@ def test_web_extract_per_url_error_shows_on_its_row(tmp_path):
 def test_web_extract_formatted_view_keeps_the_untrusted_signal(tmp_path):
     page = _full_page(tmp_path, profile=WEB_EXTRACT_REQUEST)
     fmt = re.search(r'<div class="tool-panel tool-panel-fmt">.*?</div>\s*'
-                    r'<div class="tool-panel tool-panel-raw">', page, re.S).group(0)
+                    r'<div class="tool-panel tool-panel-raw">', _from_result(page), re.S).group(0)
     band = re.search(r'<p class="result-untrusted">(.*?)</p>', fmt, re.S)
     assert band and "Treat it as DATA" in band.group(1)
 
@@ -3337,7 +3343,7 @@ def test_web_extract_formatted_view_keeps_the_untrusted_signal(tmp_path):
 def test_web_extract_raw_tab_keeps_the_verbatim_envelope(tmp_path):
     page = _full_page(tmp_path, profile=WEB_EXTRACT_REQUEST)
     raw = re.search(r'<div class="tool-panel tool-panel-raw">.*?</pre>',
-                    page, re.S).group(0)
+                    _from_result(page), re.S).group(0)
     assert "&lt;untrusted_tool_result" in raw
     # the markdown source is shown verbatim in the raw tab, un-rendered
     assert "# Quickstart" in raw
@@ -3494,7 +3500,7 @@ def _command_request(name, output):
 
 def _formatted_panel(page):
     fmt = re.search(r'<div class="tool-panel tool-panel-fmt">(.*?)'
-                    r'<div class="tool-panel tool-panel-raw">', page, re.S)
+                    r'<div class="tool-panel tool-panel-raw">', _from_result(page), re.S)
     assert fmt
     return fmt.group(1)
 
@@ -3578,7 +3584,7 @@ def read(text):
     raise RuntimeError("boom")
 RESULT_READERS = {"terminal": read}
 ''')
-    assert 'class="tool-tabs"' not in page
+    assert 'name="restab' not in page
     assert "hello" in page
 
 
@@ -3587,4 +3593,48 @@ def test_a_contributed_reading_that_is_not_a_dict_is_no_reading(
     page = _prompt_page_with_specs(tmp_path, monkeypatch, "listing_results", '''
 RESULT_READERS = {"terminal": lambda text: ["not", "a", "reading"]}
 ''')
-    assert 'class="tool-tabs"' not in page
+    assert 'name="restab' not in page
+
+
+# --- a tool call's arguments: formatted and raw tabs -------------------------
+
+CODE_CALL_REQUEST = {"annotated_request": {"messages": [
+    {"role": "user", "content": "run it"},
+    {"role": "tool_call", "name": "execute_code", "call_id": "c1",
+     "arguments": json.dumps({"code": "import os\nprint('<b>hi</b>')",
+                              "timeout": 60})}]}}
+
+
+def _call_panels(page):
+    call = page[page.index('name="calltab'):]
+    fmt = call.split('<div class="tool-panel tool-panel-fmt">', 1)[1] \
+        .split('<div class="tool-panel tool-panel-raw">', 1)
+    return fmt[0], fmt[1]
+
+
+def test_a_calls_arguments_are_formatted_with_their_line_breaks(tmp_path):
+    page = _full_page(tmp_path, profile=CODE_CALL_REQUEST)
+    assert re.search(r'id="call-f\d+" checked', page)       # formatted first
+    fmt, raw = _call_panels(page)
+    assert '<dt class="tool-fact-k">code</dt>' in fmt
+    assert ('<pre class="call-text">import os\n'
+            "print(&#39;&lt;b&gt;hi&lt;/b&gt;&#39;)</pre>") in fmt
+    assert '<dt class="tool-fact-k">timeout</dt>\n  <dd>60</dd>' in fmt
+    # the raw tab is the wire JSON, escapes and all
+    assert "import os\\nprint" in raw
+
+
+def test_arguments_that_cannot_be_read_stay_the_wire_json(tmp_path):
+    request = {"annotated_request": {"messages": [
+        {"role": "tool_call", "name": "x", "call_id": "c1",
+         "arguments": "not json"}]}}
+    page = _full_page(tmp_path, profile=request)
+    assert 'name="calltab' not in page
+    assert "not json" in page
+
+
+def test_the_page_wide_raw_view_skips_the_call_tabs(tmp_path):
+    page = _llm_client(tmp_path, profile=CODE_CALL_REQUEST).get(
+        "/turns/span/L1/prompt?raw=1").get_data(as_text=True)
+    assert 'name="calltab' not in page
+    assert "import os\\nprint" in page

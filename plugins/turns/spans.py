@@ -2018,6 +2018,26 @@ def _message_body(message: dict) -> str:
     return _fence(json.dumps(rest, indent=2, default=str), "json")
 
 
+def read_call_arguments(message: dict) -> Optional[list]:
+    """A tool call's arguments as `[{key, value}]`, in the order the model
+    wrote them, or None when they are not an object this can read.
+
+    The relay's annotator writes `arguments` as the JSON string the model
+    produced on the openai route and as an object on others; both are read,
+    and nothing about the tool is assumed — this reads the call's shape, not
+    any tool's (design principle 3). `value` is the parsed value itself; the
+    page decides how each one shows (fulltext.py `_call_for_render`)."""
+    arguments = message.get("arguments")
+    if isinstance(arguments, str):
+        try:
+            arguments = json.loads(arguments)
+        except ValueError:
+            return None
+    if not isinstance(arguments, dict):
+        return None
+    return [{"key": str(k), "value": v} for k, v in arguments.items()]
+
+
 def _message_label(message: dict) -> str:
     """`tool_call · read_file` — the role, and what names the message within
     it. A call and its result are otherwise two identical labels with the
@@ -2105,8 +2125,15 @@ def _message_sections(messages: list) -> list:
         # (`resolve_tool_result_links`). The call, not the result, is the
         # target: the reader lands on what was asked with the answer below it.
         call_id = message.get("call_id") if isinstance(message, dict) else None
-        sections.append(section(
-            message, **({"nests": True, "call_id": call_id} if owned else {})))
+        flags = {"nests": True, "call_id": call_id} if owned else {}
+        # A call's arguments, read for the page's formatted tab beside the
+        # wire JSON (`read_call_arguments`); None leaves the JSON alone.
+        arguments = read_call_arguments(message) \
+            if isinstance(message, dict) and message.get("role") == "tool_call" \
+            else None
+        if arguments is not None:
+            flags["call"] = arguments
+        sections.append(section(message, **flags))
         # The call names the tool; its result carries only a call_id, so the
         # call's name is stamped on the result's section here, where the pair
         # is already in hand, as `tool`. The page reads the result by it

@@ -321,10 +321,23 @@ what it means is left to the tooltip that was always carrying it.
   the box around it already shows is one more thing to read and to keep
   true.
 
+  **A `tool_call` whose arguments are an object shows two tabs too.**
+  **Formatted** lists the arguments in the order the model wrote them: a
+  short value beside its key, a long or multi-line string (code, a command,
+  file content) as a block with its line breaks, an object or array as a
+  tree. **Raw** is the wire JSON as the code block the page always showed.
+  This reads the call's shape, not any tool's, so every tool gets it
+  (`read_call_arguments` in spans.py). A string *inside* an argument keeps
+  its escapes: a script passed to `python3 -c` within `code` still shows
+  `\n`, because that is the program the model wrote.
+
   **A `tool_result` this app can read shows two tabs, like a tool schema
-  does** — a **Formatted** reading first, the **Raw** wire body beside it. The reading is
-  contributed per tool beside the spec that names it (ADR 17), read by
-  `spans.py` `read_tool_result`; two tools are read today:
+  does** — a **Formatted** reading first, the **Raw** wire body beside it.
+  The reading is found by the tool's name in the merged `RESULT_READERS`
+  table ([ADR 26](adr/0026-a-tool-results-prompt-page-reading-is-contributed-too.md)):
+  this tab's own for hermes' tools (`spans.py`), a plugin's for its own
+  (mem0_search, below). Of hermes' tools, terminal, execute_code and
+  search_files have their own sections below; the web tools read as:
 
   - **web_search** — one row per hit: its title (a link when the url is a safe
     `http(s)` one, plain text otherwise, see [SECURITY.md](../../SECURITY.md)),

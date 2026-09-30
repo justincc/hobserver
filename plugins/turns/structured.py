@@ -260,6 +260,12 @@ def _summary(counts: dict, has_text: bool) -> str:
     return f"text with {said}" if has_text else said
 
 
+def json_tree(value: Any) -> dict:
+    """An already-parsed JSON value as a tree node (`_node`), for a value
+    that arrived as structure rather than printed text."""
+    return _node(value, _spell_json, 0)
+
+
 def _node(value: Any, spell: Callable[[Any], str], depth: int) -> dict:
     """A value as a tree node: `{kind: "object" | "array" | "tuple" | "set",
     children: [{key, node}]}` (`key` None but in an object) or `{kind:

@@ -338,7 +338,8 @@ def _llm_lines():
 def test_a_search_result_is_formatted_on_the_prompt_page(tmp_path):
     atof = write_atof(tmp_path, _llm_lines())
     page = _prompt_page(make_client(tmp_path, str(atof)))
-    fmt = page.split('<div class="tool-panel tool-panel-fmt">', 1)[1] \
+    result = page[page.index('name="restab'):]
+    fmt = result.split('<div class="tool-panel tool-panel-fmt">', 1)[1] \
         .split('<div class="tool-panel tool-panel-raw">', 1)[0]
     assert ('<span class="tool-fact"><span class="tool-fact-k">count</span> 1'
             '</span>') in fmt
@@ -356,4 +357,4 @@ def test_without_this_tab_a_search_result_stays_raw(tmp_path):
     client = make_app([{"plugin": "plugins.turns",
                         "settings": {"atof_log": str(atof)}}]).test_client()
     page = _prompt_page(client)
-    assert 'class="tool-tabs"' not in page
+    assert 'name="restab' not in page
