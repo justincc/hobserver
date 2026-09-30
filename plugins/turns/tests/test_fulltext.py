@@ -313,12 +313,12 @@ def test_a_row_content_that_is_not_a_string_renders_no_html():
     assert out.sections[0].result["results"][0]["content_html"] is None
 
 
-def test_a_command_reading_rides_its_section_as_it_stands():
+def test_a_command_reading_gains_a_structured_reading_of_its_output():
     out = render([{"label": "tool_result", "text": "<raw>", "nested": True,
                    "result": {"ok": True, "error": None, "results": [],
                               "command": {"output": "[1]", "error": None,
                                           "fields": [], "notes": []}}}],
                  "sections")
     command = out.sections[0].result["command"]
-    assert command == {"output": "[1]", "error": None, "fields": [],
-                       "notes": []}
+    assert command["structured"]["summary"] == "JSON"
+    assert command["output"] == "[1]"                   # text kept beside it

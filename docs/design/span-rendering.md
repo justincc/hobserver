@@ -1133,7 +1133,15 @@ tab beside the raw one (`_read_command_result` in spans.py). Its fields
 model (`hint`, `truncation_note`, `traceback`, …) sit under them; an `error`
 is a warning that leaves the output still shown, since a timed-out call has
 both. The printed output follows, with its real line breaks rather than the
-wire's `\n` escapes.
+wire's `\n` escapes. When it holds JSON or Python values — what agent-written
+scripts print, alone, in runs, or after a label (`print(name, result)`) — it
+is drawn as its text and values in order, each value a tree, under a heading
+saying what it was read as ("JSON", "3 JSON values", "text with a Python
+literal"). Each tree is collapsible, open three levels deep, scalars coloured
+by type. `plugins/turns/structured.py` decides what is a value and what stays
+text; its docstrings hold the rules. CSV, TSV, YAML and XML are not read:
+none turned up in the outputs surveyed, and a scan for CSV mostly finds prose
+with evenly placed commas. A format is one `BLOCK_READERS` entry.
 
 ### todo — `todos`
 

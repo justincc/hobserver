@@ -3499,18 +3499,38 @@ def _formatted_panel(page):
     return fmt.group(1)
 
 
-def test_terminal_result_fields_are_facts_on_the_prompt_page(tmp_path):
+def test_terminal_json_output_is_a_tree_on_the_prompt_page(tmp_path):
     page = _full_page(tmp_path, profile=_command_request(
-        "terminal", '{"role_count": 16}'))
+        "terminal", '{"role_count": 16, "names": ["<b>x</b>"]}'))
     body = _formatted_panel(page)
+    assert "output, read as JSON" in body
     assert ('<span class="tool-fact"><span class="tool-fact-k">exit_code'
             '</span> 0</span>') in body
-    assert '<pre class="blob command-output">{&#34;role_count&#34;: 16}</pre>' in body
+    assert '<span class="tree-key">role_count</span>' in body
+    assert '<span class="tree-v tree-number" title="number">16</span>' in body
+    # wire text stays text inside the tree
+    assert "&#34;&lt;b&gt;x&lt;/b&gt;&#34;" in body and "<b>x</b>" not in body
 
 
 def test_plain_command_output_is_shown_as_text(tmp_path):
     page = _full_page(tmp_path, profile=_command_request(
         "terminal", "line one\nline two"))
     body = _formatted_panel(page)
+    assert "read as" not in body
     assert '<pre class="blob command-output">line one\nline two</pre>' in body
 
+
+def test_mixed_command_output_draws_text_and_trees_in_order(tmp_path):
+    page = _full_page(tmp_path, profile=_command_request(
+        "execute_code",
+        "dailyRevenue {'<i>k</i>': True, 'n': 1}\npage text\n{\"b\": 2}"))
+    body = _formatted_panel(page)
+    assert "output, read as text with a Python literal and a JSON value" in body
+    order = [body.index(s) for s in (
+        '<pre class="command-text">dailyRevenue</pre>',
+        '<span class="tree-v tree-bool" title="bool">True</span>',
+        '<pre class="command-text">page text</pre>',
+        '<span class="tree-key">b</span>')]
+    assert order == sorted(order)
+    # a key out of the output stays text
+    assert "&lt;i&gt;k&lt;/i&gt;" in body and "<i>k</i>" not in body

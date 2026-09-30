@@ -468,10 +468,29 @@
       border-left: 2px solid #e2e5ec; }
     .web-result-content.blob { white-space: pre-wrap; }
     .result-error { margin: 0.6rem 0.9rem; }
-    /* terminal / execute_code: what the command printed, under its facts,
-       as the text it is. */
+    /* terminal / execute_code: what the command printed, under its facts —
+       plain text as it was, or its text and structured values in order, each
+       value a tree of <details>, each level indented under a rule, keys
+       faint, scalars coloured by type (the type is also in each value's
+       title). */
     .command-output { margin: 0; padding: 0.5rem 0.9rem; }
     .command-note { white-space: pre-wrap; }
+    .tree-format { margin: 0 0 0.3rem; }
+    ul.tree { list-style: none; margin: 0; padding-left: 1rem;
+      border-left: 1px solid #e2e5ec; font-family: ui-monospace, monospace;
+      font-size: 0.8rem; line-height: 1.5; }
+    ul.tree.tree-root { padding-left: 0; border-left: 0; margin: 0.2rem 0; }
+    .command-text { margin: 0.2rem 0; white-space: pre-wrap;
+      overflow-wrap: anywhere; font-size: 0.8rem; }
+    ul.tree li { overflow-wrap: anywhere; }
+    ul.tree summary { cursor: pointer; }
+    .tree-key { color: #55608c; margin-right: 0.5em; }
+    .tree-count { color: #8a8a8a; font-size: 0.72rem; }
+    .tree-brace { color: #8a8a8a; }
+    .tree-string { color: #3a7a3a; white-space: pre-wrap; }
+    .tree-number { color: #2456c4; }
+    .tree-bool, .tree-null { color: #a0522d; }
+    .tree-deep { color: #444; white-space: pre-wrap; }
     /* Kept from the envelope the raw tab shows in full: the formatted view
        reads past the wrapper, so this band is the one signal left that the rows
        are attacker-influenceable external content. A muted amber caution, led

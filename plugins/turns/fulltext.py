@@ -24,6 +24,8 @@ from dataclasses import dataclass
 from typing import Any, Optional
 from urllib.parse import urlparse
 
+from plugins.turns.structured import structure
+
 # Rendered up front, once per process: a page under a live poll should not
 # pay an import on first sight.
 try:                                  # pragma: no cover - import shape
@@ -85,7 +87,8 @@ class Section:
     # A given tool fills only the fields it has — web_search rows a description,
     # web_extract rows content and a per-row error. search_files fills none of
     # the rows and carries its own reading as `search` instead; terminal and
-    # execute_code theirs as `command`. None on every section but a
+    # execute_code theirs as `command`, whose printed output gains a
+    # `structured` reading when it holds JSON or Python values (structured.py). None on every section but a
     # result this app could read. Drawn as a formatted tab beside the raw wire
     # body; `text` still holds that wire body.
     result: Optional[dict] = None
@@ -188,8 +191,11 @@ def _result_for_render(result: Any) -> Optional[dict]:
     # `search` is search_files' reading (spans.py `read_search_files`), plain
     # values all, passed through for the page to draw as it stands.
     # `command` is terminal's or execute_code's reading (spans.py
-    # `_read_command_result`), plain values all, passed through as it stands.
+    # `_read_command_result`), with what the command printed split into text
+    # and structured blocks when it holds any (structured.py).
     command = result.get("command")
+    if isinstance(command, dict):
+        command = {**command, "structured": structure(command.get("output"))}
     return {"error": result.get("error"), "results": rows,
             "untrusted_notice": result.get("untrusted_notice"),
             "search": result.get("search"),

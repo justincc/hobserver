@@ -64,6 +64,18 @@ rendering code:
   so a clicked link cannot reach back through `window.opener` or leak a
   referrer. Draw a link from log-borne text only through this check.
 
+- **A command's printed output is parsed as data only, with bounded work.**
+  `plugins/turns/structured.py` reads JSON and Python values out of terminal
+  and execute_code output for the prompt page. It uses `json` and
+  `ast.literal_eval` only — never `eval`, `pickle` or a YAML loader — so a
+  call or name in the text is a failed parse, not code run. Because
+  `literal_eval`'s parser can exhaust the C stack, a Python value is measured
+  by a bracket matcher that refuses nesting past `MAX_NEST` before
+  `literal_eval` sees it; output over `MAX_CHARS` is not scanned; every parse
+  attempt spends from a budget proportional to the output; and any exception
+  leaves the span as text. The tests in `test_structured.py` hold each of
+  these. The tree's keys and values are autoescaped like any value.
+
 Adding a `| safe`, an `{% autoescape false %}`, a `Markup(...)`, or
 `html: True` in the renderer removes one of these defenses. Don't, unless the
 input provably does not come from the log.

@@ -274,9 +274,34 @@
 </div>
 {%- endif %}
 {%- endmacro %}
+{# One node of a structured output (structured.py `_node`), drawn as a
+   nested list: an object, array, tuple or set with children is a <details> whose summary
+   names it and counts its children, open three levels deep and collapsed
+   below so a large document starts readable. A scalar is spelled as its format writes it,
+   coloured by type with the type in its title. Every value is wire text,
+   auto-escaped. #}
+{% macro tree_node(key, node, depth) -%}
+{%- set label %}{% if key is not none %}<span class="tree-key">{{ key }}</span>{% endif %}{% endset %}
+{%- if node.kind == "scalar" %}
+<li>{{ label }}<span class="tree-v tree-{{ node.type }}" title="{{ node.type }}">{{ node.value }}</span></li>
+{%- else %}
+{%- set open, close = {"object": ("{", "}"), "set": ("{", "}"), "tuple": ("(", ")")}.get(node.kind, ("[", "]")) %}
+<li>
+{%- if node.children %}
+<details{% if depth < 3 %} open{% endif %}><summary>{{ label }}<span class="tree-brace">{{ open }}</span> <span class="tree-count">{{ node.children | length }} {{ ('key' if node.kind == "object" else 'item') ~ ('' if node.children | length == 1 else 's') }}</span></summary>
+<ul class="tree">{% for it in node.children %}{{ tree_node(it.key, it.node, depth + 1) }}{% endfor %}</ul>
+<span class="tree-brace">{{ close }}</span>
+</details>
+{%- else %}{{ label }}<span class="tree-brace">{{ open }}{{ close }}</span>{% endif %}
+</li>
+{%- endif %}
+{%- endmacro %}
 {# A terminal or execute_code result (spans.py `_read_command_result`): its
-   fields as facts, its notes and error, then what the command printed, as the
-   text it is, newlines and all. #}
+   fields as facts, its notes and error, then what the command printed. When
+   it holds JSON or Python values (`structured`, see structured.py) it is drawn
+   as its segments in order — text as text, each value a collapsible tree —
+   under a heading saying what it was read as; else as the text it is,
+   newlines and all. #}
 {% macro command_formatted(c) -%}
 {%- if c.fields %}
 <p class="tool-facts">
@@ -287,7 +312,18 @@
 <p class="tool-facts search-note"><span class="tool-fact"><span class="tool-fact-k">{{ n.key }}</span> <span class="command-note">{{ n.value }}</span></span></p>
 {%- endfor %}
 {%- if c.error %}<p class="notice warn result-error">{{ c.error }}</p>{% endif %}
-{%- if c.output %}
+{%- if c.structured %}
+<div class="command-output">
+  <p class="meta tree-format">output, read as {{ c.structured.summary }}</p>
+  {%- for seg in c.structured.segments %}
+  {%- if seg.tree %}
+  <ul class="tree tree-root" title="{{ seg.format }}">{{ tree_node(none, seg.tree, 0) }}</ul>
+  {%- else %}
+  <pre class="command-text">{{ seg.text }}</pre>
+  {%- endif %}
+  {%- endfor %}
+</div>
+{%- elif c.output %}
 <pre class="blob command-output">{{ c.output }}</pre>
 {%- elif not c.error %}
 <p class="meta msg-empty">(no output)</p>
