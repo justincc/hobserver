@@ -596,6 +596,75 @@ def test_session_search_discover_mode():
     assert all(s["tooltip"] for s in span.session_search_stats)
 
 
+_DISCOVER_END = json.dumps({
+    "success": True, "mode": "discover", "query": "news", "count": 2,
+    "sessions_searched": 2, "detail": "adaptive",
+    "results": [
+        {"session_id": "8e56e0e53253", "when": "October 21, 2026 at 01:49 AM",
+         "source": "webui", "model": "m1", "title": "Cardano News",
+         "matched_role": "assistant", "match_message_id": 13,
+         "snippet": "the >>>news<<< is",
+         "bookend_start": [{"id": 1, "role": "user", "content": "hi",
+                            "timestamp": 100.0}],
+         "messages": [{"id": 12, "role": "assistant", "content": "",
+                       "timestamp": 199.0,
+                       "tool_calls": [{"function": {"name": "web_search"}}]},
+                      {"id": 13, "role": "assistant",
+                       "content": "the news is", "timestamp": 200.5,
+                       "content_truncated": True,
+                       "original_content_chars": 900}],
+         "bookend_end": [], "detail": "full",
+         "messages_before": 5, "messages_after": 0},
+        {"session_id": "b3216e86ed40", "title": None,
+         "matched_role": "user", "match_message_id": 99, "snippet": "x",
+         "messages": []},
+    ]})
+
+
+def test_session_search_discover_results():
+    span = _one_span("session_search",
+                     {"query": "news", "limit": 3, "sort": "newest"},
+                     _DISCOVER_END)
+    first, second = span.session_search_results
+    assert first["session_id"] == "8e56e0e53253"
+    assert first["label"] == "Cardano News"
+    assert first["snippet"] == "the >>>news<<< is"
+    # the matched message's own timestamp, found by match_message_id
+    assert first["at_us"] == 200_500_000
+    # untitled: labelled by its id; its match is not among its messages
+    assert second["label"] == "b3216e86ed40" and second["at_us"] is None
+
+
+def test_session_search_results_only_in_discover_mode():
+    span = _one_span("session_search", {},
+                     '{"success": true, "mode": "browse", "results": '
+                     '[{"session_id": "s"}], "count": 1}')
+    assert span.session_search_results == []
+
+
+def test_session_search_result_is_read_for_the_prompt_page():
+    reading = read_tool_result("session_search", _DISCOVER_END)
+    assert reading["ok"] and reading["error"] is None
+    assert reading["fields"] == [{"key": "count", "value": "2"},
+                                 {"key": "sessions_searched", "value": "2"},
+                                 {"key": "detail", "value": "adaptive"}]
+    row, untitled = reading["results"]
+    assert row["title"] == "Cardano News"
+    assert row["description"] == "the >>>news<<< is"
+    assert {"key": "match_message_id", "value": "13"} in row["fields"]
+    content = row["content"]
+    # the opening bookend, a gap, then the window; the match is named
+    assert content.index("msg 1") < content.index("*…*") < content.index("msg 12")
+    assert "**assistant** · msg 13 · *match*" in content
+    assert "tool calls: `web_search`" in content
+    assert "cut short by hermes, of 900 chars" in content
+    assert untitled["title"] == "b3216e86ed40" and untitled["content"] is None
+    # other modes stay a raw dump
+    assert read_tool_result("session_search",
+                            '{"success": true, "mode": "read", '
+                            '"messages": []}') is None
+
+
 def test_session_search_scroll_mode():
     span = _one_span(
         "session_search",

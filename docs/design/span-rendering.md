@@ -336,8 +336,11 @@ what it means is left to the tooltip that was always carrying it.
   The reading is found by the tool's name in the merged `RESULT_READERS`
   table ([ADR 26](adr/0026-a-tool-results-prompt-page-reading-is-contributed-too.md)):
   this tab's own for hermes' tools (`spans.py`), a plugin's for its own
-  (mem0_search, below). Of hermes' tools, terminal, execute_code and
-  search_files have their own sections below; the web tools read as:
+  (mem0_search, below). A deferred tool called through hermes' `tool_call`
+  bridge with a single entry is read by that entry's name, since its result
+  is that tool's own; a batch stays a raw dump. Of hermes' tools, terminal,
+  execute_code, search_files and session_search have their own sections
+  below; the web tools read as:
 
   - **web_search** — one row per hit: its title (a link when the url is a safe
     `http(s)` one, plain text otherwise, see [SECURITY.md](../../SECURITY.md)),
@@ -1056,6 +1059,27 @@ reports:
 - **browse** — `sessions` listed.
 
 Each label's tooltip carries the same explanation.
+
+The summary line also carries the `limit` and `sort` the call asked for, so a
+discover search whose count equals its limit reads as capped.
+
+**discover** then lists each session returned (`Span.session_search_results`),
+on detail-only rows:
+
+- its title, on a line of its own, as a `↗` link to
+  `/turns/session/<id>?at=<µs>`. `at` is the matched message's timestamp,
+  found among the messages the result carries by `match_message_id`; the
+  route lands on the turn holding it, and 404s for a session this log does
+  not hold.
+- when the session started, its source, and whose message the hit was in
+  (`match in assistant message`, from `matched_role`).
+- hermes' snippet, its `>>>hit<<<` drawn highlighted (`Field(marks=…)`).
+
+**Prompt page:** a discover result's formatted tab has the counts as facts,
+then a row per session — title, snippet, every scalar of the entry as facts,
+and the messages the model was given from it (opening bookend, the window
+around the match, closing bookend) as markdown, a gap marked `…` and the
+matched message named. Other modes stay a raw dump.
 
 ### skill_view, skill_manage — `name` / `file_path` / `action`
 

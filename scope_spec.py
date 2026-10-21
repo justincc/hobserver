@@ -22,7 +22,7 @@ adding a fifth: a scope that needs one is usually a scope that wants
 
 import json
 from dataclasses import dataclass, field as dc_field
-from typing import Any, Callable, Optional, Sequence, Union
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 # --- sources ---------------------------------------------------------
 #
@@ -341,6 +341,30 @@ _CLIP_CLS = {None: "", "tail": "tail", "wrap": "wrap-detail",
              "wide": "wide", "wide-wrap": "wide wrap-detail"}
 
 
+def _marked_segments(text: str, marks) -> Optional[list]:
+    """`text` split at an (open, close) delimiter pair into `[{text, hit}]`,
+    the delimiters dropped, or None when `marks` is not set. An open with no
+    close marks the rest of the text."""
+    if not marks:
+        return None
+    open_, close = marks
+    segments = []
+    rest = text
+    while rest:
+        start = rest.find(open_)
+        if start < 0:
+            segments.append({"text": rest, "hit": False})
+            break
+        if start:
+            segments.append({"text": rest[:start], "hit": False})
+        rest = rest[start + len(open_):]
+        end = rest.find(close)
+        hit, rest = (rest, "") if end < 0 else (rest[:end], rest[end + len(close):])
+        if hit:
+            segments.append({"text": hit, "hit": True})
+    return segments
+
+
 @dataclass(frozen=True)
 class Field:
     """One value on a row. Resolves to nothing when its source is empty, and
@@ -384,6 +408,10 @@ class Field:
     sep_if     a source; when it resolves, a "·" separates this field from
                what precedes it. For a divider that depends on a *particular*
                neighbour being present rather than on any at all.
+    marks      an (open, close) pair of delimiters the value itself uses to
+               mark matched text — a search snippet's `>>>hit<<<`. Each
+               marked run is drawn highlighted and the delimiters dropped,
+               on the row and in the hover text.
     """
 
     source: Any = None
@@ -398,6 +426,7 @@ class Field:
     copy: Optional[str] = None
     full: Optional[str] = None
     sep_if: Any = None
+    marks: Optional[Tuple[str, str]] = None
 
     def cell(self, span, ctx) -> Optional[dict]:
         sources = self.source if isinstance(self.source, list) else [self.source]
@@ -407,6 +436,11 @@ class Field:
             return None
         raw = " ".join(parts)
         text = self.transform(raw) if self.transform else raw
+        segments = _marked_segments(self.prefix + text, self.marks)
+        if self.marks:
+            # the hover text and the copy button get the words, not the
+            # delimiters
+            raw = "".join(s["text"] for s in _marked_segments(raw, self.marks))
 
         if self.title is None:
             title = None if self.deco else raw
@@ -438,6 +472,7 @@ class Field:
             "el": "code" if self.font == "mono" else "span",
             "cls": cls,
             "text": self.prefix + text,
+            "segments": segments,
             "title": title,
             "label": self.label,
             "lrm": self.clip == "tail",

@@ -387,6 +387,119 @@ def test_session_search_scroll_mode_renders(tmp_path):
     assert "title=\"Messages in the session before" in page
 
 
+def test_session_search_discover_lists_each_session_linked(tmp_path):
+    end = json.dumps({
+        "success": True, "mode": "discover", "count": 1,
+        "sessions_searched": 1,
+        "results": [{"session_id": "s2", "title": "Earlier chat",
+                     "when": "October 20, 2026", "matched_role": "assistant",
+                     "match_message_id": 7, "snippet": "the >>>news<<< is",
+                     "messages": [{"id": 7, "role": "assistant",
+                                   "content": "x", "timestamp": 5.5}]}]})
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("SS1", "tool", 1_100_000, 1_300_000, name="session_search",
+                     session="s1", turn="t1",
+                     start_data={"query": "news", "limit": 3,
+                                 "sort": "newest"},
+                     end_data=end),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    page = make_client(tmp_path, str(atof)).get(
+        "/turns/turn/s1/1000000").get_data(as_text=True)
+    # the call's limit and sort beside the query
+    assert "limit 3" in page and ">newest<" in page
+    # each session returned links to its turn by the matched message's time
+    assert '/turns/session/s2?at=5500000' in page
+    assert "↗ Earlier chat" in page
+    assert "match in assistant message" in page
+    # the title has its line to itself; the facts follow on the next
+    link = page.index("↗ Earlier chat")
+    assert page.index("</div>", link) < page.index("October 20, 2026", link)
+    assert 'the <mark class="hit">news</mark> is' in page
+
+
+def _session_search_prompt_page(tmp_path, arguments):
+    end = json.dumps({
+        "success": True, "mode": "discover", "count": 1,
+        "sessions_searched": 1,
+        "results": [{"session_id": "s2", "title": "Earlier chat",
+                     "match_message_id": 7, "snippet": "the >>>news<<< is",
+                     "messages": [{"id": 7, "role": "assistant",
+                                   "content": "the news is"}]}]})
+    messages = [{"role": "user", "content": "find"},
+                {"role": "tool_call", "name": "tool_call", "call_id": "c1",
+                 "arguments": arguments},
+                {"role": "tool_result", "call_id": "c1", "output": end}]
+    lines = [
+        *session_scope_lines("s1", start_us=0),
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        *scope_lines("L2", "llm", 1_300_000, 1_400_000, name="anthropic",
+                     session="s1", turn="t1",
+                     profile={"annotated_request": {"messages": messages}}),
+        mark_line("hermes.turn.end", 1_500_000, session="s1", turn="t1"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    return make_client(tmp_path, str(atof)).get(
+        "/turns/span/L2/prompt").get_data(as_text=True)
+
+
+def test_a_session_search_run_through_the_tool_call_bridge_is_formatted(
+        tmp_path):
+    """A deferred tool is called through hermes' `tool_call` bridge; one
+    entry's result is that tool's own, so it reads as session_search's."""
+    page = _session_search_prompt_page(tmp_path, {"calls": [
+        {"name": "session_search", "arguments": {"query": "news"}}]})
+    fmt = re.search(r'<div class="tool-panel tool-panel-fmt">(.*?)'
+                    r'<div class="tool-panel tool-panel-raw">',
+                    _from_result(page), re.S)
+    assert fmt
+    body = fmt.group(1)
+    assert "Earlier chat" in body and "the &gt;&gt;&gt;news&lt;&lt;&lt; is" in body
+    assert "<strong>assistant</strong> · msg 7 · <em>match</em>" in body
+
+
+def test_a_tool_call_batch_is_not_read_as_any_one_tool(tmp_path):
+    page = _session_search_prompt_page(tmp_path, {"calls": [
+        {"name": "session_search", "arguments": {}},
+        {"name": "session_search", "arguments": {}}]})
+    # no formatted tab: the result is a raw dump
+    assert 'name="restab' not in page and "Earlier chat" in page
+
+
+def _two_turn_session(tmp_path):
+    lines = [
+        mark_line("hermes.turn.start", 1_000_000, session="s1", turn="t1"),
+        mark_line("hermes.turn.end", 2_000_000, session="s1", turn="t1"),
+        mark_line("hermes.turn.start", 3_000_000, session="s1", turn="t2"),
+        mark_line("hermes.turn.end", 4_000_000, session="s1", turn="t2"),
+    ]
+    return make_client(tmp_path, str(write_atof(tmp_path, lines)))
+
+
+def test_a_session_link_lands_on_the_turn_holding_the_moment(tmp_path):
+    client = _two_turn_session(tmp_path)
+    to = client.get("/turns/session/s1?at=3500000").headers["Location"]
+    assert to.endswith("/turns/turn/s1/3000000")
+    # between turns: the last one to have started
+    to = client.get("/turns/session/s1?at=2500000").headers["Location"]
+    assert to.endswith("/turns/turn/s1/1000000")
+
+
+def test_a_session_link_without_a_moment_lands_on_its_first_turn(tmp_path):
+    client = _two_turn_session(tmp_path)
+    to = client.get("/turns/session/s1").headers["Location"]
+    assert to.endswith("/turns/turn/s1/1000000")
+    to = client.get("/turns/session/s1?at=10").headers["Location"]
+    assert to.endswith("/turns/turn/s1/1000000")
+
+
+def test_a_session_this_log_does_not_hold_404s(tmp_path):
+    client = _two_turn_session(tmp_path)
+    assert client.get("/turns/session/nope").status_code == 404
+
+
 def test_tool_describe_names_and_returned_schema_render(tmp_path):
     # tool_describe is hermes' lazy-tool lookup: the model asks for a tool's
     # full schema before calling it. The end payload (the schema it got back)

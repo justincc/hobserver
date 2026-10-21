@@ -1002,6 +1002,39 @@ class Span:
                     "Number of recent sessions listed.")
         return stats
 
+    # The sessions a discover-mode session_search returned, one dict each,
+    # from the end payload's `results`: `session_id`, `label` (its title, or
+    # the id when untitled), `when`, `source`, `matched_role`,
+    # `snippet` (hermes' own, the hit marked `>>>…<<<`) and `at_us`, the
+    # matched message's time in µs — found among the messages the result
+    # carries by `match_message_id`, None when it is not among them. Empty
+    # in other modes and while the span is open.
+    @property
+    def session_search_results(self) -> list:
+        if self.name != "session_search":
+            return []
+        end = _as_dict(self.end_data)
+        if end is None or end.get("mode") != "discover":
+            return []
+        results = end.get("results")
+        out: List[dict] = []
+        for entry in results if isinstance(results, list) else ():
+            if not isinstance(entry, dict):
+                continue
+            sid = _str_or_none(entry.get("session_id"))
+            if sid is None:
+                continue
+            out.append({
+                "session_id": sid,
+                "label": _str_or_none(entry.get("title")) or sid,
+                "when": _str_or_none(entry.get("when")),
+                "source": _str_or_none(entry.get("source")),
+                "matched_role": _str_or_none(entry.get("matched_role")),
+                "snippet": _str_or_none(entry.get("snippet")),
+                "at_us": _session_match_us(entry),
+            })
+        return out
+
     # The `memory` scope is a different tool from mem0's
     # (checked against $HERMES_SOURCE/tools/memory_tool.py): bounded, file-backed,
     # §-delimited entries in two char-limited stores under
@@ -1925,12 +1958,111 @@ def _read_command_result(text: str) -> Optional[dict]:
                           for k, v in rest if k in _COMMAND_NOTE_KEYS]}}
 
 
+def _session_messages(entry: dict) -> list:
+    """The messages a session_search result carries, in order: the opening
+    bookend, the window around the match, the closing bookend. Dicts only."""
+    out = []
+    for key in ("bookend_start", "messages", "bookend_end"):
+        value = entry.get(key)
+        if isinstance(value, list):
+            out.extend(m for m in value if isinstance(m, dict))
+    return out
+
+
+def _session_match_us(entry: dict) -> Optional[int]:
+    """The matched message's timestamp in µs, from among the messages a
+    session_search result carries, or None. hermes stamps a message with
+    epoch seconds as a float."""
+    target = entry.get("match_message_id")
+    if target is None:
+        return None
+    for message in _session_messages(entry):
+        if message.get("id") == target:
+            ts = message.get("timestamp")
+            if isinstance(ts, (int, float)) and not isinstance(ts, bool):
+                return int(ts * 1_000_000)
+    return None
+
+
+def _session_transcript(entry: dict) -> Optional[str]:
+    """The messages a session_search result carries, as markdown: one
+    heading per message — its role and id — over its content, with a gap
+    marked where the bookends and the window are not contiguous. A message
+    hermes cut short says so, and a tool-call-only message names its calls.
+    None when the result carries no messages."""
+    parts = []
+    previous = None
+    for message in _session_messages(entry):
+        mid = message.get("id")
+        if (isinstance(previous, int) and isinstance(mid, int)
+                and mid > previous + 1):
+            parts.append("*…*")
+        previous = mid if isinstance(mid, int) else previous
+        role = _str_or_none(message.get("role")) or "message"
+        head = f"**{role}** · msg {mid}" if mid is not None else f"**{role}**"
+        if mid is not None and mid == entry.get("match_message_id"):
+            head += " · *match*"
+        body = message.get("content")
+        lines = [head]
+        if isinstance(body, str) and body:
+            lines.append(body)
+        calls = [c.get("function", {}).get("name")
+                 for c in message.get("tool_calls") or ()
+                 if isinstance(c, dict) and isinstance(c.get("function"), dict)]
+        calls = [c for c in calls if isinstance(c, str) and c]
+        if calls:
+            lines.append("tool calls: " + ", ".join(f"`{c}`" for c in calls))
+        if message.get("content_truncated") is True:
+            total = message.get("original_content_chars")
+            lines.append(f"*(cut short by hermes, of {total} chars)*"
+                         if isinstance(total, int) else "*(cut short by hermes)*")
+        parts.append("\n\n".join(lines))
+    return "\n\n---\n\n".join(parts) if parts else None
+
+
+def _read_session_search_result(text: str) -> Optional[dict]:
+    """A discover-mode session_search result for the prompt page: one row per
+    session returned — its title, hermes' snippet, its facts, and the
+    messages the model was given from it as `content` — with the counts as
+    the whole result's facts. Checked against `_discover` in
+    $HERMES_SOURCE/tools/session_search_tool.py. Any other mode, or a dict
+    without a `results` list, stays a raw dump; an error reads as one."""
+    data = _parse_json_payload(text)
+    if not isinstance(data, dict):
+        return None
+    error = _str_or_none(data.get("error"))
+    if error is not None and data.get("success") is False:
+        return {"ok": False, "error": error, "results": []}
+    entries = data.get("results")
+    if data.get("mode") != "discover" or not isinstance(entries, list):
+        return None
+    fields = [{"key": k, "value": _field_text(data[k])}
+              for k in ("count", "sessions_searched", "detail")
+              if data.get(k) is not None]
+    rows = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        facts = [{"key": k, "value": _field_text(entry[k])}
+                 for k in ("session_id", "when", "source", "model",
+                           "matched_role", "match_message_id", "detail",
+                           "messages_before", "messages_after")
+                 if entry.get(k) not in (None, "")]
+        rows.append({"title": _str_or_none(entry.get("title"))
+                     or _str_or_none(entry.get("session_id")),
+                     "description": _str_or_none(entry.get("snippet")),
+                     "fields": facts,
+                     "content": _session_transcript(entry)})
+    return {"ok": True, "error": None, "fields": fields, "results": rows}
+
+
 # This tab's readings of hermes' own tools' results. Another system's tool is
 # read by whoever owns it, contributed as `RESULT_READERS` beside its specs
 # and merged over this table (ADR 26).
 RESULT_READERS = {"execute_code": _read_command_result,
                   "terminal": _read_command_result,
                   "search_files": _read_search_files_result,
+                  "session_search": _read_session_search_result,
                   "web_search": _read_web_search_result,
                   "web_extract": _read_web_extract_result}
 
@@ -2070,6 +2202,32 @@ def _tool_call_ids(messages: list) -> set:
             and isinstance(m.get("call_id"), str) and m.get("call_id")}
 
 
+def _dispatched_tool(call: dict) -> Optional[str]:
+    """The tool a `tool_call` message ran, by the name its result answers to.
+
+    A deferred tool is called through hermes' `tool_call` bridge, `{"calls":
+    [{"name", "arguments"}]}`. One entry dispatches that tool alone and its
+    result comes back verbatim, so the result is read as that tool's
+    (`resolve_underlying_call` in $HERMES_SOURCE/tools/tool_search.py). A
+    batch, or anything unparseable, stays `tool_call`."""
+    name = call.get("name")
+    if name != "tool_call":
+        return name
+    args = call.get("arguments")
+    if isinstance(args, str):
+        try:
+            args = json.loads(args)
+        except ValueError:
+            return name
+    calls = args.get("calls") if isinstance(args, dict) else None
+    if isinstance(calls, list) and len(calls) == 1 \
+            and isinstance(calls[0], dict):
+        inner = calls[0].get("name")
+        if isinstance(inner, str) and inner:
+            return inner
+    return name
+
+
 def _message_sections(messages: list) -> list:
     """A request's messages as sections, with each result under its call.
 
@@ -2138,7 +2296,7 @@ def _message_sections(messages: list) -> list:
         # call's name is stamped on the result's section here, where the pair
         # is already in hand, as `tool`. The page reads the result by it
         # (`apply_result_readings`) with the result readers it was given.
-        name = message.get("name") if isinstance(message, dict) else None
+        name = _dispatched_tool(message) if isinstance(message, dict) else None
         for result in owned:
             flags = {"nested": True}
             if isinstance(name, str) and name:

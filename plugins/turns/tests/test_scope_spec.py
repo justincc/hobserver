@@ -1158,3 +1158,22 @@ def test_the_llm_scope_offers_its_request_and_its_response():
 def test_the_full_docstring_names_every_renderer_the_code_accepts():
     for renderer in FULL_RENDERERS:
         assert f'"{renderer}"' in Full.__doc__, renderer
+
+
+def test_marks_split_a_value_into_highlighted_runs():
+    """A snippet's own `>>>hit<<<` delimiters become highlighted runs, gone
+    from the text and the hover alike; an unclosed open marks the rest."""
+    span = make_span(start={"snippet": "the >>>news<<< of >>>today"})
+    spec = Scope(rows=[Row([Field(payload("snippet"),
+                                  marks=(">>>", "<<<"))])])
+    cell = only_cell(spec.resolve(span))
+    assert cell["segments"] == [
+        {"text": "the ", "hit": False}, {"text": "news", "hit": True},
+        {"text": " of ", "hit": False}, {"text": "today", "hit": True}]
+    assert cell["title"] == "the news of today"
+
+
+def test_a_field_without_marks_has_no_segments():
+    span = make_span(start={"snippet": "a >>>b<<<"})
+    spec = Scope(rows=[Row([Field(payload("snippet"))])])
+    assert only_cell(spec.resolve(span))["segments"] is None

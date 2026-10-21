@@ -105,6 +105,7 @@ Inside a tab, a page is named for the thing it shows:
 | --- | --- |
 | `/turns/` | every turn, newest first |
 | `/turns/turn/<session>/<start µs>` | one turn's waterfall |
+| `/turns/session/<session>?at=<µs>` | redirects to the session's turn holding `at`, or its first turn |
 | `/turns/span/<span uuid>/<key>` | one whole value of one span — the `key` is a `Full` its scope declared ([ADR 12](../design/adr/0012-open-a-whole-value-on-its-own-page.md)) |
 | `/memory/mem0/search-event` | one logged mem0 search |
 

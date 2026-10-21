@@ -191,15 +191,54 @@ SEARCH_FILES = Scope(rows=[
     _RESULT_IN_PROMPT,
 ])
 
-# Four modes, named by a tag; the per-mode counts the end payload reports sit
-# on detail-only rows, each with its own tooltip.
+def _linked(text):
+    """Link text wearing the ↗ every link to another page across the tab
+    leads with."""
+    return "↗ " + text
+
+
+def _match_in(role):
+    """A session_search hit's `matched_role` as where the hit was."""
+    return f"match in {role} message"
+
+
+# Four modes, named by a tag, with the limit and sort the call asked for; the
+# per-mode counts the end payload reports sit on detail-only rows, each with
+# its own tooltip. A discover search then lists each session it returned: its
+# title on a line of its own, linking to that session's turn on this tab
+# (`turns.session`, which 404s for a session this log does not hold); when it
+# started, where, and whose message the hit was in; and hermes' snippet with
+# the hit highlighted.
 SESSION_SEARCH = Scope(rows=[
     Row([Field("session_search_mode", deco="tag"),
-         Field("session_search_summary", font="mono", clip="wrap")]),
+         Field("session_search_summary", font="mono", clip="wrap"),
+         Field(payload("limit"), deco="cat", prefix="limit ",
+               sep_if=payload("limit"),
+               title=const("The most sessions the call asked for.")),
+         Field(payload("sort"), deco="cat", sep_if=payload("sort"),
+               title=const("The order the call asked for results in."))]),
     Each("session_search_stats", [
         Row([Field([item("label"), item("value")], deco="plain",
                    title=item("tooltip"))], layer="detail"),
     ]),
+    Each("session_search_results", [
+        Link(endpoint="turns.session",
+             params={"session_id": item("session_id"), "at": item("at_us")},
+             text=item("label"), transform=_linked,
+             title=const("Open the turn in this session that holds the "
+                         "matched message, if this log holds the session."),
+             layer="detail", cls="op-head", new_tab=True),
+        Row([Field(item("when"), deco="cat"),
+             Field(item("source"), deco="cat", sep_if=item("source")),
+             Field(item("matched_role"), deco="cat", transform=_match_in,
+                   sep_if=item("matched_role"),
+                   title=const("Whose message the search matched in."))],
+            layer="detail"),
+        Row([Field(item("snippet"), clip="wide-wrap",
+                   marks=(">>>", "<<<"))],
+            layer="detail"),
+    ]),
+    _RESULT_IN_PROMPT,
 ])
 
 # skill_view and skill_manage share a shape. The middots are conditional on

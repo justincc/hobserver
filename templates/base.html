@@ -10,8 +10,9 @@
    - **Scope-spec authors** never touch this file, but every class the spec
      vocabulary resolves to is defined here — `.mode-tag`, `.detail-id`,
      `.gen-key`, `.skill-action`, `.skill-cat`, `.gen-omitted`, `.tail`,
-     `.wide`, `.wrap-detail`, and the `.list-item` / `.list-compact` split
-     that is the whole of summary-vs-detail. A test asserts these still
+     `.wide`, `.wrap-detail`, `mark.hit` (a `Field`'s `marks`), and the
+     `.list-item` / `.list-compact` split that is the whole of
+     summary-vs-detail. A test asserts these still
      exist, because a spec naming one that has been renamed renders unstyled
      and says nothing about why. `.open-btn` and `.md-body` belong to the
      same promise from the other end: a scope's `Full` (ADR 12) is what puts
@@ -689,6 +690,9 @@
        The row carries .list-item, and a hidden row hides its children
        whatever their class. */
     .span-detail .call-list { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+    /* a run the value itself marked as matched (Field `marks`) — a search
+       snippet's hit */
+    .span-detail mark.hit { background: #fbeec2; color: inherit; border-radius: 2px; padding: 0 1px; }
     /* a value too large to print — its type and size instead, in words */
     .span-detail .gen-omitted { flex: none; color: #8a8a8a; font-style: italic; }
     /* skill_manage patch sides. The −/+ glyph carries the meaning; the tint

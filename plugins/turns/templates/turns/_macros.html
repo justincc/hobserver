@@ -122,7 +122,7 @@
 {% macro spec_cell(c) -%}
 {%- if c.sep %}<span class="skill-cat">·</span> {% endif -%}
 {%- if c.label %}<span>{{ c.label }}</span> {% endif -%}
-<{{ c.el }}{% if c.cls %} class="{{ c.cls }}"{% endif %}{% if c.title is not none %} title="{{ c.title }}"{% endif %}>{% if c.lrm %}&lrm;{% endif %}{{ c.text }}{% if c.lrm %}&lrm;{% endif %}{% if c.copy_text %}{{ copy_btn(c.copy_text, c.copy_title) }}{% endif %}{% if c.full %}{{ open_btn(c.full) }}{% endif %}</{{ c.el }}>
+<{{ c.el }}{% if c.cls %} class="{{ c.cls }}"{% endif %}{% if c.title is not none %} title="{{ c.title }}"{% endif %}>{% if c.lrm %}&lrm;{% endif %}{% if c.segments is not none %}{% for g in c.segments %}{% if g.hit %}<mark class="hit">{{ g.text }}</mark>{% else %}{{ g.text }}{% endif %}{% endfor %}{% else %}{{ c.text }}{% endif %}{% if c.lrm %}&lrm;{% endif %}{% if c.copy_text %}{{ copy_btn(c.copy_text, c.copy_title) }}{% endif %}{% if c.full %}{{ open_btn(c.full) }}{% endif %}</{{ c.el }}>
 {%- if c.more %} <span>+{{ c.more }} more</span>{% endif -%}
 {%- endmacro %}
 {# A declared scope's rows. Every key here is named to miss dict's own

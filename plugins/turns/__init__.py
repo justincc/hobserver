@@ -774,6 +774,32 @@ def _find_turn(assembly, session_id, start_us):
     return containing_turn(session, start_us) if session is not None else None
 
 
+@bp.route("/session/<session_id>")
+def session(session_id):
+    """A hermes session, by its id, as one of its turns: the turn holding
+    `at` (µs) when that is given — the last to start before it, when it falls
+    between turns — else the session's first. What links here knows a
+    session id and a moment, not a turn's key: a session_search result names
+    the session and the message it matched. 404 for a session this log does
+    not hold, or holds no turns of."""
+    problem = _source_problem()
+    if problem is not None:
+        return problem
+    assembly, _ = _assembly()
+    found = next((s for s in assembly.sessions
+                  if s.session_id == session_id), None)
+    if found is None or not found.turns:
+        abort(404)
+    target = found.turns[0]
+    at_us = request.args.get("at", type=int)
+    if at_us is not None:
+        target = (containing_turn(found, at_us)
+                  or next((t for t in reversed(found.turns)
+                           if t.start_us <= at_us), target))
+    return redirect(url_for("turns.turn", session_id=target.session_id,
+                            start_us=target.start_us))
+
+
 @bp.route("/turn/<session_id>/<int:start_us>")
 def turn(session_id, start_us):
     problem = _source_problem()
