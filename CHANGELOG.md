@@ -15,83 +15,52 @@ and provider-spec vocabularies) may still change between releases — see
 ### Added
 
 - **A batched `skill_manage` call is now shown op by op.** hermes'
-  `skill_manage` now takes an `operations` list, and every current call uses
-  it. The summary line now reads `batch`, the skill written to (or the first of
-  several, with the rest counted) and how many writes were made. The detail
-  view gives each op its own row and − / + diff, and links to the skill when
-  the batch touched only one. A batch of one looks exactly like the older flat
-  call. See `docs/design/span-rendering.md`.
+  `skill_manage` now takes an `operations` list. The summary line now reads `batch`, the skill written to and how many writes were made. The detail
+  view gives each op its own row and − / + diff. See `docs/design/span-rendering.md`.
 
 - **An llm span's `(89% cached)` figure is now tinted by how much of the prompt
-  was served from cache**, so the split reads at a glance without reading the
-  number. The tint is drawn from a configurable list of colour bands — each
+  was served from cache**, so you can see at a glance if no or minimal cache hit.. The tint is drawn from a configurable list of colour bands — each
   applying from a percent upward, a figure taking the last band it reaches — so
   an operator can set two bands for a plain pass/fail split or many for a finer
   gradient, in any palette, via `cache_share.bands` in the Turns tab's
-  `settings` (`hobserver.toml`). The default is three bands (red below 30%,
-  ochre to 90%, green from 90%) tuned for the light theme; the number is always
-  printed beside the tint, so the colour only reinforces it. See
+  `settings` (`hobserver.toml`). See
   `docs/design/span-rendering.md`.
 
-- **A `tool_describe` span now shows what it handed back, not just what was
-  looked up.** `tool_describe` is hermes' lazy-tool lookup: the model asks for
-  the full schema of one or more tools before it calls them. The span used to
-  fall to the generic payload dump, which reads only the start payload — so it
-  named the tool looked up but nothing that came back. It now has a scope spec:
+- **A `tool_describe` span now shows what it returned**. `tool_describe` is hermes' lazy-tool lookup: the model asks for
+  the full schema of one or more tools before it calls them.  It now has a scope spec:
   the summary names the requested tools, detail mode gives each returned tool's
   description, and the whole returned schema opens on its own page — one section
   per tool, its parameters broken out one row each beside the raw wire schema,
-  the same formatted-vs-raw reading the request's own tool menu uses. The end
-  payload arrives as a JSON string on the nemo-relay route and is parsed
-  defensively; an unreadable shape degrades to the raw schema rather than
-  erroring. See `docs/design/span-rendering.md`.
-- **Tool results read as formatted tabs on the prompt page.** Each tool result
-  under the call it answers gains a formatted tab beside the raw body the model
-  received: `web_search` (one row per hit), `web_extract` (each page's content
-  as markdown, with a per-URL error), `search_files` (its counts, then hits
-  grouped per file), `terminal` and `execute_code` (fields, notes, any error,
-  and the output with real line breaks — JSON and Python values in it drawn as
-  collapsible trees), `session_search` (each session's facts and messages) and
-  `mem0_search` (score and id per memory). Links are drawn only for http(s)
-  URLs, and hermes' untrusted-content notice is kept verbatim. See SECURITY.md
-  for the parsing bounds.
-- **A plugin can contribute a tool result's formatted reading** as
-  `RESULT_READERS`, beside `SCOPES` and `SPAN_READERS`, merged over the Turns
-  tab's own table the same way. See ADR 26 and
-  `docs/extending/writing-a-scope-spec.md`.
-- **A tool call's arguments are shown formatted beside the wire JSON** on the
-  prompt page: short values beside their keys, long strings as blocks, objects
-  and arrays as trees.
-- **A tool span links to its result in the prompt it was fed into.**
-  `web_search`, `web_extract`, `search_files` (`↗ view results`), `terminal`
-  and `execute_code` (`↗ view output`) carry a detail-mode link to the next llm
-  call's full prompt, landing on the tool call the result is drawn under. The
-  link appears once the result has been fed back.
-- **A `session_search` span lists the sessions it returned**, each title
-  linking to the turn holding the matched message (new
-  `/turns/session/<id>?at=<µs>` route), with hermes' snippet and the hit
-  highlighted — through a new scope-spec `Field(marks=...)` option. The summary
-  line carries the limit and sort asked for.
-- **A `search_files` span shows what it found**: the total count and search
-  path on the summary line, the counts and first ten hits in detail.
+  the same formatted-vs-raw reading the request's own tool menu uses. See `docs/design/span-rendering.md`.
+- **Tool results get a formatted tab on the prompt page**, beside the raw body
+  the model received: `web_search`, `web_extract`, `search_files`,
+  `terminal`, `execute_code`, `session_search` and `mem0_search`. JSON and
+  Python values in a command's output are drawn as collapsible trees.
+- **Plugins can contribute a tool result's formatted tab** as
+  `RESULT_READERS`. See `docs/extending/writing-a-scope-spec.md`.
+- **A tool call's arguments are shown formatted** beside the wire JSON on the
+  prompt page.
+- **Tool spans link to their result in the next prompt** — `↗ view results` on
+  `web_search`, `web_extract` and `search_files`, `↗ view output` on
+  `terminal` and `execute_code`.
+- **A `session_search` span lists the sessions it returned**, each linking to
+  the turn with the matched message, and its snippet with the hit highlighted.
+- **A `search_files` span shows what it found** — the total count, and the
+  first ten hits in detail.
 - **A `skills_list` span shows its filter, count, categories and skills.**
-- **The full-value page's contents list follows the reader**, marking the
-  section at the top of the viewport and keeping its entry in sight, including
-  when the page opens at an anchor.
+- **The full prompt page's contents list highlights the section you're
+  reading.**
 
 ### Changed
 
-- Every link from a span to a page of its own now leads with `↗` and the verb
-  "view" (`↗ view skill`, `↗ view all N results in Mem0`).
-- A deferred tool called through hermes' single-entry `tool_call` bridge is
-  read as that tool on the prompt page.
+- Links from a span to another page now all read `↗ view …`.
 
 ### Fixed
 
-- A turn's prompt is read from a request message whose content is a list of
-  typed parts (text parts joined), not only a plain string.
-- `uv run pytest plugins/turns` runs on its own; mem0's turn-page tests live in
-  the Mem0 tab's suite.
+- A turn's prompt is now shown when its request message is made of typed
+  parts rather than a plain string.
+- A deferred tool called through hermes' `tool_call` bridge is now read as
+  that tool on the prompt page.
 
 ## [0.3.4] - 2026-09-10
 
