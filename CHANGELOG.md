@@ -14,40 +14,40 @@ and provider-spec vocabularies) may still change between releases — see
 
 ### Added
 
-- **A batched `skill_manage` call is now shown op by op.** hermes'
+- **Batched `skill_manage` calls are now shown op by op.** hermes'
   `skill_manage` now takes an `operations` list. The summary line now reads `batch`, the skill written to and how many writes were made. The detail
   view gives each op its own row and − / + diff. See `docs/design/span-rendering.md`.
 
-- **An llm span's `(89% cached)` figure is now tinted by how much of the prompt
-  was served from cache**, so you can see at a glance if no or minimal cache hit.. The tint is drawn from a configurable list of colour bands — each
+- **An llm span's `(89% cached)` figure is tinted by how much of the prompt
+  was served from cache**, so you can see at a glance if no or minimal cache hit. The tint is drawn from a configurable list of colour bands — each
   applying from a percent upward, a figure taking the last band it reaches — so
   an operator can set two bands for a plain pass/fail split or many for a finer
   gradient, in any palette, via `cache_share.bands` in the Turns tab's
   `settings` (`hobserver.toml`). See
   `docs/design/span-rendering.md`.
 
-- **A `tool_describe` span now shows what it returned**. `tool_describe` is hermes' lazy-tool lookup: the model asks for
+- **`tool_describe` spans show what they returned**. `tool_describe` is hermes' lazy-tool lookup: the model asks for
   the full schema of one or more tools before it calls them.  It now has a scope spec:
   the summary names the requested tools, detail mode gives each returned tool's
   description, and the whole returned schema opens on its own page — one section
   per tool, its parameters broken out one row each beside the raw wire schema,
   the same formatted-vs-raw reading the request's own tool menu uses. See `docs/design/span-rendering.md`.
-- **Tool results get a formatted tab on the prompt page**, beside the raw body
+- **Tool results have a formatted tab on the prompt page**, beside the raw body
   the model received: `web_search`, `web_extract`, `search_files`,
   `terminal`, `execute_code`, `session_search` and `mem0_search`. JSON and
   Python values in a command's output are drawn as collapsible trees.
 - **Plugins can contribute a tool result's formatted tab** as
   `RESULT_READERS`. See `docs/extending/writing-a-scope-spec.md`.
-- **A tool call's arguments are shown formatted** beside the wire JSON on the
+- **Tool call arguments are formatted** beside the wire JSON on the
   prompt page.
 - **Tool spans link to their result in the next prompt** — `↗ view results` on
   `web_search`, `web_extract` and `search_files`, `↗ view output` on
   `terminal` and `execute_code`.
-- **A `session_search` span lists the sessions it returned**, each linking to
+- **`session_search` spans list the sessions they return**, each linking to
   the turn with the matched message, and its snippet with the hit highlighted.
-- **A `search_files` span shows what it found** — the total count, and the
+- **`search_files` spans show what they found** — the total count, and the
   first ten hits in detail.
-- **A `skills_list` span shows its filter, count, categories and skills.**
+- **`skills_list` spans show their filters, counts, categories and skills.**
 - **The full prompt page's contents list highlights the section you're
   reading.**
 
