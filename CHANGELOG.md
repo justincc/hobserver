@@ -10,6 +10,8 @@ and provider-spec vocabularies) may still change between releases — see
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-10-22
+
 ### Added
 
 - **A batched `skill_manage` call is now shown op by op.** hermes'
@@ -43,6 +45,53 @@ and provider-spec vocabularies) may still change between releases — see
   payload arrives as a JSON string on the nemo-relay route and is parsed
   defensively; an unreadable shape degrades to the raw schema rather than
   erroring. See `docs/design/span-rendering.md`.
+- **Tool results read as formatted tabs on the prompt page.** Each tool result
+  under the call it answers gains a formatted tab beside the raw body the model
+  received: `web_search` (one row per hit), `web_extract` (each page's content
+  as markdown, with a per-URL error), `search_files` (its counts, then hits
+  grouped per file), `terminal` and `execute_code` (fields, notes, any error,
+  and the output with real line breaks — JSON and Python values in it drawn as
+  collapsible trees), `session_search` (each session's facts and messages) and
+  `mem0_search` (score and id per memory). Links are drawn only for http(s)
+  URLs, and hermes' untrusted-content notice is kept verbatim. See SECURITY.md
+  for the parsing bounds.
+- **A plugin can contribute a tool result's formatted reading** as
+  `RESULT_READERS`, beside `SCOPES` and `SPAN_READERS`, merged over the Turns
+  tab's own table the same way. See ADR 26 and
+  `docs/extending/writing-a-scope-spec.md`.
+- **A tool call's arguments are shown formatted beside the wire JSON** on the
+  prompt page: short values beside their keys, long strings as blocks, objects
+  and arrays as trees.
+- **A tool span links to its result in the prompt it was fed into.**
+  `web_search`, `web_extract`, `search_files` (`↗ view results`), `terminal`
+  and `execute_code` (`↗ view output`) carry a detail-mode link to the next llm
+  call's full prompt, landing on the tool call the result is drawn under. The
+  link appears once the result has been fed back.
+- **A `session_search` span lists the sessions it returned**, each title
+  linking to the turn holding the matched message (new
+  `/turns/session/<id>?at=<µs>` route), with hermes' snippet and the hit
+  highlighted — through a new scope-spec `Field(marks=...)` option. The summary
+  line carries the limit and sort asked for.
+- **A `search_files` span shows what it found**: the total count and search
+  path on the summary line, the counts and first ten hits in detail.
+- **A `skills_list` span shows its filter, count, categories and skills.**
+- **The full-value page's contents list follows the reader**, marking the
+  section at the top of the viewport and keeping its entry in sight, including
+  when the page opens at an anchor.
+
+### Changed
+
+- Every link from a span to a page of its own now leads with `↗` and the verb
+  "view" (`↗ view skill`, `↗ view all N results in Mem0`).
+- A deferred tool called through hermes' single-entry `tool_call` bridge is
+  read as that tool on the prompt page.
+
+### Fixed
+
+- A turn's prompt is read from a request message whose content is a list of
+  typed parts (text parts joined), not only a plain string.
+- `uv run pytest plugins/turns` runs on its own; mem0's turn-page tests live in
+  the Mem0 tab's suite.
 
 ## [0.3.4] - 2026-09-10
 
@@ -225,7 +274,8 @@ so the history here begins at 0.3.0.
   only where trusted parties can reach it. Log content is HTML-escaped and
   rendered without raw HTML. See `SECURITY.md` for the full trust model.
 
-[Unreleased]: https://github.com/justincc/hobserver/compare/v0.3.4...HEAD
+[Unreleased]: https://github.com/justincc/hobserver/compare/v0.3.5...HEAD
+[0.3.5]: https://github.com/justincc/hobserver/releases/tag/v0.3.5
 [0.3.4]: https://github.com/justincc/hobserver/releases/tag/v0.3.4
 [0.3.3]: https://github.com/justincc/hobserver/releases/tag/v0.3.3
 [0.3.2]: https://github.com/justincc/hobserver/releases/tag/v0.3.2
