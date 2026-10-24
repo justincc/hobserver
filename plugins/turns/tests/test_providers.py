@@ -8,7 +8,8 @@ shape, whose input convention is the opposite of the other two.
 from providers import (COMMON_COUNTS, PARTS, USAGE_SHAPES,
                                        WHOLE, FRESH_INPUT_COUNTS, UsageShape,
                                        canonical_usage, check_shapes,
-                                       chunk_usage, shape_for, shape_modules)
+                                       chunk_usage, end_usage, shape_for,
+                                       shape_modules)
 
 
 # --- the chat-completions shape ------------------------------------------
@@ -135,6 +136,57 @@ def test_neither_direction_is_derived_from_a_payload_silent_on_caching():
     assert "input_tokens" not in chunk_usage({"prompt_tokens": 20100})
     assert "prompt_tokens" not in canonical_usage(
         {"input_tokens": 1200, "cache_read_input_tokens": 18000})
+
+
+# --- hermes' flattening, which changes convention by route ---------------
+# Copied from live calls (2026-10-23). On anthropic_messages hermes'
+# `prompt_tokens` is the fresh part only; on the OpenAI routes it is the whole
+# prompt. `uncached_input_tokens` is the fresh part on both.
+
+ANTHROPIC_RAW = {
+    "cache_creation": {"ephemeral_1h_input_tokens": 0,
+                       "ephemeral_5m_input_tokens": 1778},
+    "cache_creation_input_tokens": 1778, "cache_read_input_tokens": 67061,
+    "inference_geo": "global", "input_tokens": 4, "output_tokens": 380,
+    "output_tokens_details": {"thinking_tokens": 103},
+    "server_tool_use": None, "service_tier": "standard", "speed": "standard",
+}
+ANTHROPIC_ANNOTATED = {"cache_read_tokens": 67061, "cache_write_tokens": 1778,
+                       "completion_tokens": 380, "prompt_tokens": 4,
+                       "total_tokens": 384, "uncached_input_tokens": 4}
+ANTHROPIC_PROMPT = 4 + 67061 + 1778
+
+
+def test_an_anthropic_call_reads_the_whole_prompt_from_raw_and_annotation():
+    usage = end_usage(ANTHROPIC_RAW, {"usage": ANTHROPIC_ANNOTATED})
+    assert usage["prompt_tokens"] == ANTHROPIC_PROMPT
+    assert usage["input_tokens"] == 4
+    assert usage["cache_read_tokens"] == 67061
+    assert usage["cache_write_tokens"] == 1778
+    assert usage["reasoning_tokens"] == 103
+
+
+def test_hermes_anthropic_annotation_alone_is_not_read_as_the_whole_prompt():
+    usage = end_usage(None, {"usage": ANTHROPIC_ANNOTATED})
+    assert usage["prompt_tokens"] == ANTHROPIC_PROMPT
+    assert usage["input_tokens"] == 4
+
+
+def test_hermes_openai_route_flattening_reads_the_same_prompt_it_reports():
+    usage = chunk_usage({"cache_read_tokens": 14464, "completion_tokens": 38,
+                         "prompt_tokens": 14682, "total_tokens": 14720,
+                         "uncached_input_tokens": 218})
+    assert usage["prompt_tokens"] == 14682
+    assert usage["input_tokens"] == 218
+
+
+def test_the_annotation_does_not_supply_the_other_reading_of_the_raw_input():
+    """An annotation without `uncached_input_tokens` is read as the whole
+    prompt; beside a raw Anthropic `in` that would be the fresh part twice."""
+    annotated = dict(ANTHROPIC_ANNOTATED)
+    del annotated["uncached_input_tokens"]
+    usage = end_usage(ANTHROPIC_RAW, {"usage": annotated})
+    assert usage["prompt_tokens"] == ANTHROPIC_PROMPT
 
 
 def test_a_token_count_that_is_not_a_number_is_not_a_count():

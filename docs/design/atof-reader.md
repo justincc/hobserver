@@ -218,7 +218,18 @@ Finally, hermes' own `annotated_response.usage` is the chat shape with the
 cache read flattened to the top level, and fills only what the raw payload
 did not say. The raw payload wins wherever both speak: on the responses
 route it is the more detailed of the two, carrying the cache write and the
-reasoning split the annotation does not.
+reasoning split the annotation does not. `prompt` and `in` count as one
+figure here — a raw payload that gave either is not paired with the other
+from the annotation.
+
+**hermes' flattened `prompt_tokens` changes meaning by route.** It is the
+whole prompt on the OpenAI routes and only the fresh part on
+`anthropic_messages`. The `uncached_input_tokens` beside it is the fresh part
+on every route, so a payload carrying that key is read by the
+`hermes_flattened` shape, under the `parts` convention, and its
+`prompt_tokens` is not read. hermes' Anthropic stream chunks carry no
+`uncached_input_tokens`; they are only read when the end payload has no
+usage of its own.
 
 **Where the counts are is not the same question as what they are called.**
 On the chat-completions route the span's own end payload carries `usage:

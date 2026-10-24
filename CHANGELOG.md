@@ -10,6 +10,13 @@ and provider-spec vocabularies) may still change between releases — see
 
 ## [Unreleased]
 
+### Fixed
+
+- **Token counts on Anthropic llm spans are now right.** The prompt, its
+  cached share and the fresh `in` figure were misread on the
+  `anthropic_messages` route, and the hidden reasoning is now shown too.
+  See `docs/design/atof-reader.md`.
+
 ## [0.3.5] - 2026-10-22
 
 ### Added

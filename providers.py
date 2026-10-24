@@ -80,6 +80,7 @@ COMMON_COUNTS = (
     ("output_tokens", ("completion_tokens",)),
     ("reasoning_tokens", ("output_tokens_details", "reasoning_tokens")),
     ("reasoning_tokens", ("completion_tokens_details", "reasoning_tokens")),
+    ("reasoning_tokens", ("output_tokens_details", "thinking_tokens")),  # Anthropic
     ("total_tokens", ("total_tokens",)),
 )
 
@@ -92,6 +93,15 @@ WHOLE_PROMPT_COUNTS = (
 
 FRESH_INPUT_COUNTS = (
     ("input_tokens", ("input_tokens",)),
+)
+
+# hermes' own flattening — `annotated_response.usage`, and its stream
+# chunks — puts a different figure in `prompt_tokens` per route: the whole
+# prompt on the OpenAI routes, only the fresh part on `anthropic_messages`.
+# `uncached_input_tokens` beside it is the fresh part on every route, so a
+# payload carrying it is read by that and its `prompt_tokens` is left unread.
+HERMES_FRESH_INPUT_COUNTS = (
+    ("input_tokens", ("uncached_input_tokens",)),
 )
 
 # Anthropic's cache counts travel without Anthropic's input convention:
@@ -156,6 +166,18 @@ def _anthropic_messages(usage: dict) -> bool:
             and any(key in usage for key in ANTHROPIC_CACHE_KEYS))
 
 
+def _hermes_flattened(usage: dict) -> bool:
+    return "uncached_input_tokens" in usage
+
+
+HERMES_FLATTENED = UsageShape(
+    name="hermes_flattened",
+    convention=PARTS,
+    counts=HERMES_FRESH_INPUT_COUNTS + COMMON_COUNTS,
+    matches=_hermes_flattened,
+    origin="built in",
+)
+
 ANTHROPIC_MESSAGES = UsageShape(
     name="anthropic_messages",
     convention=PARTS,
@@ -176,7 +198,7 @@ OPENAI_COMPATIBLE = UsageShape(
     origin="built in",
 )
 
-USAGE_SHAPES = (ANTHROPIC_MESSAGES, OPENAI_COMPATIBLE)
+USAGE_SHAPES = (HERMES_FLATTENED, ANTHROPIC_MESSAGES, OPENAI_COMPATIBLE)
 
 
 def check_shapes(shapes: Any) -> list:
@@ -345,9 +367,17 @@ def end_usage(usage: Any, annotated: dict,
     The raw usage wins where both speak: on the responses route it is the
     more detailed of the two, reporting the cache write and the reasoning
     split that the annotation does not carry.
+
+    `prompt` and `in` are one figure read under two conventions, so a raw
+    payload that gave either has spoken for both: taking the other from the
+    annotation would pair two readings that need not agree.
     """
     canonical = canonical_usage(usage, shapes)
+    input_figure = ("prompt_tokens", "input_tokens")
+    raw_gave_input = any(key in canonical for key in input_figure)
     for key, value in canonical_usage(annotated.get("usage"), shapes).items():
+        if raw_gave_input and key in input_figure:
+            continue
         canonical.setdefault(key, value)
     return complete_the_prompt(canonical)
 
