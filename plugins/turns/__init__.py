@@ -54,6 +54,11 @@ URL_PREFIX = "turns"
 # that are still working.
 STALE_AFTER_US = 2 * 60 * 60 * 1_000_000
 
+# Turns per page of the turn list. Page 1 is the newest. The list polls, and
+# every poll re-renders and re-parses the whole page, so this bounds that cost
+# however long the log grows.
+TURNS_PER_PAGE = 100
+
 # The `(89% cached)` figure on the prompt token row is tinted by how much of the
 # prompt was served from cache, so a reader can see the split at a glance without
 # reading the number. The tint is a colour drawn from a list of bands, each a
@@ -707,6 +712,7 @@ def index():
         key=lambda t: t.start_us,
         reverse=True,
     )
+    pager = _page_of(turns, request.args.get("page"))
     last_us = max((s.last_us for s in assembly.sessions
                    if s.last_us is not None), default=None)
     atof_path = current_app.config["ATOF_PATH"]
@@ -720,13 +726,35 @@ def index():
         atof_path=atof_path,
         atof_size=os.path.getsize(atof_path),
         atof_entries=index_state.indexed_lines,
-        turns=turns,
+        turns=pager["turns"],
+        pager=pager,
         last_us=last_us,
         now_us=now_us,
         inflight=_inflight_entries(assembly, now_us),
         anomalies=assembly.anomalies,
         parse_errors=parse_errors,
     )
+
+
+def _page_of(turns, requested):
+    """One page of the newest-first turn list, with what the pager needs.
+
+    A page number that is missing, malformed or out of range is clamped to
+    the nearest real page rather than refused: the list grows at the newest
+    end while a reader sits on a page, so an address that was valid a
+    moment ago can run past the oldest page by the next poll.
+    """
+    pages = max(1, -(-len(turns) // TURNS_PER_PAGE))
+    try:
+        page = int(requested)
+    except (TypeError, ValueError):
+        page = 1
+    page = min(max(page, 1), pages)
+    first = (page - 1) * TURNS_PER_PAGE
+    shown = turns[first:first + TURNS_PER_PAGE]
+    return {"turns": shown, "page": page, "pages": pages,
+            "total": len(turns), "first": first + 1,
+            "last": first + len(shown)}
 
 
 def _accessors():

@@ -98,6 +98,38 @@ def test_index_orders_turns_newest_first(tmp_path):
     assert page.index('/turns/turn/s1/10000000"') < page.index('/turns/turn/s1/1000000"')
 
 
+def test_index_pages_the_turn_list_newest_first(tmp_path, monkeypatch):
+    monkeypatch.setattr("plugins.turns.TURNS_PER_PAGE", 1)
+    atof = write_atof(tmp_path, two_turn_stream())
+    client = make_client(tmp_path, str(atof))
+    first = client.get("/turns/").get_data(as_text=True)
+    assert '/turns/turn/s1/10000000"' in first
+    assert '/turns/turn/s1/1000000"' not in first
+    assert "turns 1–1 of 2 · page 1 of 2" in first
+    assert 'href="/turns/?page=2">older' in first
+    assert '<span class="disabled">‹ newer</span>' in first
+    second = client.get("/turns/?page=2").get_data(as_text=True)
+    assert '/turns/turn/s1/1000000"' in second
+    assert '/turns/turn/s1/10000000"' not in second
+    assert 'href="/turns/">‹ newer' in second
+    assert '<span class="disabled">older ›</span>' in second
+
+
+@pytest.mark.parametrize("page,expected", [("0", 1), ("junk", 1), ("99", 2)])
+def test_index_clamps_an_out_of_range_page(tmp_path, monkeypatch, page, expected):
+    monkeypatch.setattr("plugins.turns.TURNS_PER_PAGE", 1)
+    atof = write_atof(tmp_path, two_turn_stream())
+    page = make_client(tmp_path, str(atof)).get(
+        f"/turns/?page={page}").get_data(as_text=True)
+    assert f"page {expected} of 2" in page
+
+
+def test_index_has_no_pager_when_one_page_holds_every_turn(tmp_path):
+    atof = write_atof(tmp_path, two_turn_stream())
+    page = make_client(tmp_path, str(atof)).get("/turns/").get_data(as_text=True)
+    assert 'class="pager"' not in page
+
+
 def test_us_secs_rounds_to_whole_seconds():
     from plugins.turns import us_secs
     assert us_secs(3_490_000) == "3 s"    # rounds down

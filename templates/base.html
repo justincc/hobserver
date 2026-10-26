@@ -94,6 +94,10 @@
        three items sit equidistant. */
     nav.event-nav .nav-steps { display: contents; }
     nav.event-nav .nav-steps a { color: #666; }
+    /* A list's pager: back links left, position centred, forward links right. */
+    nav.pager { display: flex; justify-content: space-between; align-items: center; margin: 1rem 0; color: #666; }
+    nav.pager > span { display: flex; gap: 1rem; }
+    nav.pager .disabled { color: #aaa; }
     p.notice { background: #f4f5f8; padding: 1rem; border-radius: 6px; }
     p.notice.warn { background: #fdf0ef; border: 1px solid #e0b4b4; }
     p.meta { color: #555; font-size: 0.85rem; }

@@ -10,6 +10,12 @@ and provider-spec vocabularies) may still change between releases — see
 
 ## [Unreleased]
 
+### Changed
+
+- **The turn list is paged, 100 turns a page, newest first,** with a pager
+  below the table. A long log no longer makes every live update of the list
+  re-render and re-parse every turn it has ever seen.
+
 ### Fixed
 
 - **Token counts on Anthropic llm spans are now right.** The prompt, its

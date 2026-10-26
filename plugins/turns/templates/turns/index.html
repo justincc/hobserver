@@ -76,6 +76,19 @@
     {% endfor %}
   </tbody>
 </table>
+{% if pager.pages > 1 %}
+{# Newest first, so stepping toward page 1 is "newer". Inside the live region
+   so its counts follow the list as turns arrive. #}
+{% macro page_link(page, label) -%}
+{% if page != pager.page and 1 <= page <= pager.pages %}<a href="{{ url_for('turns.index', page=page) if page > 1 else url_for('turns.index') }}">{{ label }}</a>
+{%- else %}<span class="disabled">{{ label }}</span>{% endif %}
+{%- endmacro %}
+<nav class="pager">
+  <span>{{ page_link(1, "« newest") }} {{ page_link(pager.page - 1, "‹ newer") }}</span>
+  <span>turns {{ "{:,}".format(pager.first) }}–{{ "{:,}".format(pager.last) }} of {{ "{:,}".format(pager.total) }} · page {{ pager.page }} of {{ pager.pages }}</span>
+  <span>{{ page_link(pager.page + 1, "older ›") }} {{ page_link(pager.pages, "oldest »") }}</span>
+</nav>
+{% endif %}
 {% endif %}
 {% endif %}
 </div>

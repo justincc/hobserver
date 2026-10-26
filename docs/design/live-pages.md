@@ -11,6 +11,12 @@ on. Polling pauses while the browser tab is hidden.
 No SSE or WebSockets; a poll reuses the per-request tailer, which reads only
 what the exporter appended since the last request.
 
+A swap costs a server render plus a browser parse of the whole region, so the
+turn list is paged (`TURNS_PER_PAGE`, `?page=N`, page 1 newest). That keeps
+each swap a fixed size however long the log grows. An out-of-range page is
+clamped, not a 404, because new turns shift every page while a reader sits
+on one. Assembly still covers the whole log on each change.
+
 ### The change-probe gate
 
 A full swap refetches and re-renders the whole page, so doing it every 2 s is
