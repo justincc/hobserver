@@ -17,6 +17,19 @@ each swap a fixed size however long the log grows. An out-of-range page is
 clamped, not a 404, because new turns shift every page while a reader sits
 on one. Assembly still covers the whole log on each change.
 
+### Waking and bounded requests
+
+A tab that becomes visible again — switched to, the laptop opened — ticks at
+once and swaps without consulting the probe, rather than waiting out a timer
+the browser throttled while hidden. Coming back from the back/forward cache
+or back online does the same. Follow mode runs after that swap, so a turn
+that started meanwhile opens without a reload.
+
+Every request the loop makes has a 30 s timeout. The loop awaits each one
+before scheduling the next tick, and a request in flight across a sleep can
+hang on a dead connection; without the bound the page would stop updating
+until reloaded.
+
 ### The change-probe gate
 
 A full swap refetches and re-renders the whole page, so doing it every 2 s is
@@ -157,7 +170,9 @@ re-resolves the element on each use, resyncs its checked state after every
 swap, and uses a delegated change listener. A captured reference detaches on
 the first poll and the switch dies silently.
 
-On the index the toggle stands alone above the live region.
+The turn list has no toggle and never follows: it already lists every
+turn as it arrives. A tab following from a turn page stays put when it
+steps back to the list, and resumes on the next turn page it opens.
 
 A turn's URL key is its `start_us`, which a later assembly can revise earlier:
 when a `hermes.turn` scope and its prompt boundary mark are read a few ms apart

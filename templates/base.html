@@ -1026,11 +1026,19 @@
         return region.contains(sel.anchorNode) || region.contains(sel.focusNode);
       };
 
+      // Every request the loop makes is bounded. A request in flight when the
+      // machine sleeps can come back to a dead connection that never answers,
+      // and the loop awaits each one before scheduling the next tick, so an
+      // unbounded one would wedge the page until a manual reload.
+      const FETCH_TIMEOUT_MS = 30000;
+      const boundedFetch = (url) =>
+        fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+
       let busy = false;
       async function poll() {
         busy = true;
         try {
-          const resp = await fetch(window.location.href);
+          const resp = await boundedFetch(window.location.href);
           if (!resp.ok) return;
           const doc = new DOMParser().parseFromString(await resp.text(), "text/html");
           const fresh = doc.querySelector("[data-live-poll]");
@@ -1099,7 +1107,7 @@
         const probeUrl = region.dataset.liveProbe;
         if (!probeUrl) return true;
         try {
-          const resp = await fetch(probeUrl);
+          const resp = await boundedFetch(probeUrl);
           if (!resp.ok) return false;
           const token = await resp.text();
           if (lastToken === null) { lastToken = token; return false; }  // adopt, don't swap
@@ -1115,14 +1123,45 @@
       const tickMs = () =>
         pollMs() ? (region.dataset.liveProbe ? 400 : pollMs()) : 1000;
 
-      (function loop() {
-        setTimeout(async () => {
-          if (pollMs() && !busy && !document.hidden && !selecting() && await shouldPoll()) {
+      // Waking: when the tab becomes visible again (switched to, the laptop
+      // opened), comes back from the back/forward cache, or the network
+      // returns, the loop ticks at once and swaps unconditionally rather than
+      // waiting out a timer the browser may have throttled while hidden. The
+      // swap is unconditional because after a long absence the page is
+      // likely out of date however the token reads, and it also lets
+      // follow mode see a turn that started meanwhile. The probe token is
+      // dropped so the next probe adopts the current one instead of firing a
+      // second swap for the same change.
+      let timer = 0, ticking = false, wakeSwap = false;
+      async function tick() {
+        ticking = true;
+        try {
+          if (pollMs() && !busy && !document.hidden && !selecting()
+              && (wakeSwap || await shouldPoll())) {
+            wakeSwap = false;
             await poll();
           }
-          loop();
-        }, tickMs());
-      })();
+        } finally {
+          ticking = false;
+          schedule(tickMs());
+        }
+      }
+      function schedule(ms) {
+        clearTimeout(timer);
+        timer = setTimeout(tick, ms);
+      }
+      function wake() {
+        if (document.hidden) return;
+        wakeSwap = true;
+        lastToken = null;
+        // A tick already running reschedules itself when it finishes; the
+        // flag makes that next tick the waking swap.
+        if (!ticking) schedule(0);
+      }
+      document.addEventListener("visibilitychange", wake);
+      window.addEventListener("pageshow", (e) => { if (e.persisted) wake(); });
+      window.addEventListener("online", wake);
+      schedule(tickMs());
     })();
 
     // Details switch (delegated so it survives live-region swaps): shows

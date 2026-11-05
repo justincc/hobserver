@@ -16,7 +16,14 @@ and provider-spec vocabularies) may still change between releases — see
   below the table. A long log no longer makes every live update of the list
   re-render and re-parse every turn it has ever seen.
 
+- **"Switch to new turns" is on the turn page only.** The turn list no
+  longer has the switch and never opens a turn by itself.
+
 ### Fixed
+
+- **A following turn page catches turns that started while the tab was
+  asleep,** opening them as soon as the tab is shown again rather than after
+  a reload. See `docs/design/live-pages.md`.
 
 - **Token counts on Anthropic llm spans are now right.** The prompt, its
   cached share and the fresh `in` figure were misread on the

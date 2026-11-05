@@ -1,7 +1,7 @@
-{# Follow-mode toggle. State lives in sessionStorage, wired up in base.html —
-   which re-resolves this element and its checked state after every live-poll
-   swap, so it works either inside the live region (turn page, in the nav row)
-   or outside it (index). Never hold a reference to it across a swap.
+{# Follow-mode toggle, on the turn page only. State lives in sessionStorage,
+   wired up in base.html — which re-resolves this element and its checked
+   state after every live-poll swap, because it sits in the nav row inside
+   the live region. Never hold a reference to it across a swap.
 
    `.switch` is what draws it, the same slider the details switch on the turn
    page uses: two controls that do the same kind of thing should not be two

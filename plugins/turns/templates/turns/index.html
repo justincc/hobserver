@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% block title %}turns — Hobserver{% endblock %}
 {% block content %}
-{% include "turns/_follow.html" %}
 <div data-live-poll="3000"
      data-live-probe="{{ url_for('turns.live_token') }}"
      data-server-now-us="{{ now_us }}">

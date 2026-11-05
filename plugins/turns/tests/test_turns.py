@@ -1328,13 +1328,18 @@ def test_finished_turn_page_lists_inflight_without_current(tmp_path):
     assert 'data-inflight-current="1"' not in page
 
 
-def test_follow_toggle_rendered_on_both_pages(tmp_path):
+def test_follow_toggle_is_on_the_turn_page_only(tmp_path):
+    """The turn list never follows, so it carries no switch — and with no
+    switch on the page, followNewTurn() never navigates from it."""
     _, inflight_start, lines = recent_stream()
     atof = write_atof(tmp_path, lines)
     client = make_client(tmp_path, str(atof))
-    assert "data-follow-toggle" in client.get("/turns/").get_data(as_text=True)
-    assert "data-follow-toggle" in client.get(
+    switch = '<input type="checkbox" data-follow-toggle>'
+    assert switch not in client.get("/turns/").get_data(as_text=True)
+    assert switch in client.get(
         f"/turns/turn/s9/{inflight_start}").get_data(as_text=True)
+    js = (REPO_ROOT / "templates" / "base.html").read_text()
+    assert "if (!toggle() || !followOn()) return;" in js
 
 
 def test_follow_toggle_defaults_off(tmp_path):
@@ -1343,9 +1348,8 @@ def test_follow_toggle_defaults_off(tmp_path):
     _, inflight_start, lines = recent_stream()
     atof = write_atof(tmp_path, lines)
     client = make_client(tmp_path, str(atof))
-    for url in ("/turns/", f"/turns/turn/s9/{inflight_start}"):
-        assert re.search(r'<input type="checkbox" data-follow-toggle>',
-                         client.get(url).get_data(as_text=True)), url
+    assert re.search(r'<input type="checkbox" data-follow-toggle>',
+                     client.get(f"/turns/turn/s9/{inflight_start}").get_data(as_text=True))
     js = (REPO_ROOT / "templates" / "base.html").read_text()
     assert 'sessionStorage.getItem(FOLLOW_KEY) === "1"' in js
 
@@ -1370,8 +1374,32 @@ def test_a_selection_inside_a_live_region_holds_the_poll():
     # survives untouched
     assert ("return region.contains(sel.anchorNode) || "
             "region.contains(sel.focusNode);") in js
-    assert ("if (pollMs() && !busy && !document.hidden && !selecting() "
-            "&& await shouldPoll()) {") in js
+    assert ("if (pollMs() && !busy && !document.hidden && !selecting()\n"
+            "              && (wakeSwap || await shouldPoll())) {") in js
+
+
+def test_a_waking_tab_swaps_at_once():
+    """On becoming visible (or back from bfcache, or back online) the loop
+    ticks immediately and swaps without the probe, so follow mode opens a
+    turn that started while the tab was asleep."""
+    js = (REPO_ROOT / "templates" / "base.html").read_text()
+    assert 'document.addEventListener("visibilitychange", wake);' in js
+    assert 'window.addEventListener("pageshow", (e) => { if (e.persisted) wake(); });' in js
+    assert 'window.addEventListener("online", wake);' in js
+    # the swap the wake asks for skips the probe gate, and the dropped
+    # token is re-adopted rather than firing a second swap
+    assert "wakeSwap = true;\n        lastToken = null;" in js
+
+
+def test_the_live_loop_never_waits_on_a_request_forever():
+    """A request in flight across a sleep can hang on a dead connection, and
+    the loop awaits each request before scheduling the next tick — so every
+    request it makes carries a timeout."""
+    js = (REPO_ROOT / "templates" / "base.html").read_text()
+    assert "signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)" in js
+    assert "await boundedFetch(window.location.href)" in js
+    assert "await boundedFetch(probeUrl)" in js
+    assert "await fetch(" not in js
 
 
 def test_both_switches_are_the_same_switch(tmp_path):
@@ -1502,14 +1530,6 @@ def test_follow_toggle_rides_the_turn_nav_row(tmp_path):
     assert "all turns" in nav and "prev" in nav and "next" in nav
     # last in the row, so space-between puts it on the right
     assert nav.index("data-follow-toggle") > nav.index("next &raquo;")
-
-
-def test_index_keeps_its_standalone_follow_toggle(tmp_path):
-    atof = write_atof(tmp_path, two_turn_stream())
-    page = make_client(tmp_path, str(atof)).get("/turns/").get_data(as_text=True)
-    assert "data-follow-toggle" in page
-    # the index has no turn nav to ride, so it stands alone above the region
-    assert page.index("data-follow-toggle") < page.index('data-live-poll="3000"')
 
 
 def test_detail_mode_carries_the_whole_command_and_code(tmp_path):
