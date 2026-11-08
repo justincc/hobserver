@@ -75,24 +75,19 @@ Unless you already have [Herme's NeMo relay](https://docs.nvidia.com/nemo/relay/
 >
 > Due to recent code changes, Hermes currently emits only session and turn scopes for `delegate_task` sub-agents, so they appear in the Turns tab as empty turns with no LLM or tool calls. To show that activity please apply  [hermes-agent PR 105990](https://github.com/NousResearch/hermes-agent/pull/105990), which is not yet merged, to your hermes download.
 
-By default, Hobserver will run with a default set of plugins configured, enough to observer Hermes if logs are in default locations. If you want to configure things any further, copy `hobserver.example.toml` to `hobserver.toml` and edit.
-
-More details on Hobserver settings below.
-
 Then run:
 
 ```bash
-./hobserver [hobserver.toml]
+./hobserver
 ```
 
-`./hobserver` runs the app through uv, which builds the environment on first
+This runs the app through uv, which builds the environment on first
 use — so a fresh clone needs no setup step. It resolves its own location, so
 you can run it from any directory.
 
-If you don't give a `hobserver.toml` location then it will look for it in the current directory and drop back to built-in defaults if it doesn't find it.
+Hobserver will look for a `hobserver.toml` file in the current directory. If it doesn't find one it will run with a default set of plugins and file locations. To configure it further please copy `hobserver.example.toml` to `hobserver.toml` and edit it. More details on Hobserver settings below.
 
-The startup banner prints what each of those resolved to before it serves
-anything, so first runs are worth reading.
+You can also specify other locations for Hobserver to find `hobserver.toml`.
 
 ## Configuration
 
