@@ -80,9 +80,9 @@ This runs the app through uv, which builds the environment on first
 use — so a fresh clone needs no setup step. It resolves its own location, so
 you can run it from any directory.
 
-Hobserver will look for a `hobserver.toml` file in the current directory. If it doesn't find one it will run with a default set of plugins and file locations. To configure it further please copy `hobserver.example.toml` to `hobserver.toml` and edit it. More details on Hobserver settings below.
+Hobserver will look for a `hobserver.toml` file in the directory containing the `hobserver` script. If it doesn't find one it will run with a default set of plugins and file locations. So to configure Hobserver please copy `hobserver.example.toml` to `hobserver.toml` and edit. More information on configuration is in the section below. 
 
-You can also specify other locations for Hobserver to find `hobserver.toml`.
+You can also specify other locations for Hobserver to find `hobserver.toml` on the command line. For this and more information on the command line arguments please run `./hobserver --help`.
 
 > [!NOTE]
 > **Seeing sub-agents**

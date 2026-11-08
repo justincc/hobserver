@@ -10,6 +10,10 @@ and provider-spec vocabularies) may still change between releases — see
 
 ## [Unreleased]
 
+### Added
+
+- **`hobserver --help` lists the command line options.**
+
 ### Changed
 
 - **The turn list is paged, 100 turns a page, newest first,** with a pager

@@ -9,6 +9,8 @@ own path resolution is tested, that lives with the tab (plugins/<name>/tests/).
 import logging
 import os
 
+import pytest
+
 import app as app_module
 import hermes_paths
 import tabs as tabs_module
@@ -284,3 +286,19 @@ def test_dev_flag_is_not_mistaken_for_a_config_file():
     assert app_module.parse_args(["other.toml"]) == ("other.toml", False)
     assert app_module.parse_args(["--dev", "other.toml"]) == ("other.toml", True)
     assert app_module.parse_args(["other.toml", "--dev"]) == ("other.toml", True)
+
+
+def test_help_lists_the_options_and_exits(capsys):
+    with pytest.raises(SystemExit) as exc:
+        app_module.parse_args(["--help"])
+    assert exc.value.code == 0
+    out = capsys.readouterr().out
+    assert "--dev" in out
+    assert "CONFIG" in out
+
+
+def test_unknown_option_is_refused_rather_than_read_as_a_config_file(capsys):
+    with pytest.raises(SystemExit) as exc:
+        app_module.parse_args(["--nonsense"])
+    assert exc.value.code == 2
+    assert "--nonsense" in capsys.readouterr().err

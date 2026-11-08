@@ -14,6 +14,7 @@ URLs are free to move: this is a single-user tool, so nothing redirects an
 old address to a new one — rename the prefix and follow it.
 """
 
+import argparse
 import errno
 import logging
 import os
@@ -249,13 +250,22 @@ def serve_forever(app, host=DEFAULT_HOST, port=PORT):
 def parse_args(argv):
     """`(config path or None, dev)` from the arguments after the program name.
 
-    One flag and one positional, so nothing here justifies argparse. `--dev` is
-    filtered out rather than counted by position, so it may be written on
-    either side of the config file.
+    `--dev` may be written on either side of the config file. `--help` prints
+    the options and exits, as does an unrecognised option after its error.
     """
-    dev = "--dev" in argv
-    rest = [arg for arg in argv if arg != "--dev"]
-    return (rest[0] if rest else None), dev
+    parser = argparse.ArgumentParser(
+        prog="hobserver", allow_abbrev=False,
+        description="Serve a web view of hermes-agent activity.")
+    parser.add_argument(
+        "config", nargs="?", metavar="CONFIG",
+        help=f"TOML config file naming the tabs to serve (default: "
+             f"${tabs_module.CONFIG_ENV}, else "
+             f"{tabs_module.DEFAULT_CONFIG_FILE})")
+    parser.add_argument(
+        "--dev", action="store_true",
+        help="reload on .py and template edits")
+    args = parser.parse_args(argv)
+    return args.config, args.dev
 
 
 def main():
