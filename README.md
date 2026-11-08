@@ -70,11 +70,6 @@ If usecases comes up where authentication is necessary then very happy to look a
 
 Unless you already have [Herme's NeMo relay](https://docs.nvidia.com/nemo/relay/v0.5.0/nemo-relay-cli/hermes) configured you'll to set that up first to produce an [Agent Trajectory Observability Format (ATOF)](https://docs.nvidia.com/nemo/relay/configure-plugins/observability/atof) log that Hobserver can consume. See [docs/running/setup-prompt-timing.md](docs/running/setup-prompt-timing.md) for instructions.
 
-> [!NOTE]
-> **Seeing sub-agents**
->
-> Due to recent code changes, Hermes currently emits only session and turn scopes for `delegate_task` sub-agents, so they appear in the Turns tab as empty turns with no LLM or tool calls. To show that activity please apply  [hermes-agent PR 105990](https://github.com/NousResearch/hermes-agent/pull/105990), which is not yet merged, to your hermes download.
-
 Then run:
 
 ```bash
@@ -88,6 +83,13 @@ you can run it from any directory.
 Hobserver will look for a `hobserver.toml` file in the current directory. If it doesn't find one it will run with a default set of plugins and file locations. To configure it further please copy `hobserver.example.toml` to `hobserver.toml` and edit it. More details on Hobserver settings below.
 
 You can also specify other locations for Hobserver to find `hobserver.toml`.
+
+> [!NOTE]
+> **Seeing sub-agents**
+>
+> Hermes stopped recording sub-agent LLM and tool calls in the ATOF from [commit `961f7481a7`](https://github.com/NousResearch/hermes-agent/commit/961f7481a7a75456e5e13b71e5343c70ea2ec74b) on 2026-08-09, first released in v2026.8.13. To restore this functionality, please apply [hermes-agent PR 105990](https://github.com/NousResearch/hermes-agent/pull/105990), which is not yet merged, to your hermes download.
+>
+> Without this PR, sub-agent calls will appear as empty turns in the Turns tab.
 
 ## Configuration
 
