@@ -70,6 +70,11 @@ If usecases comes up where authentication is necessary then very happy to look a
 
 Unless you already have [Herme's NeMo relay](https://docs.nvidia.com/nemo/relay/v0.5.0/nemo-relay-cli/hermes) configured you'll to set that up first to produce an [Agent Trajectory Observability Format (ATOF)](https://docs.nvidia.com/nemo/relay/configure-plugins/observability/atof) log that Hobserver can consume. See [docs/running/setup-prompt-timing.md](docs/running/setup-prompt-timing.md) for instructions.
 
+> [!NOTE]
+> **Seeing sub-agents**
+>
+> Due to recent code changes, Hermes currently emits only session and turn scopes for `delegate_task` sub-agents, so they appear in the Turns tab as empty turns with no LLM or tool calls. To show that activity please apply  [hermes-agent PR 105990](https://github.com/NousResearch/hermes-agent/pull/105990), which is not yet merged, to your hermes download.
+
 By default, Hobserver will run with a default set of plugins configured, enough to observer Hermes if logs are in default locations. If you want to configure things any further, copy `hobserver.example.toml` to `hobserver.toml` and edit.
 
 More details on Hobserver settings below.
