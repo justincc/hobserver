@@ -10,6 +10,8 @@ and provider-spec vocabularies) may still change between releases — see
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-11-08
+
 ### Added
 
 - **`hobserver --help` lists the command line options.**
@@ -17,21 +19,18 @@ and provider-spec vocabularies) may still change between releases — see
 ### Changed
 
 - **The turn list is paged, 100 turns a page, newest first,** with a pager
-  below the table. A long log no longer makes every live update of the list
-  re-render and re-parse every turn it has ever seen.
+  below the table.
 
-- **"Switch to new turns" is on the turn page only.** The turn list no
-  longer has the switch and never opens a turn by itself.
+- **"Switch to new turns" is on the turn page only.**
 
 ### Fixed
 
 - **A following turn page catches turns that started while the tab was
-  asleep,** opening them as soon as the tab is shown again rather than after
-  a reload. See `docs/design/live-pages.md`.
+  asleep,** opening them as soon as the tab is shown again. See
+  `docs/design/live-pages.md`.
 
-- **Token counts on Anthropic llm spans are now right.** The prompt, its
-  cached share and the fresh `in` figure were misread on the
-  `anthropic_messages` route, and the hidden reasoning is now shown too.
+- **Anthropic llm spans show the right token counts** for the prompt, its
+  cached share and the fresh `in` figure, and show the hidden reasoning too.
   See `docs/design/atof-reader.md`.
 
 ## [0.3.5] - 2026-10-22
@@ -267,7 +266,8 @@ so the history here begins at 0.3.0.
   only where trusted parties can reach it. Log content is HTML-escaped and
   rendered without raw HTML. See `SECURITY.md` for the full trust model.
 
-[Unreleased]: https://github.com/justincc/hobserver/compare/v0.3.5...HEAD
+[Unreleased]: https://github.com/justincc/hobserver/compare/v0.3.6...HEAD
+[0.3.6]: https://github.com/justincc/hobserver/releases/tag/v0.3.6
 [0.3.5]: https://github.com/justincc/hobserver/releases/tag/v0.3.5
 [0.3.4]: https://github.com/justincc/hobserver/releases/tag/v0.3.4
 [0.3.3]: https://github.com/justincc/hobserver/releases/tag/v0.3.3
