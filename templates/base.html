@@ -864,11 +864,10 @@
     // copying anything off a live page was impossible before.
     //
     // Follow mode ([data-follow-toggle], persisted per tab in sessionStorage)
-    // auto-opens a turn's page when an in-flight turn appears whose start_us is newer
-    // than anything this page-view has already seen — but never while this
-    // page is itself showing an in-flight turn ([data-inflight-current]
-    // present). Turns silent past the stale cutoff are already dropped from the
-    // strip, so follow never lands on one. Follow keeps an otherwise-static
+    // opens the newest turn ([data-latest-turn-href]) when it started after
+    // anything this tab has already seen, whether it is still running or has
+    // finished — but never while this page is itself showing an in-flight
+    // turn ([data-inflight-current] present). Follow keeps an otherwise-static
     // page polling slowly so the next turn start is noticed.
     //
     // Tailing ([data-live-tail], the turn page only) is a different thing and
@@ -882,6 +881,7 @@
 
     (function () {
       const FOLLOW_KEY = "hobserver.follow";
+      const SEEN_KEY = "hobserver.follow.seen";
       let region = document.querySelector("[data-live-poll]");
       // Off until switched on: a page stays put unless the reader asks it to
       // chase new turns. Only an explicit "1" opts in, so a new tab (nothing
@@ -987,23 +987,37 @@
 
       const entries = () => Array.from(region.querySelectorAll("[data-inflight-start-us]"));
       const startOf = (el) => parseInt(el.dataset.inflightStartUs, 10);
-      let seenStartMax = Math.max(
-        parseInt(region.dataset.turnStartUs || "0", 10), 0, ...entries().map(startOf));
+      const latestStart = () => parseInt(region.dataset.latestTurnStartUs || "0", 10);
+      // The newest start this page shows: the strip's running turns and the
+      // newest turn overall, finished or not.
+      const newestShown = () => Math.max(0, latestStart(), ...entries().map(startOf));
+      // The newest start this tab has seen, kept in sessionStorage across its
+      // page loads. A browser restoring its tabs restores their sessionStorage
+      // too, so a turn that started — or ran to completion — while the
+      // browser was closed is newer than anything seen, and the restored page
+      // follows to it on load. A tab with nothing stored counts its first
+      // page as seen, so merely opening a page never jumps.
+      const stored = parseInt(sessionStorage.getItem(SEEN_KEY) || "", 10);
+      let seenStartMax = Math.max(parseInt(region.dataset.turnStartUs || "0", 10),
+        Number.isNaN(stored) ? newestShown() : stored);
+      const markSeen = (us) => {
+        seenStartMax = us;
+        sessionStorage.setItem(SEEN_KEY, String(us));
+      };
 
       function followNewTurn() {
-        const fresh = entries()
-          .filter((el) => startOf(el) > seenStartMax)
-          .sort((a, b) => startOf(b) - startOf(a));
+        const isNew = latestStart() > seenStartMax;
         // Turns first seen now count as seen even when no navigation happens
         // (follow off, or mid-watch): only genuinely new starts pull forward.
-        seenStartMax = Math.max(seenStartMax, ...entries().map(startOf));
+        markSeen(Math.max(seenStartMax, newestShown()));
         if (!toggle() || !followOn()) return;
         if (region.querySelector("[data-inflight-current]")) return;
-        // The newest genuinely-new start; stale turns are already dropped from
-        // the strip upstream, so nothing here needs to skip them.
-        const target = fresh[0];
-        if (target) window.location.assign(target.getAttribute("href"));
+        const href = region.dataset.latestTurnHref;
+        if (isNew && href) window.location.assign(href);
       }
+      // On load too, not only after a swap: a restored or reopened page may
+      // already be behind.
+      followNewTurn();
 
       const pollMs = () =>
         parseInt(region.dataset.livePoll, 10) || (toggle() && followOn() ? 3000 : 0);

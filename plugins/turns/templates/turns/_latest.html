@@ -1,0 +1,7 @@
+{# Attributes for a live region's opening tag: the newest turn follow mode may
+   land on (_latest_turn), finished or not. base.html reads them to count it as
+   seen and, on a turn page that is following, to open it. #}
+{%- if latest is defined and latest %}
+     data-latest-turn-start-us="{{ latest.start_us }}"
+     data-latest-turn-href="{{ url_for('turns.turn', session_id=latest.session_id, start_us=latest.start_us) }}"
+{%- endif %}

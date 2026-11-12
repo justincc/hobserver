@@ -142,9 +142,21 @@ silence threshold: a running turn can be silent for minutes.
 ## Follow mode
 
 A "switch to new turns" switch (persisted per tab in sessionStorage) that
-auto-opens a turn's waterfall when a new turn starts, with two guards: never
-while you are watching a turn that is still in flight (concurrent turns just
-appear in the strip for manual switching), and never to a stale entry.
+opens the newest turn's waterfall when it started after anything the tab has
+seen — still running or already finished. Two guards: never while you are
+watching a turn that is still in flight (concurrent turns just appear in the
+strip for manual switching), and never to an open turn the strip has dropped
+as not running (`_latest_turn`).
+
+**"New" is remembered per tab.** The newest start a tab has seen is kept in
+sessionStorage (`hobserver.follow.seen`) and checked on page load as well as
+after each swap. A browser restoring its tabs restores their sessionStorage,
+so a restored turn page with follow on jumps to a turn that started, or ran to
+completion, while the browser was closed. A tab with nothing stored counts its
+first page as seen, and stepping back to an older turn never bounces forward:
+the newer turn was already seen. Both the turn page and the list render the
+newest turn (`data-latest-turn-*`), so a turn that appears while you are on
+the list counts as seen too.
 
 **Per tab, not per browser.** sessionStorage is scoped to the tab/window, so
 turning follow on in one tab leaves every other tab put — one tab chasing new
@@ -162,7 +174,8 @@ says only where it sits. The `.track` span must follow its `<input>`
 immediately — it is a sibling selector painting the checkbox's state, and
 anything between them leaves a switch that never moves.
 The strip's data attributes drive that JS: `data-inflight-start-us`,
-`data-stale`, `data-inflight-current`, `data-turn-start-us`.
+`data-inflight-current`, `data-turn-start-us`, and the region's
+`data-latest-turn-start-us` / `data-latest-turn-href`.
 
 On a turn page the toggle rides the event-nav row, which is *inside* the live
 region. **base.html must never hold a reference to it across a swap**: it

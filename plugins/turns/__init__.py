@@ -662,6 +662,21 @@ def _inflight_entries(assembly, now_us):
     } for t in turns]
 
 
+def _latest_turn(assembly, inflight):
+    """The newest turn follow mode may land on, or None for an empty log.
+
+    That is every turn except an open one the strip has dropped as not
+    running (see _inflight_entries): a finished turn qualifies, so a tab that
+    was closed or asleep while a turn ran start to end still finds it.
+    """
+    running = {id(e["turn"]) for e in inflight}
+    stopped = assembly.finished_subagent_sessions
+    return max(
+        (t for s in assembly.sessions for t in s.turns
+         if not t.is_live or t.session_id in stopped or id(t) in running),
+        key=lambda t: t.start_us, default=None)
+
+
 def _neighbours(assembly, turn):
     """The turns either side of this one in the turn list's own ordering.
 
@@ -720,6 +735,7 @@ def index():
     # count of log lines the index has read — one entry per JSONL line.
     index_state = get_index().refresh()
     now_us = int(time.time() * 1_000_000)
+    inflight = _inflight_entries(assembly, now_us)
     return render_template(
         "turns/index.html",
         state="ok",
@@ -730,7 +746,8 @@ def index():
         pager=pager,
         last_us=last_us,
         now_us=now_us,
-        inflight=_inflight_entries(assembly, now_us),
+        inflight=inflight,
+        latest=_latest_turn(assembly, inflight),
         anomalies=assembly.anomalies,
         parse_errors=parse_errors,
     )
@@ -866,13 +883,15 @@ def turn(session_id, start_us):
     table = _spec_table()
     accessors = _accessors()
     now_us = int(time.time() * 1_000_000)
+    inflight = _inflight_entries(assembly, now_us)
     return render_template(
         "turns/turn.html",
         turn=found,
         current=found,
         scale_us=scale_us,
         now_us=now_us,
-        inflight=_inflight_entries(assembly, now_us),
+        inflight=inflight,
+        latest=_latest_turn(assembly, inflight),
         older=older,
         newer=newer,
         scope_rows=lambda span: rows_for(span, table, accessors),

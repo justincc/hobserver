@@ -95,7 +95,7 @@ def test_index_lists_turns_with_waterfall_numbers(tmp_path):
 def test_index_orders_turns_newest_first(tmp_path):
     atof = write_atof(tmp_path, two_turn_stream())
     page = make_client(tmp_path, str(atof)).get("/turns/").get_data(as_text=True)
-    assert page.index('/turns/turn/s1/10000000"') < page.index('/turns/turn/s1/1000000"')
+    assert page.index(' href="/turns/turn/s1/10000000"') < page.index(' href="/turns/turn/s1/1000000"')
 
 
 def test_index_pages_the_turn_list_newest_first(tmp_path, monkeypatch):
@@ -103,8 +103,8 @@ def test_index_pages_the_turn_list_newest_first(tmp_path, monkeypatch):
     atof = write_atof(tmp_path, two_turn_stream())
     client = make_client(tmp_path, str(atof))
     first = client.get("/turns/").get_data(as_text=True)
-    assert '/turns/turn/s1/10000000"' in first
-    assert '/turns/turn/s1/1000000"' not in first
+    assert ' href="/turns/turn/s1/10000000"' in first
+    assert ' href="/turns/turn/s1/1000000"' not in first
     assert "turns 1–1 of 2 · page 1 of 2" in first
     assert 'href="/turns/?page=2">older' in first
     assert '<span class="disabled">‹ newer</span>' in first
@@ -1361,6 +1361,45 @@ def test_follow_toggle_is_persisted_per_tab(tmp_path):
     js = (REPO_ROOT / "templates" / "base.html").read_text()
     assert "sessionStorage.setItem(FOLLOW_KEY" in js
     assert "localStorage" not in js
+
+
+def test_live_regions_name_the_newest_turn_even_when_finished(tmp_path):
+    """Follow mode opens the newest turn, finished or not, so a tab that was
+    closed while a turn ran to completion still lands on it. Both pages carry
+    it: the list too, so stepping back to it counts the turn as seen."""
+    finished_start, _, lines = recent_stream()
+    now = int(time.time() * 1_000_000)
+    later_start = now - 2_000_000
+    lines += [
+        mark_line("hermes.turn.start", later_start, session="s5", turn="t5"),
+        mark_line("hermes.turn.end", later_start + 1_000_000, session="s5", turn="t5"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    client = make_client(tmp_path, str(atof))
+    for url in ("/turns/", f"/turns/turn/s9/{finished_start}"):
+        page = client.get(url).get_data(as_text=True)
+        assert f'data-latest-turn-start-us="{later_start}"' in page, url
+        assert f'data-latest-turn-href="/turns/turn/s5/{later_start}"' in page, url
+
+
+def test_newest_turn_skips_an_open_turn_that_is_not_running(tmp_path):
+    # two_turn_stream's open turn is silent far past the stale cutoff, so
+    # follow lands on the finished turn before it instead
+    atof = write_atof(tmp_path, two_turn_stream())
+    page = make_client(tmp_path, str(atof)).get("/turns/").get_data(as_text=True)
+    assert 'data-latest-turn-start-us="1000000"' in page
+
+
+def test_follow_remembers_what_the_tab_has_seen():
+    """What counts as new is remembered per tab across page loads, and checked
+    on load as well as after a swap — so a restored tab follows to a turn that
+    started while the browser was closed."""
+    js = (REPO_ROOT / "templates" / "base.html").read_text()
+    assert 'const SEEN_KEY = "hobserver.follow.seen";' in js
+    assert "sessionStorage.setItem(SEEN_KEY, String(us));" in js
+    assert "const isNew = latestStart() > seenStartMax;" in js
+    assert "if (isNew && href) window.location.assign(href);" in js
+    assert "      // already be behind.\n      followNewTurn();\n" in js
 
 
 def test_a_selection_inside_a_live_region_holds_the_poll():

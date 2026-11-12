@@ -17,6 +17,7 @@
      data-turn-start-us="{{ turn.start_us }}"
      data-live-probe="{{ url_for('turns.live_token') }}"
      data-server-now-us="{{ now_us }}"
+     {%- include "turns/_latest.html" %}
      data-live-tail>
 {# Same row as the stepping links: the follow toggle is navigation too, just
    automatic. Inside the live region, so base.html re-resolves it after each
