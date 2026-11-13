@@ -1,7 +1,9 @@
-{# Attributes for a live region's opening tag: the newest turn follow mode may
-   land on (_latest_turn), finished or not. base.html reads them to count it as
-   seen and, on a turn page that is following, to open it. #}
+{# Attributes for a live region's opening tag. base.html reads them to count
+   the newest turn (_latest_turn), finished or not, as seen and, on a turn page
+   that is following, to open the follow target: the newest turn still in
+   flight when any are (`inflight` is newest first), else that newest turn. #}
 {%- if latest is defined and latest %}
+{%- set target = inflight[0].turn if inflight else latest %}
      data-latest-turn-start-us="{{ latest.start_us }}"
-     data-latest-turn-href="{{ url_for('turns.turn', session_id=latest.session_id, start_us=latest.start_us) }}"
+     data-latest-turn-href="{{ url_for('turns.turn', session_id=target.session_id, start_us=target.start_us) }}"
 {%- endif %}

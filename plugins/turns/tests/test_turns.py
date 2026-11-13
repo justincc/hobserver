@@ -1364,10 +1364,11 @@ def test_follow_toggle_is_persisted_per_tab(tmp_path):
 
 
 def test_live_regions_name_the_newest_turn_even_when_finished(tmp_path):
-    """Follow mode opens the newest turn, finished or not, so a tab that was
+    """Follow mode acts on the newest turn, finished or not, so a tab that was
     closed while a turn ran to completion still lands on it. Both pages carry
     it: the list too, so stepping back to it counts the turn as seen."""
     finished_start, _, lines = recent_stream()
+    lines = lines[:-2]  # drop the in-flight turn: nothing is running
     now = int(time.time() * 1_000_000)
     later_start = now - 2_000_000
     lines += [
@@ -1380,6 +1381,23 @@ def test_live_regions_name_the_newest_turn_even_when_finished(tmp_path):
         page = client.get(url).get_data(as_text=True)
         assert f'data-latest-turn-start-us="{later_start}"' in page, url
         assert f'data-latest-turn-href="/turns/turn/s5/{later_start}"' in page, url
+
+
+def test_follow_opens_the_newest_turn_still_in_flight(tmp_path):
+    """A turn still running wins over a newer one that has already finished;
+    the newest start still decides whether anything is new."""
+    finished_start, inflight_start, lines = recent_stream()
+    later_start = int(time.time() * 1_000_000) - 2_000_000
+    lines += [
+        mark_line("hermes.turn.start", later_start, session="s5", turn="t5"),
+        mark_line("hermes.turn.end", later_start + 1_000_000, session="s5", turn="t5"),
+    ]
+    atof = write_atof(tmp_path, lines)
+    client = make_client(tmp_path, str(atof))
+    for url in ("/turns/", f"/turns/turn/s9/{finished_start}"):
+        page = client.get(url).get_data(as_text=True)
+        assert f'data-latest-turn-start-us="{later_start}"' in page, url
+        assert f'data-latest-turn-href="/turns/turn/s9/{inflight_start}"' in page, url
 
 
 def test_newest_turn_skips_an_open_turn_that_is_not_running(tmp_path):

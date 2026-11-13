@@ -142,8 +142,10 @@ silence threshold: a running turn can be silent for minutes.
 ## Follow mode
 
 A "switch to new turns" switch (persisted per tab in sessionStorage) that
-opens the newest turn's waterfall when it started after anything the tab has
-seen — still running or already finished. Two guards: never while you are
+acts when the newest turn started after anything the tab has seen — still
+running or already finished. It opens the newest turn still in flight if any
+are, so a turn that finished while the browser was closed does not pull you
+away from one that is running; otherwise the newest turn. Two guards: never while you are
 watching a turn that is still in flight (concurrent turns just appear in the
 strip for manual switching), and never to an open turn the strip has dropped
 as not running (`_latest_turn`).

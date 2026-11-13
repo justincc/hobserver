@@ -864,9 +864,10 @@
     // copying anything off a live page was impossible before.
     //
     // Follow mode ([data-follow-toggle], persisted per tab in sessionStorage)
-    // opens the newest turn ([data-latest-turn-href]) when it started after
-    // anything this tab has already seen, whether it is still running or has
-    // finished — but never while this page is itself showing an in-flight
+    // acts when the newest turn started after anything this tab has already
+    // seen, whether it is still running or has finished, and opens
+    // [data-latest-turn-href]: the newest turn still in flight if any are,
+    // else that newest turn — but never while this page is itself showing an in-flight
     // turn ([data-inflight-current] present). Follow keeps an otherwise-static
     // page polling slowly so the next turn start is noticed.
     //
