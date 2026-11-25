@@ -30,6 +30,27 @@ def test_event_detail_shows_query_result_and_metadata(client):
     assert "982.5" in page
 
 
+def test_search_event_result_opens_on_its_formatted_hits(memory_change_db):
+    # A mem0_search result reads as its hits under two tabs, formatted first
+    # and the pretty-printed JSON as raw.
+    page = mem0_app(memory_change_db).test_client().get(
+        "/memory/mem0/event/1").get_data(as_text=True)
+    assert 'class="tool-tabs"' in page
+    formatted = page.index('class="tool-panel tool-panel-fmt"')
+    raw = page.index('class="tool-panel tool-panel-raw"')
+    hits = page[formatted:raw]
+    assert hits.index("the old fact") < hits.index("the doomed fact")
+    assert "0.81" in hits and "aaa11111" in hits
+    assert "the doomed fact" in page[raw:]
+
+
+def test_non_search_event_result_is_a_plain_blob(memory_change_db):
+    page = mem0_app(memory_change_db).test_client().get(
+        "/memory/mem0/event/2").get_data(as_text=True)
+    assert 'class="tool-tabs"' not in page
+    assert "Memory updated." in page
+
+
 def test_fragment_returns_only_newer_events(client):
     page = client.get("/memory/mem0/fragment/events?since=3").get_data(as_text=True)
     assert 'data-event-id="5"' in page

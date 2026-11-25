@@ -32,8 +32,8 @@ thing in a different directory — see
 [writing-a-plugin.md](writing-a-plugin.md).
 
 The app's own `templates/` holds only what the shell owns and every tab
-shares: `base.html`, `_item_nav.html`, and the `unavailable.html` served in
-place of a tab that could not load. It is searched before any blueprint's
+shares: `base.html`, `_item_nav.html`, `_tabs.html`, and the
+`unavailable.html` served in place of a tab that could not load. It is searched before any blueprint's
 folder, so a template of the app's own name wins — which is the escape hatch
 for overriding a plugin's page without editing it.
 

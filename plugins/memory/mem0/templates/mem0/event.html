@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_item_nav.html" import item_nav %}
+{% from "_tabs.html" import two_tabs, facts_line %}
 {% block title %}event {{ event['id'] }} — Hobserver{% endblock %}
 {% block content %}
 {{ item_nav(
@@ -35,7 +36,29 @@
 {% endif %}
 
 <h2>Result</h2>
+{% if result_reading %}
+{# A search's hits, best first, each its memory text over its score and id;
+   the raw tab keeps the JSON as logged, pretty-printed. #}
+{% set formatted %}
+{%- if result_reading.fields %}{{ facts_line(result_reading.fields) }}{% endif %}
+{%- if result_reading.error %}
+<p class="notice warn result-error">{{ result_reading.error }}</p>
+{%- elif result_reading.results %}
+<ol class="web-results">
+{%- for r in result_reading.results %}
+  <li class="web-result">
+    <p class="web-result-desc">{{ r.description or '(no memory text)' }}</p>
+    {%- if r.fields %}{{ facts_line(r.fields, "result-row-facts") }}{% endif %}
+  </li>
+{%- endfor %}
+</ol>
+{%- endif %}
+{% endset %}
+{% set raw %}<pre class="blob">{{ result_text }}</pre>{% endset %}
+{{ two_tabs("result", 1, formatted, raw) }}
+{% else %}
 <pre class="blob">{{ result_text or '(empty)' }}</pre>
+{% endif %}
 
 <h2>Context Messages</h2>
 <pre class="blob">{{ context_text or '(none)' }}</pre>

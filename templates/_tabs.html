@@ -1,0 +1,26 @@
+{# A value shown two ways, formatted and raw, as on the Turns tab's prompt
+   page. Shared by every tab; the CSS is base.html's `.tool-tab*` rules. #}
+{# Two CSS-only tabs, formatted (shown first) and raw: the Turns tab's tool
+   definitions, calls and results, and the Mem0 tab's search results. `group`
+   and `idx` (the section's position) name the radio group, so each section's
+   tabs are its own and one click never moves another's. The panel selectors key off the radios' order,
+   not their ids, since a stylesheet cannot name an id built at render time —
+   so the two radios must stay in this order, formatted then raw. #}
+{% macro two_tabs(group, idx, fmt, raw) -%}
+<div class="tool-tabs">
+  <input class="tool-tab-radio" type="radio" name="{{ group }}tab{{ idx }}" id="{{ group }}-f{{ idx }}" checked>
+  <label class="tool-tab" for="{{ group }}-f{{ idx }}">formatted</label>
+  <input class="tool-tab-radio" type="radio" name="{{ group }}tab{{ idx }}" id="{{ group }}-r{{ idx }}">
+  <label class="tool-tab" for="{{ group }}-r{{ idx }}">raw</label>
+  <div class="tool-panels">
+    <div class="tool-panel tool-panel-fmt">{{ fmt }}</div>
+    <div class="tool-panel tool-panel-raw">{{ raw }}</div>
+  </div>
+</div>
+{%- endmacro %}
+{# A line of `key value` facts. #}
+{% macro facts_line(fields, extra="") -%}
+<p class="tool-facts{% if extra %} {{ extra }}{% endif %}">
+  {%- for f in fields %}<span class="tool-fact"><span class="tool-fact-k">{{ f.key }}</span> {{ f.value }}</span>{% endfor %}
+</p>
+{%- endmacro %}

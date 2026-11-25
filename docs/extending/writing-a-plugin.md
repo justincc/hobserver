@@ -131,6 +131,7 @@ plugin can use:
 | page chrome | `{% extends "base.html" %}`, fill `{% block content %}` and `{% block title %}` |
 | self-updating region | wrap content in an element with `data-live-poll="<ms>"`; `"0"` means static |
 | item navigation | `{% from "_item_nav.html" import item_nav %}` for "← all X" plus prev/next |
+| formatted / raw tabs | `{% from "_tabs.html" import two_tabs %}`: `two_tabs(group, idx, formatted_html, raw_html)`, CSS-only, formatted shown first; `facts_line(fields)` for a line of `key value` facts |
 | notices | `<p class="notice warn">` for a problem the reader must see |
 | a timestamp | `{{ epoch_us \| local_time }}`, or `\| local_time_s` for epoch seconds — machine-local, zone-labelled, one format across every tab (`timefmt.py`); `None` renders an em dash |
 | a column of timestamps | bare cells with `\| local_time(zone=False)`, and the zone once in the header: `<th>start ({{ local_zone() }})</th>` |

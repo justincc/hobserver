@@ -34,7 +34,7 @@ PLUGIN_API = 1
 # Turns tab knows what a mem0 search result looks like.
 from plugins.memory.mem0.scopes import SCOPES  # noqa: E402  (after PLUGIN_API)
 from plugins.memory.mem0.spans import (  # noqa: E402  (after PLUGIN_API)
-    RESULT_READERS, SPAN_READERS)
+    RESULT_READERS, SPAN_READERS, read_search_result)
 bp = Blueprint("mem0", __name__, template_folder="templates")
 TAB_LABEL = "Mem0"
 # Namespaced under memory/ because mem0 is one memory system of several to
@@ -354,10 +354,17 @@ def event(event_id):
         memory_id = _memory_id_arg(row["extra"])
         if memory_id:
             prior = prior_memory_text(memory_id, row["ts_epoch"])
+    # A search's result is read the way the Turns tab's prompt page reads it
+    # (spans.read_search_result), so the page can lead with its hits; None
+    # leaves the result as its text alone.
+    reading = None
+    if row["event_type"] == "mem0_search" and row["result"]:
+        reading = read_search_result(row["result"])
     return render_template(
         "mem0/event.html",
         event=row,
         result_text=prettify_result(row["result"]),
+        result_reading=reading,
         metadata=metadata,
         context_text=context_text,
         query_label=QUERY_LABELS.get(row["event_type"], DEFAULT_QUERY_LABEL),
