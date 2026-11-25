@@ -1156,6 +1156,17 @@ def test_live_region_carries_the_probe_url_and_clock_anchor(tmp_path):
         assert re.search(r'data-server-now-us="\d+"', page)
 
 
+def test_live_region_carries_the_token_it_was_rendered_at(tmp_path):
+    # The first probe compares against data-live-token, so a page restored
+    # from the browser's cache swaps at once when the log has grown since.
+    _, inflight_start, lines = recent_stream()
+    atof = write_atof(tmp_path, lines)
+    client = make_client(tmp_path, str(atof))
+    for url in ("/turns/", f"/turns/turn/s9/{inflight_start}"):
+        page = client.get(url).get_data(as_text=True)
+        assert f'data-live-token="{os.path.getsize(atof)}"' in page
+
+
 def test_inflight_strip_shows_time_since_last_update(tmp_path):
     # The strip's live number is silence-since-last-update (data-silence-of,
     # anchored to last_activity_us), which the client clock advances — not

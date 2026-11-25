@@ -3,6 +3,7 @@
 {% block content %}
 <div data-live-poll="3000"
      data-live-probe="{{ url_for('turns.live_token') }}"
+     data-live-token="{{ live_token }}"
      data-server-now-us="{{ now_us }}"
      {%- include "turns/_latest.html" %}>
 {% if state == "missing" %}

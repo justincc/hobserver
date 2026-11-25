@@ -1117,7 +1117,14 @@
       // appended line anywhere), not the moment it crosses the threshold. Its
       // silence label meanwhile climbs past the cutoff in plain view, which
       // reads as "long dead" without a request being spent to say so.
-      let lastToken = null;
+      //
+      // The page carries the token it was rendered at (data-live-token), and
+      // the first probe compares against that. A page the browser restored
+      // from its own cache — a tab brought back on startup — then swaps on
+      // that first probe instead of waiting for the log to grow again, and
+      // follow mode sees the turns it missed. With no rendered token, the
+      // first probe adopts the current one without swapping.
+      let lastToken = region.dataset.liveToken || null;
       async function shouldPoll() {
         const probeUrl = region.dataset.liveProbe;
         if (!probeUrl) return true;
@@ -1176,7 +1183,9 @@
       document.addEventListener("visibilitychange", wake);
       window.addEventListener("pageshow", (e) => { if (e.persisted) wake(); });
       window.addEventListener("online", wake);
-      schedule(tickMs());
+      // The first tick runs at once, so a stale restored page is caught
+      // without waiting out an interval.
+      schedule(0);
     })();
 
     // Details switch (delegated so it survives live-region swaps): shows

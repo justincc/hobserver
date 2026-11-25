@@ -695,6 +695,11 @@ def _neighbours(assembly, turn):
             ordered[i + 1] if i + 1 < len(ordered) else None)
 
 
+def _log_token() -> str:
+    """The change token: the log's byte size, as the probe and pages give it."""
+    return str(file_size(current_app.config["ATOF_PATH"]))
+
+
 @bp.route("/live")
 def live_token():
     """A cheap "has anything changed?" token for the live-poll loop.
@@ -707,12 +712,12 @@ def live_token():
     reloading on every tick, and no real change is ever missed. A shorter file
     (rotation or overwrite) is a different token too, so that reloads as well.
     """
-    size = file_size(current_app.config["ATOF_PATH"])
+    size = _log_token()
     # no-store: the whole point is to detect a change the instant it lands, so
     # a browser or proxy serving even a few-seconds-stale size would defeat it —
     # the swap would wait out the cache rather than the log.
     return current_app.response_class(
-        str(size), mimetype="text/plain",
+        size, mimetype="text/plain",
         headers={"Cache-Control": "no-store"})
 
 
@@ -721,6 +726,9 @@ def index():
     problem = _source_problem()
     if problem is not None:
         return problem
+    # Read before assembling, so the token can only trail what the page
+    # shows: a line appended meanwhile makes one needless swap, never a miss.
+    token = _log_token()
     assembly, parse_errors = _assembly()
     turns = sorted(
         (turn for session in assembly.sessions for turn in session.turns),
@@ -746,6 +754,7 @@ def index():
         pager=pager,
         last_us=last_us,
         now_us=now_us,
+        live_token=token,
         inflight=inflight,
         latest=_latest_turn(assembly, inflight),
         anomalies=assembly.anomalies,
@@ -850,6 +859,9 @@ def turn(session_id, start_us):
     problem = _source_problem()
     if problem is not None:
         return problem
+    # Read before assembling, so the token can only trail what the page
+    # shows: a line appended meanwhile makes one needless swap, never a miss.
+    token = _log_token()
     assembly, _ = _assembly()
     found = _find_turn(assembly, session_id, start_us)
     if found is None:
@@ -890,6 +902,7 @@ def turn(session_id, start_us):
         current=found,
         scale_us=scale_us,
         now_us=now_us,
+        live_token=token,
         inflight=inflight,
         latest=_latest_turn(assembly, inflight),
         older=older,

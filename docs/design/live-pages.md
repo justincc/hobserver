@@ -41,8 +41,13 @@ The token is the log's byte size (`turns.live_token` → `tailer.file_size`, one
 `stat()`). It grows on any appended line, so it is a **superset trigger**: it
 may fire for a line in a different turn than the one on screen, but it never
 misses a real change. A shorter file (rotation) is a different token too, so
-that reloads as well. The first tick adopts the current token without swapping —
-the initial render is already current.
+that reloads as well.
+
+The page carries the token it was rendered at (`data-live-token`), and the
+first tick — run at once on load — compares against it. A browser restoring
+tabs on startup shows each page from its own cache, as rendered when the
+browser closed; that page swaps on its first probe, and follow mode then sees
+the turns it missed.
 
 Perceived latency drops to ~400 ms while a quiet in-flight turn costs only a
 stat()-sized request, not a render. A region with no `data-live-probe` keeps the

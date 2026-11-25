@@ -16,6 +16,7 @@
 <div data-live-poll="{{ 2000 if turn.is_live else 0 }}"
      data-turn-start-us="{{ turn.start_us }}"
      data-live-probe="{{ url_for('turns.live_token') }}"
+     data-live-token="{{ live_token }}"
      data-server-now-us="{{ now_us }}"
      {%- include "turns/_latest.html" %}
      data-live-tail>
